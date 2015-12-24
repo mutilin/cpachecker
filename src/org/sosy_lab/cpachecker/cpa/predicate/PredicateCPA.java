@@ -110,6 +110,9 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
   @Option(secure=true, description="Direction of the analysis?")
   private AnalysisDirection direction = AnalysisDirection.FORWARD;
 
+  @Option(secure=true, description = "Use explicit state in predicate analysis")
+  private boolean useExplicitStateInPredicateAnalysis = false;
+
   protected final Configuration config;
   protected final LogManager logger;
   protected final ShutdownNotifier shutdownNotifier;
@@ -351,5 +354,9 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
 
   public AbstractionManager getAbstractionManager() {
     return abstractionManager;
+  }
+
+  public boolean useExplicitStateInPredicateAnalysis() {
+    return useExplicitStateInPredicateAnalysis;
   }
 }

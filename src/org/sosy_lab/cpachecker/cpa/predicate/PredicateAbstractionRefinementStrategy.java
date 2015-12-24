@@ -34,7 +34,9 @@ import java.io.Writer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -62,25 +64,28 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.predicate.persistence.PredicateMapWriter;
 import org.sosy_lab.cpachecker.cpa.value.ValueAnalysisCPA;
+import org.sosy_lab.cpachecker.cpa.value.ValueAnalysisState;
+import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
-import org.sosy_lab.solver.SolverException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Precisions;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
 import org.sosy_lab.cpachecker.util.predicates.FormulaMeasuring;
 import org.sosy_lab.cpachecker.util.predicates.FormulaMeasuring.FormulaMeasures;
 import org.sosy_lab.cpachecker.util.predicates.Solver;
-import org.sosy_lab.solver.api.BooleanFormula;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
+import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatInt;
 import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
+import org.sosy_lab.solver.SolverException;
+import org.sosy_lab.solver.api.BooleanFormula;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -104,6 +109,9 @@ public class PredicateAbstractionRefinementStrategy extends RefinementStrategy {
       description="use only the atoms from the interpolants as predicates, "
           + "and not the whole interpolant")
   private boolean atomicPredicates = true;
+
+  @Option(secure=true, description = "Use explicit state in predicate analysis")
+  private boolean useExplicitStateInPredicateAnalysis = false;
 
   @Option(secure=true, name="precision.sharing",
       description="Where to apply the found predicates to?")
@@ -315,7 +323,44 @@ public class PredicateAbstractionRefinementStrategy extends RefinementStrategy {
     CFANode loc = AbstractStates.extractLocation(interpolationPoint);
     int locInstance = predicateState.getAbstractionLocationsOnPath().get(loc);
 
-    newPredicates.putAll(Pair.of(loc, locInstance), localPreds);
+    ValueAnalysisState explicitState = predicateState.getPathFormula().getValueAnalysisState();
+
+    if (useExplicitStateInPredicateAnalysis &&
+    		explicitState != null) {
+      @SuppressWarnings("unused")
+      Set<String> varNamesInExplicitState = new HashSet<String>();
+
+      for (Entry<MemoryLocation, Value> e: explicitState.getConstantsMapView().entrySet()) {
+        if (e.getValue().isExplicitlyKnown()) {
+          MemoryLocation memloc = e.getKey();
+          String varName = memloc.getAsString0();
+          varNamesInExplicitState.add(varName);
+        } else {
+          logger.log(Level.FINE, "Unknown value!: " + e.getKey() + ": " + e.getValue());
+        }
+      }
+
+      for (AbstractionPredicate ap: localPreds) {
+        Set<String> varNamesInPredicate = fmgr.getVariableNames(ap.getSymbolicAtom());
+        // if explicit state contains ALL vars from predicate then do not add the predicate
+        boolean containsAll = true;
+        for (String name: varNamesInPredicate) {
+          if (!varNamesInExplicitState.contains(name)) {
+            containsAll = false;
+          }
+        }
+        if (/*varNamesInPredicate.isEmpty() ||*/ !containsAll) {
+          logger.log(Level.FINE, "Included predicate: " + ap + "-- no subset rel.: (" + varNamesInPredicate + ") \\in (" + varNamesInExplicitState + ")");
+          newPredicates.put(Pair.of(loc, locInstance), ap);
+        } else {
+          //newPredicates.put(Pair.of(loc, locInstance), predAbsMgr.createPredicateFor(bfmgr.makeBoolean(false)));
+          logger.log(Level.FINE, "Excluded predicate: " + ap + "-- subset (" + varNamesInPredicate + ") \\in (" + varNamesInExplicitState + ")");
+        }
+      }
+    } else {
+      newPredicates.putAll(Pair.of(loc, locInstance), localPreds);
+    }
+
     predicateCreation.stop();
 
     return false;

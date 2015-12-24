@@ -40,6 +40,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 
+import javax.annotation.Nullable;
+
 import org.sosy_lab.common.Appender;
 import org.sosy_lab.common.Pair;
 import org.sosy_lab.common.ShutdownNotifier;
@@ -923,6 +925,27 @@ public class FormulaManagerView implements StatisticsProvider {
     } else {
       throw new IllegalArgumentException("Not an instantiated variable nor constant: " + name);
     }
+  }
+
+  private class VarNameExtractor implements Function<String, String> {
+    @SuppressWarnings("unused")
+    Set<String> names = new HashSet<String>();
+    @Override
+    @Nullable
+    public String apply(@Nullable String pArg0) {
+      String name = parseName(pArg0).getFirst();
+      names.add(name);
+      return name;
+    }
+  }
+
+  public <F extends Formula> Set<String> getVariableNames(F f) {
+      VarNameExtractor vne = new VarNameExtractor();
+      myFreeVariableNodeTransformer(
+          unwrap(f),
+          new HashMap<Formula, Formula>(),
+          vne);
+      return vne.names;
   }
 
   /**

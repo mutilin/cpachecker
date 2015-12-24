@@ -51,14 +51,14 @@ import org.sosy_lab.cpachecker.cpa.value.symbolic.type.SymbolicValue;
 import org.sosy_lab.cpachecker.cpa.value.type.NumericValue;
 import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
-import org.sosy_lab.solver.api.BooleanFormula;
-import org.sosy_lab.solver.api.BooleanFormulaManager;
-import org.sosy_lab.solver.api.NumeralFormula.IntegerFormula;
-import org.sosy_lab.solver.api.NumeralFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.refinement.ForgetfulState;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
+import org.sosy_lab.solver.api.BooleanFormula;
+import org.sosy_lab.solver.api.BooleanFormulaManager;
+import org.sosy_lab.solver.api.NumeralFormula.IntegerFormula;
+import org.sosy_lab.solver.api.NumeralFormulaManager;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
@@ -81,6 +81,12 @@ public class ValueAnalysisState implements AbstractQueryableState, FormulaReport
    * the map that keeps the name of variables and their constant values (concrete and symbolic ones)
    */
   private PersistentMap<MemoryLocation, Value> constantsMap;
+  /**
+   * the set that contains only those MemoryLocations from the constantsMap,
+   * that were modified (e.g. assigned) and consequently those values
+   * can no more be used in predicate analysis
+   */
+  private Set<MemoryLocation> irrelevantMemLocs = new HashSet<>();
 
   private transient PersistentMap<MemoryLocation, Type> memLocToType = PathCopyingPersistentTreeMap.of();
 
@@ -751,5 +757,15 @@ public class ValueAnalysisState implements AbstractQueryableState, FormulaReport
       throw new IOException("",e);
     }
     memLocToType = PathCopyingPersistentTreeMap.of();
+  }
+
+  public void markMemLocIrrelevant(MemoryLocation memloc) {
+    if (constantsMap.containsKey(memloc)) {
+      irrelevantMemLocs.add(memloc);
+    }
+  }
+
+  public boolean isMemLocRelevant(MemoryLocation memloc) {
+    return !irrelevantMemLocs.contains(memloc);
   }
 }

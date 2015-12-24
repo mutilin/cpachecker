@@ -68,13 +68,12 @@ import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.ComputeAbstr
 import org.sosy_lab.cpachecker.cpa.predicate.persistence.PredicateAbstractionsStorage;
 import org.sosy_lab.cpachecker.cpa.predicate.persistence.PredicateAbstractionsStorage.AbstractionNode;
 import org.sosy_lab.cpachecker.cpa.predicate.persistence.PredicatePersistenceUtils.PredicateParsingFailedException;
+import org.sosy_lab.cpachecker.cpa.value.ValueAnalysisState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
-import org.sosy_lab.solver.SolverException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionFormula;
 import org.sosy_lab.cpachecker.util.predicates.BlockOperator;
-import org.sosy_lab.solver.api.BooleanFormula;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
@@ -82,6 +81,8 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 import org.sosy_lab.cpachecker.util.predicates.precisionConverter.Converter;
 import org.sosy_lab.cpachecker.util.predicates.precisionConverter.Converter.PrecisionConverter;
 import org.sosy_lab.cpachecker.util.predicates.precisionConverter.FormulaParser;
+import org.sosy_lab.solver.SolverException;
+import org.sosy_lab.solver.api.BooleanFormula;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.HashMultimap;
@@ -117,6 +118,9 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
   @Option(description="file that consists of old abstractions, to be used during strengthening")
   @FileOption(FileOption.Type.OPTIONAL_INPUT_FILE)
   private Path strengthenWithReusedAbstractionsFile = Paths.get("abstractions.txt");
+
+  @Option(secure=true, description = "Use explicit state in predicate analysis")
+  private boolean useExplicitStateInPredicateAnalysis = false;
 
   // statistics
   final Timer postTimer = new Timer();
@@ -404,6 +408,13 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
           element = strengthen(edge.getSuccessor(), element, (AbstractStateWithAssumptions) lElement);
         }
 
+        // setting the ValueState to the PredicateAbstractState
+        if (useExplicitStateInPredicateAnalysis) {
+          if (lElement instanceof ValueAnalysisState &&
+              ((ValueAnalysisState)lElement).getSize() > 0) {
+            element.getPathFormula().setValueAnalysisState((ValueAnalysisState)lElement);
+          }
+        }
 
         if (AbstractStates.isTargetState(lElement)) {
           errorFound = true;

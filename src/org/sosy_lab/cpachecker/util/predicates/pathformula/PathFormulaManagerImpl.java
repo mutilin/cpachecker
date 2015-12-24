@@ -104,6 +104,9 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
   @Option(secure=true, description = "Handle arrays using the theory of arrays.")
   private boolean handleArrays = false;
 
+  @Option(secure=true, description = "Use explicit state in predicate analysis")
+  private boolean useExplicitStateInPredicateAnalysis = false;
+  
   private static final String BRANCHING_PREDICATE_NAME = "__ART__";
   private static final Pattern BRANCHING_PREDICATE_NAME_PATTERN = Pattern.compile(
       "^.*" + BRANCHING_PREDICATE_NAME + "(?=\\d+$)");
@@ -288,7 +291,21 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
     final PointerTargetSet newPTS = mergePtsResult.getResult();
     final int newLength = Math.max(pathFormula1.getLength(), pathFormula2.getLength());
 
-    return new PathFormula(newFormula, newSSA.build(), newPTS, newLength);
+    PathFormula ret = new PathFormula(newFormula, newSSA.build(), newPTS, newLength);
+    
+    if (useExplicitStateInPredicateAnalysis) {
+      if (pathFormula1.getValueAnalysisState() != null &&
+          pathFormula2.getValueAnalysisState() != null) {
+        ret.setValueAnalysisState(pathFormula1.getValueAnalysisState()
+              .join(pathFormula2.getValueAnalysisState()));
+      }/* else if (pathFormula1.getValueAnalysisState() != null) {
+        ret.setValueAnalysisState(pathFormula1.getValueAnalysisState());
+      } else if (pathFormula2.getValueAnalysisState() != null) {
+        ret.setValueAnalysisState(pathFormula2.getValueAnalysisState());
+      }*/
+    }
+    
+    return ret;
   }
 
   @Override

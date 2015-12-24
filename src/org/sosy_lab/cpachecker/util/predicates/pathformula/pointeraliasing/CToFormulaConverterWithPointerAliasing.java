@@ -80,12 +80,10 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.AnalysisDirection;
+import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCCodeException;
 import org.sosy_lab.cpachecker.util.VariableClassification;
-import org.sosy_lab.solver.api.BooleanFormula;
-import org.sosy_lab.solver.api.Formula;
-import org.sosy_lab.solver.api.FormulaType;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FunctionFormulaManagerView;
@@ -95,6 +93,9 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder.RealPointerTargetSetBuilder;
+import org.sosy_lab.solver.api.BooleanFormula;
+import org.sosy_lab.solver.api.Formula;
+import org.sosy_lab.solver.api.FormulaType;
 
 import com.google.common.base.Optional;
 
@@ -810,5 +811,29 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
   @Override
   protected boolean isRelevantLeftHandSide(CLeftHandSide pLhs) {
     return super.isRelevantLeftHandSide(pLhs);
+  }
+
+  public void createAndAddExplicitConstraints(CFAEdge edge, String function, SSAMapBuilder originalSSA,
+      Constraints constraints, ErrorConditions errorConditions, PointerTargetSetBuilder pts,
+      List<Pair<CExpression, Value>> useValues) throws UnrecognizedCCodeException {
+
+    CExpressionVisitorWithPointerAliasing v = new CExpressionVisitorWithPointerAliasing(
+        this, edge, function, originalSSA, constraints, errorConditions, pts);
+
+    for (Pair<CExpression, Value> value: useValues) {
+      if (value.getFirst() instanceof CIdExpression && value.getSecond().isNumericValue()) {
+
+        Expression e = ((CIdExpression)value.getFirst()).accept(v);
+        CType type = CTypeUtils.simplifyType(((CIdExpression)value.getFirst()).getExpressionType());
+
+        Formula f = v.asValueFormula(e, type);
+
+        CIntegerLiteralExpression intLit = new CIntegerLiteralExpression(
+            value.getFirst().getFileLocation(), type,
+            value.getSecond().asNumericValue().bigDecimalValue().toBigInteger());
+        Formula f2 = v.asValueFormula(intLit.accept(v), type);
+        constraints.addConstraint(fmgr.makeEqual(f, f2));
+      }
+    }
   }
 }

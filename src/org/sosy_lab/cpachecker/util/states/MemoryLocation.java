@@ -160,6 +160,10 @@ public class MemoryLocation implements Comparable<MemoryLocation>, Serializable 
     return isOnFunctionStack() ? (functionName + "::" + identifier) : (identifier);
   }
 
+  public String getAsString0() {
+    return isOnFunctionStack() ? (functionName + "::" + identifier) : (identifier);
+  }
+
   public String serialize() {
     String simpleName = identifier + "/" + offset;
 
