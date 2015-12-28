@@ -86,6 +86,8 @@ public class VariableClassification {
 
   private final LogManager logger;
 
+  private static BnBRegionsMaker regMk;
+
   VariableClassification(boolean pHasRelevantNonIntAddVars,
       Set<String> pIntBoolVars,
       Set<String> pIntEqualVars,
@@ -116,6 +118,41 @@ public class VariableClassification {
     assumedVariables = ImmutableMultiset.copyOf(pAssumedVariables);
     assignedVariables = ImmutableMultiset.copyOf(pAssignedVariables);
     logger = pLogger;
+  }
+
+  VariableClassification(boolean pHasRelevantNonIntAddVars,
+      Set<String> pIntBoolVars,
+      Set<String> pIntEqualVars,
+      Set<String> pIntAddVars,
+      Set<String> pRelevantVariables,
+      Set<String> pAddressedVariables,
+      Multimap<CCompositeType, String> pRelevantFields,
+      Collection<Partition> pPartitions,
+      Set<Partition> pIntBoolPartitions,
+      Set<Partition> pIntEqualPartitions,
+      Set<Partition> pIntAddPartitions,
+      Map<Pair<CFAEdge, Integer>, Partition> pEdgeToPartitions,
+      Multiset<String> pAssumedVariables,
+      Multiset<String> pAssignedVariables,
+      LogManager pLogger,
+    BnBRegionsMaker pRegMk) {
+    hasRelevantNonIntAddVars = pHasRelevantNonIntAddVars;
+    intBoolVars = ImmutableSet.copyOf(pIntBoolVars);
+    intEqualVars = ImmutableSet.copyOf(pIntEqualVars);
+    intAddVars = ImmutableSet.copyOf(pIntAddVars);
+    relevantVariables = ImmutableSet.copyOf(pRelevantVariables);
+    addressedVariables = ImmutableSet.copyOf(pAddressedVariables);
+    relevantFields = ImmutableSetMultimap.copyOf(pRelevantFields);
+    partitions = ImmutableSet.copyOf(pPartitions);
+    intBoolPartitions = ImmutableSet.copyOf(pIntBoolPartitions);
+    intEqualPartitions = ImmutableSet.copyOf(pIntEqualPartitions);
+    intAddPartitions = ImmutableSet.copyOf(pIntAddPartitions);
+    edgeToPartitions = ImmutableMap.copyOf(pEdgeToPartitions);
+    assumedVariables = ImmutableMultiset.copyOf(pAssumedVariables);
+    assignedVariables = ImmutableMultiset.copyOf(pAssignedVariables);
+    logger = pLogger;
+    regMk = pRegMk;
+    regMk.dumpRegions("Regions.txt");
   }
 
   @VisibleForTesting
@@ -175,6 +212,7 @@ public class VariableClassification {
    *
    * @return A collection of (CCompositeType, fieldName) mappings.
    */
+
   public Multimap<CCompositeType, String> getRelevantFields() {
     return relevantFields;
   }
@@ -222,6 +260,10 @@ public class VariableClassification {
    * This collection does not contains anypartition from "IntBool" or "IntEq". */
   public Set<Partition> getIntAddPartitions() {
     return intAddPartitions;
+  }
+
+  public BnBRegionsMaker getRegionsMaker(){
+    return regMk;
   }
 
   /** This function returns a collection of partitions.

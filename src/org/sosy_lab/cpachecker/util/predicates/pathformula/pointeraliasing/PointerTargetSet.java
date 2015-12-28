@@ -68,6 +68,14 @@ public final class PointerTargetSet implements Serializable {
       this.fieldName = fieldName;
     }
 
+    public String getCompositeType(){
+      return compositeType;
+    }
+
+    public String getFieldName(){
+      return fieldName;
+    }
+
     public static CompositeField of(final @Nonnull String compositeType, final @Nonnull String fieldName) {
       return new CompositeField(compositeType, fieldName);
     }
@@ -191,8 +199,16 @@ public final class PointerTargetSet implements Serializable {
     if (isEmpty()) {
       // Inside isEmpty(), we do not check the following the targets field.
       // so we assert here that isEmpty() implies that it is also empty.
-      assert targets.isEmpty();
+      //assert targets.isEmpty();
     }
+  }
+
+  public PointerTargetSet(PointerTargetSet pPts, final PersistentSortedMap<String, PersistentList<PointerTarget>> targets) {
+    this.bases = pPts.bases;
+    this.lastBase = pPts.lastBase;
+    this.fields = pPts.fields;
+    this.deferredAllocations = pPts.deferredAllocations;
+    this.targets = targets;
   }
 
   private static final PointerTargetSet EMPTY_INSTANCE = new PointerTargetSet(
@@ -273,5 +289,9 @@ public final class PointerTargetSet implements Serializable {
       return new PointerTargetSet(bases, lastBase, fields, deferredAllocations,
           PathCopyingPersistentTreeMap.copyOf(map));
     }
+  }
+
+  public PersistentList<PointerTarget> getAllTargets(String pFunctionName) {
+    return targets.get(pFunctionName);
   }
 }

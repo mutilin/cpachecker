@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
@@ -38,6 +39,7 @@ import javax.annotation.Nullable;
 
 import org.sosy_lab.common.Pair;
 import org.sosy_lab.common.Triple;
+import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentLinkedList;
 import org.sosy_lab.common.collect.PersistentList;
 import org.sosy_lab.common.collect.PersistentSortedMap;
@@ -48,11 +50,13 @@ import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.solver.api.BooleanFormula;
+import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet.CompositeField;
+import org.sosy_lab.solver.api.BooleanFormula;
 
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 
@@ -120,6 +124,8 @@ public interface PointerTargetSetBuilder {
    */
   PointerTargetSet build();
 
+  void updateTargetRegions(Optional<VariableClassification> pVarClassif);
+
   /**
    * Actual builder implementation for PointerTargetSet.
    * Its state starts with an existing set, but may be changed later.
@@ -141,6 +147,7 @@ public interface PointerTargetSetBuilder {
     private PersistentSortedMap<CompositeField, Boolean> fields;
     private PersistentSortedMap<String, DeferredAllocationPool> deferredAllocations;
     private PersistentSortedMap<String, PersistentList<PointerTarget>> targets;
+
 
     // Used in addEssentialFields()
     private final Predicate<Pair<CCompositeType, String>> isNewFieldPredicate =
@@ -301,6 +308,7 @@ public interface PointerTargetSetBuilder {
         for (int i = 0; i < length; ++i) {
           addTargets(base, arrayType.getType(), arrayType, offset, containerOffset + properOffset,
                      composite, memberName);
+
           offset += ptsMgr.getSize(arrayType.getType());
         }
       } else if (cType instanceof CCompositeType) {
@@ -316,10 +324,19 @@ public interface PointerTargetSetBuilder {
           }
           if (isTargetComposite && memberDeclaration.getName().equals(memberName)) {
             targets = ptsMgr.addToTargets(base, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
+            /*fieldOffsets.put(CompositeField.of(type, memberName), Pair.of(offset, containerOffset + properOffset));
+
+            for (CompositeField field : fieldOffsets.keySet()){
+              System.out.println("EQ2 " + field + ' ' + fieldOffsets.get(field).getFirst() + ' ' + fieldOffsets.get(field).getSecond());
+            }
+            System.out.println("EQ2 ###############");*/
           }
           if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
             offset += ptsMgr.getSize(memberDeclaration.getType());
           }
+          //FIXME: output for the script
+          System.out.println("TTT2:##" + type + "##"
+              + memberDeclaration.getType() + "##" + memberDeclaration.getName());
         }
       }
     }
@@ -517,6 +534,7 @@ public interface PointerTargetSetBuilder {
 
     @Override
     public PersistentList<PointerTarget> getAllTargets(final CType type) {
+      System.out.println("Calling GAT for: " + CTypeUtils.typeToString(type));
       return firstNonNull(targets.get(CTypeUtils.typeToString(type)),
                           PersistentLinkedList.<PointerTarget>of());
     }
@@ -545,6 +563,58 @@ public interface PointerTargetSetBuilder {
       } else {
         return result;
       }
+    }
+
+
+    @Override
+    public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
+      for (String target : targets.keySet()){
+        for (PointerTarget pt : targets.get(target)){
+          String str = "TR: " + target + ' ' + pt.getBase() + ' '
+              + pt.getOffset() + ' ' + pt.getContainerType();
+          if (pt.getContainerType() != null){
+            str += (" " + pt.getContainerOffset());
+          }
+          System.out.println(str);
+        }
+      }
+      System.out.println("TR: ###############");
+
+      for (CompositeField field : fields.keySet()){
+        System.out.println("EQ1 " + field);
+      }
+
+      System.out.println("EQ1 ###############");
+
+      /*for (CompositeField field : fieldOffsets.keySet()){
+        System.out.println("EQ3 " + field);
+      }
+
+      System.out.println("EQ3 ###############");*/
+
+      Map<String, PersistentList<PointerTarget>> newTargets =
+          pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
+
+      targets = PathCopyingPersistentTreeMap.copyOf(newTargets);
+      System.out.println("NT: #########");
+    }
+
+
+    @Override
+    public int getSize(CType pType) {
+      return ptsMgr.getSize(pType);
+    }
+
+
+    @Override
+    public Iterable<PointerTarget> getMatchingTargets(String ufName, PointerTargetPattern pattern) {
+      ufName = ufName.replace("_", " ").substring(1, ufName.length());
+      return from(getAllTargets(ufName)).filter(pattern);
+    }
+
+
+    private PersistentList<PointerTarget> getAllTargets(String pUfName) {
+      return targets.get(pUfName);
     }
   }
 
@@ -661,5 +731,26 @@ public interface PointerTargetSetBuilder {
     public PointerTargetSet build() {
       return PointerTargetSet.emptyPointerTargetSet();
     }
+
+    @Override
+    public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int getSize(CType pType) {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern) {
+      throw new UnsupportedOperationException();
+    }
   }
+
+
+  public int getSize(CType pType);
+
+  public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern);
+
 }

@@ -121,6 +121,8 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
   private final LogManager logger;
   private final ShutdownNotifier shutdownNotifier;
 
+  private final Optional<VariableClassification> varClassif;
+
   @Option(secure=true, description="add special information to formulas about non-deterministic functions")
   private boolean useNondetFlags = false;
 
@@ -143,8 +145,8 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 
     this(pFmgr, config, pLogger, pShutdownNotifier, pCfa.getMachineModel(),
         pCfa.getVarClassification(), pDirection);
-  }
 
+  }
   @VisibleForTesting
   PathFormulaManagerImpl(FormulaManagerView pFmgr,
       Configuration config, LogManager pLogger, ShutdownNotifier pShutdownNotifier,
@@ -153,6 +155,8 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
           throws InvalidConfigurationException {
 
     config.inject(this, PathFormulaManagerImpl.class);
+
+    varClassif = pVariableClassification;
 
     fmgr = pFmgr;
     bfmgr = fmgr.getBooleanFormulaManager();
@@ -270,8 +274,14 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
     final SSAMap ssa1 = pathFormula1.getSsa();
     final SSAMap ssa2 = pathFormula2.getSsa();
 
-    final PointerTargetSet pts1 = pathFormula1.getPointerTargetSet();
-    final PointerTargetSet pts2 = pathFormula2.getPointerTargetSet();
+    System.out.println("PF1: " + formula1);
+    System.out.println("PF2: " + formula2);
+
+    System.out.println("SSA1: " + ssa1);
+    System.out.println("SSA2: " + ssa2);
+
+    final PointerTargetSet pts1 = varClassif.get().getRegionsMaker().updatePTS(pathFormula1.getPointerTargetSet());
+    final PointerTargetSet pts2 = varClassif.get().getRegionsMaker().updatePTS(pathFormula2.getPointerTargetSet());
 
     final MergeResult<SSAMap> mergeSSAResult = mergeSSAMaps(ssa1, pts1, ssa2, pts2);
     final SSAMapBuilder newSSA = mergeSSAResult.getResult().builder();
@@ -373,10 +383,13 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
                                      final SSAMap ssa2,
                                      final PointerTargetSet pts2) throws InterruptedException {
     final List<MapsDifference.Entry<String, Integer>> symbolDifferences = new ArrayList<>();
+
     final SSAMap resultSSA = SSAMap.merge(ssa1, ssa2, collectMapsDifferenceTo(symbolDifferences));
 
     BooleanFormula mergeFormula1 = bfmgr.makeBoolean(true);
     BooleanFormula mergeFormula2 = bfmgr.makeBoolean(true);
+
+    System.out.println("DIFF: " + symbolDifferences);
 
     for (final MapsDifference.Entry<String, Integer> symbolDifference : symbolDifferences) {
       shutdownNotifier.shutdownIfNecessary();
@@ -460,7 +473,14 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 
     final FormulaType<?> returnFormulaType =  converter.getFormulaTypeFromCType(returnType);
     BooleanFormula result = bfmgr.makeBoolean(true);
-    for (final PointerTarget target : pts.getAllTargets(returnType)) {
+    String newName = functionName;
+    if (!(newName.contains("global") || newName.contains("struct"))){
+      //*signed_int, for example
+      //let it be in global region
+      newName += "_global";
+      newName = newName.replaceAll("_", " ").substring(1, newName.length());
+    }
+    for (final PointerTarget target : pts.getAllTargets(newName)) {
       shutdownNotifier.shutdownIfNecessary();
       final Formula targetAddress = fmgr.makePlus(fmgr.makeVariable(typeHandler.getPointerType(), target.getBaseName()),
                                                   fmgr.makeNumber(typeHandler.getPointerType(), target.getOffset()),

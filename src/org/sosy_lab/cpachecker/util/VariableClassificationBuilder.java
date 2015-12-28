@@ -251,6 +251,9 @@ public class VariableClassificationBuilder {
 
     boolean hasRelevantNonIntAddVars = !Sets.intersection(relevantVariables, nonIntAddVars).isEmpty();
 
+    BnBRegionsMaker regMk = new BnBRegionsMaker();
+    regMk.makeRegions(cfa);
+
     VariableClassification result = new VariableClassification(
         hasRelevantNonIntAddVars,
         intBoolVars,
@@ -266,7 +269,8 @@ public class VariableClassificationBuilder {
         dependencies.edgeToPartition,
         extractAssumedVariables(cfa.getAllNodes()),
         extractAssignedVariables(cfa.getAllNodes()),
-        logger);
+        logger,
+        regMk);
 
     if (printStatsOnStartup) {
       printStats(result);
@@ -274,6 +278,23 @@ public class VariableClassificationBuilder {
 
     if (dumpfile != null) { // option -noout
       try (Writer w = Files.openOutputFile(dumpfile)) {
+        //FIXME: relevant
+        w.append("Addressed variables\n\n");
+        w.append("NUMB_ADDR:\n" + addressedVariables.size());
+        for (String var : addressedVariables){
+          w.append(var);
+          w.append('\n');
+        }
+        w.append("\n\nRelevant variables:\n\n");
+        for (String var : relevantVariables){
+          w.append(var);
+          w.append('\n');
+        }
+        w.append("\n\nRelevant fields:\n\n");
+        w.append(relevantFields.toString());
+        w.append("\n\n");
+        w.append("NUMB_VAR:\n" + allVars.size() + '\n');
+        //
         w.append("IntBool\n\n");
         w.append(intBoolVars.toString());
         w.append("\n\nIntEq\n\n");

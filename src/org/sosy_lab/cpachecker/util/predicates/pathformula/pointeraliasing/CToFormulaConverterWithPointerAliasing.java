@@ -82,10 +82,9 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.AnalysisDirection;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCCodeException;
+import org.sosy_lab.cpachecker.util.BnBRegionImpl;
+import org.sosy_lab.cpachecker.util.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.VariableClassification;
-import org.sosy_lab.solver.api.BooleanFormula;
-import org.sosy_lab.solver.api.Formula;
-import org.sosy_lab.solver.api.FormulaType;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FunctionFormulaManagerView;
@@ -95,6 +94,9 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder.RealPointerTargetSetBuilder;
+import org.sosy_lab.solver.api.BooleanFormula;
+import org.sosy_lab.solver.api.Formula;
+import org.sosy_lab.solver.api.FormulaType;
 
 import com.google.common.base.Optional;
 
@@ -213,9 +215,27 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
                          final Formula address,
                          final SSAMapBuilder ssa) {
     type = CTypeUtils.simplifyType(type);
-    final String ufName = getUFName(type);
+    String ufName = getUFName(type);
+
+    if (variableClassification.isPresent()){
+      System.out.println("ADDR: " + address);
+      BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
+      int ind = regionsMaker.getRegionIndex(type, address, ssa);
+      //TODO: resume the work on BnB here
+      System.out.println("IND: " + ind);
+      System.out.println("Type: " + type);
+      if (ind >= 0){
+        BnBRegionImpl region = regionsMaker.getRegion(ind);
+        ufName += '_' + region.getRegionParent().toString().replaceAll(" ", "_") + '_' + region.getElem();
+      } else {
+        ufName += "_global";
+      }
+      System.out.println("UF: " + ufName);
+    }
+
     final int index = getIndex(ufName, type, ssa);
     final FormulaType<?> returnType = getFormulaTypeFromCType(type);
+
     return ffmgr.declareAndCallUninterpretedFunction(ufName, index, returnType, address);
   }
 
@@ -237,6 +257,10 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       for (CCompositeTypeMemberDeclaration memberDeclaration : compositeType.getMembers()) {
         if (isRelevantField(compositeType, memberDeclaration.getName())) {
           pts.addField(compositeType, memberDeclaration.getName());
+          if (variableClassification.isPresent()){
+            System.out.println("FROM ADD_ALL_FIELDS");
+            pts.updateTargetRegions(variableClassification);
+          }
           final CType memberType = CTypeUtils.simplifyType(memberDeclaration.getType());
           addAllFields(memberType, pts);
         }
@@ -257,6 +281,10 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       constraints.addConstraint(pts.addBase(base, type));
     } else {
       pts.shareBase(base, type);
+    }
+    if (variableClassification.isPresent()){
+      System.out.println("FROM PREFILL");
+      pts.updateTargetRegions(variableClassification);
     }
     if (forcePreFill ||
         (options.maxPreFilledAllocationSize() > 0 && getSizeof(type) <= options.maxPreFilledAllocationSize())) {
@@ -512,6 +540,10 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       final Constraints constraints, final ErrorConditions errorConditions)
           throws UnrecognizedCCodeException, InterruptedException {
 
+    if (variableClassification.isPresent()){
+      System.out.println("FROM MAKE_ASSIGNMENT");
+      pts.updateTargetRegions(variableClassification);
+    }
     AssignmentHandler assignmentHandler = new AssignmentHandler(this, edge, function, ssa, pts, constraints, errorConditions);
     return assignmentHandler.handleAssignment(lhs, lhsForChecking, rhs, false, null);
   }
@@ -642,6 +674,14 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
     final CIdExpression lhs =
         new CIdExpression(declaration.getFileLocation(), declaration);
+    if (variableClassification.isPresent()){
+      System.out.println("FROM MAKE_DECLARATION");
+      pts.updateTargetRegions(variableClassification);
+    }
+
+    for (String var : ssa.allVariables()){
+      System.out.println("OLD SSA: " + var + ' ' + ssa.getIndex(var));
+    }
     final AssignmentHandler assignmentHandler = new AssignmentHandler(this, declarationEdge, function, ssa, pts, constraints, errorConditions);
     final BooleanFormula result;
     if (initializer instanceof CInitializerExpression || initializer == null) {
@@ -672,6 +712,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       throw new UnrecognizedCCodeException("Unrecognized initializer", declarationEdge, initializer);
     }
 
+    for (String var : ssa.allVariables()){
+      System.out.println("NEW SSA: " + var + ' ' + ssa.getIndex(var));
+    }
     return result;
   }
 
@@ -696,6 +739,10 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
     pts.addEssentialFields(ev.getInitializedFields());
     pts.addEssentialFields(ev.getUsedFields());
+    if (variableClassification.isPresent()){
+      System.out.println("FROM MAKE_PREDICATE");
+      pts.updateTargetRegions(variableClassification);
+    }
     return result;
   }
 
@@ -707,6 +754,10 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           throws UnrecognizedCCodeException, InterruptedException {
 
     final CFunctionEntryNode entryNode = edge.getSuccessor();
+    if (variableClassification.isPresent()){
+      System.out.println("FROM MAKE_FCALL");
+      pts.updateTargetRegions(variableClassification);
+    }
     BooleanFormula result = super.makeFunctionCall(edge, callerFunction, ssa, pts, constraints, errorConditions);
 
     for (CParameterDeclaration formalParameter : entryNode.getFunctionParameters()) {
@@ -723,7 +774,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       }
       declareSharedBase(declaration, CTypeUtils.containsArray(parameterType), constraints, pts);
     }
-
     return result;
   }
 
@@ -810,5 +860,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
   @Override
   protected boolean isRelevantLeftHandSide(CLeftHandSide pLhs) {
     return super.isRelevantLeftHandSide(pLhs);
+  }
+
+  public Optional<VariableClassification> getVariableClassification() {
+    return variableClassification;
   }
 }

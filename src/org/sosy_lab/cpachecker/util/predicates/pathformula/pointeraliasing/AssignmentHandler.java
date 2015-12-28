@@ -50,9 +50,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
-import org.sosy_lab.solver.api.BooleanFormula;
-import org.sosy_lab.solver.api.Formula;
-import org.sosy_lab.solver.api.FormulaType;
+import org.sosy_lab.cpachecker.util.BnBRegionsMaker;
+import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FunctionFormulaManagerView;
@@ -63,7 +62,11 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expre
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.UnaliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Value;
+import org.sosy_lab.solver.api.BooleanFormula;
+import org.sosy_lab.solver.api.Formula;
+import org.sosy_lab.solver.api.FormulaType;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 
 
@@ -114,6 +117,7 @@ class AssignmentHandler {
     final CType rhsType = rhs != null ? CTypeUtils.simplifyType(rhs.getExpressionType()) :
                                         CNumericTypes.SIGNED_CHAR;
 
+    pts.updateTargetRegions(conv.getVariableClassification());
     // RHS handling
     final CExpressionVisitorWithPointerAliasing rhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
 
@@ -133,6 +137,8 @@ class AssignmentHandler {
     final List<Pair<CCompositeType, String>> rhsAddressedFields = rhsVisitor.getAddressedFields();
     final Map<String, CType> rhsUsedDeferredAllocationPointers = rhsVisitor.getUsedDeferredAllocationPointers();
 
+    pts.updateTargetRegions(conv.getVariableClassification());
+
     // LHS handling
     final CExpressionVisitorWithPointerAliasing lhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
     final Location lhsLocation = lhs.accept(lhsVisitor).asLocation();
@@ -140,6 +146,9 @@ class AssignmentHandler {
     pts.addEssentialFields(lhsVisitor.getInitializedFields());
     pts.addEssentialFields(lhsVisitor.getUsedFields());
     // the pattern matching possibly aliased locations
+
+    pts.updateTargetRegions(conv.getVariableClassification());
+
     final PointerTargetPattern pattern = lhsLocation.isUnaliasedLocation()
         ? null
         : PointerTargetPattern.forLeftHandSide(lhs, conv.typeHandler, conv.ptsMgr, edge, pts);
@@ -416,7 +425,20 @@ class AssignmentHandler {
 
     assert !(lvalueType instanceof CFunctionType) : "Can't assign to functions";
 
-    final String targetName = !lvalue.isAliased() ? lvalue.asUnaliased().getVariableName() : CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+    String targetName = !lvalue.isAliased() ? lvalue.asUnaliased().getVariableName() : CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+    Optional<VariableClassification> variableClassification = conv.getVariableClassification();
+    if (variableClassification.isPresent() && lvalue.isAliased()){
+      BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
+      final int ind = regionsMaker.getRegionIndex(lvalueType,
+                                                  lvalue.asAliased().getAddress(),
+                                                  ssa);
+      if (ind < 0 && !targetName.contains("global")){
+        targetName += "_global";
+      } else if (ind >= 0 && !targetName.contains("struct")){
+        targetName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
+            + '_' + regionsMaker.getRegion(ind).getElem();
+      }
+    }
     final FormulaType<?> targetType = conv.getFormulaTypeFromCType(lvalueType);
     final int newIndex = useOldSSAIndices ?
             conv.getIndex(targetName, lvalueType, ssa) :
@@ -460,10 +482,21 @@ class AssignmentHandler {
                                          final Set<CType> typesToRetain) throws InterruptedException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     final int size = conv.getSizeof(lvalueType);
+    pts.updateTargetRegions(conv.getVariableClassification());
+
     if (isSimpleType(lvalueType)) {
       Preconditions.checkArgument(startAddress != null,
                                   "Start address is mandatory for assigning to lvalues of simple types");
-      final String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+      String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+      BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+      int ind = regionsMaker.getRegionIndex(lvalueType, startAddress, ssa);
+      if (ind < 0 && !ufName.contains("global")){
+        ufName += "_global";
+      } else if (ind >= 0 && !ufName.contains("struct")){
+        ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
+            + '_' + regionsMaker.getRegion(ind).getElem();
+      }
+
       final int oldIndex = conv.getIndex(ufName, lvalueType, ssa);
       final int newIndex = conv.getFreshIndex(ufName, lvalueType, ssa);
       final FormulaType<?> targetType = conv.getFormulaTypeFromCType(lvalueType);
@@ -477,7 +510,17 @@ class AssignmentHandler {
     } else if (pattern.isExact()) {
       pattern.setRange(size);
       for (final CType type : typesToRetain) {
-        final String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+        String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+        int ind = regionsMaker.getRegionIndex(lvalueType, startAddress, ssa);
+        if (ind < 0 && !ufName.contains("global")){
+          ufName += "_global";
+        } else if (ind >= 0 && !ufName.contains("struct")){
+          ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
+              + '_' + regionsMaker.getRegion(ind).getElem();
+        }
+        System.out.println("Resulting UF: " + ufName);
+
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
         final FormulaType<?> targetType = conv.getFormulaTypeFromCType(type);
@@ -502,14 +545,28 @@ class AssignmentHandler {
 
   private void addRetentionConstraints(final PointerTargetPattern pattern,
                                        final CType lvalueType,
-                                       final String ufName,
+                                       String ufName,
                                        final int oldIndex,
                                        final int newIndex,
                                        final FormulaType<?> returnType,
                                        final Formula lvalue) throws InterruptedException {
+    BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+    int ind = regionsMaker.getRegionIndex(lvalueType, lvalue, ssa);
+    if (ind < 0 && !ufName.contains("global")){
+      ufName += "_global";
+    } else if (ind >= 0 && !ufName.contains("struct")){
+      ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
+          + '_' + regionsMaker.getRegion(ind).getElem();
+    }
+    System.out.println("Resulting UF: " + ufName);
+    System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
+
     if (!pattern.isExact()) {
-      for (final PointerTarget target : pts.getMatchingTargets(lvalueType, pattern)) {
+      System.out.println("PAT: " + pattern.getProperOffset());
+      for (final PointerTarget target : pts.getMatchingTargets(ufName, pattern)) {
         conv.shutdownNotifier.shutdownIfNecessary();
+
+
         final Formula targetAddress = fmgr.makePlus(fmgr.makeVariable(conv.voidPointerFormulaType, target.getBaseName()),
                                                     fmgr.makeNumber(conv.voidPointerFormulaType, target.getOffset()),
                                                     IS_POINTER_SIGNED);
@@ -557,9 +614,22 @@ class AssignmentHandler {
       exact.setRange(target.getOffset(), size);
       BooleanFormula consequent = bfmgr.makeBoolean(true);
       for (final CType type : types) {
-        final String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+        String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+        int ind = regionsMaker.getRegionIndex(type, startAddress, ssa);
+        if (ind < 0 && !ufName.contains("global")){
+          ufName += "_global";
+        } else if (ind >= 0 && !ufName.contains("struct")){
+          ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
+              + '_' + regionsMaker.getRegion(ind).getElem();
+        }
+        System.out.println("Resulting UF: " + ufName);
+
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
+
+        System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
+
         final FormulaType<?> returnType = conv.getFormulaTypeFromCType(type);
         for (final PointerTarget spurious : pts.getSpuriousTargets(type, exact)) {
           final Formula targetAddress = fmgr.makePlus(fmgr.makeVariable(conv.voidPointerFormulaType, spurious.getBaseName()),
@@ -584,9 +654,22 @@ class AssignmentHandler {
                                               final Set<CType> types) throws InterruptedException {
     final PointerTargetPattern any = PointerTargetPattern.any();
     for (final CType type : types) {
-      final String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+      String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+      BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+      int ind = regionsMaker.getRegionIndex(type, startAddress, ssa);
+      if (ind < 0 && !ufName.contains("global")){
+        ufName += "_global";
+      } else if (ind >= 0 && !ufName.contains("struct")){
+        ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
+            + '_' + regionsMaker.getRegion(ind).getElem();
+      }
+      System.out.println("Resulting UF: " + ufName);
+
       final int oldIndex = conv.getIndex(ufName, type, ssa);
       final int newIndex = conv.getFreshIndex(ufName, type, ssa);
+
+      System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
+
       final FormulaType<?> returnType = conv.getFormulaTypeFromCType(type);
       for (final PointerTarget target : pts.getMatchingTargets(type, any)) {
         conv.shutdownNotifier.shutdownIfNecessary();
