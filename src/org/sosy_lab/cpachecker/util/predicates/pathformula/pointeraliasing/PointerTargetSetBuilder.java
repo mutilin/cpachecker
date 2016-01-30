@@ -65,6 +65,8 @@ public interface PointerTargetSetBuilder {
 
   BooleanFormula prepareBase(String name, CType type);
 
+  CType getBaseType(String base);
+
   void shareBase(String name, CType type);
 
   /**
@@ -125,6 +127,10 @@ public interface PointerTargetSetBuilder {
   PointerTargetSet build();
 
   void updateTargetRegions(Optional<VariableClassification> pVarClassif);
+
+  public int getSize(CType pType);
+
+  public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern);
 
   /**
    * Actual builder implementation for PointerTargetSet.
@@ -533,6 +539,11 @@ public interface PointerTargetSetBuilder {
     }
 
     @Override
+    public CType getBaseType(String base){
+      return bases.get(base);
+    }
+
+    @Override
     public PersistentList<PointerTarget> getAllTargets(final CType type) {
       System.out.println("Calling GAT for: " + CTypeUtils.typeToString(type));
       return firstNonNull(targets.get(CTypeUtils.typeToString(type)),
@@ -568,35 +579,38 @@ public interface PointerTargetSetBuilder {
 
     @Override
     public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
-      for (String target : targets.keySet()){
-        for (PointerTarget pt : targets.get(target)){
-          String str = "TR: " + target + ' ' + pt.getBase() + ' '
-              + pt.getOffset() + ' ' + pt.getContainerType();
-          if (pt.getContainerType() != null){
-            str += (" " + pt.getContainerOffset());
+      if (!targets.isEmpty()){
+        for (String target : targets.keySet()){
+
+          for (PointerTarget pt : targets.get(target)){
+            String str = "TR: " + target + ' ' + pt.getBase() + ' '
+                + pt.getOffset() + ' ' + pt.getContainerType();
+            if (pt.getContainerType() != null){
+              str += (" " + pt.getContainerOffset());
+            }
+            System.out.println(str);
           }
-          System.out.println(str);
         }
-      }
-      System.out.println("TR: ###############");
+        System.out.println("TR: ###############");
 
-      for (CompositeField field : fields.keySet()){
-        System.out.println("EQ1 " + field);
-      }
+        for (CompositeField field : fields.keySet()){
+          System.out.println("EQ1 " + field);
+        }
 
-      System.out.println("EQ1 ###############");
+        System.out.println("EQ1 ###############");
 
-      /*for (CompositeField field : fieldOffsets.keySet()){
+        /*for (CompositeField field : fieldOffsets.keySet()){
         System.out.println("EQ3 " + field);
       }
 
       System.out.println("EQ3 ###############");*/
 
-      Map<String, PersistentList<PointerTarget>> newTargets =
-          pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
+        Map<String, PersistentList<PointerTarget>> newTargets =
+            pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
 
-      targets = PathCopyingPersistentTreeMap.copyOf(newTargets);
-      System.out.println("NT: #########");
+        targets = PathCopyingPersistentTreeMap.copyOf(newTargets);
+        System.out.println("NT: #########");
+      }
     }
 
 
@@ -608,7 +622,7 @@ public interface PointerTargetSetBuilder {
 
     @Override
     public Iterable<PointerTarget> getMatchingTargets(String ufName, PointerTargetPattern pattern) {
-      ufName = ufName.replace("_", " ").substring(1, ufName.length());
+      ufName = ufName.replace("-", " ").substring(1, ufName.length());
       return from(getAllTargets(ufName)).filter(pattern);
     }
 
@@ -746,11 +760,13 @@ public interface PointerTargetSetBuilder {
     public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern) {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public CType getBaseType(String pBase) {
+      throw new UnsupportedOperationException();
+    }
   }
 
 
-  public int getSize(CType pType);
-
-  public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern);
 
 }

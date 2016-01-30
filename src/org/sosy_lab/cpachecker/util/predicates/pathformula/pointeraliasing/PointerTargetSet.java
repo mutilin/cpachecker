@@ -199,7 +199,7 @@ public final class PointerTargetSet implements Serializable {
     if (isEmpty()) {
       // Inside isEmpty(), we do not check the following the targets field.
       // so we assert here that isEmpty() implies that it is also empty.
-      //assert targets.isEmpty();
+      assert targets.isEmpty();
     }
   }
 
@@ -291,7 +291,9 @@ public final class PointerTargetSet implements Serializable {
     }
   }
 
+  @SuppressWarnings("unchecked")
   public PersistentList<PointerTarget> getAllTargets(String pFunctionName) {
-    return targets.get(pFunctionName);
+    PersistentList<PointerTarget> result = targets.get(pFunctionName);
+    return (PersistentList<PointerTarget>) (result != null ? result : PersistentLinkedList.of());
   }
 }

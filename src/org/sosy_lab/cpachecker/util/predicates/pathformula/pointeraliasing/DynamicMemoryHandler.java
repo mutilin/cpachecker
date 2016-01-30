@@ -57,14 +57,14 @@ import org.sosy_lab.cpachecker.cpa.value.ExpressionValueVisitor;
 import org.sosy_lab.cpachecker.cpa.value.type.NumericValue;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
-import org.sosy_lab.solver.api.BooleanFormula;
-import org.sosy_lab.solver.api.Formula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Value;
+import org.sosy_lab.solver.api.BooleanFormula;
+import org.sosy_lab.solver.api.Formula;
 
 /**
  * This class is responsible for handling everything related to dynamic memory,
@@ -168,6 +168,8 @@ class DynamicMemoryHandler {
       final Formula nondet = conv.makeFreshVariable(functionName,
                                                     CPointerType.POINTER_TO_VOID,
                                                     ssa);
+      //FIXME: debug output
+      System.out.println(":ALLOC:");
       return conv.bfmgr.ifThenElse(conv.bfmgr.not(conv.fmgr.makeEqual(nondet, conv.nullPointer)),
                                     handleSucessfulMemoryAllocation(delegateFunctionName, parameters, e),
                                     conv.nullPointer);
@@ -249,6 +251,8 @@ class DynamicMemoryHandler {
       // Constraint is only necessary for correct error conditions
       constraints.addConstraint(conv.fmgr.makeEqual(conv.makeBaseAddressOfTerm(address), address));
     }
+    //FIXME:debug output
+    System.out.println(":ALLOC:");
     return address;
   }
 

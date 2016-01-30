@@ -106,7 +106,7 @@ class AssignmentHandler {
                                   final CLeftHandSide lhsForChecking,
                                   final @Nullable CRightHandSide rhs,
                                   final boolean batchMode,
-                                  final @Nullable Set<CType> destroyedTypes)
+                                  final @Nullable Set<String> pUpdatedUFs)
   throws UnrecognizedCCodeException, InterruptedException {
     if (!conv.isRelevantLeftHandSide(lhsForChecking)) {
       // Optimization for unused variables and fields
@@ -167,11 +167,14 @@ class AssignmentHandler {
                           rhsExpression,
                           pattern,
                           batchMode,
-                          destroyedTypes);
+                          pUpdatedUFs);
 
     for (final Pair<CCompositeType, String> field : rhsAddressedFields) {
       pts.addField(field.getFirst(), field.getSecond());
     }
+
+    pts.updateTargetRegions(conv.getVariableClassification());
+
     return result;
   }
 
@@ -180,7 +183,7 @@ class AssignmentHandler {
                                                             throws UnrecognizedCCodeException, InterruptedException {
     CExpressionVisitorWithPointerAliasing lhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
     final Location lhsLocation = variable.accept(lhsVisitor).asLocation();
-    final Set<CType> updatedTypes = new HashSet<>();
+    final Set<String> updatedTypes = new HashSet<>();
     BooleanFormula result = conv.bfmgr.makeBoolean(true);
     for (CExpressionAssignmentStatement assignment : assignments) {
       final CLeftHandSide lhs = assignment.getLeftHandSide();
@@ -204,7 +207,7 @@ class AssignmentHandler {
                                 final @Nonnull Expression rvalue,
                                 final @Nullable PointerTargetPattern pattern,
                                 final boolean useOldSSAIndices,
-                                      @Nullable Set<CType> updatedTypes)
+                                      @Nullable Set<String> pUpdatedUFs)
   throws UnrecognizedCCodeException, InterruptedException {
     // Its a definite value assignment, a nondet assignment (SSA index update) or a nondet assignment among other
     // assignments to the same UF version (in this case an absense of aliasing should be somehow guaranteed, as in the
@@ -214,10 +217,10 @@ class AssignmentHandler {
 
     lvalueType = CTypeUtils.simplifyType(lvalueType);
 
-    if (lvalue.isAliased() && !isSimpleType(lvalueType) && updatedTypes == null) {
-      updatedTypes = new HashSet<>();
+    if (lvalue.isAliased() && !isSimpleType(lvalueType) && pUpdatedUFs == null) {
+      pUpdatedUFs = new HashSet<>();
     } else {
-      updatedTypes = null;
+      pUpdatedUFs = null;
     }
     Set<Variable> updatedVariables = null;
     if (!lvalue.isAliased() && !isSimpleType(lvalueType)) {
@@ -227,19 +230,33 @@ class AssignmentHandler {
     final BooleanFormula result = makeDestructiveAssignment(lvalueType, rvalueType,
                                                             lvalue, rvalue,
                                                             useOldSSAIndices,
-                                                            updatedTypes,
+                                                            pUpdatedUFs,
                                                             updatedVariables);
 
     if (!useOldSSAIndices) {
       if (lvalue.isAliased()) {
         addRetentionForAssignment(lvalueType,
                                   lvalue.asAliased().getAddress(),
-                                  pattern, updatedTypes);
-        if (updatedTypes == null) {
+                                  pattern, pUpdatedUFs);
+        if (pUpdatedUFs == null) {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
-          updatedTypes = Collections.singleton(lvalueType);
+          String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+
+          BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+          int ind = regionsMaker.getRegionIndex(lvalue.asAliased().getAddress(),
+                                                conv.getTypeHandler(),
+                                                ssa,
+                                                pts);
+          if (ind < 0 && !ufName.contains("global")){
+            ufName += "-global";
+          } else if (ind >= 0 && !ufName.contains("struct")){
+            ufName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
+                + '-' + regionsMaker.getRegion(ind).getElem();
+          }
+
+          pUpdatedUFs = Collections.singleton(ufName);
         }
-        updateSSA(updatedTypes, ssa);
+        updateSSA(pUpdatedUFs, ssa);
       } else { // Unaliased lvalue
         if (updatedVariables == null) {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
@@ -258,11 +275,11 @@ class AssignmentHandler {
   void finishAssignments(@Nonnull CType lvalueType,
                          final @Nonnull AliasedLocation lvalue,
                          final @Nonnull PointerTargetPattern pattern,
-                         final @Nonnull Set<CType> updatedTypes) throws InterruptedException {
+                         final @Nonnull Set<String> pUpdatedUFs) throws InterruptedException {
     addRetentionForAssignment(lvalueType,
                               lvalue.asAliased().getAddress(),
-                              pattern, updatedTypes);
-    updateSSA(updatedTypes, ssa);
+                              pattern, pUpdatedUFs);
+    updateSSA(pUpdatedUFs, ssa);
   }
 
   private BooleanFormula makeDestructiveAssignment(@Nonnull CType lvalueType,
@@ -270,7 +287,7 @@ class AssignmentHandler {
                                                    final @Nonnull  Location lvalue,
                                                    final @Nonnull  Expression rvalue,
                                                    final boolean useOldSSAIndices,
-                                                   final @Nullable Set<CType> updatedTypes,
+                                                   final @Nullable Set<String> pUpdatedUFs,
                                                    final @Nullable Set<Variable> updatedVariables)
   throws UnrecognizedCCodeException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
@@ -322,7 +339,7 @@ class AssignmentHandler {
                                                      newLvalue.getFirst(),
                                                      newRvalue.getFirst(),
                                                      useOldSSAIndices,
-                                                     updatedTypes,
+                                                     pUpdatedUFs,
                                                      updatedVariables));
          offset += conv.getSizeof(lvalueArrayType.getType());
       }
@@ -369,7 +386,7 @@ class AssignmentHandler {
                                                        newLvalue.getFirst(),
                                                        newRvalue.getFirst(),
                                                        useOldSSAIndices,
-                                                       updatedTypes,
+                                                       pUpdatedUFs,
                                                        updatedVariables));
         }
 
@@ -384,7 +401,7 @@ class AssignmentHandler {
                                              lvalue,
                                              rvalue,
                                              useOldSSAIndices,
-                                             updatedTypes,
+                                             pUpdatedUFs,
                                              updatedVariables);
     }
   }
@@ -394,7 +411,7 @@ class AssignmentHandler {
                                                          final @Nonnull Location lvalue,
                                                                @Nonnull Expression rvalue,
                                                          final boolean useOldSSAIndices,
-                                                         final @Nullable Set<CType> updatedTypes,
+                                                         final @Nullable Set<String> pUpdatedUFs,
                                                          final @Nullable Set<Variable> updatedVariables)
   throws UnrecognizedCCodeException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
@@ -429,16 +446,18 @@ class AssignmentHandler {
     Optional<VariableClassification> variableClassification = conv.getVariableClassification();
     if (variableClassification.isPresent() && lvalue.isAliased()){
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      final int ind = regionsMaker.getRegionIndex(lvalueType,
-                                                  lvalue.asAliased().getAddress(),
-                                                  ssa);
+      final int ind = regionsMaker.getRegionIndex(lvalue.asAliased().getAddress(),
+                                                  conv.getTypeHandler(),
+                                                  ssa,
+                                                  pts);
       if (ind < 0 && !targetName.contains("global")){
-        targetName += "_global";
+        targetName += "-global";
       } else if (ind >= 0 && !targetName.contains("struct")){
-        targetName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
-            + '_' + regionsMaker.getRegion(ind).getElem();
+        targetName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
+            + '-' + regionsMaker.getRegion(ind).getElem();
       }
     }
+    System.out.println("TNAME: " + targetName);
     final FormulaType<?> targetType = conv.getFormulaTypeFromCType(lvalueType);
     final int newIndex = useOldSSAIndices ?
             conv.getIndex(targetName, lvalueType, ssa) :
@@ -468,8 +487,8 @@ class AssignmentHandler {
         result = bfmgr.makeBoolean(true);
       }
 
-      if (updatedTypes != null) {
-        updatedTypes.add(lvalueType);
+      if (pUpdatedUFs != null) {
+        pUpdatedUFs.add(targetName);
       }
     }
 
@@ -479,7 +498,7 @@ class AssignmentHandler {
   private void addRetentionForAssignment(@Nonnull CType lvalueType,
                                          final @Nullable Formula startAddress,
                                          final @Nonnull PointerTargetPattern pattern,
-                                         final Set<CType> typesToRetain) throws InterruptedException {
+                                         final Set<String> pUpdatedUFs) throws InterruptedException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     final int size = conv.getSizeof(lvalueType);
     pts.updateTargetRegions(conv.getVariableClassification());
@@ -489,12 +508,12 @@ class AssignmentHandler {
                                   "Start address is mandatory for assigning to lvalues of simple types");
       String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
       BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-      int ind = regionsMaker.getRegionIndex(lvalueType, startAddress, ssa);
+      int ind = regionsMaker.getRegionIndex(startAddress, conv.getTypeHandler(), ssa, pts);
       if (ind < 0 && !ufName.contains("global")){
-        ufName += "_global";
+        ufName += "-global";
       } else if (ind >= 0 && !ufName.contains("struct")){
-        ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
-            + '_' + regionsMaker.getRegion(ind).getElem();
+        ufName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
+            + '-' + regionsMaker.getRegion(ind).getElem();
       }
 
       final int oldIndex = conv.getIndex(ufName, lvalueType, ssa);
@@ -509,21 +528,17 @@ class AssignmentHandler {
                               startAddress);
     } else if (pattern.isExact()) {
       pattern.setRange(size);
-      for (final CType type : typesToRetain) {
-        String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
-        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-        int ind = regionsMaker.getRegionIndex(lvalueType, startAddress, ssa);
-        if (ind < 0 && !ufName.contains("global")){
-          ufName += "_global";
-        } else if (ind >= 0 && !ufName.contains("struct")){
-          ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
-              + '_' + regionsMaker.getRegion(ind).getElem();
-        }
+      for (final String ufName : pUpdatedUFs) {
+
         System.out.println("Resulting UF: " + ufName);
+
+        final CType type = ssa.getType(ufName) != null ? ssa.getType(ufName) : lvalueType;
+        System.out.println(type);
 
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
         final FormulaType<?> targetType = conv.getFormulaTypeFromCType(type);
+        //FIXME: this variant makes getRegionIndex by formula to fall, should find another way maybe by pattern
         addRetentionConstraints(pattern, type, ufName, oldIndex, newIndex, targetType, null);
       }
     } else if (pattern.isSemiexact()) {
@@ -535,11 +550,11 @@ class AssignmentHandler {
       } else { // CCompositeType
         lvalueType = CTypeUtils.simplifyType(((CCompositeType) lvalueType).getMembers().get(0).getType());
       }
-      addSemiexactRetentionConstraints(pattern, lvalueType, startAddress, size, typesToRetain);
+      addSemiexactRetentionConstraints(pattern, lvalueType, startAddress, size, pUpdatedUFs);
     } else { // Inexact pointer target pattern
       Preconditions.checkArgument(startAddress != null,
                                   "Start address is mandatory for inexact pointer target patterns");
-      addInexactRetentionConstraints(startAddress, size, typesToRetain);
+      addInexactRetentionConstraints(startAddress, size, pUpdatedUFs);
     }
   }
 
@@ -550,18 +565,19 @@ class AssignmentHandler {
                                        final int newIndex,
                                        final FormulaType<?> returnType,
                                        final Formula lvalue) throws InterruptedException {
-    BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-    int ind = regionsMaker.getRegionIndex(lvalueType, lvalue, ssa);
-    if (ind < 0 && !ufName.contains("global")){
-      ufName += "_global";
-    } else if (ind >= 0 && !ufName.contains("struct")){
-      ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
-          + '_' + regionsMaker.getRegion(ind).getElem();
-    }
-    System.out.println("Resulting UF: " + ufName);
-    System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
-
     if (!pattern.isExact()) {
+
+      BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+      int ind = regionsMaker.getRegionIndex(lvalue, conv.getTypeHandler(), ssa, pts);
+      if (ind < 0 && !ufName.contains("global")){
+        ufName += "-global";
+      } else if (ind >= 0 && !ufName.contains("struct")){
+        ufName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
+            + '-' + regionsMaker.getRegion(ind).getElem();
+      }
+      System.out.println("Resulting UF: " + ufName);
+      System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
+
       System.out.println("PAT: " + pattern.getProperOffset());
       for (final PointerTarget target : pts.getMatchingTargets(ufName, pattern)) {
         conv.shutdownNotifier.shutdownIfNecessary();
@@ -602,7 +618,7 @@ class AssignmentHandler {
                                                 final CType firstElementType,
                                                 final Formula startAddress,
                                                 final int size,
-                                                final Set<CType> types) throws InterruptedException {
+                                                final Set<String> pUpdatedUFs) throws InterruptedException {
     final PointerTargetPattern exact = PointerTargetPattern.any();
     for (final PointerTarget target : pts.getMatchingTargets(firstElementType, pattern)) {
       conv.shutdownNotifier.shutdownIfNecessary();
@@ -613,18 +629,11 @@ class AssignmentHandler {
       exact.setBase(target.getBase());
       exact.setRange(target.getOffset(), size);
       BooleanFormula consequent = bfmgr.makeBoolean(true);
-      for (final CType type : types) {
-        String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
-        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-        int ind = regionsMaker.getRegionIndex(type, startAddress, ssa);
-        if (ind < 0 && !ufName.contains("global")){
-          ufName += "_global";
-        } else if (ind >= 0 && !ufName.contains("struct")){
-          ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
-              + '_' + regionsMaker.getRegion(ind).getElem();
-        }
+      for (final String ufName : pUpdatedUFs) {
+
         System.out.println("Resulting UF: " + ufName);
 
+        final CType type = ssa.getType(ufName);
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
 
@@ -651,20 +660,13 @@ class AssignmentHandler {
 
   private void addInexactRetentionConstraints(final Formula startAddress,
                                               final int size,
-                                              final Set<CType> types) throws InterruptedException {
+                                              final Set<String> pUpdatedUFs) throws InterruptedException {
     final PointerTargetPattern any = PointerTargetPattern.any();
-    for (final CType type : types) {
-      String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
-      BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-      int ind = regionsMaker.getRegionIndex(type, startAddress, ssa);
-      if (ind < 0 && !ufName.contains("global")){
-        ufName += "_global";
-      } else if (ind >= 0 && !ufName.contains("struct")){
-        ufName += '_' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "_")
-            + '_' + regionsMaker.getRegion(ind).getElem();
-      }
+    for (final String ufName : pUpdatedUFs) {
+
       System.out.println("Resulting UF: " + ufName);
 
+      final CType type = ssa.getType(ufName);
       final int oldIndex = conv.getIndex(ufName, type, ssa);
       final int newIndex = conv.getFreshIndex(ufName, type, ssa);
 
@@ -692,9 +694,9 @@ class AssignmentHandler {
     }
   }
 
-  private void updateSSA(final @Nonnull Set<CType> types, final SSAMapBuilder ssa) {
-    for (final CType type : types) {
-      final String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+  private void updateSSA(final @Nonnull Set<String> pUpdatedUFs, final SSAMapBuilder ssa) {
+    for (final String ufName : pUpdatedUFs) {
+      final CType type = ssa.getType(ufName);
       conv.makeFreshIndex(ufName, type, ssa);
     }
   }

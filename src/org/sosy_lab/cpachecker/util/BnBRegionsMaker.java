@@ -26,7 +26,9 @@ package org.sosy_lab.cpachecker.util;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -42,8 +44,10 @@ import org.sosy_lab.common.collect.PersistentSortedMap;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
+import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaTypeHandler;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTarget;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder;
@@ -57,6 +61,38 @@ public class BnBRegionsMaker {
   private Set<CType> containers = new HashSet<>();
   private Map<String, List<PointerTarget>> targetRegions = new HashMap<>();
   private Map<PointerTarget, Triple<String, String, Integer>> pointerTargets = new HashMap<>();
+
+  private class PrePointerTarget{
+    private CType containerType;
+    private int containerOffset;
+    private int properOffset;
+
+    public PrePointerTarget(CType contType, int contOff, int propOff){
+      containerType = contType;
+      containerOffset = contOff;
+      properOffset = propOff;
+    }
+
+    public boolean almostEqual(PointerTarget o) {
+      return properOffset == o.getProperOffset() &&
+               containerOffset == o.getContainerOffset() &&
+               (containerType != null ?
+                  o.getContainerType() != null && containerType.getCanonicalType().
+                                                    equals(o.getContainerType().getCanonicalType()) :
+                  o.getContainerType() == null);
+    }
+
+    @Override
+    public String toString(){
+      String result = "";
+
+      result += "Container Type: " + containerType + "\n";
+      result += "Container Offset: " + containerOffset + "\n";
+      result += "Proper Offset: " + properOffset + "\n";
+
+      return result;
+    }
+  }
 
   public List<BnBRegionImpl> getRegions(){
     return regions;
@@ -177,39 +213,96 @@ public class BnBRegionsMaker {
     }
   }
 
-  public int getRegionIndex(CType pType, Formula pAddress, SSAMapBuilder ssa) {
+  public int getRegionIndex(Formula pAddress, CtoFormulaTypeHandler typeHandler, SSAMapBuilder ssa, PointerTargetSetBuilder pts) {
+    int curOffset = 0;
+    int modifier = 1;
+    int properOffset = 0;
+    Deque<Integer> offsets = new ArrayDeque<>();
     String addr = pAddress.toString();
-    String ssaAddr = addr;
-    int offset = 0;
+    String ssaAddr = pAddress.toString();
 
     addr = addr.replaceAll("@", "::");
-    addr = addr.replaceAll("[^a-zA-Z:0-9]", "");
     System.out.println(addr);
-    for (int i = addr.length() - 1; i > 1; --i){
+    addr = addr.replaceAll("[^a-zA-Z:0-9 ]", "");
+    addr = addr.replace(' ', '#');
+    System.out.println(addr);
+
+    //Remembering all of the offsets
+    for (int i = addr.length() - 1; i > 0; --i){
       if (addr.charAt(i) >= '0' && addr.charAt(i) <= '9' && addr.charAt(i - 1) != ':'){
-        offset += addr.charAt(i) - '0';
-      } else if (addr.charAt(i - 1) == ':'){
+        curOffset += (addr.charAt(i) - '0') * modifier;
+        modifier *= 10;
+        System.out.println("CO: " + curOffset);
+      } else if (addr.charAt(i) == '#'){
+        offsets.push(curOffset);
+        properOffset += curOffset;
+        curOffset = 0;
+        modifier = 1;
+      } else {
         break;
       }
     }
-    addr = addr.split("::")[1];
-    System.out.println("NEW_ADDR: " + addr);
 
-    int lastIndex = ssaAddr.indexOf('@');
-    int firstIndex = ssaAddr.indexOf('|');
-    String newSsaAddr = "";
-    for (int i = firstIndex + 1; i < lastIndex; ++i){
-      newSsaAddr += ssaAddr.charAt(i);
-    }
+    int lastIndex = ssaAddr.contains("@") ? ssaAddr.indexOf('@') : ssaAddr.length();
+    int firstIndex = ssaAddr.contains("|") ? ssaAddr.indexOf('|') : 0;
+    String newSsaAddr = ssaAddr.substring(firstIndex + 1, lastIndex);
+    newSsaAddr = newSsaAddr.replace("__ADDRESS_OF_", "");
+    newSsaAddr = newSsaAddr.replaceAll("[^a-zA-Z:_]", "");
+    System.out.println(newSsaAddr);
 
+    System.out.println(ssa.getIndex(newSsaAddr));
     CType parentType = ssa.getType(newSsaAddr);
+    if (parentType == null && pts != null && pts.isActualBase(newSsaAddr)){
+      parentType = pts.getBaseType(newSsaAddr);
+    }
+    assert parentType != null : "Parent type is null!";
+
     String str = parentType.toString().replaceAll("[()*]", "");
     System.out.println("Parent: " + str);
     System.out.println(newSsaAddr);
-    System.out.println(offset);
 
-    return getRegionIndex(str, offset);
+    while (parentType instanceof CPointerType){
+      parentType = ((CPointerType) parentType).getType();
+    }
 
+    PrePointerTarget ppt = getPrePointerTarget(typeHandler, offsets, null, parentType, properOffset);
+    assert ppt != null : "Null PrePointerTarget!";
+
+    System.out.println("PPT: " + ppt);
+
+    for (PointerTarget target : pointerTargets.keySet()){
+      System.out.println(target);
+      if (ppt.almostEqual(target)){
+        return pointerTargets.get(target).getThird();
+      }
+    }
+
+    return GLOBAL;
+  }
+
+  private PrePointerTarget getPrePointerTarget(CtoFormulaTypeHandler typeHandler, Deque<Integer> offsets,
+                                         CType parentType, CType currentType, int properOffset) {
+    int curOffset;
+    curOffset = 0;
+    int expected = offsets.isEmpty() ? 0 : offsets.pop();
+
+    System.out.println("EXPECTED: " + expected);
+
+    if (currentType instanceof CCompositeType){
+      CCompositeType complType = (CCompositeType) currentType;
+      for (CCompositeTypeMemberDeclaration member : complType.getMembers()){
+        if (curOffset != expected){
+          curOffset += typeHandler.getSizeof(member.getType());
+          System.out.println("CUR: " + curOffset);
+        } else {
+          return getPrePointerTarget(typeHandler, offsets, currentType, member.getType(), properOffset);
+        }
+      }
+    } else {
+      return new PrePointerTarget(parentType, expected, properOffset);
+    }
+
+    return null;
   }
 
   public Map<String, PersistentList<PointerTarget>> getNewTargetsWithRegions(
@@ -274,7 +367,7 @@ public class BnBRegionsMaker {
       if (! (type.contains("global") || type.contains("struct"))){
         List<PointerTarget> toAdd = new ArrayList<>();
         for (PointerTarget pt : targets.get(type)){
-          if (getRegionsIndex(pt) < 0){
+          if (getRegionIndex(pt) < 0){
             toAdd.add(pt);
           }
         }
@@ -287,7 +380,7 @@ public class BnBRegionsMaker {
     return newTargets;
   }
 
-  public int getRegionsIndex(PointerTarget pt){
+  public int getRegionIndex(PointerTarget pt){
     if (pointerTargets.keySet().contains(pt)){
       return pointerTargets.get(pt).getThird();
     } else {

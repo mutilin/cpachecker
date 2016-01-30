@@ -93,6 +93,7 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManagerImp
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaTypeHandler;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder.RealPointerTargetSetBuilder;
 import org.sosy_lab.solver.api.BooleanFormula;
 import org.sosy_lab.solver.api.Formula;
@@ -146,7 +147,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     if (result != null) {
       return result;
     } else {
-      result = UF_NAME_PREFIX + CTypeUtils.typeToString(type).replace(' ', '_');
+      result = UF_NAME_PREFIX + CTypeUtils.typeToString(type).replace(' ', '-');
       ufNameCache.put(type, result);
       return result;
     }
@@ -220,15 +221,15 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     if (variableClassification.isPresent()){
       System.out.println("ADDR: " + address);
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      int ind = regionsMaker.getRegionIndex(type, address, ssa);
+      int ind = regionsMaker.getRegionIndex(address, typeHandler, ssa, null);
       //TODO: resume the work on BnB here
       System.out.println("IND: " + ind);
       System.out.println("Type: " + type);
       if (ind >= 0){
         BnBRegionImpl region = regionsMaker.getRegion(ind);
-        ufName += '_' + region.getRegionParent().toString().replaceAll(" ", "_") + '_' + region.getElem();
+        ufName += '-' + region.getRegionParent().toString().replaceAll(" ", "-") + '-' + region.getElem();
       } else {
-        ufName += "_global";
+        ufName += "-global";
       }
       System.out.println("UF: " + ufName);
     }
@@ -864,5 +865,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
   public Optional<VariableClassification> getVariableClassification() {
     return variableClassification;
+  }
+
+  public CtoFormulaTypeHandler getTypeHandler() {
+    return typeHandler;
   }
 }
