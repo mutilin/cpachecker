@@ -391,8 +391,13 @@ public class BnBRegionsMaker {
     return new PointerTargetSet(pts, PathCopyingPersistentTreeMap.copyOf(result));
   }
 
-  public String getNewUfName(String ufName, Formula pStartAddress, CtoFormulaTypeHandler pCtoFormulaTypeHandler, SSAMapBuilder pSsa, PointerTargetSetBuilder pPts) {
-    int ind = getRegionIndex(pStartAddress, pCtoFormulaTypeHandler, pSsa, pPts);
+  public String getNewUfName(String ufName,
+                             final Formula pStartAddress,
+                             final CtoFormulaTypeHandler pCtoFormulaTypeHandler,
+                             final SSAMapBuilder pSsa,
+                             final PointerTargetSetBuilder pPts) {
+
+    final int ind = getRegionIndex(pStartAddress, pCtoFormulaTypeHandler, pSsa, pPts);
     if (ind < 0 && !ufName.contains("global")){
       ufName += "-global";
     } else if (ind >= 0 && !ufName.contains("struct")){

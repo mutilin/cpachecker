@@ -34,13 +34,10 @@ import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
-import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.PathFormulaManager;
 import org.sosy_lab.solver.Model;
 import org.sosy_lab.solver.api.BooleanFormula;
 import org.sosy_lab.solver.api.Formula;
-
-import com.google.common.base.Optional;
 
 /**
  * Implementation of {@link PathFormulaManager} that delegates to another
@@ -180,12 +177,6 @@ public class CachingPathFormulaManager implements PathFormulaManager {
   @Override
   public BooleanFormula buildImplicationTestAsUnsat(PathFormula pF1, PathFormula pF2) throws InterruptedException {
     return delegate.buildImplicationTestAsUnsat(pF1, pF2);
-  }
-
-  @Override
-  public Optional<VariableClassification> getVarClassif() {
-    // TODO Auto-generated method stub
-    return null;
   }
 
 }

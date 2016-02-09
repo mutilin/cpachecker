@@ -695,9 +695,4 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
     return bF;
   }
 
-  @Override
-  public Optional<VariableClassification> getVarClassif() {
-    return varClassif;
-  }
-
 }
