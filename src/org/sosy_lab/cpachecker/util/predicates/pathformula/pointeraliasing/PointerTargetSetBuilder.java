@@ -627,8 +627,10 @@ public interface PointerTargetSetBuilder {
     }
 
 
+    @SuppressWarnings("unchecked")
     private PersistentList<PointerTarget> getAllTargets(String pUfName) {
-      return targets.get(pUfName);
+      PersistentList<PointerTarget> res = targets.get(pUfName);
+      return (PersistentList<PointerTarget>) ((res == null || res.isEmpty()) ? PersistentLinkedList.of() : res);
     }
   }
 

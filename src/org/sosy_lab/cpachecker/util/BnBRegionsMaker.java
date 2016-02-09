@@ -243,12 +243,24 @@ public class BnBRegionsMaker {
     newSsaAddr = newSsaAddr.replace(' ', '#');
     newSsaAddr = newSsaAddr.replaceAll("[^a-zA-Z:_0-9#]", "");
     System.out.println(newSsaAddr);
+    String [] smth = newSsaAddr.split("#");
+    for (String str : smth){
+      System.out.println(str);
+      if (!str.isEmpty()){
+        newSsaAddr = str;
+        break;
+      }
+    }
 
     System.out.println(ssa.getIndex(newSsaAddr));
     CType parentType = ssa.getType(newSsaAddr);
-    if (parentType == null && pts != null && pts.isActualBase(newSsaAddr)){
+    System.out.println(pts == null);
+
+    if (parentType == null && pts != null ){
+      System.out.println("IN");
       parentType = pts.getBaseType(newSsaAddr);
     }
+
     assert parentType != null : "Parent type is null!";
 
     String str = parentType.toString().replaceAll("[()*]", "");

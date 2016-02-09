@@ -55,7 +55,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
-import org.sosy_lab.solver.api.Formula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
@@ -64,6 +63,7 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expre
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.UnaliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Value;
+import org.sosy_lab.solver.api.Formula;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -137,8 +137,8 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     if (e.isValue()) {
       return e.asValue().getValue();
     } else if (e.asLocation().isAliased()) {
-      return !isSafe ? conv.makeDereference(type, e.asLocation().asAliased().getAddress(), ssa, errorConditions) :
-                       conv.makeSafeDereference(type, e.asLocation().asAliased().getAddress(), ssa);
+      return !isSafe ? conv.makeDereference(type, e.asLocation().asAliased().getAddress(), ssa, errorConditions, pts) :
+                       conv.makeSafeDereference(type, e.asLocation().asAliased().getAddress(), ssa, pts);
     } else { // Unaliased location
       return conv.makeVariable(e.asLocation().asUnaliased().getVariableName(), type, ssa);
     }

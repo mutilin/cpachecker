@@ -203,24 +203,26 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
   Formula makeDereference(CType type,
                          final Formula address,
                          final SSAMapBuilder ssa,
-                         final ErrorConditions errorConditions) {
+                         final ErrorConditions errorConditions,
+                         final PointerTargetSetBuilder pts) {
     if (errorConditions.isEnabled()) {
       errorConditions.addInvalidDerefCondition(fmgr.makeEqual(address, nullPointer));
       errorConditions.addInvalidDerefCondition(fmgr.makeLessThan(address, makeBaseAddressOfTerm(address), false));
     }
-    return makeSafeDereference(type, address, ssa);
+    return makeSafeDereference(type, address, ssa, pts);
   }
 
   Formula makeSafeDereference(CType type,
                          final Formula address,
-                         final SSAMapBuilder ssa) {
+                         final SSAMapBuilder ssa,
+                         final PointerTargetSetBuilder pts) {
     type = CTypeUtils.simplifyType(type);
     String ufName = getUFName(type);
 
     if (variableClassification.isPresent()){
       System.out.println("ADDR: " + address);
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      ufName = regionsMaker.getNewUfName(ufName, address, typeHandler, ssa, null);
+      ufName = regionsMaker.getNewUfName(ufName, address, typeHandler, ssa, pts);
 
       System.out.println("UF: " + ufName);
     }
@@ -334,7 +336,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       // a variable directly and now via its address (we do not want to loose
       // the value previously stored in the variable).
       // Make sure to not add invalid-deref constraints for this dereference
-      constraints.addConstraint(fmgr.makeEqual(makeSafeDereference(baseType, address, ssa),
+      constraints.addConstraint(fmgr.makeEqual(makeSafeDereference(baseType, address, ssa, pts),
                                                makeVariable(base.getName(), baseType, ssa)));
     }
   }

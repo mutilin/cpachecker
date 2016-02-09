@@ -421,7 +421,7 @@ class AssignmentHandler {
     final Formula value;
     switch (rvalue.getKind()) {
     case ALIASED_LOCATION:
-      value = conv.makeDereference(rvalueType, rvalue.asAliasedLocation().getAddress(), ssa, errorConditions);
+      value = conv.makeDereference(rvalueType, rvalue.asAliasedLocation().getAddress(), ssa, errorConditions, pts);
       break;
     case UNALIASED_LOCATION:
       value = conv.makeVariable(rvalue.asUnaliasedLocation().getVariableName(), rvalueType, ssa);
