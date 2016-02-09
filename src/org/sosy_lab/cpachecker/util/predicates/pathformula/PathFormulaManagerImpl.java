@@ -473,14 +473,8 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 
     final FormulaType<?> returnFormulaType =  converter.getFormulaTypeFromCType(returnType);
     BooleanFormula result = bfmgr.makeBoolean(true);
-    String newName = functionName;
-    if (!(newName.contains("global") || newName.contains("struct"))){
-      //*signed_int, for example
-      //let it be in global region
-      newName += "_global";
-      newName = newName.replaceAll("_", " ").substring(1, newName.length());
-    }
-    for (final PointerTarget target : pts.getAllTargets(newName)) {
+
+    for (final PointerTarget target : pts.getAllTargets(functionName)) {
       shutdownNotifier.shutdownIfNecessary();
       final Formula targetAddress = fmgr.makePlus(fmgr.makeVariable(typeHandler.getPointerType(), target.getBaseName()),
                                                   fmgr.makeNumber(typeHandler.getPointerType(), target.getOffset()),

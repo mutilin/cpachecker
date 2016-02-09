@@ -82,7 +82,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.AnalysisDirection;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCCodeException;
-import org.sosy_lab.cpachecker.util.BnBRegionImpl;
 import org.sosy_lab.cpachecker.util.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
@@ -221,16 +220,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     if (variableClassification.isPresent()){
       System.out.println("ADDR: " + address);
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      int ind = regionsMaker.getRegionIndex(address, typeHandler, ssa, null);
-      //TODO: resume the work on BnB here
-      System.out.println("IND: " + ind);
-      System.out.println("Type: " + type);
-      if (ind >= 0){
-        BnBRegionImpl region = regionsMaker.getRegion(ind);
-        ufName += '-' + region.getRegionParent().toString().replaceAll(" ", "-") + '-' + region.getElem();
-      } else {
-        ufName += "-global";
-      }
+      ufName = regionsMaker.getNewUfName(ufName, address, typeHandler, ssa, null);
+
       System.out.println("UF: " + ufName);
     }
 

@@ -242,18 +242,13 @@ class AssignmentHandler {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
           String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
 
-          BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-          int ind = regionsMaker.getRegionIndex(lvalue.asAliased().getAddress(),
-                                                conv.getTypeHandler(),
-                                                ssa,
-                                                pts);
-          if (ind < 0 && !ufName.contains("global")){
-            ufName += "-global";
-          } else if (ind >= 0 && !ufName.contains("struct")){
-            ufName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
-                + '-' + regionsMaker.getRegion(ind).getElem();
+          if (conv.getVariableClassification().isPresent()) {
+            BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+            ufName = regionsMaker.getNewUfName(ufName, lvalue.asAliased().getAddress(),
+                                               conv.getTypeHandler(),
+                                               ssa,
+                                               pts);
           }
-
           pUpdatedUFs = Collections.singleton(ufName);
         }
         updateSSA(pUpdatedUFs, ssa);
@@ -446,16 +441,9 @@ class AssignmentHandler {
     Optional<VariableClassification> variableClassification = conv.getVariableClassification();
     if (variableClassification.isPresent() && lvalue.isAliased()){
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      final int ind = regionsMaker.getRegionIndex(lvalue.asAliased().getAddress(),
-                                                  conv.getTypeHandler(),
-                                                  ssa,
-                                                  pts);
-      if (ind < 0 && !targetName.contains("global")){
-        targetName += "-global";
-      } else if (ind >= 0 && !targetName.contains("struct")){
-        targetName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
-            + '-' + regionsMaker.getRegion(ind).getElem();
-      }
+      targetName = regionsMaker.getNewUfName(targetName, lvalue.asAliased().getAddress(),
+                                             conv.getTypeHandler(),
+                                             ssa, pts);
     }
     System.out.println("TNAME: " + targetName);
     final FormulaType<?> targetType = conv.getFormulaTypeFromCType(lvalueType);
@@ -507,13 +495,10 @@ class AssignmentHandler {
       Preconditions.checkArgument(startAddress != null,
                                   "Start address is mandatory for assigning to lvalues of simple types");
       String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
-      BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-      int ind = regionsMaker.getRegionIndex(startAddress, conv.getTypeHandler(), ssa, pts);
-      if (ind < 0 && !ufName.contains("global")){
-        ufName += "-global";
-      } else if (ind >= 0 && !ufName.contains("struct")){
-        ufName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
-            + '-' + regionsMaker.getRegion(ind).getElem();
+
+      if (conv.getVariableClassification().isPresent()) {
+        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+        ufName = regionsMaker.getNewUfName(ufName, startAddress, conv.getTypeHandler(), ssa, pts);
       }
 
       final int oldIndex = conv.getIndex(ufName, lvalueType, ssa);
@@ -567,14 +552,11 @@ class AssignmentHandler {
                                        final Formula lvalue) throws InterruptedException {
     if (!pattern.isExact()) {
 
-      BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-      int ind = regionsMaker.getRegionIndex(lvalue, conv.getTypeHandler(), ssa, pts);
-      if (ind < 0 && !ufName.contains("global")){
-        ufName += "-global";
-      } else if (ind >= 0 && !ufName.contains("struct")){
-        ufName += '-' + regionsMaker.getRegion(ind).getRegionParent().toString().replace(" ", "-")
-            + '-' + regionsMaker.getRegion(ind).getElem();
+      if (conv.getVariableClassification().isPresent()) {
+        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
+        ufName = regionsMaker.getNewUfName(ufName, lvalue, conv.getTypeHandler(), ssa, pts);
       }
+
       System.out.println("Resulting UF: " + ufName);
       System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
 

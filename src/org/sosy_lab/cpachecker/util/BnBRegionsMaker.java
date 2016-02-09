@@ -94,24 +94,20 @@ public class BnBRegionsMaker {
     }
   }
 
-  public List<BnBRegionImpl> getRegions(){
-    return regions;
-  }
-
   /**
    *
-   * @param parent - name of element's base
+   * @param pContainerType - element's base
    * @param name - name of element
    * @return index or -1 if global
    */
-  public int getRegionIndexByParentAndName(String parent, String name){
+  public int getRegionIndexByParentAndName(CType pContainerType, String name){
 
     BnBRegionImpl current;
 
     for (int i = 0; i < regions.size(); ++i){
       current = regions.get(i);
       if (current.getElem().equals(name)
-          && current.getRegionParent().toString().equals(parent)){
+          && current.getRegionParent().equals(pContainerType)){
 
         if (current.isPartOfGlobal()){
           return GLOBAL;
@@ -123,10 +119,6 @@ public class BnBRegionsMaker {
     }
 
     return GLOBAL;
-  }
-
-  public Set<CType> getContainers(){
-    return containers;
   }
 
   public void makeRegions(CFA cfa) {
@@ -247,7 +239,9 @@ public class BnBRegionsMaker {
     int firstIndex = ssaAddr.contains("|") ? ssaAddr.indexOf('|') : 0;
     String newSsaAddr = ssaAddr.substring(firstIndex + 1, lastIndex);
     newSsaAddr = newSsaAddr.replace("__ADDRESS_OF_", "");
-    newSsaAddr = newSsaAddr.replaceAll("[^a-zA-Z:_]", "");
+    System.out.println(newSsaAddr);
+    newSsaAddr = newSsaAddr.replace(' ', '#');
+    newSsaAddr = newSsaAddr.replaceAll("[^a-zA-Z:_0-9#]", "");
     System.out.println(newSsaAddr);
 
     System.out.println(ssa.getIndex(newSsaAddr));
@@ -320,7 +314,7 @@ public class BnBRegionsMaker {
           for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
             if (curOffset == offset){
               pointerTargets.put(pt, Triple.of(target, containerType.toString() + " " + field.getName(),
-                  getRegionIndexByParentAndName(containerType.toString(), field.getName())));
+                    getRegionIndexByParentAndName(containerType, field.getName())));
             } else {
               offset += ptsb.getSize(field.getType());
             }
@@ -388,36 +382,25 @@ public class BnBRegionsMaker {
     }
   }
 
-  public int getRegionIndex(String parentType, int offset) {
-    for (PointerTarget pt : pointerTargets.keySet()){
-      Triple<String, String, Integer> triple = pointerTargets.get(pt);
-      System.out.println("PT: " + pt);
-      System.out.println("PO: " + pt.getProperOffset());
-      System.out.println("Triple: " + triple);
-      if (pt.getContainerType().toString().equals(parentType) && pt.getProperOffset() == offset){
-        System.out.println("FOUND " + triple.getThird());
-        return triple.getThird();
-      }
-    }
-    System.out.println("WILL BE GLOBAL");
-    return GLOBAL;
-  }
-
-  public BnBRegionImpl getRegion(int pIndex) {
-    return regions.get(pIndex);
-  }
-
   public PointerTargetSet updatePTS(PointerTargetSet pts) {
-    return new PointerTargetSet(pts, getPersistentTargets());
-  }
-
-  private PersistentSortedMap<String, PersistentList<PointerTarget>> getPersistentTargets() {
     Map<String, PersistentList<PointerTarget>> result = new HashMap<>();
     for (String key: targetRegions.keySet()){
       PersistentList<PointerTarget> pl = PersistentLinkedList.copyOf(targetRegions.get(key));
       result.put(key, pl);
     }
-    return PathCopyingPersistentTreeMap.copyOf(result);
+    return new PointerTargetSet(pts, PathCopyingPersistentTreeMap.copyOf(result));
+  }
+
+  public String getNewUfName(String ufName, Formula pStartAddress, CtoFormulaTypeHandler pCtoFormulaTypeHandler, SSAMapBuilder pSsa, PointerTargetSetBuilder pPts) {
+    int ind = getRegionIndex(pStartAddress, pCtoFormulaTypeHandler, pSsa, pPts);
+    if (ind < 0 && !ufName.contains("global")){
+      ufName += "-global";
+    } else if (ind >= 0 && !ufName.contains("struct")){
+      ufName += '-' + regions.get(ind).getRegionParent().toString().replace(" ", "-")
+          + '-' + regions.get(ind).getElem();
+    }
+
+    return ufName;
   }
 
 }
