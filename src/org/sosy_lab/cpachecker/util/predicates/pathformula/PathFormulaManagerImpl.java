@@ -437,7 +437,7 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
       return makeSsaNondetFlagMerger(oldIndex, newIndex);
 
     } else if (CToFormulaConverterWithPointerAliasing.isUF(symbolName)) {
-      assert symbolName.equals(CToFormulaConverterWithPointerAliasing.getUFName(symbolType));
+      assert symbolName.startsWith(CToFormulaConverterWithPointerAliasing.getUFName(symbolType));
       return makeSsaUFMerger(symbolName, symbolType, oldIndex, newIndex, oldPts);
 
     } else {
@@ -699,6 +699,11 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
     bF = bfmgr.and(addMergeAssumptions(pF1.getFormula(), pF1.getSsa(), pF1.getPointerTargetSet(), pF2.getSsa()), bF);
 
     return bF;
+  }
+
+  @Override
+  public Optional<VariableClassification> getVarClassif() {
+    return varClassif;
   }
 
 }
