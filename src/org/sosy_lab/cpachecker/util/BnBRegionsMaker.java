@@ -26,9 +26,7 @@ package org.sosy_lab.cpachecker.util;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -44,81 +42,52 @@ import org.sosy_lab.common.collect.PersistentSortedMap;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
-import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaTypeHandler;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTarget;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder;
-import org.sosy_lab.solver.api.Formula;
 
 
 public class BnBRegionsMaker {
 
   private List<BnBRegionImpl> regions = new ArrayList<>();
-  private static final int GLOBAL = -1;
+  private static final int GLOBAL_IND = -1;
+  public final String GLOBAL = " global";
   private Set<CType> containers = new HashSet<>();
   private Map<String, List<PointerTarget>> targetRegions = new HashMap<>();
   private Map<PointerTarget, Triple<String, String, Integer>> pointerTargets = new HashMap<>();
-
-  private class PrePointerTarget{
-    private CType containerType;
-    private int containerOffset;
-    private int properOffset;
-
-    public PrePointerTarget(CType contType, int contOff, int propOff){
-      containerType = contType;
-      containerOffset = contOff;
-      properOffset = propOff;
-    }
-
-    public boolean almostEqual(PointerTarget o) {
-      return properOffset == o.getProperOffset() &&
-               containerOffset == o.getContainerOffset() &&
-               (containerType != null ?
-                  o.getContainerType() != null && containerType.getCanonicalType().
-                                                    equals(o.getContainerType().getCanonicalType()) :
-                  o.getContainerType() == null);
-    }
-
-    @Override
-    public String toString(){
-      String result = "";
-
-      result += "Container Type: " + containerType + "\n";
-      result += "Container Offset: " + containerOffset + "\n";
-      result += "Proper Offset: " + properOffset + "\n";
-
-      return result;
-    }
-  }
 
   /**
    *
    * @param pContainerType - element's base
    * @param name - name of element
    * @return index or -1 if global
+   * @throws Exception
    */
-  public int getRegionIndexByParentAndName(CType pContainerType, String name){
+  public int getRegionIndexByParentAndName(CType pContainerType, String name) throws Exception{
 
     BnBRegionImpl current;
 
+    System.out.println("CALL GRI");
+    String parent = pContainerType.toString();
+    System.out.println(parent);
+    System.out.println(name);
+
     for (int i = 0; i < regions.size(); ++i){
       current = regions.get(i);
+      System.out.println(current);
       if (current.getElem().equals(name)
-          && current.getRegionParent().equals(pContainerType)){
-
+          && current.getRegionParent().toString().equals(parent)){
+        System.out.println("Found\n");
         if (current.isPartOfGlobal()){
-          return GLOBAL;
+          return GLOBAL_IND;
         } else {
           return i;
         }
 
       }
     }
-
-    return GLOBAL;
+    throw new Exception("Not found " + parent + " " + name);
   }
 
   public void makeRegions(CFA cfa) {
@@ -205,112 +174,6 @@ public class BnBRegionsMaker {
     }
   }
 
-  public int getRegionIndex(Formula pAddress, CtoFormulaTypeHandler typeHandler, SSAMapBuilder ssa, PointerTargetSetBuilder pts) {
-    int curOffset = 0;
-    int modifier = 1;
-    int properOffset = 0;
-    Deque<Integer> offsets = new ArrayDeque<>();
-    String addr = pAddress.toString();
-    String ssaAddr = pAddress.toString();
-
-    addr = addr.replaceAll("@", "::");
-    System.out.println(addr);
-    addr = addr.replaceAll("[^a-zA-Z:0-9 ]", "");
-    addr = addr.replace(' ', '#');
-    System.out.println(addr);
-
-    //Remembering all of the offsets
-    for (int i = addr.length() - 1; i > 0; --i){
-      if (addr.charAt(i) >= '0' && addr.charAt(i) <= '9' && addr.charAt(i - 1) != ':'){
-        curOffset += (addr.charAt(i) - '0') * modifier;
-        modifier *= 10;
-        System.out.println("CO: " + curOffset);
-      } else if (addr.charAt(i) == '#'){
-        offsets.push(curOffset);
-        properOffset += curOffset;
-        curOffset = 0;
-        modifier = 1;
-      } else {
-        break;
-      }
-    }
-
-    int lastIndex = ssaAddr.contains("@") ? ssaAddr.indexOf('@') : ssaAddr.length();
-    int firstIndex = ssaAddr.contains("|") ? ssaAddr.indexOf('|') : 0;
-    String newSsaAddr = ssaAddr.substring(firstIndex + 1, lastIndex);
-    newSsaAddr = newSsaAddr.replace("__ADDRESS_OF_", "");
-    System.out.println(newSsaAddr);
-    newSsaAddr = newSsaAddr.replace(' ', '#');
-    newSsaAddr = newSsaAddr.replaceAll("[^a-zA-Z:_0-9#]", "");
-    System.out.println(newSsaAddr);
-    String [] smth = newSsaAddr.split("#");
-    for (String str : smth){
-      System.out.println(str);
-      if (!str.isEmpty()){
-        newSsaAddr = str;
-        break;
-      }
-    }
-
-    System.out.println(ssa.getIndex(newSsaAddr));
-    CType parentType = ssa.getType(newSsaAddr);
-    System.out.println(pts == null);
-
-    if (parentType == null && pts != null ){
-      System.out.println("IN");
-      parentType = pts.getBaseType(newSsaAddr);
-    }
-
-    assert parentType != null : "Parent type is null!";
-
-    String str = parentType.toString().replaceAll("[()*]", "");
-    System.out.println("Parent: " + str);
-    System.out.println(newSsaAddr);
-
-    while (parentType instanceof CPointerType){
-      parentType = ((CPointerType) parentType).getType();
-    }
-
-    PrePointerTarget ppt = getPrePointerTarget(typeHandler, offsets, null, parentType, properOffset);
-    assert ppt != null : "Null PrePointerTarget!";
-
-    System.out.println("PPT: " + ppt);
-
-    for (PointerTarget target : pointerTargets.keySet()){
-      System.out.println(target);
-      if (ppt.almostEqual(target)){
-        return pointerTargets.get(target).getThird();
-      }
-    }
-
-    return GLOBAL;
-  }
-
-  private PrePointerTarget getPrePointerTarget(CtoFormulaTypeHandler typeHandler, Deque<Integer> offsets,
-                                         CType parentType, CType currentType, int properOffset) {
-    int curOffset;
-    curOffset = 0;
-    int expected = offsets.isEmpty() ? 0 : offsets.pop();
-
-    System.out.println("EXPECTED: " + expected);
-
-    if (currentType instanceof CCompositeType){
-      CCompositeType complType = (CCompositeType) currentType;
-      for (CCompositeTypeMemberDeclaration member : complType.getMembers()){
-        if (curOffset != expected){
-          curOffset += typeHandler.getSizeof(member.getType());
-          System.out.println("CUR: " + curOffset);
-        } else {
-          return getPrePointerTarget(typeHandler, offsets, currentType, member.getType(), properOffset);
-        }
-      }
-    } else {
-      return new PrePointerTarget(parentType, expected, properOffset);
-    }
-
-    return null;
-  }
-
   public Map<String, PersistentList<PointerTarget>> getNewTargetsWithRegions(
       PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
       PointerTargetSetBuilder ptsb){
@@ -325,8 +188,13 @@ public class BnBRegionsMaker {
 
           for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
             if (curOffset == offset){
-              pointerTargets.put(pt, Triple.of(target, containerType.toString() + " " + field.getName(),
-                    getRegionIndexByParentAndName(containerType, field.getName())));
+              try {
+                pointerTargets.put(pt, Triple.of(target, containerType.toString() + " " + field.getName(),
+                      getRegionIndexByParentAndName(containerType, field.getName())));
+              } catch (Exception e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+              }
             } else {
               offset += ptsb.getSize(field.getType());
             }
@@ -390,7 +258,7 @@ public class BnBRegionsMaker {
     if (pointerTargets.keySet().contains(pt)){
       return pointerTargets.get(pt).getThird();
     } else {
-      return GLOBAL;
+      return GLOBAL_IND;
     }
   }
 
@@ -403,20 +271,15 @@ public class BnBRegionsMaker {
     return new PointerTargetSet(pts, PathCopyingPersistentTreeMap.copyOf(result));
   }
 
-  public String getNewUfName(String ufName,
-                             final Formula pStartAddress,
-                             final CtoFormulaTypeHandler pCtoFormulaTypeHandler,
-                             final SSAMapBuilder pSsa,
-                             final PointerTargetSetBuilder pPts) {
-
-    final int ind = getRegionIndex(pStartAddress, pCtoFormulaTypeHandler, pSsa, pPts);
-    if (ind < 0 && !ufName.contains("global")){
-      ufName += "-global";
-    } else if (ind >= 0 && !ufName.contains("struct")){
-      ufName += '-' + regions.get(ind).getRegionParent().toString().replace(" ", "-")
-          + '-' + regions.get(ind).getElem();
+  public String getNewUfName(String ufName, String region){
+    System.out.println(region == null);
+    ufName += "_";
+    if (region != null){
+      ufName += region.replace(' ', '_');
+    } else {
+      ufName += "global";
+      (new Exception("Global region")).printStackTrace();
     }
-
     return ufName;
   }
 

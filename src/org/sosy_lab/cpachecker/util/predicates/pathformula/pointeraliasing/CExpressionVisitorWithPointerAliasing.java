@@ -55,6 +55,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
+import org.sosy_lab.cpachecker.util.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
@@ -85,7 +86,9 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
     private Formula convert0(Expression value, CRightHandSide rhs) {
       CType type = CTypeUtils.simplifyType(rhs.getExpressionType());
-      return ((CExpressionVisitorWithPointerAliasing)delegate).asValueFormula(value, type);
+
+      return ((CExpressionVisitorWithPointerAliasing)delegate).asValueFormula(value, type,
+                          ((CExpressionVisitorWithPointerAliasing)delegate).getRegion(rhs));
     }
 
     @Override
@@ -106,8 +109,8 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
       @Override
       protected Formula toFormula(CExpression e) throws UnrecognizedCCodeException {
         // recursive application of pointer-aliasing.
-        return asValueFormula(e.accept(CExpressionVisitorWithPointerAliasing.this),
-                              CTypeUtils.simplifyType(e.getExpressionType()));
+        final Expression expr = e.accept(CExpressionVisitorWithPointerAliasing.this);
+        return asValueFormula(expr, CTypeUtils.simplifyType(e.getExpressionType()), region);
       }
     };
 
@@ -119,6 +122,26 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     this.pts = pts;
 
     this.baseVisitor = new BaseVisitor(cfaEdge, pts);
+  }
+
+  public String getRegion(CRightHandSide rhs) {
+    if (rhs instanceof CFieldReference && conv.getVariableClassification().isPresent()){
+      try {
+        CFieldReference ref = (CFieldReference)rhs;
+        if (conv.getVariableClassification().get().getRegionsMaker()
+                .getRegionIndexByParentAndName(ref.getFieldOwner().getExpressionType(),
+                                               ref.getFieldName()) >= 0){
+          return " " + ref.getFieldOwner().getExpressionType().toString() + " " + ref.getFieldName();
+        } else {
+          return " global";
+        }
+      } catch (Exception e) {
+        // TODO Auto-generated catch block
+        e.printStackTrace();
+      }
+    }
+
+    return null;
   }
 
   public CRightHandSideVisitor<Formula, UnrecognizedCCodeException> asFormulaVisitor() {
@@ -133,23 +156,23 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     }
   }
 
-  Formula asValueFormula(final Expression e, final CType type, final boolean isSafe) {
+  Formula asValueFormula(final Expression e, final CType type, final boolean isSafe, final String region) {
     if (e.isValue()) {
       return e.asValue().getValue();
     } else if (e.asLocation().isAliased()) {
-      return !isSafe ? conv.makeDereference(type, e.asLocation().asAliased().getAddress(), ssa, errorConditions, pts) :
-                       conv.makeSafeDereference(type, e.asLocation().asAliased().getAddress(), ssa, pts);
+      return !isSafe ? conv.makeDereference(type, e.asLocation().asAliased().getAddress(), ssa, errorConditions, region) :
+                       conv.makeSafeDereference(type, e.asLocation().asAliased().getAddress(), ssa, region);
     } else { // Unaliased location
       return conv.makeVariable(e.asLocation().asUnaliased().getVariableName(), type, ssa);
     }
   }
 
-  Formula asValueFormula(final Expression e, final CType type) {
-    return asValueFormula(e, type, false);
+  Formula asValueFormula(final Expression e, final CType type, final String region) {
+    return asValueFormula(e, type, false, region);
   }
 
   Formula asSafeValueFormula(final Expression e, final CType type) {
-    return asValueFormula(e, type, true);
+    return asValueFormula(e, type, true, null);
   }
 
   @Override
@@ -166,7 +189,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
       assert base.isAliasedLocation();
     } else {
       // The address of the first element is needed i.e. the value of the pointer in the array expression
-      base = AliasedLocation.ofAddress(asValueFormula(base, CTypeUtils.implicitCastToPointer(baseType)));
+      base = AliasedLocation.ofAddress(asValueFormula(base, CTypeUtils.implicitCastToPointer(baseType), region));
     }
     // Now we should always have the aliased location of the first array element
     assert base.isAliasedLocation();
@@ -174,9 +197,10 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     final CType elementType = CTypeUtils.simplifyType(e.getExpressionType());
     final CExpression subscript = e.getSubscriptExpression();
     final CType subscriptType = CTypeUtils.simplifyType(subscript.getExpressionType());
+    Expression accept = subscript.accept(this);
     final Formula index = conv.makeCast(subscriptType,
                                         CPointerType.POINTER_TO_VOID,
-                                        asValueFormula(subscript.accept(this), subscriptType),
+                                        asValueFormula(accept, subscriptType, region),
                                         constraints,
                                         edge);
 
@@ -192,6 +216,26 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
     e = CToFormulaConverterWithPointerAliasing.eliminateArrow(e, edge);
 
+    CType parent = e.getFieldOwner().getExpressionType();
+    String field = e.getFieldName();
+
+    if (conv.getVariableClassification().isPresent()){
+      System.out.println("PAR: " + parent);
+      System.out.println(field);
+      BnBRegionsMaker regMk = conv.getVariableClassification().get().getRegionsMaker();
+      try {
+        if (regMk.getRegionIndexByParentAndName(parent, field) < 0){
+          region = regMk.GLOBAL;
+        } else {
+          region = parent.toString() + " " + field;
+        }
+      } catch (Exception e1) {
+        // TODO Auto-generated catch block
+        e1.printStackTrace();
+      }
+      System.out.println(region);
+    }
+
     final Variable variable = e.accept(baseVisitor);
     if (variable != null) {
       final String variableName = variable.getName();
@@ -200,11 +244,11 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
       }
       return UnaliasedLocation.ofVariableName(variableName);
     } else {
-      final CType fieldOwnerType = CTypeUtils.simplifyType(e.getFieldOwner().getExpressionType());
+      final CType fieldOwnerType = CTypeUtils.simplifyType(parent);
       if (fieldOwnerType instanceof CCompositeType) {
         final AliasedLocation base = e.getFieldOwner().accept(this).asAliasedLocation();
 
-        final String fieldName = e.getFieldName();
+        final String fieldName = field;
         usedFields.add(Pair.of((CCompositeType) fieldOwnerType, fieldName));
         final Formula offset = conv.fmgr.makeNumber(conv.voidPointerFormulaType,
                                                     conv.ptsMgr.getOffset((CCompositeType) fieldOwnerType, fieldName));
@@ -253,7 +297,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
     final CType operandType = CTypeUtils.simplifyType(operand.getExpressionType());
     if (CTypeUtils.isSimpleType(resultType)) {
-      return Value.ofValue(conv.makeCast(operandType, resultType, asValueFormula(result, operandType), constraints, edge));
+      return Value.ofValue(conv.makeCast(operandType, resultType, asValueFormula(result, operandType, region), constraints, edge));
     } else if (CTypes.withoutConst(resultType).equals(CTypes.withoutConst(operandType))) {
       // Special case: conversion of non-scalar type to itself is allowed (and ignored)
       // Change of const modifier is ignored, too.
@@ -384,7 +428,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     if (operandType instanceof CArrayType && ((CArrayType) operandType).getLength() != null) {
       return operandExpression.asAliasedLocation();
     } else {
-      return AliasedLocation.ofAddress(asValueFormula(operandExpression, operandType));
+      return AliasedLocation.ofAddress(asValueFormula(operandExpression, operandType, region));
     }
   }
 
@@ -482,6 +526,10 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     return Collections.unmodifiableMap(usedDeferredAllocationPointers);
   }
 
+  public String getRegion() {
+    return region;
+  }
+
   private final CToFormulaConverterWithPointerAliasing conv;
   private final CFAEdge edge;
   private final SSAMapBuilder ssa;
@@ -496,4 +544,5 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
   private final List<Pair<CCompositeType, String>> initializedFields = new ArrayList<>();
   private final List<Pair<CCompositeType, String>> addressedFields = new ArrayList<>();
   private final Map<String, CType> usedDeferredAllocationPointers = Maps.newHashMapWithExpectedSize(1);
+  private String region;
 }

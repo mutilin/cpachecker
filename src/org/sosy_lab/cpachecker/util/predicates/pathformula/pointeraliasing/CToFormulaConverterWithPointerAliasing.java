@@ -146,7 +146,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     if (result != null) {
       return result;
     } else {
-      result = UF_NAME_PREFIX + CTypeUtils.typeToString(type).replace(' ', '-');
+      result = UF_NAME_PREFIX + CTypeUtils.typeToString(type).replace(' ', '_');
       ufNameCache.put(type, result);
       return result;
     }
@@ -204,27 +204,27 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
                          final Formula address,
                          final SSAMapBuilder ssa,
                          final ErrorConditions errorConditions,
-                         final PointerTargetSetBuilder pts) {
+                         final String region) {
     if (errorConditions.isEnabled()) {
       errorConditions.addInvalidDerefCondition(fmgr.makeEqual(address, nullPointer));
       errorConditions.addInvalidDerefCondition(fmgr.makeLessThan(address, makeBaseAddressOfTerm(address), false));
     }
-    return makeSafeDereference(type, address, ssa, pts);
+    return makeSafeDereference(type, address, ssa, region);
   }
 
   Formula makeSafeDereference(CType type,
                          final Formula address,
                          final SSAMapBuilder ssa,
-                         final PointerTargetSetBuilder pts) {
+                         final String region) {
     type = CTypeUtils.simplifyType(type);
     String ufName = getUFName(type);
 
     if (variableClassification.isPresent()){
       System.out.println("ADDR: " + address);
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      ufName = regionsMaker.getNewUfName(ufName, address, typeHandler, ssa, pts);
-
+      ufName = regionsMaker.getNewUfName(ufName, region);
       System.out.println("UF: " + ufName);
+      System.out.println(address);
     }
 
     final int index = getIndex(ufName, type, ssa);
@@ -336,7 +336,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       // a variable directly and now via its address (we do not want to loose
       // the value previously stored in the variable).
       // Make sure to not add invalid-deref constraints for this dereference
-      constraints.addConstraint(fmgr.makeEqual(makeSafeDereference(baseType, address, ssa, pts),
+      constraints.addConstraint(fmgr.makeEqual(makeSafeDereference(baseType, address, ssa, null),
                                                makeVariable(base.getName(), baseType, ssa)));
     }
   }
@@ -720,7 +720,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           throws UnrecognizedCCodeException, InterruptedException {
     final CType expressionType = CTypeUtils.simplifyType(e.getExpressionType());
     CExpressionVisitorWithPointerAliasing ev = new CExpressionVisitorWithPointerAliasing(this, edge, function, ssa, constraints, errorConditions, pts);
-    BooleanFormula result = toBooleanFormula(ev.asValueFormula(e.accept(ev), expressionType));
+    final Expression expr = e.accept(ev);
+    BooleanFormula result = toBooleanFormula(ev.asValueFormula(expr, expressionType, ev.getRegion()));
 
     if (options.deferUntypedAllocations()) {
       DynamicMemoryHandler memoryHandler = new DynamicMemoryHandler(this, edge, ssa, pts, constraints, errorConditions);

@@ -545,7 +545,6 @@ public interface PointerTargetSetBuilder {
 
     @Override
     public PersistentList<PointerTarget> getAllTargets(final CType type) {
-      System.out.println("Calling GAT for: " + CTypeUtils.typeToString(type));
       return firstNonNull(targets.get(CTypeUtils.typeToString(type)),
                           PersistentLinkedList.<PointerTarget>of());
     }
@@ -599,12 +598,6 @@ public interface PointerTargetSetBuilder {
 
         System.out.println("EQ1 ###############");
 
-        /*for (CompositeField field : fieldOffsets.keySet()){
-        System.out.println("EQ3 " + field);
-      }
-
-      System.out.println("EQ3 ###############");*/
-
         Map<String, PersistentList<PointerTarget>> newTargets =
             pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
 
@@ -630,7 +623,7 @@ public interface PointerTargetSetBuilder {
     @SuppressWarnings("unchecked")
     private PersistentList<PointerTarget> getAllTargets(String pUfName) {
       PersistentList<PointerTarget> res = targets.get(pUfName);
-      return (PersistentList<PointerTarget>) ((res == null || res.isEmpty()) ? PersistentLinkedList.of() : res);
+      return (PersistentList<PointerTarget>) (res == null ? PersistentLinkedList.of() : res);
     }
   }
 

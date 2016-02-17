@@ -70,4 +70,12 @@ public class BnBRegionImpl implements BnBRegion{
   public Integer getFieldNumber(){
     return number;
   }
+
+  @Override
+  public String toString(){
+    String result = "";
+    result += "Parent: " + regionParent.toString() + '\n';
+    result += "Elem: " + elemName + '\n';
+    return result;
+  }
 }

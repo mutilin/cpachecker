@@ -50,7 +50,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
-import org.sosy_lab.cpachecker.util.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
@@ -117,7 +116,6 @@ class AssignmentHandler {
     final CType rhsType = rhs != null ? CTypeUtils.simplifyType(rhs.getExpressionType()) :
                                         CNumericTypes.SIGNED_CHAR;
 
-    pts.updateTargetRegions(conv.getVariableClassification());
     // RHS handling
     final CExpressionVisitorWithPointerAliasing rhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
 
@@ -131,6 +129,8 @@ class AssignmentHandler {
       }
       rhsExpression = r.accept(rhsVisitor);
     }
+
+    final String rhsRegion = rhsVisitor.getRegion();
 
     pts.addEssentialFields(rhsVisitor.getInitializedFields());
     pts.addEssentialFields(rhsVisitor.getUsedFields());
@@ -147,6 +147,7 @@ class AssignmentHandler {
     pts.addEssentialFields(lhsVisitor.getUsedFields());
     // the pattern matching possibly aliased locations
 
+    final String lhsRegion = lhsVisitor.getRegion();
     pts.updateTargetRegions(conv.getVariableClassification());
 
     final PointerTargetPattern pattern = lhsLocation.isUnaliasedLocation()
@@ -167,7 +168,9 @@ class AssignmentHandler {
                           rhsExpression,
                           pattern,
                           batchMode,
-                          pUpdatedUFs);
+                          pUpdatedUFs,
+                          lhsRegion,
+                          rhsRegion);
 
     for (final Pair<CCompositeType, String> field : rhsAddressedFields) {
       pts.addField(field.getFirst(), field.getSecond());
@@ -183,20 +186,20 @@ class AssignmentHandler {
                                                             throws UnrecognizedCCodeException, InterruptedException {
     CExpressionVisitorWithPointerAliasing lhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
     final Location lhsLocation = variable.accept(lhsVisitor).asLocation();
-    final Set<String> updatedTypes = new HashSet<>();
+    final Set<String> updatedUFs = new HashSet<>();
     BooleanFormula result = conv.bfmgr.makeBoolean(true);
     for (CExpressionAssignmentStatement assignment : assignments) {
       final CLeftHandSide lhs = assignment.getLeftHandSide();
       result = conv.bfmgr.and(result, handleAssignment(lhs, lhs,
                                                        assignment.getRightHandSide(),
                                                        lhsLocation.isAliased(), // Defer index update for UFs, but not for variables
-                                                       updatedTypes));
+                                                       updatedUFs));
     }
     if (lhsLocation.isAliased()) {
       finishAssignments(CTypeUtils.simplifyType(variable.getExpressionType()),
                              lhsLocation.asAliased(),
                              PointerTargetPattern.forLeftHandSide(variable, conv.typeHandler, conv.ptsMgr, edge, pts),
-                             updatedTypes);
+                             updatedUFs, lhsVisitor.getRegion(), null);
     }
     return result;
   }
@@ -207,7 +210,9 @@ class AssignmentHandler {
                                 final @Nonnull Expression rvalue,
                                 final @Nullable PointerTargetPattern pattern,
                                 final boolean useOldSSAIndices,
-                                      @Nullable Set<String> pUpdatedUFs)
+                                      @Nullable Set<String> updatedUFs,
+                                final @Nullable String lhsRegion,
+                                final @Nullable String rhsRegion)
   throws UnrecognizedCCodeException, InterruptedException {
     // Its a definite value assignment, a nondet assignment (SSA index update) or a nondet assignment among other
     // assignments to the same UF version (in this case an absense of aliasing should be somehow guaranteed, as in the
@@ -217,41 +222,41 @@ class AssignmentHandler {
 
     lvalueType = CTypeUtils.simplifyType(lvalueType);
 
-    if (lvalue.isAliased() && !isSimpleType(lvalueType) && pUpdatedUFs == null) {
-      pUpdatedUFs = new HashSet<>();
+    if (lvalue.isAliased() && !isSimpleType(lvalueType) && updatedUFs == null) {
+      updatedUFs = new HashSet<>();
     } else {
-      pUpdatedUFs = null;
+      updatedUFs = null;
     }
     Set<Variable> updatedVariables = null;
     if (!lvalue.isAliased() && !isSimpleType(lvalueType)) {
       updatedVariables = new HashSet<>();
     }
 
+    System.out.println("LHSREG: " + lhsRegion);
+    System.out.println("RHSREG: " + rhsRegion);
     final BooleanFormula result = makeDestructiveAssignment(lvalueType, rvalueType,
                                                             lvalue, rvalue,
                                                             useOldSSAIndices,
-                                                            pUpdatedUFs,
-                                                            updatedVariables);
+                                                            updatedUFs,
+                                                            updatedVariables,
+                                                            lhsRegion,
+                                                            rhsRegion);
 
     if (!useOldSSAIndices) {
       if (lvalue.isAliased()) {
         addRetentionForAssignment(lvalueType,
                                   lvalue.asAliased().getAddress(),
-                                  pattern, pUpdatedUFs);
-        if (pUpdatedUFs == null) {
+                                  pattern, updatedUFs,
+                                  lhsRegion, rhsRegion);
+        if (updatedUFs == null) {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
-          String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+          String ufName = conv.getVariableClassification().get().getRegionsMaker()
+                          .getNewUfName(CToFormulaConverterWithPointerAliasing.getUFName(lvalueType), lhsRegion);
 
-          if (conv.getVariableClassification().isPresent()) {
-            BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-            ufName = regionsMaker.getNewUfName(ufName, lvalue.asAliased().getAddress(),
-                                               conv.getTypeHandler(),
-                                               ssa,
-                                               pts);
-          }
-          pUpdatedUFs = Collections.singleton(ufName);
+
+          updatedUFs = Collections.singleton(ufName);
         }
-        updateSSA(pUpdatedUFs, ssa);
+        updateSSA(updatedUFs, ssa);
       } else { // Unaliased lvalue
         if (updatedVariables == null) {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
@@ -270,10 +275,13 @@ class AssignmentHandler {
   void finishAssignments(@Nonnull CType lvalueType,
                          final @Nonnull AliasedLocation lvalue,
                          final @Nonnull PointerTargetPattern pattern,
-                         final @Nonnull Set<String> pUpdatedUFs) throws InterruptedException {
+                         final @Nonnull Set<String> pUpdatedUFs,
+                         final @Nullable String lhsRegion,
+                         final @Nullable String rhsRegion) throws InterruptedException {
     addRetentionForAssignment(lvalueType,
                               lvalue.asAliased().getAddress(),
-                              pattern, pUpdatedUFs);
+                              pattern, pUpdatedUFs,
+                              lhsRegion, rhsRegion);
     updateSSA(pUpdatedUFs, ssa);
   }
 
@@ -283,7 +291,9 @@ class AssignmentHandler {
                                                    final @Nonnull  Expression rvalue,
                                                    final boolean useOldSSAIndices,
                                                    final @Nullable Set<String> pUpdatedUFs,
-                                                   final @Nullable Set<Variable> updatedVariables)
+                                                   final @Nullable Set<Variable> updatedVariables,
+                                                   final @Nullable String lhsRegion,
+                                                   final @Nullable String rhsRegion)
   throws UnrecognizedCCodeException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     rvalueType = CTypeUtils.simplifyType(rvalueType);
@@ -335,7 +345,9 @@ class AssignmentHandler {
                                                      newRvalue.getFirst(),
                                                      useOldSSAIndices,
                                                      pUpdatedUFs,
-                                                     updatedVariables));
+                                                     updatedVariables,
+                                                     lhsRegion,
+                                                     rhsRegion));
          offset += conv.getSizeof(lvalueArrayType.getType());
       }
       return result;
@@ -382,7 +394,9 @@ class AssignmentHandler {
                                                        newRvalue.getFirst(),
                                                        useOldSSAIndices,
                                                        pUpdatedUFs,
-                                                       updatedVariables));
+                                                       updatedVariables,
+                                                       lhsRegion,
+                                                       rhsRegion));
         }
 
         if (lvalueCompositeType.getKind() == ComplexTypeKind.STRUCT) {
@@ -397,7 +411,9 @@ class AssignmentHandler {
                                              rvalue,
                                              useOldSSAIndices,
                                              pUpdatedUFs,
-                                             updatedVariables);
+                                             updatedVariables,
+                                             lhsRegion,
+                                             rhsRegion);
     }
   }
 
@@ -407,7 +423,9 @@ class AssignmentHandler {
                                                                @Nonnull Expression rvalue,
                                                          final boolean useOldSSAIndices,
                                                          final @Nullable Set<String> pUpdatedUFs,
-                                                         final @Nullable Set<Variable> updatedVariables)
+                                                         final @Nullable Set<Variable> updatedVariables,
+                                                         final @Nullable String lhsRegion,
+                                                         final @Nullable String rhsRegion)
   throws UnrecognizedCCodeException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     rvalueType = CTypeUtils.simplifyType(rvalueType);
@@ -421,7 +439,7 @@ class AssignmentHandler {
     final Formula value;
     switch (rvalue.getKind()) {
     case ALIASED_LOCATION:
-      value = conv.makeDereference(rvalueType, rvalue.asAliasedLocation().getAddress(), ssa, errorConditions, pts);
+      value = conv.makeDereference(rvalueType, rvalue.asAliasedLocation().getAddress(), ssa, errorConditions, rhsRegion);
       break;
     case UNALIASED_LOCATION:
       value = conv.makeVariable(rvalue.asUnaliasedLocation().getVariableName(), rvalueType, ssa);
@@ -440,10 +458,7 @@ class AssignmentHandler {
     String targetName = !lvalue.isAliased() ? lvalue.asUnaliased().getVariableName() : CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
     Optional<VariableClassification> variableClassification = conv.getVariableClassification();
     if (variableClassification.isPresent() && lvalue.isAliased()){
-      BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      targetName = regionsMaker.getNewUfName(targetName, lvalue.asAliased().getAddress(),
-                                             conv.getTypeHandler(),
-                                             ssa, pts);
+      targetName = variableClassification.get().getRegionsMaker().getNewUfName(targetName, lhsRegion);
     }
     System.out.println("TNAME: " + targetName);
     final FormulaType<?> targetType = conv.getFormulaTypeFromCType(lvalueType);
@@ -486,7 +501,9 @@ class AssignmentHandler {
   private void addRetentionForAssignment(@Nonnull CType lvalueType,
                                          final @Nullable Formula startAddress,
                                          final @Nonnull PointerTargetPattern pattern,
-                                         final Set<String> pUpdatedUFs) throws InterruptedException {
+                                         final Set<String> pUpdatedUFs,
+                                         final @Nullable String lhsRegion,
+                                         final @Nullable String rhsRegion) throws InterruptedException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     final int size = conv.getSizeof(lvalueType);
     pts.updateTargetRegions(conv.getVariableClassification());
@@ -494,11 +511,12 @@ class AssignmentHandler {
     if (isSimpleType(lvalueType)) {
       Preconditions.checkArgument(startAddress != null,
                                   "Start address is mandatory for assigning to lvalues of simple types");
-      String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
+      String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType) + "_";
 
-      if (conv.getVariableClassification().isPresent()) {
-        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-        ufName = regionsMaker.getNewUfName(ufName, startAddress, conv.getTypeHandler(), ssa, pts);
+      if (lhsRegion != null){
+        ufName += lhsRegion.replace(' ', '_');
+      } else {
+        ufName += "global";
       }
 
       final int oldIndex = conv.getIndex(ufName, lvalueType, ssa);
@@ -551,11 +569,6 @@ class AssignmentHandler {
                                        final FormulaType<?> returnType,
                                        final Formula lvalue) throws InterruptedException {
     if (!pattern.isExact()) {
-
-      if (conv.getVariableClassification().isPresent()) {
-        BnBRegionsMaker regionsMaker = conv.getVariableClassification().get().getRegionsMaker();
-        ufName = regionsMaker.getNewUfName(ufName, lvalue, conv.getTypeHandler(), ssa, pts);
-      }
 
       System.out.println("Resulting UF: " + ufName);
       System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);

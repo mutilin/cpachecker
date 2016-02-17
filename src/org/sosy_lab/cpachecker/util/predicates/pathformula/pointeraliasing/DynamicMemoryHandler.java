@@ -268,8 +268,10 @@ class DynamicMemoryHandler {
     }
 
     if (errorConditions.isEnabled()) {
-      final Formula operand = expressionVisitor.asValueFormula(parameters.get(0).accept(expressionVisitor),
-                                                 CTypeUtils.simplifyType(parameters.get(0).getExpressionType()));
+      final Expression expr = parameters.get(0).accept(expressionVisitor);
+      final Formula operand = expressionVisitor.asValueFormula(expr,
+                                                 CTypeUtils.simplifyType(parameters.get(0).getExpressionType()),
+                                                 expressionVisitor.getRegion());
       BooleanFormula validFree = conv.fmgr.makeEqual(operand, conv.nullPointer);
 
       for (String base : pts.getAllBases()) {
@@ -295,6 +297,8 @@ class DynamicMemoryHandler {
         Value.ofValue(conv.fmgr.makeNumber(conv.getFormulaTypeFromCType(CNumericTypes.SIGNED_CHAR), 0)),
         PointerTargetPattern.forBase(base),
         true,
+        null,
+        null,
         null);
       constraints.addConstraint(initialization);
     }
