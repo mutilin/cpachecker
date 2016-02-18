@@ -82,7 +82,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.AnalysisDirection;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCCodeException;
-import org.sosy_lab.cpachecker.util.BnBRegionsMaker;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
@@ -303,7 +303,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
                                  final List<Pair<CCompositeType, String>> fields,
                                  final SSAMapBuilder ssa,
                                  final Constraints constraints,
-                                 final PointerTargetSetBuilder pts) throws UnrecognizedCCodeException {
+                                 final PointerTargetSetBuilder pts,
+                                 final String region) throws UnrecognizedCCodeException {
     final CType baseType = CTypeUtils.simplifyType(base.getType());
     if (baseType instanceof CArrayType) {
       throw new UnrecognizedCCodeException("Array access can't be encoded as a varaible", cfaEdge);
@@ -319,13 +320,20 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
         if (hasIndex(newBase.getName(), newBase.getType(), ssa) &&
             isRelevantField(compositeType, memberName)) {
           fields.add(Pair.of(compositeType, memberName));
+
+          BnBRegionsMaker regMk = variableClassification.get().getRegionsMaker();
+          int ind = regMk.getRegionIndexByParentAndName(compositeType, memberName);
+          String newRegion = regMk.getNewUfName(getUFName(memberType),
+                                                ind < 0 ? null : compositeType.toString() + " " + memberName);
+
           addValueImportConstraints(cfaEdge,
                                     fmgr.makePlus(address, fmgr.makeNumber(voidPointerFormulaType, offset), IS_POINTER_SIGNED),
                                     newBase,
                                     fields,
                                     ssa,
                                     constraints,
-                                    pts);
+                                    pts,
+                                    newRegion);
         }
         if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
           offset += getSizeof(memberType);
@@ -336,7 +344,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       // a variable directly and now via its address (we do not want to loose
       // the value previously stored in the variable).
       // Make sure to not add invalid-deref constraints for this dereference
-      constraints.addConstraint(fmgr.makeEqual(makeSafeDereference(baseType, address, ssa, null),
+      constraints.addConstraint(fmgr.makeEqual(makeSafeDereference(baseType, address, ssa, region),
                                                makeVariable(base.getName(), baseType, ssa)));
     }
   }
@@ -721,7 +729,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     final CType expressionType = CTypeUtils.simplifyType(e.getExpressionType());
     CExpressionVisitorWithPointerAliasing ev = new CExpressionVisitorWithPointerAliasing(this, edge, function, ssa, constraints, errorConditions, pts);
     final Expression expr = e.accept(ev);
-    BooleanFormula result = toBooleanFormula(ev.asValueFormula(expr, expressionType, ev.getRegion()));
+    BooleanFormula result = toBooleanFormula(ev.asValueFormula(expr, expressionType));
 
     if (options.deferUntypedAllocations()) {
       DynamicMemoryHandler memoryHandler = new DynamicMemoryHandler(this, edge, ssa, pts, constraints, errorConditions);

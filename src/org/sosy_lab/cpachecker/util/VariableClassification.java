@@ -39,6 +39,7 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
@@ -86,7 +87,7 @@ public class VariableClassification {
 
   private final LogManager logger;
 
-  private static BnBRegionsMaker regMk;
+  private static org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker regMk;
 
   VariableClassification(boolean pHasRelevantNonIntAddVars,
       Set<String> pIntBoolVars,

@@ -115,7 +115,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.VariableClassification.Partition;
-
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.collect.HashMultiset;

@@ -21,14 +21,14 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-package org.sosy_lab.cpachecker.util;
+package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 
-public class BnBRegionImpl implements BnBRegion{
-  private final CCompositeType regionParent;
+public class BnBRegionImpl implements BnBRegion {
+  private final CType regionParent;
   private final CType elemType;
   private final String elemName;
   private final Integer number;
@@ -52,7 +52,7 @@ public class BnBRegionImpl implements BnBRegion{
   }
 
   @Override
-  public CCompositeType getRegionParent(){
+  public CType getRegionParent(){
     return regionParent;
   }
 

@@ -21,7 +21,7 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-package org.sosy_lab.cpachecker.util;
+package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -59,17 +59,16 @@ public class BnBRegionsMaker {
 
   /**
    *
-   * @param pContainerType - element's base
+   * @param parent - element's base
    * @param name - name of element
    * @return index or -1 if global
    * @throws Exception
    */
-  public int getRegionIndexByParentAndName(CType pContainerType, String name) throws Exception{
+  public int getRegionIndexByParentAndName(CType parent, String name){
 
     BnBRegionImpl current;
 
     System.out.println("CALL GRI");
-    String parent = pContainerType.toString();
     System.out.println(parent);
     System.out.println(name);
 
@@ -77,7 +76,7 @@ public class BnBRegionsMaker {
       current = regions.get(i);
       System.out.println(current);
       if (current.getElem().equals(name)
-          && current.getRegionParent().toString().equals(parent)){
+          && current.getRegionParent().equals(parent)){
         System.out.println("Found\n");
         if (current.isPartOfGlobal()){
           return GLOBAL_IND;
@@ -87,12 +86,14 @@ public class BnBRegionsMaker {
 
       }
     }
-    throw new Exception("Not found " + parent + " " + name);
+    (new Exception("Not found " + parent + " " + name)).printStackTrace();
+    return GLOBAL_IND;
   }
 
   public void makeRegions(CFA cfa) {
     ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics();
     ctfs.findFieldsInCFA(cfa);
+    ctfs.dumpStat("Stat.txt");
 
     Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> usedFields = ctfs.getUsedFields();
     Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> refdFields = ctfs.getRefdFields();
@@ -149,6 +150,12 @@ public class BnBRegionsMaker {
       FileWriter writer = new FileWriter(dump);
 
       String result = "";
+
+      for (CType container : containers){
+        result += ((CCompositeType)container).getMembers();
+        result += '\n';
+      }
+
       int i = 0;
       for (BnBRegionImpl reg : regions){
         result += "Number: " + (i++) + '\n';
@@ -188,13 +195,8 @@ public class BnBRegionsMaker {
 
           for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
             if (curOffset == offset){
-              try {
-                pointerTargets.put(pt, Triple.of(target, containerType.toString() + " " + field.getName(),
+              pointerTargets.put(pt, Triple.of(target, containerType.toString() + " " + field.getName(),
                       getRegionIndexByParentAndName(containerType, field.getName())));
-              } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-              }
             } else {
               offset += ptsb.getSize(field.getType());
             }
@@ -208,10 +210,11 @@ public class BnBRegionsMaker {
     for (PointerTarget pt : pointerTargets.keySet()){
       Triple<String, String, Integer> triple = pointerTargets.get(pt);
       String key;
-      if (triple.getFirst().contains("global") || triple.getFirst().contains("struct")){
-        key = triple.getFirst();
+      String first = triple.getFirst();
+      if (first.contains("global") || first.contains("struct")){
+        key = first;
       } else {
-        key = triple.getFirst() + " " + triple.getSecond();
+        key = first + " " + triple.getSecond();
       }
       if (!targetRegions.containsKey(key)){
         targetRegions.put(key, new ArrayList<PointerTarget>());

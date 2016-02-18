@@ -21,16 +21,15 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-package org.sosy_lab.cpachecker.util;
+package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public interface BnBRegion {
 
   CType getType();
 
-  CCompositeType getRegionParent();
+  CType getRegionParent();
 
   String getElem();
 

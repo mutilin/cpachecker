@@ -21,7 +21,7 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-package org.sosy_lab.cpachecker.util;
+package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -87,8 +87,8 @@ public class ComplexTypeFieldStatistics {
   private void visitEdge(CFAEdge edge) {
     CFAEdgeType edgeType;
     CStatement statement;
-    CDeclaration declaration;
     edgeType = edge.getEdgeType();
+
     if (edgeType == CFAEdgeType.StatementEdge){
        //Searching for address-taking and calling of the structure field
       statement = ((CStatementEdge)edge).getStatement();
@@ -108,8 +108,7 @@ public class ComplexTypeFieldStatistics {
         }
       }
     } else if (edgeType == CFAEdgeType.DeclarationEdge){
-      declaration = ((CDeclarationEdge)edge).getDeclaration();
-      visit(declaration);
+      visit(((CDeclarationEdge)edge).getDeclaration());
     } else if (edgeType == CFAEdgeType.FunctionCallEdge){
       for (CExpression param : ((CFunctionCallEdge)edge).getArguments()){
         chooser(param);

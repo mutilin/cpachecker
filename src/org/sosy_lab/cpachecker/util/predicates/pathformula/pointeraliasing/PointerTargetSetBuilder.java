@@ -330,12 +330,6 @@ public interface PointerTargetSetBuilder {
           }
           if (isTargetComposite && memberDeclaration.getName().equals(memberName)) {
             targets = ptsMgr.addToTargets(base, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
-            /*fieldOffsets.put(CompositeField.of(type, memberName), Pair.of(offset, containerOffset + properOffset));
-
-            for (CompositeField field : fieldOffsets.keySet()){
-              System.out.println("EQ2 " + field + ' ' + fieldOffsets.get(field).getFirst() + ' ' + fieldOffsets.get(field).getSecond());
-            }
-            System.out.println("EQ2 ###############");*/
           }
           if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
             offset += ptsMgr.getSize(memberDeclaration.getType());

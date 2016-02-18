@@ -28,9 +28,9 @@ import static com.google.common.base.MoreObjects.toStringHelper;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.sosy_lab.solver.api.Formula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.UnaliasedLocation;
+import org.sosy_lab.solver.api.Formula;
 
 abstract class Expression {
   static abstract class Location extends Expression {
@@ -38,6 +38,11 @@ abstract class Expression {
 
       private AliasedLocation(final Formula address) {
         this.address = address;
+      }
+
+      private AliasedLocation(final Formula address, final String region){
+        this.address = address;
+        this.region = region;
       }
 
       public Formula getAddress() {
@@ -56,7 +61,13 @@ abstract class Expression {
                       .toString();
       }
 
+      public String getRegion(){
+        return region;
+      }
+
       private final Formula address;
+      private String region = null;
+
     }
 
     static class UnaliasedLocation extends Location {
@@ -88,6 +99,10 @@ abstract class Expression {
       return new AliasedLocation(address);
     }
 
+    public static  AliasedLocation ofAddress(final @Nonnull Formula address, final @Nonnull String region){
+      return new AliasedLocation(address, region);
+    }
+
     public static UnaliasedLocation ofVariableName(final @Nonnull String variableName) {
       return new UnaliasedLocation(variableName);
     }
@@ -111,6 +126,7 @@ abstract class Expression {
         return null;
       }
     }
+
   }
 
   static class Value extends Expression {

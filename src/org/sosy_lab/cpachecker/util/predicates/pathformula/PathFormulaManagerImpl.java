@@ -438,9 +438,7 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 
     } else if (CToFormulaConverterWithPointerAliasing.isUF(symbolName)) {
 /*    FIXME: find a better assertion type for the BnB cause
- *    System.out.println("SN: " + symbolName);
-      System.out.println("ESN: " + CToFormulaConverterWithPointerAliasing.getUFName(symbolType));
-      assert symbolName.startsWith(CToFormulaConverterWithPointerAliasing.getUFName(symbolType));
+      assert symbolName.equals(CToFormulaConverterWithPointerAliasing.getUFName(symbolType));
 */
       return makeSsaUFMerger(symbolName, symbolType, oldIndex, newIndex, oldPts);
 
