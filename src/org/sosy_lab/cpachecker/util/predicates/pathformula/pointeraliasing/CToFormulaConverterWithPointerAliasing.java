@@ -681,9 +681,10 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       pts.updateTargetRegions(variableClassification);
     }
 
-    for (String var : ssa.allVariables()){
+/*    for (String var : ssa.allVariables()){
       System.out.println("OLD SSA: " + var + ' ' + ssa.getIndex(var));
     }
+*/
     final AssignmentHandler assignmentHandler = new AssignmentHandler(this, declarationEdge, function, ssa, pts, constraints, errorConditions);
     final BooleanFormula result;
     if (initializer instanceof CInitializerExpression || initializer == null) {
@@ -714,9 +715,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       throw new UnrecognizedCCodeException("Unrecognized initializer", declarationEdge, initializer);
     }
 
-    for (String var : ssa.allVariables()){
+ /*   for (String var : ssa.allVariables()){
       System.out.println("NEW SSA: " + var + ' ' + ssa.getIndex(var));
-    }
+    }*/
     return result;
   }
 

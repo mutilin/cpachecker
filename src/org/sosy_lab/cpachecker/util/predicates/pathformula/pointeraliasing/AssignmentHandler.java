@@ -105,7 +105,7 @@ class AssignmentHandler {
                                   final CLeftHandSide lhsForChecking,
                                   final @Nullable CRightHandSide rhs,
                                   final boolean batchMode,
-                                  final @Nullable Set<String> pUpdatedUFs)
+                                  final @Nullable Set<Pair<String, CType>> pUpdatedUFs)
   throws UnrecognizedCCodeException, InterruptedException {
     if (!conv.isRelevantLeftHandSide(lhsForChecking)) {
       // Optimization for unused variables and fields
@@ -181,7 +181,7 @@ class AssignmentHandler {
                                                             throws UnrecognizedCCodeException, InterruptedException {
     CExpressionVisitorWithPointerAliasing lhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
     final Location lhsLocation = variable.accept(lhsVisitor).asLocation();
-    final Set<String> updatedUFs = new HashSet<>();
+    final Set<Pair<String, CType>> updatedUFs = new HashSet<>();
     BooleanFormula result = conv.bfmgr.makeBoolean(true);
     for (CExpressionAssignmentStatement assignment : assignments) {
       final CLeftHandSide lhs = assignment.getLeftHandSide();
@@ -205,7 +205,7 @@ class AssignmentHandler {
                                 final @Nonnull Expression rvalue,
                                 final @Nullable PointerTargetPattern pattern,
                                 final boolean useOldSSAIndices,
-                                      @Nullable Set<String> updatedUFs)
+                                      @Nullable Set<Pair<String, CType>> updatedUFs)
   throws UnrecognizedCCodeException, InterruptedException {
     // Its a definite value assignment, a nondet assignment (SSA index update) or a nondet assignment among other
     // assignments to the same UF version (in this case an absense of aliasing should be somehow guaranteed, as in the
@@ -243,7 +243,7 @@ class AssignmentHandler {
                           .getNewUfName(CToFormulaConverterWithPointerAliasing.getUFName(lvalueType), lvalue.asAliased().getRegion());
 
 
-          updatedUFs = Collections.singleton(ufName);
+          updatedUFs = Collections.singleton(Pair.of(ufName, lvalueType));
         }
         updateSSA(updatedUFs, ssa);
       } else { // Unaliased lvalue
@@ -264,7 +264,7 @@ class AssignmentHandler {
   void finishAssignments(@Nonnull CType lvalueType,
                          final @Nonnull AliasedLocation lvalue,
                          final @Nonnull PointerTargetPattern pattern,
-                         final @Nonnull Set<String> pUpdatedUFs) throws InterruptedException {
+                         final @Nonnull Set<Pair<String, CType>> pUpdatedUFs) throws InterruptedException {
     addRetentionForAssignment(lvalueType,
                               lvalue.asAliased().getAddress(),
                               pattern, pUpdatedUFs,
@@ -277,7 +277,7 @@ class AssignmentHandler {
                                                    final @Nonnull  Location lvalue,
                                                    final @Nonnull  Expression rvalue,
                                                    final boolean useOldSSAIndices,
-                                                   final @Nullable Set<String> pUpdatedUFs,
+                                                   final @Nullable Set<Pair<String, CType>> pUpdatedUFs,
                                                    final @Nullable Set<Variable> updatedVariables)
   throws UnrecognizedCCodeException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
@@ -401,7 +401,7 @@ class AssignmentHandler {
                                                          final @Nonnull Location lvalue,
                                                                @Nonnull Expression rvalue,
                                                          final boolean useOldSSAIndices,
-                                                         final @Nullable Set<String> pUpdatedUFs,
+                                                         final @Nullable Set<Pair<String, CType>> pUpdatedUFs,
                                                          final @Nullable Set<Variable> updatedVariables)
   throws UnrecognizedCCodeException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
@@ -468,7 +468,7 @@ class AssignmentHandler {
       }
 
       if (pUpdatedUFs != null) {
-        pUpdatedUFs.add(targetName);
+        pUpdatedUFs.add(Pair.of(targetName, lvalueType));
       }
     }
 
@@ -478,7 +478,7 @@ class AssignmentHandler {
   private void addRetentionForAssignment(@Nonnull CType lvalueType,
                                          final @Nullable Formula startAddress,
                                          final @Nonnull PointerTargetPattern pattern,
-                                         final Set<String> pUpdatedUFs,
+                                         final Set<Pair<String, CType>> pUpdatedUFs,
                                          String region) throws InterruptedException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     final int size = conv.getSizeof(lvalueType);
@@ -505,12 +505,12 @@ class AssignmentHandler {
                               startAddress);
     } else if (pattern.isExact()) {
       pattern.setRange(size);
-      for (final String ufName : pUpdatedUFs) {
+      for (final Pair uf : pUpdatedUFs) {
 
-        System.out.println("Resulting UF: " + ufName);
+        System.out.println("Resulting UF: " + uf);
+        final String ufName = (String) uf.getFirst();
 
-        final CType type = ssa.getType(ufName) != null ? ssa.getType(ufName) : lvalueType;
-        System.out.println(type);
+        final CType type = ssa.getType(ufName) == null ? lvalueType : ssa.getType(ufName);
 
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
@@ -586,7 +586,7 @@ class AssignmentHandler {
                                                 final CType firstElementType,
                                                 final Formula startAddress,
                                                 final int size,
-                                                final Set<String> pUpdatedUFs) throws InterruptedException {
+                                                final Set<Pair<String, CType>> pUpdatedUFs) throws InterruptedException {
     final PointerTargetPattern exact = PointerTargetPattern.any();
     for (final PointerTarget target : pts.getMatchingTargets(firstElementType, pattern)) {
       conv.shutdownNotifier.shutdownIfNecessary();
@@ -597,11 +597,12 @@ class AssignmentHandler {
       exact.setBase(target.getBase());
       exact.setRange(target.getOffset(), size);
       BooleanFormula consequent = bfmgr.makeBoolean(true);
-      for (final String ufName : pUpdatedUFs) {
+      for (final Pair uf : pUpdatedUFs) {
 
-        System.out.println("Resulting UF: " + ufName);
+        System.out.println("Resulting UF: " + uf);
+        final String ufName = (String) uf.getFirst();
 
-        final CType type = ssa.getType(ufName);
+        final CType type = ssa.getType(ufName) == null ? (CType) uf.getSecond() : ssa.getType(ufName);
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
 
@@ -628,13 +629,15 @@ class AssignmentHandler {
 
   private void addInexactRetentionConstraints(final Formula startAddress,
                                               final int size,
-                                              final Set<String> pUpdatedUFs) throws InterruptedException {
+                                              final Set<Pair<String, CType>> pUpdatedUFs) throws InterruptedException {
     final PointerTargetPattern any = PointerTargetPattern.any();
-    for (final String ufName : pUpdatedUFs) {
+    for (final Pair uf : pUpdatedUFs) {
 
-      System.out.println("Resulting UF: " + ufName);
+      System.out.println("Resulting UF: " + uf);
+      String ufName = (String)uf.getFirst();
 
-      final CType type = ssa.getType(ufName);
+      final CType type = ssa.getType(ufName) == null ? (CType)uf.getSecond() : ssa.getType(ufName);
+      System.out.println(type == null);
       final int oldIndex = conv.getIndex(ufName, type, ssa);
       final int newIndex = conv.getFreshIndex(ufName, type, ssa);
 
@@ -662,9 +665,10 @@ class AssignmentHandler {
     }
   }
 
-  private void updateSSA(final @Nonnull Set<String> pUpdatedUFs, final SSAMapBuilder ssa) {
-    for (final String ufName : pUpdatedUFs) {
-      final CType type = ssa.getType(ufName);
+  private void updateSSA(final @Nonnull Set<Pair<String, CType>> pUpdatedUFs, final SSAMapBuilder ssa) {
+    for (final Pair uf : pUpdatedUFs) {
+      final String ufName = (String) uf.getFirst();
+      final CType type = ssa.getType(ufName) == null ? (CType) uf.getSecond() : ssa.getType(ufName);
       conv.makeFreshIndex(ufName, type, ssa);
     }
   }

@@ -62,22 +62,24 @@ public class BnBRegionsMaker {
    * @param parent - element's base
    * @param name - name of element
    * @return index or -1 if global
-   * @throws Exception
    */
-  public int getRegionIndexByParentAndName(CType parent, String name){
+  public int getRegionIndexByParentAndName(final CType parent, final String name){
 
     BnBRegionImpl current;
-
+/*
     System.out.println("CALL GRI");
     System.out.println(parent);
     System.out.println(name);
+*/
+    if (regions.isEmpty()){
+      return GLOBAL_IND;
+    }
 
     for (int i = 0; i < regions.size(); ++i){
       current = regions.get(i);
-      System.out.println(current);
-      if (current.getElem().equals(name)
+      if (current != null && current.getElem().equals(name)
           && current.getRegionParent().equals(parent)){
-        System.out.println("Found\n");
+  //      System.out.println("Found\n");
         if (current.isPartOfGlobal()){
           return GLOBAL_IND;
         } else {
@@ -86,11 +88,11 @@ public class BnBRegionsMaker {
 
       }
     }
-    (new Exception("Not found " + parent + " " + name)).printStackTrace();
+   // (new Exception("Not found " + parent + " " + name)).printStackTrace();
     return GLOBAL_IND;
   }
 
-  public void makeRegions(CFA cfa) {
+  public void makeRegions(final CFA cfa) {
     ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics();
     ctfs.findFieldsInCFA(cfa);
     ctfs.dumpStat("Stat.txt");
@@ -143,7 +145,7 @@ public class BnBRegionsMaker {
 
   }
 
-  public void dumpRegions(String filename){
+  public void dumpRegions(final String filename){
     File dump = new File(filename);
 
     try{
@@ -151,26 +153,34 @@ public class BnBRegionsMaker {
 
       String result = "";
 
-      for (CType container : containers){
-        result += ((CCompositeType)container).getMembers();
-        result += '\n';
+      if (!containers.isEmpty()){
+        for (CType container : containers){
+          result += ((CCompositeType)container).getMembers();
+          result += '\n';
+        }
+      } else {
+        result += "Empty containers\n";
       }
 
-      int i = 0;
-      for (BnBRegionImpl reg : regions){
-        result += "Number: " + (i++) + '\n';
-        result += "Type: " + reg.getType().toString() + '\n';
-        result += "Parent: ";
+      if (!regions.isEmpty()) {
+        int i = 0;
+        for (BnBRegionImpl reg : regions) {
+          result += "Number: " + (i++) + '\n';
+          result += "Type: " + reg.getType().toString() + '\n';
+          result += "Parent: ";
 
-        if (reg.getRegionParent() == null){
-          result += "NULL";
-        } else {
-          result += reg.getRegionParent().toString();
+          if (reg.getRegionParent() == null) {
+            result += "NULL";
+          } else {
+            result += reg.getRegionParent().toString();
+          }
+          result += '\n';
+          result += "Member:\n";
+          result += '\t' + reg.getElem() + "\n\n";
+
         }
-        result += '\n';
-        result += "Member:\n";
-        result += '\t' + reg.getElem() + "\n\n";
-
+      } else {
+        result += "Empty regions\n";
       }
 
       writer.write(result);
@@ -182,8 +192,10 @@ public class BnBRegionsMaker {
   }
 
   public Map<String, PersistentList<PointerTarget>> getNewTargetsWithRegions(
-      PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
-      PointerTargetSetBuilder ptsb){
+      final PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
+      final PointerTargetSetBuilder ptsb){
+
+    //TODO: optimize function so it wouldn't build everything from the start each time we call it
 
     for (String target : targets.keySet()){
       for (PointerTarget pt : targets.get(target)){
@@ -223,7 +235,7 @@ public class BnBRegionsMaker {
         targetRegions.get(key).add(pt);
       }
     }
-
+/*
     for (PointerTarget pt : pointerTargets.keySet()){
       System.out.println("UTR: " + pt.getBase() + ' ' +
           pt.getOffset() + ' ' + targetRegions.get(pt));
@@ -232,7 +244,7 @@ public class BnBRegionsMaker {
     System.out.println(targetRegions);
     System.out.println(targets);
     System.out.println("UTR: ###########");
-
+*/
     Map<String, PersistentList<PointerTarget>> newTargets = new HashMap<>();
     for (String type : targetRegions.keySet()){
       PersistentList<PointerTarget> pll =
@@ -257,7 +269,7 @@ public class BnBRegionsMaker {
     return newTargets;
   }
 
-  public int getRegionIndex(PointerTarget pt){
+  public int getRegionIndex(final PointerTarget pt){
     if (pointerTargets.keySet().contains(pt)){
       return pointerTargets.get(pt).getThird();
     } else {
@@ -265,7 +277,7 @@ public class BnBRegionsMaker {
     }
   }
 
-  public PointerTargetSet updatePTS(PointerTargetSet pts) {
+  public PointerTargetSet updatePTS(final PointerTargetSet pts) {
     Map<String, PersistentList<PointerTarget>> result = new HashMap<>();
     for (String key: targetRegions.keySet()){
       PersistentList<PointerTarget> pl = PersistentLinkedList.copyOf(targetRegions.get(key));
@@ -274,16 +286,16 @@ public class BnBRegionsMaker {
     return new PointerTargetSet(pts, PathCopyingPersistentTreeMap.copyOf(result));
   }
 
-  public String getNewUfName(String ufName, String region){
+  public String getNewUfName(final String ufName, String region){
     System.out.println(region == null);
-    ufName += "_";
+    String result = ufName + "_";
     if (region != null){
-      ufName += region.replace(' ', '_');
+      result += region.replace(' ', '_');
     } else {
-      ufName += "global";
-      (new Exception("Global region")).printStackTrace();
+      result += "global";
+      //(new Exception("Global region")).printStackTrace();
     }
-    return ufName;
+    return result;
   }
 
 }

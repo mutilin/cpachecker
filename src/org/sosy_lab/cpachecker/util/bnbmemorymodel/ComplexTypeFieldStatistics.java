@@ -117,6 +117,7 @@ public class ComplexTypeFieldStatistics {
   }
 
   private void chooser(CExpression param) {
+    //TODO: make chooser a class that implements Visitor-type interfaces
     if (param instanceof CUnaryExpression){
       visit((CUnaryExpression) param);
     } else if (param instanceof CFieldReference){

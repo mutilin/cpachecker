@@ -335,8 +335,8 @@ public interface PointerTargetSetBuilder {
             offset += ptsMgr.getSize(memberDeclaration.getType());
           }
           //FIXME: output for the script
-          System.out.println("TTT2:##" + type + "##"
-              + memberDeclaration.getType() + "##" + memberDeclaration.getName());
+         /* System.out.println("TTT2:##" + type + "##"
+              + memberDeclaration.getType() + "##" + memberDeclaration.getName());*/
         }
       }
     }
@@ -573,7 +573,7 @@ public interface PointerTargetSetBuilder {
     @Override
     public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
       if (!targets.isEmpty()){
-        for (String target : targets.keySet()){
+/*        for (String target : targets.keySet()){
 
           for (PointerTarget pt : targets.get(target)){
             String str = "TR: " + target + ' ' + pt.getBase() + ' '
@@ -591,12 +591,12 @@ public interface PointerTargetSetBuilder {
         }
 
         System.out.println("EQ1 ###############");
-
+*/
         Map<String, PersistentList<PointerTarget>> newTargets =
             pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
 
         targets = PathCopyingPersistentTreeMap.copyOf(newTargets);
-        System.out.println("NT: #########");
+//        System.out.println("NT: #########");
       }
     }
 

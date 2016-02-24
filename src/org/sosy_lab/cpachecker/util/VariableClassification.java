@@ -153,7 +153,6 @@ public class VariableClassification {
     assignedVariables = ImmutableMultiset.copyOf(pAssignedVariables);
     logger = pLogger;
     regMk = pRegMk;
-    regMk.dumpRegions("Regions.txt");
   }
 
   @VisibleForTesting
