@@ -274,14 +274,8 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
     final SSAMap ssa1 = pathFormula1.getSsa();
     final SSAMap ssa2 = pathFormula2.getSsa();
 
-    System.out.println("PF1: " + formula1);
-    System.out.println("PF2: " + formula2);
-
-    System.out.println("SSA1: " + ssa1);
-    System.out.println("SSA2: " + ssa2);
-
-    final PointerTargetSet pts1 = varClassif.get().getRegionsMaker().updatePTS(pathFormula1.getPointerTargetSet());
-    final PointerTargetSet pts2 = varClassif.get().getRegionsMaker().updatePTS(pathFormula2.getPointerTargetSet());
+    final PointerTargetSet pts1 = pathFormula1.getPointerTargetSet();
+    final PointerTargetSet pts2 = pathFormula2.getPointerTargetSet();
 
     final MergeResult<SSAMap> mergeSSAResult = mergeSSAMaps(ssa1, pts1, ssa2, pts2);
     final SSAMapBuilder newSSA = mergeSSAResult.getResult().builder();
@@ -388,8 +382,6 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 
     BooleanFormula mergeFormula1 = bfmgr.makeBoolean(true);
     BooleanFormula mergeFormula2 = bfmgr.makeBoolean(true);
-
-    System.out.println("DIFF: " + symbolDifferences);
 
     for (final MapsDifference.Entry<String, Integer> symbolDifference : symbolDifferences) {
       shutdownNotifier.shutdownIfNecessary();

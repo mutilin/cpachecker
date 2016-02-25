@@ -51,62 +51,52 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Point
 public class BnBRegionsMaker {
 
   private List<BnBRegionImpl> regions = new ArrayList<>();
-  private static final int GLOBAL_IND = -1;
-  public final String GLOBAL = " global";
   private Set<CType> containers = new HashSet<>();
   private Map<String, List<PointerTarget>> targetRegions = new HashMap<>();
-  private Map<PointerTarget, Triple<String, String, Integer>> pointerTargets = new HashMap<>();
+  private Map<PointerTarget, Pair<String, String>> pointerTargets = new HashMap<>();
 
   /**
    *
    * @param parent - element's base
    * @param name - name of element
-   * @return index or -1 if global
+   * @return true if global, else otherwise
    */
-  public int getRegionIndexByParentAndName(final CType parent, final String name){
+  public boolean isInGlobalRegion(final CType parent, final String name){
 
-    BnBRegionImpl current;
-/*
-    System.out.println("CALL GRI");
-    System.out.println(parent);
-    System.out.println(name);
-*/
     if (regions.isEmpty()){
-      return GLOBAL_IND;
+      return true;
     }
 
-    for (int i = 0; i < regions.size(); ++i){
-      current = regions.get(i);
-      if (current != null && current.getElem().equals(name)
+    for (BnBRegion current : regions){
+      if (current.getElem().equals(name)
           && current.getRegionParent().equals(parent)){
-  //      System.out.println("Found\n");
         if (current.isPartOfGlobal()){
-          return GLOBAL_IND;
+          return true;
         } else {
-          return i;
+          return false;
         }
 
       }
     }
    // (new Exception("Not found " + parent + " " + name)).printStackTrace();
-    return GLOBAL_IND;
+    return true;
   }
 
   public void makeRegions(final CFA cfa) {
     ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics();
     ctfs.findFieldsInCFA(cfa);
-    ctfs.dumpStat("Stat.txt");
+    //ctfs.dumpStat("Stat.txt");
 
-    Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> usedFields = ctfs.getUsedFields();
-    Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> refdFields = ctfs.getRefdFields();
-    Map<CType, HashSet<Pair<String, Integer>>> sub;
+    Map<CType, HashMap<CType, HashSet<String>>> usedFields = ctfs.getUsedFields();
+    Map<CType, HashMap<CType, HashSet<String>>> refdFields = ctfs.getRefdFields();
+    Map<CType, HashSet<String>> sub;
 
     // remove all those fields present in both maps
     for (CType basicType : usedFields.keySet()){
       if (refdFields.containsKey(basicType)){
         sub = usedFields.get(basicType);
         for (CType structType : sub.keySet()){
-          HashSet<Pair<String, Integer>> set = refdFields.get(basicType).get(structType);
+          Set<String> set = refdFields.get(basicType).get(structType);
 
           if (set != null){
             usedFields.get(basicType).get(structType).removeAll(set);
@@ -117,23 +107,13 @@ public class BnBRegionsMaker {
     }
 
     // fill regions
-    for (CType basicType : refdFields.keySet()){
-      for (CType structType : refdFields.get(basicType).keySet()){
-        for (Pair<String, Integer> name : refdFields.get(basicType).get(structType)){
-
-          regions.add(new BnBRegionImpl(basicType, null, structType.toString() + "::" + name.getFirst(), name.getSecond()));
-
-        }
-      }
-    }
-
     for (CType basicType : usedFields.keySet()){
       for (CType structType : usedFields.get(basicType).keySet()){
 
-        Set<Pair<String, Integer>> set = usedFields.get(basicType).get(structType);
+        Set<String> set = usedFields.get(basicType).get(structType);
         if (!set.isEmpty()) {
-          for (Pair<String, Integer> name : set){
-            regions.add(new BnBRegionImpl(basicType, (CCompositeType) structType, name.getFirst(), name.getSecond()));
+          for (String name : set){
+            regions.add(new BnBRegionImpl(basicType, (CCompositeType) structType, name));
           }
         }
       }
@@ -207,27 +187,28 @@ public class BnBRegionsMaker {
 
           for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
             if (curOffset == offset){
-              pointerTargets.put(pt, Triple.of(target, containerType.toString() + " " + field.getName(),
-                      getRegionIndexByParentAndName(containerType, field.getName())));
+              pointerTargets.put(pt, Pair.of(target, " " + containerType.toString() + " " + field.getName()));
             } else {
               offset += ptsb.getSize(field.getType());
             }
           }
         } else {
-          pointerTargets.put(pt, Triple.of(target, "global", -1));
+          pointerTargets.put(pt, Pair.of(target, " global"));
         }
       }
     }
 
     for (PointerTarget pt : pointerTargets.keySet()){
-      Triple<String, String, Integer> triple = pointerTargets.get(pt);
-      String key;
-      String first = triple.getFirst();
-      if (first.contains("global") || first.contains("struct")){
-        key = first;
-      } else {
-        key = first + " " + triple.getSecond();
+      //TODO: there is a significant difference in performance
+      //if we use pair of strings instead of one big string
+
+      Pair<String, String> pair = pointerTargets.get(pt);
+      String key = pair.getFirst();
+
+      if (! (key.contains("global") || key.contains("struct"))){
+        key += pair.getSecond();
       }
+
       if (!targetRegions.containsKey(key)){
         targetRegions.put(key, new ArrayList<PointerTarget>());
       }
@@ -235,28 +216,17 @@ public class BnBRegionsMaker {
         targetRegions.get(key).add(pt);
       }
     }
-/*
-    for (PointerTarget pt : pointerTargets.keySet()){
-      System.out.println("UTR: " + pt.getBase() + ' ' +
-          pt.getOffset() + ' ' + targetRegions.get(pt));
-    }
 
-    System.out.println(targetRegions);
-    System.out.println(targets);
-    System.out.println("UTR: ###########");
-*/
     Map<String, PersistentList<PointerTarget>> newTargets = new HashMap<>();
     for (String type : targetRegions.keySet()){
-      PersistentList<PointerTarget> pll =
-          PersistentLinkedList.copyOf(targetRegions.get(type));
-      newTargets.put(type, pll);
+      newTargets.put(type, PersistentLinkedList.copyOf(targetRegions.get(type)));
     }
 
     for (String type : targets.keySet()){
       if (! (type.contains("global") || type.contains("struct"))){
         List<PointerTarget> toAdd = new ArrayList<>();
         for (PointerTarget pt : targets.get(type)){
-          if (getRegionIndex(pt) < 0){
+          if (isInGlobalRegion(pt)){
             toAdd.add(pt);
           }
         }
@@ -266,28 +236,25 @@ public class BnBRegionsMaker {
       }
     }
 
+    targetRegions.clear();
+    pointerTargets.clear();
+
     return newTargets;
   }
 
-  public int getRegionIndex(final PointerTarget pt){
-    if (pointerTargets.keySet().contains(pt)){
-      return pointerTargets.get(pt).getThird();
-    } else {
-      return GLOBAL_IND;
-    }
+  public boolean isInGlobalRegion(final PointerTarget pt){
+    return !pointerTargets.containsKey(pt);
   }
 
   public PointerTargetSet updatePTS(final PointerTargetSet pts) {
     Map<String, PersistentList<PointerTarget>> result = new HashMap<>();
     for (String key: targetRegions.keySet()){
-      PersistentList<PointerTarget> pl = PersistentLinkedList.copyOf(targetRegions.get(key));
-      result.put(key, pl);
+      result.put(key, PersistentLinkedList.copyOf(targetRegions.get(key)));
     }
     return new PointerTargetSet(pts, PathCopyingPersistentTreeMap.copyOf(result));
   }
 
   public String getNewUfName(final String ufName, String region){
-    System.out.println(region == null);
     String result = ufName + "_";
     if (region != null){
       result += region.replace(' ', '_');

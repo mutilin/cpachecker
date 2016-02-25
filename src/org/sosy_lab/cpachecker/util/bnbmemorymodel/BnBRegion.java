@@ -35,6 +35,4 @@ public interface BnBRegion {
 
   boolean isPartOfGlobal();
 
-  Integer getFieldNumber();
-
 }

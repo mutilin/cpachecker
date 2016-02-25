@@ -135,8 +135,6 @@ class AssignmentHandler {
     final List<Pair<CCompositeType, String>> rhsAddressedFields = rhsVisitor.getAddressedFields();
     final Map<String, CType> rhsUsedDeferredAllocationPointers = rhsVisitor.getUsedDeferredAllocationPointers();
 
-    pts.updateTargetRegions(conv.getVariableClassification());
-
     // LHS handling
     final CExpressionVisitorWithPointerAliasing lhsVisitor = new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, errorConditions, pts);
     final Location lhsLocation = lhs.accept(lhsVisitor).asLocation();
@@ -505,12 +503,13 @@ class AssignmentHandler {
                               startAddress);
     } else if (pattern.isExact()) {
       pattern.setRange(size);
-      for (final Pair uf : pUpdatedUFs) {
+      for (final Pair<String, CType> uf : pUpdatedUFs) {
 
         System.out.println("Resulting UF: " + uf);
-        final String ufName = (String) uf.getFirst();
+        final String ufName = uf.getFirst();
 
-        final CType type = ssa.getType(ufName) == null ? lvalueType : ssa.getType(ufName);
+        final CType ssaType = ssa.getType(ufName);
+        final CType type = ssaType == null ? lvalueType : ssaType;
 
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
@@ -544,9 +543,6 @@ class AssignmentHandler {
     if (!pattern.isExact()) {
 
       System.out.println("Resulting UF: " + ufName);
-      System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
-
-      System.out.println("PAT: " + pattern.getProperOffset());
       for (final PointerTarget target : pts.getMatchingTargets(ufName, pattern)) {
         conv.shutdownNotifier.shutdownIfNecessary();
 
@@ -597,12 +593,13 @@ class AssignmentHandler {
       exact.setBase(target.getBase());
       exact.setRange(target.getOffset(), size);
       BooleanFormula consequent = bfmgr.makeBoolean(true);
-      for (final Pair uf : pUpdatedUFs) {
+      for (final Pair<String, CType> uf : pUpdatedUFs) {
 
         System.out.println("Resulting UF: " + uf);
-        final String ufName = (String) uf.getFirst();
+        final String ufName = uf.getFirst();
 
-        final CType type = ssa.getType(ufName) == null ? (CType) uf.getSecond() : ssa.getType(ufName);
+        final CType ssaType = ssa.getType(ufName);
+        final CType type = ssaType == null ? uf.getSecond() : ssaType;
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
 
@@ -631,12 +628,13 @@ class AssignmentHandler {
                                               final int size,
                                               final Set<Pair<String, CType>> pUpdatedUFs) throws InterruptedException {
     final PointerTargetPattern any = PointerTargetPattern.any();
-    for (final Pair uf : pUpdatedUFs) {
+    for (final Pair<String, CType> uf : pUpdatedUFs) {
 
       System.out.println("Resulting UF: " + uf);
-      String ufName = (String)uf.getFirst();
+      final String ufName = uf.getFirst();
 
-      final CType type = ssa.getType(ufName) == null ? (CType)uf.getSecond() : ssa.getType(ufName);
+      final CType ssaType = ssa.getType(ufName);
+      final CType type = ssaType == null ? uf.getSecond() : ssaType;
       System.out.println(type == null);
       final int oldIndex = conv.getIndex(ufName, type, ssa);
       final int newIndex = conv.getFreshIndex(ufName, type, ssa);
@@ -666,9 +664,10 @@ class AssignmentHandler {
   }
 
   private void updateSSA(final @Nonnull Set<Pair<String, CType>> pUpdatedUFs, final SSAMapBuilder ssa) {
-    for (final Pair uf : pUpdatedUFs) {
-      final String ufName = (String) uf.getFirst();
-      final CType type = ssa.getType(ufName) == null ? (CType) uf.getSecond() : ssa.getType(ufName);
+    for (final Pair<String, CType> uf : pUpdatedUFs) {
+      final String ufName = uf.getFirst();
+      final CType ssaType = ssa.getType(ufName);
+      final CType type = ssaType == null ? uf.getSecond() : ssaType;
       conv.makeFreshIndex(ufName, type, ssa);
     }
   }

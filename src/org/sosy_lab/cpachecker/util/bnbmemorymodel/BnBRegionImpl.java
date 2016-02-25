@@ -31,19 +31,16 @@ public class BnBRegionImpl implements BnBRegion {
   private final CType regionParent;
   private final CType elemType;
   private final String elemName;
-  private final Integer number;
 
   /**
    * @param pType - types that will be present in this region
    * @param parent - struct with fields or null if global
    * @param name - field name
-   * @param num - number of the field in parent
    */
-  public BnBRegionImpl(CType pType, CCompositeType parent, String name, Integer num){
+  public BnBRegionImpl(CType pType, CCompositeType parent, String name){
     regionParent = parent;
     elemType = pType;
     elemName = name;
-    number = num;
   }
 
   @Override
@@ -64,11 +61,6 @@ public class BnBRegionImpl implements BnBRegion {
   @Override
   public boolean isPartOfGlobal() {
     return regionParent == null;
-  }
-
-  @Override
-  public Integer getFieldNumber(){
-    return number;
   }
 
   @Override

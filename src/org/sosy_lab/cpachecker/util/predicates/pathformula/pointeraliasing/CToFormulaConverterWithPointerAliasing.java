@@ -220,11 +220,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     String ufName = getUFName(type);
 
     if (variableClassification.isPresent()){
-      System.out.println("ADDR: " + address);
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
       ufName = regionsMaker.getNewUfName(ufName, region);
-      System.out.println("UF: " + ufName);
-      System.out.println(address);
     }
 
     final int index = getIndex(ufName, type, ssa);
@@ -322,9 +319,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           fields.add(Pair.of(compositeType, memberName));
 
           BnBRegionsMaker regMk = variableClassification.get().getRegionsMaker();
-          int ind = regMk.getRegionIndexByParentAndName(compositeType, memberName);
+          boolean isGlobal = regMk.isInGlobalRegion(compositeType, memberName);
           String newRegion = regMk.getNewUfName(getUFName(memberType),
-                                                ind < 0 ? null : compositeType.toString() + " " + memberName);
+                                                isGlobal ? null : compositeType.toString() + " " + memberName);
 
           addValueImportConstraints(cfaEdge,
                                     fmgr.makePlus(address, fmgr.makeNumber(voidPointerFormulaType, offset), IS_POINTER_SIGNED),
@@ -676,11 +673,11 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
     final CIdExpression lhs =
         new CIdExpression(declaration.getFileLocation(), declaration);
-    if (variableClassification.isPresent()){
+/*    if (variableClassification.isPresent()){
       System.out.println("FROM MAKE_DECLARATION");
       pts.updateTargetRegions(variableClassification);
     }
-
+*/
 /*    for (String var : ssa.allVariables()){
       System.out.println("OLD SSA: " + var + ' ' + ssa.getIndex(var));
     }

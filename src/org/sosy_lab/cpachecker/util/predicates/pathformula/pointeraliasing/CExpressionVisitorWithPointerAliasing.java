@@ -217,7 +217,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
         AliasedLocation aliasedLocation = null;
         if (conv.getVariableClassification().isPresent()){
           BnBRegionsMaker regMk = conv.getVariableClassification().get().getRegionsMaker();
-          if (regMk.getRegionIndexByParentAndName((CCompositeType) fieldOwnerType, fieldName) < 0){
+          if (regMk.isInGlobalRegion(fieldOwnerType, fieldName)){
             aliasedLocation = AliasedLocation.ofAddress(address);
           } else {
             aliasedLocation = AliasedLocation.ofAddress(address, fieldOwnerType.toString() + " " + fieldName);

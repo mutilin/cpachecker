@@ -64,8 +64,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
 
 public class ComplexTypeFieldStatistics {
 
-  private Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> usedFields = new HashMap<>();
-  private Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> refdFields = new HashMap<>();
+  private Map<CType, HashMap<CType, HashSet<String>>> usedFields = new HashMap<>();
+  private Map<CType, HashMap<CType, HashSet<String>>> refdFields = new HashMap<>();
 
   public void findFieldsInCFA(CFA cfa){
     CFAEdge edge;
@@ -156,7 +156,7 @@ public class ComplexTypeFieldStatistics {
     CType parentType;
     int fieldNumber = 0;
 
-    System.out.println("LLL:" + ref.toString() + ' ' + referenced);
+    //System.out.println("LLL:" + ref.toString() + ' ' + referenced);
     parent = ref.getFieldOwner();
 
     if (parent == null){
@@ -185,26 +185,26 @@ public class ComplexTypeFieldStatistics {
     if (!referenced) {
 
       if (! usedFields.containsKey(fieldType)){
-        usedFields.put(fieldType, new HashMap<CType, HashSet<Pair<String, Integer>>>());
+        usedFields.put(fieldType, new HashMap<CType, HashSet<String>>());
       }
 
       if (! usedFields.get(fieldType).containsKey(parentType)){
-        usedFields.get(fieldType).put(parentType, new HashSet<Pair<String, Integer>>());
+        usedFields.get(fieldType).put(parentType, new HashSet<String>());
       }
 
-      usedFields.get(fieldType).get(parentType).add(Pair.of(ref.getFieldName(), fieldNumber));
+      usedFields.get(fieldType).get(parentType).add(ref.getFieldName());
 
     } else {
 
       if (! refdFields.containsKey(fieldType)){
-        refdFields.put(fieldType, new HashMap<CType, HashSet<Pair<String, Integer>>>());
+        refdFields.put(fieldType, new HashMap<CType, HashSet<String>>());
       }
 
       if (! refdFields.get(fieldType).containsKey(parentType)){
-        refdFields.get(fieldType).put(parentType, new HashSet<Pair<String, Integer>>());
+        refdFields.get(fieldType).put(parentType, new HashSet<String>());
       }
 
-      refdFields.get(fieldType).get(parentType).add(Pair.of(ref.getFieldName(), fieldNumber));
+      refdFields.get(fieldType).get(parentType).add(ref.getFieldName());
 
     }
 
@@ -226,7 +226,7 @@ public class ComplexTypeFieldStatistics {
     try {
       FileWriter writer = new FileWriter(dump);
 
-      Map<CType, HashSet<Pair<String, Integer>>> sub;
+      Map<CType, HashSet<String>> sub;
       String output = "";
       String sub_output;
       int used;
@@ -239,8 +239,8 @@ public class ComplexTypeFieldStatistics {
         for (CType struct_name : sub.keySet()){
           sub_output += "\t\tSTRUCT: " + struct_name + '\n';
           used += sub.get(struct_name).size();
-          for (Pair<String, Integer> fieldName : sub.get(struct_name)){
-            sub_output += "\t\t\tFIELD: " + fieldName.getFirst() + " FIELD NUMBER: " + fieldName.getSecond() + '\n';
+          for (String fieldName : sub.get(struct_name)){
+            sub_output += "\t\t\tFIELD: " + fieldName + '\n';
           }
         }
         output += "\tFIELD_TYPE: " + type + "\n\tTIMES USED: " + used + '\n' + sub_output;
@@ -252,10 +252,10 @@ public class ComplexTypeFieldStatistics {
         used = 0;
         sub_output = "";
         for (CType struct_name : sub.keySet()){
-          sub_output += "\t\tSTRUCT: " + struct_name +'\n';
+          sub_output += "\t\tSTRUCT: " + struct_name + '\n';
           used += sub.get(struct_name).size();
-          for (Pair<String, Integer> fieldName : sub.get(struct_name)){
-            sub_output += "\t\t\tFIELD: " + fieldName.getFirst() + " FIELD NUMBER: " + fieldName.getSecond() + '\n';
+          for (String fieldName : sub.get(struct_name)){
+            sub_output += "\t\t\tFIELD: " + fieldName + '\n';
           }
         }
         output += "\tFIELD_TYPE: " + type + "\n\tTIMES USED: " + used + '\n' + sub_output;
@@ -272,12 +272,12 @@ public class ComplexTypeFieldStatistics {
   }
 
 
-  public Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> getUsedFields() {
+  public Map<CType, HashMap<CType, HashSet<String>>> getUsedFields() {
     return usedFields;
   }
 
 
-  public Map<CType, HashMap<CType, HashSet<Pair<String, Integer>>>> getRefdFields() {
+  public Map<CType, HashMap<CType, HashSet<String>>> getRefdFields() {
     return refdFields;
   }
 }

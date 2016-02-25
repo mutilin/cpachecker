@@ -253,6 +253,7 @@ public class VariableClassificationBuilder {
 
     BnBRegionsMaker regMk = new BnBRegionsMaker();
     regMk.makeRegions(cfa);
+    //regMk.dumpRegions("Regions.txt");
 
     VariableClassification result = new VariableClassification(
         hasRelevantNonIntAddVars,
