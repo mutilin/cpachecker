@@ -203,14 +203,6 @@ public final class PointerTargetSet implements Serializable {
     }
   }
 
-  public PointerTargetSet(PointerTargetSet pPts, final PersistentSortedMap<String, PersistentList<PointerTarget>> targets) {
-    this.bases = pPts.bases;
-    this.lastBase = pPts.lastBase;
-    this.fields = pPts.fields;
-    this.deferredAllocations = pPts.deferredAllocations;
-    this.targets = targets;
-  }
-
   private static final PointerTargetSet EMPTY_INSTANCE = new PointerTargetSet(
       PathCopyingPersistentTreeMap.<String, CType>of(),
       null,

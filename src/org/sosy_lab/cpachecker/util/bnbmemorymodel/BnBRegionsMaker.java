@@ -56,7 +56,7 @@ public class BnBRegionsMaker {
   private Map<PointerTarget, Pair<String, String>> pointerTargets = new HashMap<>();
 
   /**
-   *
+   * Determines whether or not the field is in global region
    * @param parent - element's base
    * @param name - name of element
    * @return true if global, else otherwise
@@ -82,6 +82,10 @@ public class BnBRegionsMaker {
     return true;
   }
 
+  /**
+   * Gathers information about struct field usage and constructs regions
+   * @param cfa - program CFA
+   */
   public void makeRegions(final CFA cfa) {
     ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics();
     ctfs.findFieldsInCFA(cfa);
@@ -125,6 +129,10 @@ public class BnBRegionsMaker {
 
   }
 
+  /**
+   * Writes information about regions in the specified file
+   * @param filename - desired filename
+   */
   public void dumpRegions(final String filename){
     File dump = new File(filename);
 
@@ -171,11 +179,15 @@ public class BnBRegionsMaker {
     }
   }
 
+  /**
+   * Updates targets of the PointerTargetSet taking into account region information
+   * @param targets - list of targets in the PointerTargetSet
+   * @param ptsb - PointerTargetSetBuilder connected to the holder of @param targets
+   * @return targets with the information about regions
+   */
   public Map<String, PersistentList<PointerTarget>> getNewTargetsWithRegions(
       final PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
       final PointerTargetSetBuilder ptsb){
-
-    //TODO: optimize function so it wouldn't build everything from the start each time we call it
 
     for (String target : targets.keySet()){
       for (PointerTarget pt : targets.get(target)){
@@ -242,18 +254,21 @@ public class BnBRegionsMaker {
     return newTargets;
   }
 
+  /**
+   * Whether or not the PointerTarget is in global region
+   * @param pt - pointer target to check
+   * @return true if global, false otherwise
+     */
   public boolean isInGlobalRegion(final PointerTarget pt){
     return !pointerTargets.containsKey(pt);
   }
 
-  public PointerTargetSet updatePTS(final PointerTargetSet pts) {
-    Map<String, PersistentList<PointerTarget>> result = new HashMap<>();
-    for (String key: targetRegions.keySet()){
-      result.put(key, PersistentLinkedList.copyOf(targetRegions.get(key)));
-    }
-    return new PointerTargetSet(pts, PathCopyingPersistentTreeMap.copyOf(result));
-  }
-
+  /**
+   * Constructs new UF name with consideration of the region
+   * @param ufName - UF name to use with this CType
+   * @param region - null if global or parent_name + " " + field_name
+   * @return new UF name for the CType with region information
+   */
   public String getNewUfName(final String ufName, String region){
     String result = ufName + "_";
     if (region != null){
