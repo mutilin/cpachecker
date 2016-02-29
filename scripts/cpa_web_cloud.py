@@ -31,11 +31,19 @@ import sys
 sys.dont_write_bytecode = True # prevent creation of .pyc files
 
 import argparse
+import glob
 import logging
+import os
 import urllib.request as request
+
+for egg in glob.glob(os.path.join(os.path.dirname(__file__), os.pardir, 'lib', 'python-benchmark', '*.whl')):
+    sys.path.insert(0, egg)
+
+from benchexec import util
 
 from benchmark.webclient import *  # @UnusedWildImport
 
+__version__ = '1.0'
 
 DEFAULT_OUTPUT_PATH = "./"
 
@@ -94,24 +102,29 @@ def _create_argument_parser():
                             + "otherwise it is used as a prefix for the resulting files.")
     parser.add_argument("--resultFilePattern",
                      dest="result_file_pattern", type=str,
-                     default=None,
+                     default="**",
                      help="Only files matching this glob pattern are transported back to the client.")
 
     parser.add_argument("-T", "--timelimit",
                       dest="timelimit", default=None,
+                      type=util.parse_timespan_value,
                       help="Time limit in seconds",
                       metavar="SECONDS")
 
     parser.add_argument("-M", "--memorylimit",
                       dest="memorylimit", default=None,
-                      help="Memory limit in MB",
-                      metavar="MB")
+                      type=util.parse_memory_value,
+                      help="Memory limit",
+                      metavar="BYTES")
 
     parser.add_argument("-c", "--corelimit", dest="corelimit",
                       type=int, default=None,
                       metavar="N",
                       help="Limit the tool to N CPU cores.")
 
+    parser.add_argument("--version",
+                        action="version",
+                        version="%(prog)s " + __version__)
     return parser
 
 def _setup_logging(config):
@@ -138,9 +151,10 @@ def _init(config):
 
     (svn_branch, svn_revision) = _get_revision(config)
 
-    webclient = WebInterface(config.cloud_master, config.cloud_user, svn_branch, svn_revision)
+    webclient = WebInterface(config.cloud_master, config.cloud_user, svn_branch, svn_revision,
+                             user_agent='cpa_web_cloud.py', version=__version__)
 
-    logging.info('Using CPAchecker version {0}.'.format(webclient.tool_revision()))
+    logging.info('Using %s version %s.', webclient.tool_name(), webclient.tool_revision())
     return webclient
 
 def _get_revision(config):
@@ -167,7 +181,7 @@ def _submit_run(webclient, config, cpachecker_args, counter=0):
     """
     limits = {}
     if config.memorylimit:
-        limits['memlimit'] = config.memorylimit + "MB"
+        limits['memlimit'] = config.memorylimit
     if config.timelimit:
         limits['timelimit'] = config.timelimit
     if config.corelimit:
@@ -198,6 +212,9 @@ def _parse_cpachecker_args(cpachecker_args):
     while True:
         try:
             option=next(i)
+            if len(option) == 0:
+                continue # ignore empty arguments
+
             if option in ["-heap", "-timelimit", "-entryfunction", "-spec", "-config", "-setprop"]:
                 run.options.append(option)
                 run.options.append(next(i))
@@ -229,9 +246,9 @@ def _execute():
         return handle_result(run_result, config.output_path, cpachecker_args)
 
     except request.HTTPError as e:
-        logging.warn(e.reason)
+        logging.warning(e.reason)
     except WebClientError as e:
-        logging.warn(str(e))
+        logging.warning(str(e))
 
     finally:
         webclient.shutdown()

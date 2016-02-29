@@ -26,6 +26,7 @@ package org.sosy_lab.cpachecker.cpa.invariants.formula;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.sosy_lab.cpachecker.cfa.ast.AExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
@@ -71,11 +72,15 @@ import org.sosy_lab.cpachecker.cfa.types.java.JBasicType;
 import org.sosy_lab.cpachecker.cfa.types.java.JSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.java.JType;
 import org.sosy_lab.cpachecker.cpa.invariants.BitVectorInfo;
+import org.sosy_lab.cpachecker.cpa.invariants.CompoundBitVectorInterval;
+import org.sosy_lab.cpachecker.cpa.invariants.CompoundBitVectorIntervalManagerFactory;
 import org.sosy_lab.cpachecker.cpa.invariants.CompoundInterval;
 import org.sosy_lab.cpachecker.cpa.invariants.CompoundIntervalManager;
 import org.sosy_lab.cpachecker.cpa.invariants.CompoundIntervalManagerFactory;
-import org.sosy_lab.cpachecker.cpa.invariants.VariableNameExtractor;
+import org.sosy_lab.cpachecker.cpa.invariants.MemoryLocationExtractor;
+import org.sosy_lab.cpachecker.cpa.invariants.OverflowEventHandler;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
+import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 /**
  * Instances of this class are c expression visitors used to convert c
@@ -87,9 +92,9 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
    * The variable name extractor used to extract variable names from c id
    * expressions.
    */
-  private final VariableNameExtractor variableNameExtractor;
+  private final MemoryLocationExtractor variableNameExtractor;
 
-  private final Map<? extends String, ? extends NumeralFormula<CompoundInterval>> environment;
+  private final Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> environment;
 
   private final MachineModel machineModel;
 
@@ -111,8 +116,8 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
   public ExpressionToFormulaVisitor(
       CompoundIntervalManagerFactory pCompoundIntervalManagerFactory,
       MachineModel pMachineModel,
-      VariableNameExtractor pVariableNameExtractor) {
-    this(pCompoundIntervalManagerFactory, pMachineModel, pVariableNameExtractor, Collections.<String, NumeralFormula<CompoundInterval>>emptyMap());
+      MemoryLocationExtractor pVariableNameExtractor) {
+    this(pCompoundIntervalManagerFactory, pMachineModel, pVariableNameExtractor, Collections.<MemoryLocation, NumeralFormula<CompoundInterval>>emptyMap());
   }
 
   /**
@@ -128,8 +133,8 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
   public ExpressionToFormulaVisitor(
       CompoundIntervalManagerFactory pCompoundIntervalManagerFactory,
       MachineModel pMachineModel,
-      VariableNameExtractor pVariableNameExtractor,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      MemoryLocationExtractor pVariableNameExtractor,
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     this.compoundIntervalManagerFactory = pCompoundIntervalManagerFactory;
     this.machineModel = pMachineModel;
     this.variableNameExtractor = pVariableNameExtractor;
@@ -168,10 +173,10 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
         pValue);
   }
 
-  private NumeralFormula<CompoundInterval> asVariable(Type pType, String pVariableName) {
+  private NumeralFormula<CompoundInterval> asVariable(Type pType, MemoryLocation pMemoryLocation) {
     return InvariantsFormulaManager.INSTANCE.asVariable(
         BitVectorInfo.from(machineModel, pType),
-        pVariableName);
+        pMemoryLocation);
   }
 
   @Override
@@ -181,17 +186,17 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
 
   @Override
   public NumeralFormula<CompoundInterval> visit(CIdExpression pCIdExpression) throws UnrecognizedCodeException {
-    return asVariable(pCIdExpression.getExpressionType(), this.variableNameExtractor.getVarName(pCIdExpression));
+    return asVariable(pCIdExpression.getExpressionType(), this.variableNameExtractor.getMemoryLocation(pCIdExpression));
   }
 
   @Override
   public NumeralFormula<CompoundInterval> visit(CFieldReference pCFieldReference) throws UnrecognizedCodeException {
-    return asVariable(pCFieldReference.getExpressionType(), this.variableNameExtractor.getVarName(pCFieldReference));
+    return asVariable(pCFieldReference.getExpressionType(), this.variableNameExtractor.getMemoryLocation(pCFieldReference));
   }
 
   @Override
   public NumeralFormula<CompoundInterval> visit(CArraySubscriptExpression pCArraySubscriptExpression) throws UnrecognizedCodeException {
-    return asVariable(pCArraySubscriptExpression.getExpressionType(), this.variableNameExtractor.getVarName(pCArraySubscriptExpression));
+    return asVariable(pCArraySubscriptExpression.getExpressionType(), this.variableNameExtractor.getMemoryLocation(pCArraySubscriptExpression));
   }
 
   @Override
@@ -234,7 +239,7 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
 
   @Override
   public NumeralFormula<CompoundInterval> visit(CPointerExpression pCPointerExpression) throws UnrecognizedCodeException {
-    return asVariable(pCPointerExpression.getExpressionType(), variableNameExtractor.getVarName(pCPointerExpression));
+    return asVariable(pCPointerExpression.getExpressionType(), variableNameExtractor.getMemoryLocation(pCPointerExpression));
   }
 
   @Override
@@ -451,8 +456,9 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
         return compoundIntervalFormulaManager.union(forPositiveLeft, forNegativeLeft);
       case STRING_CONCATENATION:
         return allPossibleValues(pBinaryExpression);
+      default:
+        throw new AssertionError("Unhandled enum value in switch: " + pBinaryExpression.getOperator());
     }
-    return allPossibleValues(pBinaryExpression);
   }
 
   private NumeralFormula<CompoundInterval> truncateShiftOperand(JType pExpressionType, NumeralFormula<CompoundInterval> pOperand) {
@@ -565,7 +571,7 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
 
   @Override
   public NumeralFormula<CompoundInterval> visit(JIdExpression pIdExpression) throws UnrecognizedCodeException {
-    return asVariable(pIdExpression.getExpressionType(), variableNameExtractor.getVarName(pIdExpression));
+    return asVariable(pIdExpression.getExpressionType(), variableNameExtractor.getMemoryLocation(pIdExpression));
   }
 
   @Override
@@ -585,7 +591,7 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
       NumeralFormula<CompoundInterval> pFormula,
       MachineModel pMachineModel,
       Type pTargetType,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
 
     BitVectorInfo bitVectorInfo = BitVectorInfo.from(pMachineModel, pTargetType);
 
@@ -598,7 +604,9 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
     BigInteger lowerInclusiveBound = bitVectorInfo.getMinValue();
     BigInteger upperExclusiveBound = bitVectorInfo.getMaxValue().add(BigInteger.ONE);
 
-    CompoundInterval value = formula.accept(new FormulaCompoundStateEvaluationVisitor(pCompoundIntervalManagerFactory), pEnvironment);
+    FormulaCompoundStateEvaluationVisitor evaluator =
+        new FormulaCompoundStateEvaluationVisitor(pCompoundIntervalManagerFactory);
+    CompoundInterval value = formula.accept(evaluator, pEnvironment);
 
     if (bitVectorInfo.isSigned()) {
       if (!value.hasLowerBound() || !value.hasUpperBound()) {
@@ -609,6 +617,26 @@ public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Numera
       }
       if (value.getUpperBound().compareTo(upperExclusiveBound) >= 0) {
         return InvariantsFormulaManager.INSTANCE.asConstant(bitVectorInfo, cim.allPossibleValues());
+      }
+      // Handle implementation-defined cast to signed
+      if (pCompoundIntervalManagerFactory instanceof CompoundBitVectorIntervalManagerFactory
+          && !((CompoundBitVectorIntervalManagerFactory) pCompoundIntervalManagerFactory).isSignedWrapAroundAllowed()) {
+        CompoundBitVectorInterval cbvi =
+            (CompoundBitVectorInterval) pFormula.accept(evaluator, pEnvironment);
+        final AtomicBoolean overflows = new AtomicBoolean();
+        OverflowEventHandler overflowEventHandler =
+            new OverflowEventHandler() {
+
+              @Override
+              public void signedOverflow() {
+                overflows.set(true);
+              }
+            };
+        cbvi.cast(bitVectorInfo, false, overflowEventHandler);
+        if (overflows.get()) {
+          return InvariantsFormulaManager.INSTANCE.asConstant(
+              bitVectorInfo, cim.allPossibleValues());
+        }
       }
       return formula;
     }

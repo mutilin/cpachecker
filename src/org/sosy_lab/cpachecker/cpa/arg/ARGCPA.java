@@ -45,7 +45,7 @@ import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
-import org.sosy_lab.cpachecker.core.CounterexampleInfo;
+import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperCPA;
 import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
 import org.sosy_lab.cpachecker.core.defaults.FlatLatticeDomain;
@@ -165,9 +165,10 @@ public class ARGCPA extends AbstractSingleWrapperCPA implements
     }
     stopOperator = new ARGStopSep(getWrappedCpa().getStopOperator(), logger, config);
     cexFilter = createCounterexampleFilter(config, logger, cpa);
-    cexExporter = new CEXExporter(config, logger, cfa.getMachineModel(), cfa.getLanguage());
-    stats = new ARGStatistics(config, logger, this, cfa.getMachineModel(), cfa.getLanguage(),
-        dumpErrorPathImmediately ? null : cexExporter);
+    ARGPathExporter argPathExporter = new ARGPathExporter(config, logger, cfa);
+    cexExporter = new CEXExporter(config, logger, argPathExporter);
+    stats = new ARGStatistics(config, logger, this, cfa.getMachineModel(),
+        dumpErrorPathImmediately ? null : cexExporter, argPathExporter);
     machineModel = cfa.getMachineModel();
   }
 

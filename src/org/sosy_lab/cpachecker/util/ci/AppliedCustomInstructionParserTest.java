@@ -31,13 +31,16 @@ import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.sosy_lab.common.ShutdownNotifier;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.io.Files;
 import org.sosy_lab.common.io.Path;
 import org.sosy_lab.common.io.Paths;
+import org.sosy_lab.common.log.BasicLogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -45,6 +48,7 @@ import org.sosy_lab.cpachecker.cfa.model.c.CLabelNode;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.globalinfo.CFAInfo;
 import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
@@ -60,7 +64,7 @@ public class AppliedCustomInstructionParserTest {
   private List<CLabelNode> labelNodes;
 
   @Before
-  public void init() throws IOException, ParserException, InterruptedException {
+  public void init() throws IOException, ParserException, InterruptedException, InvalidConfigurationException {
     String testProgram = ""
           + "extern int test3(int);"
           + "int test(int p) {"
@@ -100,14 +104,18 @@ public class AppliedCustomInstructionParserTest {
             + "test2(4);"
           + "}";
     cfa = TestDataTools.makeCFA(testProgram);
-    aciParser = new AppliedCustomInstructionParser(ShutdownNotifier.create(), cfa);
+    aciParser =
+        new AppliedCustomInstructionParser(
+            ShutdownNotifier.createDummy(),
+            new BasicLogManager(TestDataTools.configurationForTest().build()),
+            cfa);
     GlobalInfo.getInstance().storeCFA(cfa);
     cfaInfo = GlobalInfo.getInstance().getCFAInfo().get();
     labelNodes = getLabelNodes(cfa);
   }
 
   @Test
-  public void testGetCFANode() throws AppliedCustomInstructionParsingFailedException, IOException, InterruptedException {
+  public void testGetCFANode() throws AppliedCustomInstructionParsingFailedException {
     try {
       aciParser.getCFANode("N57", cfaInfo);
     } catch (CPAException e) {
@@ -124,7 +132,7 @@ public class AppliedCustomInstructionParserTest {
   }
 
   @Test
-  public void testReadCustomInstruction() throws AppliedCustomInstructionParsingFailedException, InterruptedException, NoSuchFieldException, SecurityException {
+  public void testReadCustomInstruction() throws AppliedCustomInstructionParsingFailedException, InterruptedException, SecurityException {
     try {
       aciParser.readCustomInstruction("test4");
     } catch (CPAException e) {
@@ -161,7 +169,6 @@ public class AppliedCustomInstructionParserTest {
     }
     Truth.assertThat(ci.getStartNode()).isEqualTo(expectedStart);
     Truth.assertThat(ci.getEndNodes()).containsExactlyElementsIn(expectedEnds);
-    // input variables: ci::globalVar, ci::u, ci::var, ci::y, ci::z
     List<String> list = new ArrayList<>();
     list.add("ci::globalVar");
     list.add("ci::u");
@@ -169,7 +176,6 @@ public class AppliedCustomInstructionParserTest {
     list.add("ci::y");
     list.add("ci::z");
     Truth.assertThat(ci.getInputVariables()).containsExactlyElementsIn(list).inOrder();
-     //output variables: ci::var, ci::y, ci::z
     list = new ArrayList<>();
     list.add("ci::var");
     list.add("ci::y");
@@ -191,13 +197,11 @@ public class AppliedCustomInstructionParserTest {
     }
     Truth.assertThat(ci.getStartNode()).isEqualTo(expectedStart);
     Truth.assertThat(ci.getEndNodes()).containsExactlyElementsIn(expectedEnds);
-    // input variables: main::m, main::n, main::o
     list = new ArrayList<>();
     list.add("main::m");
     list.add("main::n");
     list.add("main::o");
      Truth.assertThat(ci.getInputVariables()).containsExactlyElementsIn(list).inOrder();
-    // output variables:  main::n
     list = new ArrayList<>();
     list.add("main::n");
     Truth.assertThat(ci.getOutputVariables()).containsExactlyElementsIn(list).inOrder();
@@ -214,7 +218,7 @@ public class AppliedCustomInstructionParserTest {
   }
 
   @Test
-  public void testParse() throws AppliedCustomInstructionParsingFailedException, IOException, InterruptedException, NoSuchFieldException, SecurityException, ParserException {
+  public void testParse() throws AppliedCustomInstructionParsingFailedException, IOException, InterruptedException, SecurityException, ParserException, InvalidConfigurationException {
     String testProgram = ""
         + "void main() {"
           + "int x;"
@@ -228,72 +232,143 @@ public class AppliedCustomInstructionParserTest {
 
     CFA cfa = TestDataTools.makeCFA(testProgram);
     GlobalInfo.getInstance().storeCFA(cfa);
-    aciParser = new AppliedCustomInstructionParser(ShutdownNotifier.create(), cfa);
+    aciParser =
+        new AppliedCustomInstructionParser(
+            ShutdownNotifier.createDummy(),
+            new BasicLogManager(TestDataTools.configurationForTest().build()),
+            cfa);
     Path p = Paths.createTempPath("test_acis", null);
-    Writer file = Files.openOutputFile(p);
-    file.append("main\n");
-    CFANode node;
-    Deque<CFANode> toVisit = new ArrayDeque<>();
-    toVisit.add(cfa.getMainFunction());
-    while(!toVisit.isEmpty()) {
-      node = toVisit.pop();
+    try (Writer file = Files.openOutputFile(p)) {
+      file.append("main\n");
+      CFANode node;
+      Deque<CFANode> toVisit = new ArrayDeque<>();
+      toVisit.add(cfa.getMainFunction());
+      while (!toVisit.isEmpty()) {
+        node = toVisit.pop();
 
-      for(CFANode succ: CFAUtils.allSuccessorsOf(node)) {
-        toVisit.add(succ);
-        if(node.getEdgeTo(succ).getEdgeType().equals(CFAEdgeType.StatementEdge)) {
-          file.append(node.getNodeNumber()+"\n");
+        for (CFANode succ : CFAUtils.allSuccessorsOf(node)) {
+          toVisit.add(succ);
+          if (node.getEdgeTo(succ).getEdgeType().equals(CFAEdgeType.StatementEdge)) {
+            file.append(node.getNodeNumber() + "\n");
+          }
         }
       }
+      file.flush();
     }
-    file.flush();
-    file.close();
+
+    CFANode expectedStart = null;
+    for(CLabelNode n: getLabelNodes(cfa)){
+      if(n.getLabel().startsWith("start_ci") && n.getFunctionName().equals("main")) {
+        expectedStart = n;
+      }
+    }
+    int startNodeNr = expectedStart.getNodeNumber();
 
     CustomInstructionApplications cia = aciParser.parse(p);
     Map<CFANode, AppliedCustomInstruction> cis = cia.getMapping();
     Truth.assertThat(cis.size()).isEqualTo(4);
-    for (CFANode key : cis.keySet()) {
+    List<CFANode> aciNodes = new ArrayList<>(2);
+
+    for (Entry<CFANode, AppliedCustomInstruction> entry : cis.entrySet()) {
+      Collection<String> inputVars = new ArrayList<>();
+      Collection<String> outputVars = new ArrayList<>();
+      Pair<List<String>, String> fakeSMTDescription;
+      List<String> list = new ArrayList<>();
       List<String> variables = new ArrayList<>();
       SSAMap ssaMap;
+      aciNodes.clear();
+      aciNodes.add(entry.getKey());
+      aciNodes.add(entry.getKey().getLeavingEdge(0).getSuccessor());
 
-      // TODO ssamap outputvars der ci sind in denen der aci
+      if (entry.getKey().getNodeNumber() == startNodeNr) {
+        inputVars.add("main::x");
+        inputVars.add("main::y");
+        Truth.assertThat(entry.getValue().getInputVariables()).containsExactlyElementsIn(inputVars);
+        outputVars.add("main::x");
+        Truth.assertThat(entry.getValue().getOutputVariables()).containsExactlyElementsIn(outputVars);
 
-      switch (key.getNodeNumber()) {
-        case 54:
-          // TODO fake smt description
-          ssaMap = cis.get(key).getIndicesForReturnVars();
-          variables.add("main::x");
-//          Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
-//          Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
-          break;
+        fakeSMTDescription = entry.getValue().getFakeSMTDescription();
+        list.add("(declare-fun |main::x| () Int)");
+        list.add("(declare-fun |main::y| () Int)");
+        list.add("(declare-fun |main::x@1| () Int)");
+        Truth.assertThat(fakeSMTDescription.getFirst()).containsExactlyElementsIn(list);
+        Truth.assertThat(fakeSMTDescription.getSecond()).isEqualTo("(define-fun ci() Bool(and (= |main::x| 0)(and (= |main::y| 0) (= |main::x@1| 0))))");
 
-        case 56:
-          ssaMap = cis.get(key).getIndicesForReturnVars();
-          variables.add("main::x");
-//          Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
-//          Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
-          break;
+        ssaMap = entry.getValue().getIndicesForReturnVars();
+        variables.add("main::x");
+        Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
+        Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
 
-        case 57:
-          ssaMap = cis.get(key).getIndicesForReturnVars();
-          variables.add("main::x");
-          variables.add("main::y");
-//          Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
-//          Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
-//          Truth.assertThat(ssaMap.getIndex(variables.get(1))).isEqualTo(1);
-          break;
+        Truth.assertThat(entry.getValue().getStartAndEndNodes()).containsExactlyElementsIn(aciNodes);
 
-        case 58:
-          ssaMap = cis.get(key).getIndicesForReturnVars();
-          variables.add("main::x");
-          variables.add("main::y");
-//          Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
-//          Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
-//          Truth.assertThat(ssaMap.getIndex(variables.get(1))).isEqualTo(1);
-          break;
+      } else if (entry.getKey().getNodeNumber() == startNodeNr + 2) {
+        inputVars.add("main::x");
+        inputVars.add("main::x");
+        Truth.assertThat(entry.getValue().getInputVariables()).containsExactlyElementsIn(inputVars);
+        outputVars.add("main::x");
+        Truth.assertThat(entry.getValue().getOutputVariables()).containsExactlyElementsIn(outputVars);
 
-        default:
+        fakeSMTDescription = entry.getValue().getFakeSMTDescription();
+        list.clear();
+        list.add("(declare-fun |main::x| () Int)");
+        list.add("(declare-fun |main::x| () Int)");
+        list.add("(declare-fun |main::x@1| () Int)");
+        Truth.assertThat(fakeSMTDescription.getFirst()).containsExactlyElementsIn(list);
+        Truth.assertThat(fakeSMTDescription.getSecond()).isEqualTo("(define-fun ci() Bool(and (= |main::x| 0)(and (= |main::x| 0) (= |main::x@1| 0))))");
+
+        ssaMap = entry.getValue().getIndicesForReturnVars();
+        variables.add("main::x");
+        Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
+        Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
+
+        Truth.assertThat(entry.getValue().getStartAndEndNodes()).containsExactlyElementsIn(aciNodes);
+
+      } else if (entry.getKey().getNodeNumber() == startNodeNr + 3) {
+        inputVars.add("main::y");
+        inputVars.add("main::y");
+        Truth.assertThat(entry.getValue().getInputVariables()).containsExactlyElementsIn(inputVars);
+        outputVars.add("main::y");
+        Truth.assertThat(entry.getValue().getOutputVariables()).containsExactlyElementsIn(outputVars);
+
+        fakeSMTDescription = entry.getValue().getFakeSMTDescription();
+        list.clear();
+        list.add("(declare-fun |main::y| () Int)");
+        list.add("(declare-fun |main::y| () Int)");
+        list.add("(declare-fun |main::y@1| () Int)");
+        Truth.assertThat(fakeSMTDescription.getFirst()).containsExactlyElementsIn(list);
+        Truth.assertThat(fakeSMTDescription.getSecond()).isEqualTo("(define-fun ci() Bool(and (= |main::y| 0)(and (= |main::y| 0) (= |main::y@1| 0))))");
+
+        ssaMap = entry.getValue().getIndicesForReturnVars();
+        variables.add("main::y");
+        Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
+        Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
+
+        Truth.assertThat(entry.getValue().getStartAndEndNodes()).containsExactlyElementsIn(aciNodes);
+
+      } else if (entry.getKey().getNodeNumber() == startNodeNr + 4) {
+        inputVars.add("main::y");
+        inputVars.add("main::x");
+        Truth.assertThat(entry.getValue().getInputVariables()).containsExactlyElementsIn(inputVars);
+        outputVars.add("main::y");
+        Truth.assertThat(entry.getValue().getOutputVariables()).containsExactlyElementsIn(outputVars);
+
+        fakeSMTDescription = entry.getValue().getFakeSMTDescription();
+        list.clear();
+        list.add("(declare-fun |main::y| () Int)");
+        list.add("(declare-fun |main::x| () Int)");
+        list.add("(declare-fun |main::y@1| () Int)");
+        Truth.assertThat(fakeSMTDescription.getFirst()).containsExactlyElementsIn(list);
+        Truth.assertThat(fakeSMTDescription.getSecond()).isEqualTo("(define-fun ci() Bool(and (= |main::y| 0)(and (= |main::x| 0) (= |main::y@1| 0))))");
+
+        ssaMap = entry.getValue().getIndicesForReturnVars();
+        variables.add("main::y");
+        Truth.assertThat(ssaMap.allVariables()).containsExactlyElementsIn(variables);
+        Truth.assertThat(ssaMap.getIndex(variables.get(0))).isEqualTo(1);
+
+        Truth.assertThat(entry.getValue().getStartAndEndNodes()).containsExactlyElementsIn(aciNodes);
+
+        } else {
           Truth.assertThat(false).isTrue();
-          break;
       }
     }
   }

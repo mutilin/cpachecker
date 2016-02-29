@@ -1,24 +1,20 @@
 package org.sosy_lab.cpachecker.cpa.formulaslicing;
 
-import java.util.Collection;
-import java.util.List;
+import com.google.common.base.Optional;
 
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustmentResult;
+import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 
-import com.google.common.base.Optional;
+import java.util.Collection;
+import java.util.List;
 
-public interface IFormulaSlicingManager {
-  SlicingState join(
-      SlicingState oldState,
-      SlicingState newState
-  ) throws CPAException, InterruptedException;
-
+public interface IFormulaSlicingManager extends StatisticsProvider {
   Collection<? extends SlicingState> getAbstractSuccessors(
       SlicingState state,
       CFAEdge edge
@@ -37,4 +33,6 @@ public interface IFormulaSlicingManager {
 
   Optional<PrecisionAdjustmentResult> prec(SlicingState pState, UnmodifiableReachedSet pStates,
       AbstractState pFullState);
+
+  SlicingState merge(SlicingState pState1, SlicingState pState2) throws InterruptedException;
 }

@@ -28,24 +28,23 @@ import java.util.Map;
 
 import javax.annotation.Nullable;
 
-import org.sosy_lab.cpachecker.cfa.types.MachineModel;
-import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cpa.invariants.BitVectorInfo;
 import org.sosy_lab.cpachecker.cpa.invariants.CompoundInterval;
 import org.sosy_lab.cpachecker.cpa.invariants.SimpleInterval;
+import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
+import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 import org.sosy_lab.solver.api.BitvectorFormula;
 import org.sosy_lab.solver.api.BitvectorFormulaManager;
 import org.sosy_lab.solver.api.BooleanFormula;
 import org.sosy_lab.solver.api.BooleanFormulaManager;
-import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 
 /**
  * Instances of this class are compound state invariants visitors used to
  * convert the visited invariants formulae into bit vector formulae.
  */
 public class ToBitvectorFormulaVisitor implements
-    ParameterizedNumeralFormulaVisitor<CompoundInterval, Map<? extends String, ? extends NumeralFormula<CompoundInterval>>, BitvectorFormula>,
-    ParameterizedBooleanFormulaVisitor<CompoundInterval, Map<? extends String, ? extends NumeralFormula<CompoundInterval>>, BooleanFormula> {
+    ParameterizedNumeralFormulaVisitor<CompoundInterval, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>>, BitvectorFormula>,
+    ParameterizedBooleanFormulaVisitor<CompoundInterval, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>>, BooleanFormula> {
 
   /**
    * The boolean formula manager used.
@@ -65,8 +64,7 @@ public class ToBitvectorFormulaVisitor implements
 
   /**
    * Creates a new visitor for converting compound state invariants formulae to
-   * bit vector formulae by using the given formula manager,
-   * {@link ToBooleanFormulaVisitor} and evaluation visitor.
+   * bit vector formulae by using the given formula manager, and evaluation visitor.
    *
    * @param pFmgr the formula manager used.
    * @param pEvaluationVisitor the formula evaluation visitor used to evaluate
@@ -90,7 +88,7 @@ public class ToBitvectorFormulaVisitor implements
    * formula or <code>null</code> if the evaluation of the given formula could
    * not be represented as a bit vector formula.
    */
-  private @Nullable BitvectorFormula evaluate(NumeralFormula<CompoundInterval> pFormula, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  private @Nullable BitvectorFormula evaluate(NumeralFormula<CompoundInterval> pFormula, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     CompoundInterval intervals = pFormula.accept(this.evaluationVisitor, pEnvironment);
     if (intervals.isSingleton()) {
       return asBitVectorFormula(pFormula.getBitVectorInfo(), intervals.getValue());
@@ -124,42 +122,42 @@ public class ToBitvectorFormulaVisitor implements
   }
 
   @Override
-  public BitvectorFormula visit(Add<CompoundInterval> pAdd, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Add<CompoundInterval> pAdd, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitvectorFormula summand1 = pAdd.getSummand1().accept(this, pEnvironment);
     BitvectorFormula summand2 = pAdd.getSummand2().accept(this, pEnvironment);
     if (summand1 == null || summand2 == null) {
       return evaluate(pAdd, pEnvironment);
     }
-    return this.bvfmgr.add(summand1, summand2, true);
+    return this.bvfmgr.add(summand1, summand2);
   }
 
   @Override
-  public BitvectorFormula visit(BinaryAnd<CompoundInterval> pAnd, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(BinaryAnd<CompoundInterval> pAnd, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pAnd, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(BinaryNot<CompoundInterval> pNot, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(BinaryNot<CompoundInterval> pNot, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pNot, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(BinaryOr<CompoundInterval> pOr, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(BinaryOr<CompoundInterval> pOr, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pOr, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(BinaryXor<CompoundInterval> pXor, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(BinaryXor<CompoundInterval> pXor, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pXor, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(Constant<CompoundInterval> pConstant, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Constant<CompoundInterval> pConstant, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pConstant, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(Divide<CompoundInterval> pDivide, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Divide<CompoundInterval> pDivide, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitvectorFormula numerator = pDivide.getNumerator().accept(this, pEnvironment);
     BitvectorFormula denominator = pDivide.getDenominator().accept(this, pEnvironment);
     if (numerator == null || denominator == null) {
@@ -170,12 +168,12 @@ public class ToBitvectorFormulaVisitor implements
 
   @Override
   public BitvectorFormula visit(Exclusion<CompoundInterval> pExclusion,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pExclusion, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(Modulo<CompoundInterval> pModulo, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Modulo<CompoundInterval> pModulo, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitvectorFormula numerator = pModulo.getNumerator().accept(this, pEnvironment);
     BitvectorFormula denominator = pModulo.getDenominator().accept(this, pEnvironment);
     if (numerator == null || denominator == null) {
@@ -185,45 +183,45 @@ public class ToBitvectorFormulaVisitor implements
   }
 
   @Override
-  public BitvectorFormula visit(Multiply<CompoundInterval> pMultiply, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Multiply<CompoundInterval> pMultiply, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitvectorFormula factor1 = pMultiply.getFactor1().accept(this, pEnvironment);
     BitvectorFormula factor2 = pMultiply.getFactor2().accept(this, pEnvironment);
     if (factor1 == null || factor2 == null) {
       return evaluate(pMultiply, pEnvironment);
     }
-    return this.bvfmgr.multiply(factor1, factor2, true);
+    return this.bvfmgr.multiply(factor1, factor2);
   }
 
   @Override
-  public BitvectorFormula visit(ShiftLeft<CompoundInterval> pShiftLeft, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(ShiftLeft<CompoundInterval> pShiftLeft, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pShiftLeft, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(ShiftRight<CompoundInterval> pShiftRight, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(ShiftRight<CompoundInterval> pShiftRight, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pShiftRight, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(Union<CompoundInterval> pUnion, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Union<CompoundInterval> pUnion, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return evaluate(pUnion, pEnvironment);
   }
 
   @Override
-  public BitvectorFormula visit(Variable<CompoundInterval> pVariable, Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BitvectorFormula visit(Variable<CompoundInterval> pVariable, Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitVectorInfo bitVectorInfo = pVariable.getBitVectorInfo();
-    return this.bvfmgr.makeVariable(bitVectorInfo.getSize(), pVariable.getName());
+    return this.bvfmgr.makeVariable(bitVectorInfo.getSize(), pVariable.getMemoryLocation().getAsSimpleString());
   }
 
   @Override
   public BitvectorFormula visit(Cast<CompoundInterval> pCast,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitVectorInfo sourceInfo = pCast.getCasted().getBitVectorInfo();
     BitVectorInfo targetInfo = pCast.getBitVectorInfo();
     int sourceSize = sourceInfo.getSize();
     int targetSize = targetInfo.getSize();
     BitvectorFormula sourceFormula = pCast.getCasted().accept(this, pEnvironment);
-    if (sourceSize == targetSize || sourceFormula == null) {
+    if (sourceFormula == null) {
       return sourceFormula;
     }
     if (sourceSize < targetSize) {
@@ -234,7 +232,7 @@ public class ToBitvectorFormulaVisitor implements
 
   @Override
   public BitvectorFormula visit(IfThenElse<CompoundInterval> pIfThenElse,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BooleanConstant<CompoundInterval> conditionEval = pIfThenElse.getCondition().accept(evaluationVisitor, pEnvironment);
     if (BooleanConstant.isTrue(conditionEval)) {
       return pIfThenElse.getPositiveCase().accept(this, pEnvironment);
@@ -262,13 +260,13 @@ public class ToBitvectorFormulaVisitor implements
         negativeCaseFormula);
   }
 
-  public static Integer getSize(NumeralFormula<CompoundInterval> pFormula, Map<String, CType> pTypes, MachineModel pMachineModel) {
+  public static Integer getSize(NumeralFormula<CompoundInterval> pFormula) {
     return pFormula.getBitVectorInfo().getSize();
   }
 
   @Override
   public BooleanFormula visit(Equal<CompoundInterval> pEqual,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitVectorInfo bitVectorInfo = pEqual.getOperand1().getBitVectorInfo();
     BitvectorFormula operand1 = pEqual.getOperand1().accept(this, pEnvironment);
     BitvectorFormula operand2 = pEqual.getOperand2().accept(this, pEnvironment);
@@ -311,7 +309,7 @@ public class ToBitvectorFormulaVisitor implements
 
   @Override
   public BooleanFormula visit(LessThan<CompoundInterval> pLessThan,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     BitVectorInfo bitVectorInfo = pLessThan.getOperand1().getBitVectorInfo();
     BitvectorFormula operand1 = pLessThan.getOperand1().accept(this, pEnvironment);
     BitvectorFormula operand2 = pLessThan.getOperand2().accept(this, pEnvironment);
@@ -349,7 +347,7 @@ public class ToBitvectorFormulaVisitor implements
 
   @Override
   public BooleanFormula visit(LogicalAnd<CompoundInterval> pAnd,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return this.bfmgr.and(
         pAnd.getOperand1().accept(this, pEnvironment),
         pAnd.getOperand2().accept(this, pEnvironment));
@@ -357,17 +355,17 @@ public class ToBitvectorFormulaVisitor implements
 
   @Override
   public BooleanFormula visit(LogicalNot<CompoundInterval> pNot,
-      Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+      Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return this.bfmgr.not(pNot.getNegated().accept(this, pEnvironment));
   }
 
   @Override
-  public BooleanFormula visitFalse(Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BooleanFormula visitFalse(Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return bfmgr.makeBoolean(false);
   }
 
   @Override
-  public BooleanFormula visitTrue(Map<? extends String, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
+  public BooleanFormula visitTrue(Map<? extends MemoryLocation, ? extends NumeralFormula<CompoundInterval>> pEnvironment) {
     return bfmgr.makeBoolean(true);
   }
 

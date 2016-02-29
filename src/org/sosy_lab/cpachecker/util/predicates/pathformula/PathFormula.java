@@ -34,8 +34,8 @@ import javax.annotation.Nullable;
 
 import org.sosy_lab.cpachecker.cpa.value.ValueAnalysisState;
 import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
-import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
+import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
 import org.sosy_lab.solver.api.BooleanFormula;
 
 public final class PathFormula implements Serializable {
@@ -136,7 +136,11 @@ public final class PathFormula implements Serializable {
     return new SerializationProxy(this);
   }
 
-  private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException {
+  /**
+   * javadoc to remove unused parameter warning
+   * @param in the input stream
+   */
+  private void readObject(ObjectInputStream in) throws IOException {
     throw new InvalidObjectException("Proxy required");
   }
 

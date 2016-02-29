@@ -39,7 +39,6 @@ import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 
-import org.sosy_lab.common.Pair;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -49,14 +48,12 @@ import org.sosy_lab.common.io.Files;
 import org.sosy_lab.common.io.Path;
 import org.sosy_lab.common.io.Paths;
 import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
-import org.sosy_lab.cpachecker.core.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.counterexample.AssumptionToEdgeAllocator;
 import org.sosy_lab.cpachecker.core.counterexample.CFAPathWithAssumptions;
 import org.sosy_lab.cpachecker.core.counterexample.ConcreteStatePath;
-import org.sosy_lab.cpachecker.core.counterexample.RichModel;
+import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysisWithConcreteCex;
 import org.sosy_lab.cpachecker.core.interfaces.IterationStatistics;
@@ -65,6 +62,7 @@ import org.sosy_lab.cpachecker.cpa.arg.counterexamples.CEXExporter;
 import org.sosy_lab.cpachecker.cpa.partitioning.PartitioningCPA.PartitionState;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
+import org.sosy_lab.cpachecker.util.Pair;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -88,6 +86,11 @@ public class ARGStatistics implements IterationStatistics {
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path argFile = Paths.get("ARG.dot");
 
+  @Option(secure=true, name="proofWitness",
+      description="export a proof as .graphml file")
+  @FileOption(FileOption.Type.OUTPUT_FILE)
+  private Path proofWitness = null;
+
   @Option(secure=true, name="simplifiedARG.file",
       description="export final ARG as .dot file, showing only loop heads and function entries/exits")
   @FileOption(FileOption.Type.OUTPUT_FILE)
@@ -103,21 +106,23 @@ public class ARGStatistics implements IterationStatistics {
   private Writer refinementGraphUnderlyingWriter = null;
   private ARGToDotWriter refinementGraphWriter = null;
   private final @Nullable CEXExporter cexExporter;
+  private final ARGPathExporter argPathExporter;
   private final AssumptionToEdgeAllocator assumptionToEdgeAllocator;
 
   private final LogManager logger;
 
   public ARGStatistics(Configuration config, LogManager pLogger, ARGCPA pCpa,
-      MachineModel pMachineModel, Language pLanguage,
-      @Nullable CEXExporter pCexExporter) throws InvalidConfigurationException {
+      MachineModel pMachineModel, @Nullable CEXExporter pCexExporter,
+      ARGPathExporter pARGPathExporter) throws InvalidConfigurationException {
     config.inject(this);
 
     logger = pLogger;
     cpa = pCpa;
     assumptionToEdgeAllocator = new AssumptionToEdgeAllocator(config, logger, pMachineModel);
     cexExporter = pCexExporter;
+    argPathExporter = pARGPathExporter;
 
-    if (argFile == null && simplifiedArgFile == null && refinementGraphFile == null) {
+    if (argFile == null && simplifiedArgFile == null && refinementGraphFile == null && proofWitness == null) {
       exportARG = false;
     }
   }
@@ -221,6 +226,16 @@ public class ARGStatistics implements IterationStatistics {
     SetMultimap<ARGState, ARGState> relevantSuccessorRelation = ARGUtils.projectARG(rootState, ARGUtils.CHILDREN_OF_STATE, ARGUtils.RELEVANT_STATE);
     Function<ARGState, Collection<ARGState>> relevantSuccessorFunction = Functions.forMap(relevantSuccessorRelation.asMap(), ImmutableSet.<ARGState>of());
 
+    if (proofWitness != null) {
+      try (Writer w = Files.openOutputFile(adjustPathNameForPartitioning(rootState, proofWitness))) {
+        argPathExporter.writeProofWitness(w, rootState,
+            Predicates.alwaysTrue(),
+            Predicates.alwaysTrue());
+      } catch (IOException e) {
+        logger.logUserException(Level.WARNING, e, "Could not write ARG to file");
+      }
+    }
+
     if (argFile != null) {
       try (Writer w = Files.openOutputFile(adjustPathNameForPartitioning(rootState, argFile))) {
         ARGToDotWriter.write(w, rootState,
@@ -282,8 +297,15 @@ public class ARGStatistics implements IterationStatistics {
           // TODO this check does not avoid dummy-paths in BAM, that might exist in main-reachedSet.
         } else {
 
-          RichModel model = createModelForPath(path);
-          cex = CounterexampleInfo.feasible(path, model);
+          CFAPathWithAssumptions assignments = createAssignmentsForPath(path);
+          // we use the imprecise version of the CounterexampleInfo, due to the possible
+          // merges which are done in the used CPAs, but if we can compute a path with assignments,
+          // it is probably precise
+          if (!assignments.isEmpty()) {
+            cex = CounterexampleInfo.feasiblePrecise(path, assignments);
+          } else {
+            cex = CounterexampleInfo.feasibleImprecise(path);
+          }
         }
       }
       if (cex != null) {
@@ -294,7 +316,7 @@ public class ARGStatistics implements IterationStatistics {
     return counterexamples;
   }
 
-  private RichModel createModelForPath(ARGPath pPath) {
+  private CFAPathWithAssumptions createAssignmentsForPath(ARGPath pPath) {
 
     FluentIterable<ConfigurableProgramAnalysisWithConcreteCex> cpas =
         CPAs.asIterable(cpa).filter(ConfigurableProgramAnalysisWithConcreteCex.class);
@@ -313,10 +335,10 @@ public class ARGStatistics implements IterationStatistics {
       }
     }
 
-    if(result == null) {
-      return RichModel.empty();
+    if (result == null) {
+      return CFAPathWithAssumptions.empty();
     } else {
-      return RichModel.empty().withAssignmentInformation(result);
+      return result;
     }
   }
 

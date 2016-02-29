@@ -24,9 +24,11 @@
 package org.sosy_lab.cpachecker.util.ci;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Writer;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -36,10 +38,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.logging.Level;
 
-import org.sosy_lab.common.Pair;
 import org.sosy_lab.common.ShutdownNotifier;
+import org.sosy_lab.common.io.Files;
 import org.sosy_lab.common.io.Path;
+import org.sosy_lab.common.io.Paths;
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArrayDesignator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArrayRangeDesignator;
@@ -86,6 +91,7 @@ import org.sosy_lab.cpachecker.cfa.model.c.CLabelNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.util.CFAUtils;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.globalinfo.CFAInfo;
 import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 
@@ -98,11 +104,14 @@ import com.google.common.collect.ImmutableSet;
 public class AppliedCustomInstructionParser {
 
   private final ShutdownNotifier shutdownNotifier;
+  private final LogManager logger;
   private final CFA cfa;
   private final GlobalVarCheckVisitor visitor = new GlobalVarCheckVisitor();
 
-  public AppliedCustomInstructionParser(final ShutdownNotifier pShutdownNotifier, final CFA pCfa) {
+  public AppliedCustomInstructionParser(final ShutdownNotifier pShutdownNotifier, final LogManager pLogger,
+      final CFA pCfa) {
     shutdownNotifier = pShutdownNotifier;
+    logger = pLogger;
     cfa = pCfa;
   }
 
@@ -111,18 +120,11 @@ public class AppliedCustomInstructionParser {
    * @param file Path of the file to be read
    * @return CustomInstructionApplication
    * @throws IOException if the file doesn't contain all required data.
-   * @throws AppliedCustomInstructionParsingFailedException
-   * @throws InterruptedException
    */
   public CustomInstructionApplications parse (final Path file)
       throws IOException, AppliedCustomInstructionParsingFailedException, InterruptedException {
 
-    Builder<CFANode, AppliedCustomInstruction> map = new ImmutableMap.Builder<>();
-    CFAInfo cfaInfo = GlobalInfo.getInstance().getCFAInfo().get();
-
-    CFANode startNode;
     CustomInstruction ci = null;
-    AppliedCustomInstruction aci;
 
 
     try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file.toFile()), "UTF-8"))) {
@@ -132,22 +134,54 @@ public class AppliedCustomInstructionParser {
       }
 
       ci = readCustomInstruction(line);
-      while ((line = br.readLine()) != null) {
-        shutdownNotifier.shutdownIfNecessary();
-        startNode = getCFANode(line, cfaInfo);
-        if(startNode == null) {
-          continue;
-        }
+
+      writeCustomInstructionSpecification(ci);
+
+      return parseACIs(br, ci);
+    }
+  }
+
+  private void writeCustomInstructionSpecification(final CustomInstruction ci) throws IOException {
+    try (Writer br = Files.openOutputFile(Paths.get("output" + File.separator + "ci_spec.txt"))) {
+      br.write(ci.getSignature() + "\n");
+      String ciString = ci.getFakeSMTDescription().getSecond();
+      br.write(ciString.substring(ciString.indexOf("a")-1,ciString.length()-1) + ";");
+    }
+  }
 
 
-        try {
-          aci = ci.inspectAppliedCustomInstruction(startNode);
-        } catch (InterruptedException ex) {
-          throw new AppliedCustomInstructionParsingFailedException("Parsing failed because of ShutdownNotifier: " + ex.getMessage());
-        }
+  public CustomInstructionApplications parse(final CustomInstruction pCi, final Path file)
+      throws AppliedCustomInstructionParsingFailedException, IOException, InterruptedException {
+    try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file.toFile()), "UTF-8"))) {
+      return parseACIs(br, pCi);
+    }
+  }
 
-        map.put(startNode, aci);
+  private CustomInstructionApplications parseACIs(final BufferedReader br, final CustomInstruction ci)
+      throws AppliedCustomInstructionParsingFailedException, IOException, InterruptedException {
+    Builder<CFANode, AppliedCustomInstruction> map = new ImmutableMap.Builder<>();
+    CFAInfo cfaInfo = GlobalInfo.getInstance().getCFAInfo().get();
+
+    CFANode startNode;
+    AppliedCustomInstruction aci;
+    String line;
+
+    while ((line = br.readLine()) != null) {
+      shutdownNotifier.shutdownIfNecessary();
+      startNode = getCFANode(line, cfaInfo);
+      if (startNode == null) {
+        continue;
       }
+
+
+      try {
+        aci = ci.inspectAppliedCustomInstruction(startNode);
+      } catch (InterruptedException ex) {
+        throw new AppliedCustomInstructionParsingFailedException("Parsing failed because of ShutdownNotifier: "
+            + ex.getMessage());
+      }
+
+      map.put(startNode, aci);
     }
 
     return new CustomInstructionApplications(map.build(), ci);
@@ -173,7 +207,6 @@ public class AppliedCustomInstructionParser {
    * Creates a ImmutableSet out of the given String[].
    * @param pNodes String[]
    * @return Immutable Set of CFANodes out of the String[]
-   * @throws AppliedCustomInstructionParsingFailedException
    */
   protected ImmutableSet<CFANode> getCFANodes (final String[] pNodes, final CFAInfo cfaInfo) throws AppliedCustomInstructionParsingFailedException {
     ImmutableSet.Builder<CFANode> builder = new ImmutableSet.Builder<>();
@@ -235,6 +268,7 @@ public class AppliedCustomInstructionParser {
     Pair<CFANode, Set<String>> nextNode = Pair.of(ciStartNode, predOutputVars);
     pairQueue.add(nextNode);
     Set<FunctionEntryNode> functionsWithoutGlobalVars = new HashSet<>();
+    boolean usesMultiEdges = false;
 
     while(!pairQueue.isEmpty()) {
       shutdownNotifier.shutdownIfNecessary();
@@ -256,6 +290,7 @@ public class AppliedCustomInstructionParser {
           continue;
         }
         if (leavingEdge instanceof MultiEdge) {
+          usesMultiEdges = false;
           succOutputVars = predOutputVars;
           for (CFAEdge innerEdge : ((MultiEdge) leavingEdge).getEdges()) {
             // adapt output, inputvariables
@@ -284,6 +319,10 @@ public class AppliedCustomInstructionParser {
           pairQueue.add(nextPair);
         }
       }
+    }
+
+    if (usesMultiEdges) {
+      logger.log(Level.WARNING, "Multi edges used in custom instruction. Results may be unreliable. Disable option cfa.useMultiEdges to get reliable results.");
     }
 
     if (ciEndNodes.isEmpty()) {
@@ -390,8 +429,6 @@ public class AppliedCustomInstructionParser {
         return pPredOutputVars;
       }
     } else if (pLeavingEdge instanceof CDeclarationEdge) {
-      // TODO: so?
-      // if pLeavingedge  CDeclarationEdge --> getQualifiedVariablename --> edgeOutputVariables variable
       edgeOutputVariables = new HashSet<>();
       edgeOutputVariables.add(((CDeclarationEdge) pLeavingEdge).getDeclaration().getQualifiedName());
 
@@ -485,6 +522,8 @@ public class AppliedCustomInstructionParser {
       break;
     case CallToReturnEdge:
       return globalVarInStatement(((CFunctionSummaryEdge) pLeave).getExpression());
+    default:
+      throw new AssertionError("Unhandled enum value in switch: " + pLeave.getEdgeType());
     }
     return false;
   }

@@ -28,6 +28,7 @@ import java.util.logging.Level;
 
 import javax.annotation.Nullable;
 
+import org.sosy_lab.common.ShutdownManager;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.configuration.Configuration;
@@ -55,22 +56,23 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.pcc.ProofChecker;
-import org.sosy_lab.cpachecker.core.reachedset.ReachedSetFactory;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.blocking.BlockedCFAReducer;
 import org.sosy_lab.cpachecker.util.blocking.interfaces.BlockComputer;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionManager;
 import org.sosy_lab.cpachecker.util.predicates.BlockOperator;
-import org.sosy_lab.cpachecker.util.predicates.Solver;
-import org.sosy_lab.cpachecker.util.predicates.SymbolicRegionManager;
 import org.sosy_lab.cpachecker.util.predicates.bdd.BDDManagerFactory;
-import org.sosy_lab.cpachecker.util.predicates.interfaces.PathFormulaManager;
-import org.sosy_lab.cpachecker.util.predicates.interfaces.RegionManager;
-import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.CachingPathFormulaManager;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManagerImpl;
+import org.sosy_lab.cpachecker.util.predicates.regions.RegionManager;
+import org.sosy_lab.cpachecker.util.predicates.regions.SymbolicRegionManager;
+import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
+import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.solver.SolverException;
+
+import com.google.common.base.Optional;
 
 /**
  * CPA that defines symbolic predicate abstraction.
@@ -136,8 +138,7 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
   private final InvariantGenerator invariantGenerator;
 
   protected PredicateCPA(Configuration config, LogManager logger,
-      BlockOperator blk, CFA pCfa, ReachedSetFactory reachedSetFactory,
-      ShutdownNotifier pShutdownNotifier)
+      BlockOperator blk, CFA pCfa, ShutdownNotifier pShutdownNotifier)
           throws InvalidConfigurationException, CPAException {
     config.inject(this, PredicateCPA.class);
 
@@ -155,7 +156,7 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
 
     solver = Solver.create(config, logger, pShutdownNotifier);
     FormulaManagerView formulaManager = solver.getFormulaManager();
-    String libraries = formulaManager.getVersion();
+    String libraries = solver.getVersion();
 
     PathFormulaManager pfMgr = new PathFormulaManagerImpl(formulaManager, config, logger, shutdownNotifier, cfa, direction);
     if (useCache) {
@@ -178,9 +179,16 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
 
     assumesStore = new PredicateAssumeStore(formulaManager);
 
-    predicateManager = new PredicateAbstractionManager(
-        abstractionManager, formulaManager, pathFormulaManager,
-        solver, config, logger, pShutdownNotifier, cfa.getLiveVariables());
+    predicateManager =
+        new PredicateAbstractionManager(
+            abstractionManager,
+            formulaManager,
+            pathFormulaManager,
+            solver,
+            config,
+            logger,
+            pShutdownNotifier,
+            cfa);
 
     transfer = new PredicateTransferRelation(this, blk, config, direction, cfa);
 
@@ -199,7 +207,8 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
     }
 
     if (useInvariantsForAbstraction) {
-      invariantGenerator = CPAInvariantGenerator.create(config, logger, pShutdownNotifier, cfa);
+      ShutdownManager invariantShutdown = ShutdownManager.createWithParent(pShutdownNotifier);
+      invariantGenerator = CPAInvariantGenerator.create(config, logger, invariantShutdown, Optional.<ShutdownManager>absent(), cfa);
     } else {
       invariantGenerator = new DoNothingInvariantGenerator();
     }
@@ -211,7 +220,7 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
       staticRefiner = null;
     }
 
-    precisionBootstraper = new PredicatePrecisionBootstrapper(config, logger, cfa, pathFormulaManager, abstractionManager, formulaManager);
+    precisionBootstraper = new PredicatePrecisionBootstrapper(config, logger, cfa, abstractionManager, formulaManager);
     initialPrecision = precisionBootstraper.prepareInitialPredicates();
     logger.log(Level.FINEST, "Initial precision is", initialPrecision);
 
@@ -305,11 +314,10 @@ public class PredicateCPA implements ConfigurableProgramAnalysis, StatisticsProv
     if (invariantGenerator instanceof StatisticsProvider) {
       ((StatisticsProvider)invariantGenerator).collectStatistics(pStatsCollection);
     }
-    solver.getFormulaManager().collectStatistics(pStatsCollection);
   }
 
   @Override
-  public void close() throws Exception {
+  public void close() {
     solver.close();
   }
 

@@ -45,12 +45,12 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.MultiEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
-import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
+import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.reachingdef.ReachingDefUtils;
 import org.sosy_lab.cpachecker.util.reachingdef.ReachingDefUtils.VariableExtractor;
 
@@ -89,23 +89,21 @@ public class ReachingDefTransferRelation implements TransferRelation {
     }
     Vector<AbstractState> successors = new Vector<>();
     Vector<CFAEdge> definitions = new Vector<>();
-    CFAEdge cfaedge;
     for (CFANode node : nodes) {
-      for (int i = 0; i < node.getNumLeavingEdges(); i++) {
+      for (CFAEdge cfaedge : CFAUtils.leavingEdges(node)) {
         shutdownNotifier.shutdownIfNecessary();
 
-        cfaedge = node.getLeavingEdge(i);
         if (!(cfaedge.getEdgeType() == CFAEdgeType.FunctionReturnEdge)) {
           if (cfaedge.getEdgeType() == CFAEdgeType.StatementEdge || cfaedge.getEdgeType() == CFAEdgeType.DeclarationEdge) {
-            definitions.add(node.getLeavingEdge(i));
+            definitions.add(cfaedge);
           } else {
-            successors.addAll(getAbstractSuccessors0(pState, pPrecision, node.getLeavingEdge(i)));
+            successors.addAll(getAbstractSuccessors0(pState, cfaedge));
           }
         }
       }
     }
     for (CFAEdge edge: definitions) {
-      successors.addAll(getAbstractSuccessors0(pState, pPrecision, edge));
+      successors.addAll(getAbstractSuccessors0(pState, edge));
     }
     return successors;
   }
@@ -115,11 +113,10 @@ public class ReachingDefTransferRelation implements TransferRelation {
       AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
           throws CPATransferException, InterruptedException {
       Preconditions.checkNotNull(pCfaEdge);
-      return getAbstractSuccessors0(pState, pPrecision, pCfaEdge);
+      return getAbstractSuccessors0(pState, pCfaEdge);
   }
 
-  private Collection<? extends AbstractState> getAbstractSuccessors0(AbstractState pState, Precision pPrecision,
-      CFAEdge pCfaEdge) throws CPATransferException {
+  private Collection<? extends AbstractState> getAbstractSuccessors0(AbstractState pState, CFAEdge pCfaEdge) throws CPATransferException {
 
     logger.log(Level.INFO, "Compute succesor for ", pState, "along edge", pCfaEdge);
 
@@ -152,7 +149,7 @@ public class ReachingDefTransferRelation implements TransferRelation {
       break;
     }
     case FunctionReturnEdge: {
-      result = handleReturnEdge((ReachingDefState) pState, (CFunctionReturnEdge) pCfaEdge);
+      result = handleReturnEdge((ReachingDefState) pState);
       break;
     }
     case MultiEdge: {
@@ -255,7 +252,7 @@ public class ReachingDefTransferRelation implements TransferRelation {
         pCfaEdge.getPredecessor(), pCfaEdge.getSuccessor());
   }
 
-  private ReachingDefState handleReturnEdge(ReachingDefState pState, CFunctionReturnEdge pCfaEdge) {
+  private ReachingDefState handleReturnEdge(ReachingDefState pState) {
     logger.log(Level.FINE, "Return from internal function call. ",
         "Remove local variables and parameters of function from reaching definition.");
     return pState.pop();
