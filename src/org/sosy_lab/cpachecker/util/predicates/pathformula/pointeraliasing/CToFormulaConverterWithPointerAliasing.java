@@ -248,13 +248,13 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       for (CCompositeTypeMemberDeclaration memberDeclaration : compositeType.getMembers()) {
         if (isRelevantField(compositeType, memberDeclaration.getName())) {
           pts.addField(compositeType, memberDeclaration.getName());
-          if (variableClassification.isPresent()){
-            System.out.println("FROM ADD_ALL_FIELDS");
-            pts.updateTargetRegions(variableClassification);
-          }
           final CType memberType = CTypeUtils.simplifyType(memberDeclaration.getType());
           addAllFields(memberType, pts);
         }
+      }
+      if (variableClassification.isPresent()){
+        System.out.println("FROM ADD_ALL_FIELDS");
+        pts.updateTargetRegions(variableClassification);
       }
     } else if (type instanceof CArrayType) {
       final CType elementType = CTypeUtils.simplifyType(((CArrayType) type).getType());
@@ -272,10 +272,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       constraints.addConstraint(pts.addBase(base, type));
     } else {
       pts.shareBase(base, type);
-    }
-    if (variableClassification.isPresent()){
-      System.out.println("FROM PREFILL");
-      pts.updateTargetRegions(variableClassification);
     }
     if (forcePreFill ||
         (options.maxPreFilledAllocationSize() > 0 && getSizeof(type) <= options.maxPreFilledAllocationSize())) {
@@ -539,10 +535,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       final Constraints constraints, final ErrorConditions errorConditions)
           throws UnrecognizedCCodeException, InterruptedException {
 
-    if (variableClassification.isPresent()){
-      System.out.println("FROM MAKE_ASSIGNMENT");
-      pts.updateTargetRegions(variableClassification);
-    }
     AssignmentHandler assignmentHandler = new AssignmentHandler(this, edge, function, ssa, pts, constraints, errorConditions);
     return assignmentHandler.handleAssignment(lhs, lhsForChecking, rhs, false, null);
   }
@@ -740,10 +732,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
     pts.addEssentialFields(ev.getInitializedFields());
     pts.addEssentialFields(ev.getUsedFields());
-    if (variableClassification.isPresent()){
-      System.out.println("FROM MAKE_PREDICATE");
-      pts.updateTargetRegions(variableClassification);
-    }
     return result;
   }
 

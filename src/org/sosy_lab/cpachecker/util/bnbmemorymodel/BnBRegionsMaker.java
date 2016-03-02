@@ -52,8 +52,6 @@ public class BnBRegionsMaker {
 
   private List<BnBRegionImpl> regions = new ArrayList<>();
   private Set<CType> containers = new HashSet<>();
-  private Map<String, List<PointerTarget>> targetRegions = new HashMap<>();
-  private Map<PointerTarget, Pair<String, String>> pointerTargets = new HashMap<>();
 
   /**
    * Determines whether or not the field is in global region
@@ -189,43 +187,53 @@ public class BnBRegionsMaker {
       final PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
       final PointerTargetSetBuilder ptsb){
 
-    for (String target : targets.keySet()){
-      for (PointerTarget pt : targets.get(target)){
-        CType containerType = pt.getContainerType();
-        if (containers.contains(containerType)
-            && containerType instanceof CCompositeType){
-          int offset = pt.getContainerOffset();
-          int curOffset = 0;
+    String regName = "";
+    Map<String, ArrayList<PointerTarget>> targetRegions = new HashMap<>();
+    boolean found = false;
 
-          for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
-            if (curOffset == offset){
-              pointerTargets.put(pt, Pair.of(target, " " + containerType.toString() + " " + field.getName()));
-            } else {
-              offset += ptsb.getSize(field.getType());
+    for (String target : targets.keySet()){
+      PersistentList<PointerTarget> pointerTargets = targets.get(target);
+      if (!(target.contains(" global") || target.contains(" struct"))){
+        for (PointerTarget pt : pointerTargets){
+          CType containerType = pt.getContainerType();
+          if (containerType instanceof CCompositeType && containers.contains(containerType)){
+            int offset = pt.getContainerOffset();
+            int curOffset = 0;
+
+            for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
+              if (curOffset == offset){
+                if (!isInGlobalRegion(containerType, field.getName())){
+                  regName = field.getType().toString() + " " + containerType.toString() + " " + field.getName();
+                } else {
+                  regName = field.getType().toString() + " global";
+                }
+                found = true;
+                break;
+              } else {
+                offset += ptsb.getSize(field.getType());
+              }
             }
           }
-        } else {
-          pointerTargets.put(pt, Pair.of(target, " global"));
+          if (!found) {
+            if (!target.contains(" global")) {
+              regName = target + " global";
+            } else {
+              regName = target;
+            }
+          }
+          if (!targetRegions.containsKey(regName))
+            targetRegions.put(regName, new ArrayList<PointerTarget>());
+          targetRegions.get(regName).add(pt);
         }
-      }
-    }
-
-    for (PointerTarget pt : pointerTargets.keySet()){
-      //TODO: there is a significant difference in performance
-      //if we use pair of strings instead of one big string
-
-      Pair<String, String> pair = pointerTargets.get(pt);
-      String key = pair.getFirst();
-
-      if (! (key.contains("global") || key.contains("struct"))){
-        key += pair.getSecond();
-      }
-
-      if (!targetRegions.containsKey(key)){
-        targetRegions.put(key, new ArrayList<PointerTarget>());
-      }
-      if (!targetRegions.get(key).contains(pt)){
-        targetRegions.get(key).add(pt);
+      } else {
+        if (!targetRegions.containsKey(target)){
+          targetRegions.put(target, new ArrayList<PointerTarget>());
+        }
+        for (PointerTarget pt : pointerTargets){
+          if (!targetRegions.get(target).contains(pt)){
+            targetRegions.get(target).add(pt);
+          }
+        }
       }
     }
 
@@ -234,33 +242,7 @@ public class BnBRegionsMaker {
       newTargets.put(type, PersistentLinkedList.copyOf(targetRegions.get(type)));
     }
 
-    for (String type : targets.keySet()){
-      if (! (type.contains("global") || type.contains("struct"))){
-        List<PointerTarget> toAdd = new ArrayList<>();
-        for (PointerTarget pt : targets.get(type)){
-          if (isInGlobalRegion(pt)){
-            toAdd.add(pt);
-          }
-        }
-        newTargets.put(type + " global", PersistentLinkedList.copyOf(toAdd));
-      } else {
-        newTargets.put(type, targets.get(type));
-      }
-    }
-
-    targetRegions.clear();
-    pointerTargets.clear();
-
     return newTargets;
-  }
-
-  /**
-   * Whether or not the PointerTarget is in global region
-   * @param pt - pointer target to check
-   * @return true if global, false otherwise
-     */
-  public boolean isInGlobalRegion(final PointerTarget pt){
-    return !pointerTargets.containsKey(pt);
   }
 
   /**

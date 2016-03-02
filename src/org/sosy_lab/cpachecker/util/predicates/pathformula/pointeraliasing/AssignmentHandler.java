@@ -480,7 +480,7 @@ class AssignmentHandler {
                                          String region) throws InterruptedException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     final int size = conv.getSizeof(lvalueType);
-    pts.updateTargetRegions(conv.getVariableClassification());
+    //pts.updateTargetRegions(conv.getVariableClassification());
 
     if (isSimpleType(lvalueType)) {
       Preconditions.checkArgument(startAddress != null,
