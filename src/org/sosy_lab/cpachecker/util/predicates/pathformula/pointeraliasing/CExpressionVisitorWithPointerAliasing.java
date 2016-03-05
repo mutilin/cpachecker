@@ -215,13 +215,13 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
         addEqualBaseAdressConstraint(base.getAddress(), address);
 
         AliasedLocation aliasedLocation = null;
-        if (conv.getVariableClassification().isPresent()){
+        if (conv.isBnBUsed() && conv.getVariableClassification().isPresent()){
           BnBRegionsMaker regMk = conv.getVariableClassification().get().getRegionsMaker();
-          if (regMk.isInGlobalRegion(fieldOwnerType, fieldName)){
-            aliasedLocation = AliasedLocation.ofAddress(address);
-          } else {
+          if (!regMk.isInGlobalRegion(fieldOwnerType, fieldName)){
             aliasedLocation = AliasedLocation.ofAddress(address, fieldOwnerType.toString() + " " + fieldName);
           }
+        } else {
+          aliasedLocation = AliasedLocation.ofAddress(address);
         }
         return aliasedLocation;
       } else {

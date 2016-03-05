@@ -122,6 +122,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
   final FormulaType<?> voidPointerFormulaType;
   final Formula nullPointer;
+  final boolean BnBUsed;
 
   public CToFormulaConverterWithPointerAliasing(final FormulaEncodingWithPointerAliasingOptions pOptions,
                                    final FormulaManagerView formulaManagerView,
@@ -131,6 +132,19 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
                                    final ShutdownNotifier pShutdownNotifier,
                                    final TypeHandlerWithPointerAliasing pTypeHandler,
                                    final AnalysisDirection pDirection) {
+    this(pOptions, formulaManagerView, pMachineModel, pVariableClassification, logger, pShutdownNotifier,
+            pTypeHandler, pDirection, false);
+  }
+
+  public CToFormulaConverterWithPointerAliasing(final FormulaEncodingWithPointerAliasingOptions pOptions,
+                                                final FormulaManagerView formulaManagerView,
+                                                final MachineModel pMachineModel,
+                                                final Optional<VariableClassification> pVariableClassification,
+                                                final LogManager logger,
+                                                final ShutdownNotifier pShutdownNotifier,
+                                                final TypeHandlerWithPointerAliasing pTypeHandler,
+                                                final AnalysisDirection pDirection,
+                                                final boolean useBnB) {
     super(pOptions, formulaManagerView, pMachineModel, pVariableClassification, logger, pShutdownNotifier, pTypeHandler, pDirection);
     variableClassification = pVariableClassification;
     options = pOptions;
@@ -139,6 +153,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
     voidPointerFormulaType = typeHandler.getFormulaTypeFromCType(CPointerType.POINTER_TO_VOID);
     nullPointer = fmgr.makeNumber(voidPointerFormulaType, 0);
+    BnBUsed = useBnB;
   }
 
   public static String getUFName(final CType type) {
@@ -219,7 +234,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     type = CTypeUtils.simplifyType(type);
     String ufName = getUFName(type);
 
-    if (variableClassification.isPresent()){
+    if (BnBUsed && variableClassification.isPresent()){
       BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
       ufName = regionsMaker.getNewUfName(ufName, region);
     }
@@ -252,8 +267,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           addAllFields(memberType, pts);
         }
       }
-      if (variableClassification.isPresent()){
-        System.out.println("FROM ADD_ALL_FIELDS");
+      if (BnBUsed && variableClassification.isPresent()){
+        //System.out.println("FROM ADD_ALL_FIELDS");
         pts.updateTargetRegions(variableClassification);
       }
     } else if (type instanceof CArrayType) {
@@ -314,11 +329,13 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
             isRelevantField(compositeType, memberName)) {
           fields.add(Pair.of(compositeType, memberName));
 
-          BnBRegionsMaker regMk = variableClassification.get().getRegionsMaker();
-          boolean isGlobal = regMk.isInGlobalRegion(compositeType, memberName);
-          String newRegion = regMk.getNewUfName(getUFName(memberType),
-                                                isGlobal ? null : compositeType.toString() + " " + memberName);
-
+          String newRegion = null;
+          if (BnBUsed && variableClassification.isPresent()) {
+            BnBRegionsMaker regMk = variableClassification.get().getRegionsMaker();
+            boolean isGlobal = regMk.isInGlobalRegion(compositeType, memberName);
+            newRegion = regMk.getNewUfName(getUFName(memberType),
+                    isGlobal ? null : compositeType.toString() + " " + memberName);
+          }
           addValueImportConstraints(cfaEdge,
                                     fmgr.makePlus(address, fmgr.makeNumber(voidPointerFormulaType, offset), IS_POINTER_SIGNED),
                                     newBase,
@@ -743,8 +760,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           throws UnrecognizedCCodeException, InterruptedException {
 
     final CFunctionEntryNode entryNode = edge.getSuccessor();
-    if (variableClassification.isPresent()){
-      System.out.println("FROM MAKE_FCALL");
+    if (BnBUsed && variableClassification.isPresent()){
+      //System.out.println("FROM MAKE_FCALL");
       pts.updateTargetRegions(variableClassification);
     }
     BooleanFormula result = super.makeFunctionCall(edge, callerFunction, ssa, pts, constraints, errorConditions);
@@ -857,5 +874,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
   public CtoFormulaTypeHandler getTypeHandler() {
     return typeHandler;
+  }
+
+  public boolean isBnBUsed() {
+    return BnBUsed;
   }
 }

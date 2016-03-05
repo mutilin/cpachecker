@@ -104,6 +104,9 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
   @Option(secure=true, description = "Handle arrays using the theory of arrays.")
   private boolean handleArrays = false;
 
+  @Option(secure=true, description = "Use regions for pointer analysis")
+  private boolean useBnB = false;
+
   private static final String BRANCHING_PREDICATE_NAME = "__ART__";
   private static final Pattern BRANCHING_PREDICATE_NAME_PATTERN = Pattern.compile(
       "^.*" + BRANCHING_PREDICATE_NAME + "(?=\\d+$)");
@@ -166,6 +169,12 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 
     direction = pDirection;
 
+    if (config.hasProperty("useBnB")) {
+      useBnB = new Boolean(config.getProperty("useBnB"));
+    } else {
+      useBnB = false;
+    }
+
     if (handleArrays) {
       final FormulaEncodingOptions options = new FormulaEncodingOptions(config);
       typeHandler = new CtoFormulaTypeHandlerWithArrays(pLogger, options, pMachineModel, pFmgr);
@@ -180,7 +189,7 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
       typeHandler = aliasingTypeHandler;
       converter = new CToFormulaConverterWithPointerAliasing(options, fmgr,
           pMachineModel, pVariableClassification, logger, shutdownNotifier,
-          aliasingTypeHandler, direction);
+          aliasingTypeHandler, direction, useBnB);
 
     } else {
       final FormulaEncodingOptions options = new FormulaEncodingOptions(config);

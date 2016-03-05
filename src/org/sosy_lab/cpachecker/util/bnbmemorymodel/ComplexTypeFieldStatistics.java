@@ -134,7 +134,7 @@ public class ComplexTypeFieldStatistics {
   }
 
   private void visit(CPointerExpression expr) {
-    System.out.println("VVV: " + expr.getOperand());
+    //System.out.println("VVV: " + expr.getOperand());
     chooser(expr.getOperand());
   }
 
