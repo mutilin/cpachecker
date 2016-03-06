@@ -214,17 +214,12 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
         final Formula address = conv.fmgr.makePlus(base.getAddress(), offset, IS_POINTER_SIGNED);
         addEqualBaseAdressConstraint(base.getAddress(), address);
 
-        AliasedLocation aliasedLocation = null;
-        if (conv.isBnBUsed() && conv.getVariableClassification().isPresent()){
-          BnBRegionsMaker regMk = conv.getVariableClassification().get().getRegionsMaker();
-          if (!regMk.isInGlobalRegion(fieldOwnerType, fieldName)){
-            aliasedLocation = AliasedLocation.ofAddress(address, fieldOwnerType.toString() + " " + fieldName);
-          } else {
-            aliasedLocation = AliasedLocation.ofAddress(address);
-          }
-        } else {
-          aliasedLocation = AliasedLocation.ofAddress(address);
+        AliasedLocation aliasedLocation = AliasedLocation.ofAddress(address);
+        if (conv.isBnBUsed() && conv.getVariableClassification().isPresent() &&
+                !conv.getVariableClassification().get().getRegionsMaker().isInGlobalRegion(fieldOwnerType, fieldName)){
+          aliasedLocation = AliasedLocation.ofAddress(address, fieldOwnerType.toString() + " " + fieldName);
         }
+
         return aliasedLocation;
       } else {
         throw new UnrecognizedCCodeException("Field owner of a non-composite type", edge, e);

@@ -87,7 +87,7 @@ public class VariableClassification {
 
   private final LogManager logger;
 
-  private static org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker regMk;
+  private static BnBRegionsMaker regMk;
 
   VariableClassification(boolean pHasRelevantNonIntAddVars,
       Set<String> pIntBoolVars,
@@ -104,21 +104,10 @@ public class VariableClassification {
       Multiset<String> pAssumedVariables,
       Multiset<String> pAssignedVariables,
     LogManager pLogger) {
-    hasRelevantNonIntAddVars = pHasRelevantNonIntAddVars;
-    intBoolVars = ImmutableSet.copyOf(pIntBoolVars);
-    intEqualVars = ImmutableSet.copyOf(pIntEqualVars);
-    intAddVars = ImmutableSet.copyOf(pIntAddVars);
-    relevantVariables = ImmutableSet.copyOf(pRelevantVariables);
-    addressedVariables = ImmutableSet.copyOf(pAddressedVariables);
-    relevantFields = ImmutableSetMultimap.copyOf(pRelevantFields);
-    partitions = ImmutableSet.copyOf(pPartitions);
-    intBoolPartitions = ImmutableSet.copyOf(pIntBoolPartitions);
-    intEqualPartitions = ImmutableSet.copyOf(pIntEqualPartitions);
-    intAddPartitions = ImmutableSet.copyOf(pIntAddPartitions);
-    edgeToPartitions = ImmutableMap.copyOf(pEdgeToPartitions);
-    assumedVariables = ImmutableMultiset.copyOf(pAssumedVariables);
-    assignedVariables = ImmutableMultiset.copyOf(pAssignedVariables);
-    logger = pLogger;
+    this(pHasRelevantNonIntAddVars, pIntBoolVars, pIntEqualVars, pIntAddVars,
+            pRelevantVariables, pAddressedVariables, pRelevantFields, pPartitions,
+            pIntBoolPartitions, pIntEqualPartitions, pIntAddPartitions, pEdgeToPartitions,
+            pAssumedVariables, pAssignedVariables, pLogger, null);
   }
 
   VariableClassification(boolean pHasRelevantNonIntAddVars,

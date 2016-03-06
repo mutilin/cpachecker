@@ -189,9 +189,16 @@ public class VariableClassificationBuilder {
 
   private final LogManager logger;
 
+  private final boolean useBnB;
+
   public VariableClassificationBuilder(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = checkNotNull(pLogger);
     config.inject(this);
+    if (config.hasProperty("useBnB")){
+      useBnB = new Boolean(config.getProperty("useBnB"));
+    } else {
+      useBnB = false;
+    }
   }
 
   /** This function does the whole work:
@@ -251,8 +258,11 @@ public class VariableClassificationBuilder {
 
     boolean hasRelevantNonIntAddVars = !Sets.intersection(relevantVariables, nonIntAddVars).isEmpty();
 
-    BnBRegionsMaker regMk = new BnBRegionsMaker();
-    regMk.makeRegions(cfa);
+    BnBRegionsMaker regMk = null;
+    if (useBnB) {
+      regMk = new BnBRegionsMaker();
+      regMk.makeRegions(cfa);
+    }
     //regMk.dumpRegions("Regions.txt");
 
     VariableClassification result = new VariableClassification(
