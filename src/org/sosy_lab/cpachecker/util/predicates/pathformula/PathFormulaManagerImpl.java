@@ -701,4 +701,11 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
     return bF;
   }
 
+  @Override
+  public PathFormula makeEmptyFakePathFormula() {
+    PathFormula ret = makeEmptyPathFormula();
+    ret.setFakeTrue(true);
+    return ret;
+  }
+
 }

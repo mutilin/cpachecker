@@ -192,7 +192,16 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
       if (element.getAbstractionFormula().isFalse()) { return Collections.emptySet(); }
 
       // calculate strongest post
-      PathFormula pathFormula = convertEdgeToPathFormula(element.getPathFormula(), edge);
+      PathFormula pathFormula;
+
+      // by Romanov
+      if (useExplicitStateInPredicateAnalysis &&
+          (!(pPrecision instanceof PredicatePrecision) ||
+              ((PredicatePrecision)pPrecision).isEmpty())) {
+        pathFormula = pathFormulaManager.makeEmptyFakePathFormula();
+      } else {
+        pathFormula = convertEdgeToPathFormula(element.getPathFormula(), edge);
+      }
       logger.log(Level.ALL, "New path formula is", pathFormula);
 
       // there might be runtime-assumes that we should add to the path formula

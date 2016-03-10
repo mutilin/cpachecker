@@ -178,4 +178,11 @@ public class CachingPathFormulaManager implements PathFormulaManager {
     return delegate.buildImplicationTestAsUnsat(pF1, pF2);
   }
 
+  @Override
+  public PathFormula makeEmptyFakePathFormula() {
+    PathFormula ret = makeEmptyPathFormula();
+    ret.setFakeTrue(true);
+    return ret;
+  }
+
 }

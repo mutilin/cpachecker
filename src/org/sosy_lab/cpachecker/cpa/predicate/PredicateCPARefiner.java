@@ -29,6 +29,7 @@ import static org.sosy_lab.cpachecker.util.AbstractStates.toState;
 import static org.sosy_lab.cpachecker.util.statistics.StatisticsWriter.writingStatisticsTo;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -65,6 +66,7 @@ import org.sosy_lab.cpachecker.util.predicates.BlockOperator;
 import org.sosy_lab.cpachecker.util.predicates.PathChecker;
 import org.sosy_lab.cpachecker.util.predicates.interpolation.CounterexampleTraceInfo;
 import org.sosy_lab.cpachecker.util.predicates.interpolation.InterpolationManager;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
 import org.sosy_lab.cpachecker.util.predicates.smt.BooleanFormulaManagerView;
@@ -146,6 +148,7 @@ public class PredicateCPARefiner extends AbstractARGBasedRefiner implements Stat
   protected final RefinementStrategy strategy;
   protected final CFA cfa;
   protected final ShutdownNotifier shutdownNotifier;
+  protected final boolean useExplicitStateInPredicateAnalysis;
 
   public PredicateCPARefiner(final Configuration pConfig, final LogManager pLogger,
       final ConfigurableProgramAnalysis pCpa,
@@ -173,6 +176,7 @@ public class PredicateCPARefiner extends AbstractARGBasedRefiner implements Stat
     strategy = pStrategy;
     cfa = pCfa;
     shutdownNotifier = CPAs.retrieveCPA(pCpa, PredicateCPA.class).getShutdownNotifier();
+    useExplicitStateInPredicateAnalysis = CPAs.retrieveCPA(pCpa, PredicateCPA.class).useExplicitStateInPredicateAnalysis();
     prefixProvider = pPrefixProvider;
 
     logger.log(Level.INFO, "Using refinement for predicate analysis with " + strategy.getClass().getSimpleName() + " strategy.");
@@ -197,11 +201,62 @@ public class PredicateCPARefiner extends AbstractARGBasedRefiner implements Stat
   protected List<BooleanFormula> createFormulasOnPath(final ARGPath allStatesTrace,
                                                       final List<ARGState> abstractionStatesTrace)
                                                       throws CPAException, InterruptedException {
+
+ // by Romanov XXX
+
+ // check if there exists a fake PathFormula in abstraction states
+    boolean foundFakePathFormula = false;
+    if(useExplicitStateInPredicateAnalysis) {
+      System.out.println("///passed option");
+
+      ImmutableList<ARGState> predicateStates = from(abstractionStatesTrace).toList();
+      UnmodifiableIterator<ARGState> abstractionIt = predicateStates.iterator();
+      while (abstractionIt.hasNext()) {
+        System.out.println("///iteration");
+        final ARGState argState = abstractionIt.next();
+
+        final PredicateAbstractState predState = AbstractStates.extractStateByType(argState, PredicateAbstractState.class);
+        assert predState.isAbstractionState();
+        System.out.println("///assertion OK");
+        PathFormula blockFormula = predState.getAbstractionFormula().getBlockFormula();
+        System.out.println("///block:"+blockFormula);
+        if (blockFormula.isFakeTrue()) {
+          System.out.println("///block=fakeTrue!");
+          foundFakePathFormula = true;
+          break;
+        }
+      }
+    }
+
+    System.out.println("///iterations ended, found fakes?"+foundFakePathFormula);
+
     List<BooleanFormula> formulas;
     try {
-      formulas = (isRefinementSelectionEnabled())
-        ? performRefinementSelection(allStatesTrace, abstractionStatesTrace)
-        : getFormulasForPath(abstractionStatesTrace, allStatesTrace.getFirstState());
+      if (!foundFakePathFormula) {
+        formulas = (isRefinementSelectionEnabled())
+          ? performRefinementSelection(allStatesTrace, abstractionStatesTrace)
+          : getFormulasForPath(abstractionStatesTrace, allStatesTrace.getFirstState());
+      } else {
+        Set<ARGState> allStates = allStatesTrace.getStateSet();
+
+        ARGState prevState = null;
+        PathFormula accumulator = pfmgr.makeEmptyPathFormula();
+        formulas = new ArrayList<>();
+
+        for (ARGState state: allStates) {
+          if (prevState != null) {
+            PredicateAbstractState predState = AbstractStates.extractStateByType(state, PredicateAbstractState.class);
+
+            if (predState.isAbstractionState()) {
+              formulas.add(accumulator.getFormula());
+              accumulator = pfmgr.makeEmptyPathFormula(accumulator);
+            } else {
+              accumulator = pfmgr.makeAnd(accumulator, prevState.getEdgeToChild(state));
+            }
+          }
+          prevState = state;
+        }
+      }
     } catch (SolverException e) {
       throw new CPAException("Solver Exception", e);
     }

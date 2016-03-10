@@ -63,6 +63,16 @@ public final class PathFormula implements Serializable {
     valueAnalysisState = pValueAnalysisState;
   }
 
+  // by Romanov
+  private boolean isFakeTrue = false;
+
+  public boolean isFakeTrue() {
+    return isFakeTrue;
+  }
+  public void setFakeTrue(boolean isFakeTrue) {
+    this.isFakeTrue = isFakeTrue;
+  }
+
   public PathFormula(BooleanFormula pf, SSAMap ssa, PointerTargetSet pts,
       int pLength) {
     this.formula = checkNotNull(pf);

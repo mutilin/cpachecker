@@ -131,6 +131,20 @@ public class PredicatePrecisionAdjustment implements PrecisionAdjustment {
     AbstractionFormula abstractionFormula = element.getAbstractionFormula();
     PersistentMap<CFANode, Integer> abstractionLocations = element.getAbstractionLocationsOnPath();
     PathFormula pathFormula = element.getPathFormula();
+    if (pathFormula.isFakeTrue()) {
+      BooleanFormula trueBF = fmgr.getBooleanFormulaManager().makeBoolean(true);
+
+      AbstractionFormula absFormula = new AbstractionFormula(
+          fmgr, formulaManager.buildRegionFromFormula(trueBF), trueBF, trueBF,
+          pathFormulaManager.makeEmptyPathFormula(),
+          ImmutableSet.<Integer>of());
+
+      PredicateAbstractState state =
+          PredicateAbstractState.mkAbstractionState(pathFormulaManager.makeEmptyPathFormula(),
+              absFormula, abstractionLocations);
+      return Optional.of(PrecisionAdjustmentResult.create(
+          state, precision, PrecisionAdjustmentResult.Action.CONTINUE));
+    }
     CFANode loc = element.getLocation();
     Integer newLocInstance = firstNonNull(abstractionLocations.get(loc), 0) + 1;
 

@@ -80,7 +80,12 @@ public class PredicateMergeOperator implements MergeOperator {
 
         logger.log(Level.FINEST, "Merging two non-abstraction nodes.");
 
-        PathFormula pathFormula = formulaManager.makeOr(elem1.getPathFormula(), elem2.getPathFormula());
+        final PathFormula pathFormula;
+        if (elem1.getPathFormula().isFakeTrue() || elem2.getPathFormula().isFakeTrue()) {
+          pathFormula = formulaManager.makeEmptyFakePathFormula();
+        } else {
+          pathFormula = formulaManager.makeOr(elem1.getPathFormula(), elem2.getPathFormula());
+        }
 
         logger.log(Level.ALL, "New path formula is", pathFormula);
 
