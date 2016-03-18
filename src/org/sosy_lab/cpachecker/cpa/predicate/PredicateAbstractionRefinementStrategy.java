@@ -625,15 +625,25 @@ public class PredicateAbstractionRefinementStrategy extends RefinementStrategy {
       // find top-most element in path with location == firstInterpolationPointLocation,
       // this is not necessary equal to firstInterpolationPoint
       ARGState current = firstInterpolationPoint;
+      boolean b = false;
       while (!current.getParents().isEmpty()) {
         current = Iterables.get(current.getParents(), 0);
 
         if (getPredicateState(current).isAbstractionState()) {
+          if (useExplicitStateInPredicateAnalysis && b) {
+            firstInterpolationPoint = current;
+            b = false;
+          }
           CFANode loc = AbstractStates.extractLocation(current);
           if (loc.equals(firstInterpolationPointLocation)) {
             firstInterpolationPoint = current;
+            b = true;
           }
         }
+      }
+      if (useExplicitStateInPredicateAnalysis && b) {
+        firstInterpolationPoint = current;
+        b = false;
       }
     }
     return firstInterpolationPoint;

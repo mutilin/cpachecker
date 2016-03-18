@@ -247,11 +247,11 @@ public class PredicateCPARefiner extends AbstractARGBasedRefiner implements Stat
           if (prevState != null) {
             PredicateAbstractState predState = AbstractStates.extractStateByType(state, PredicateAbstractState.class);
 
+            accumulator = pfmgr.makeAnd(accumulator, prevState.getEdgeToChild(state));
+
             if (predState.isAbstractionState()) {
               formulas.add(accumulator.getFormula());
               accumulator = pfmgr.makeEmptyPathFormula(accumulator);
-            } else {
-              accumulator = pfmgr.makeAnd(accumulator, prevState.getEdgeToChild(state));
             }
           }
           prevState = state;

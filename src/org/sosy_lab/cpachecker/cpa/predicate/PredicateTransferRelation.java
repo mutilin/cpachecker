@@ -216,7 +216,12 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
       }
 
       // check whether to do abstraction
-      boolean doAbstraction = blk.isBlockEnd(loc, predloc, edge, pathFormula);
+      final boolean doAbstraction;
+      if (useExplicitStateInPredicateAnalysis && predloc.getNumEnteringEdges() == 0) {
+        doAbstraction = true;
+      } else {
+        doAbstraction = blk.isBlockEnd(loc, predloc, edge, pathFormula);
+      }
 
       return createState(element, pathFormula, loc, doAbstraction);
 

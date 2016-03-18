@@ -131,6 +131,8 @@ public class PredicatePrecisionAdjustment implements PrecisionAdjustment {
     AbstractionFormula abstractionFormula = element.getAbstractionFormula();
     PersistentMap<CFANode, Integer> abstractionLocations = element.getAbstractionLocationsOnPath();
     PathFormula pathFormula = element.getPathFormula();
+    CFANode loc = element.getLocation();
+    Integer newLocInstance = firstNonNull(abstractionLocations.get(loc), 0) + 1;
     if (pathFormula.isFakeTrue()) {
       BooleanFormula trueBF = fmgr.getBooleanFormulaManager().makeBoolean(true);
 
@@ -139,14 +141,15 @@ public class PredicatePrecisionAdjustment implements PrecisionAdjustment {
           pathFormulaManager.makeEmptyPathFormula(),
           ImmutableSet.<Integer>of());
 
+      // update abstraction locations map
+      abstractionLocations = abstractionLocations.putAndCopy(loc, newLocInstance);
+
       PredicateAbstractState state =
           PredicateAbstractState.mkAbstractionState(pathFormulaManager.makeEmptyPathFormula(),
               absFormula, abstractionLocations);
       return Optional.of(PrecisionAdjustmentResult.create(
           state, precision, PrecisionAdjustmentResult.Action.CONTINUE));
     }
-    CFANode loc = element.getLocation();
-    Integer newLocInstance = firstNonNull(abstractionLocations.get(loc), 0) + 1;
 
     numAbstractions++;
     logger.log(Level.FINEST, "Computing abstraction at instance", newLocInstance, "of node", loc, "in path.");
