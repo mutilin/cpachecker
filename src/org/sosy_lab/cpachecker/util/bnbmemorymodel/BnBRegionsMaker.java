@@ -33,9 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.sosy_lab.common.Pair;
-import org.sosy_lab.common.Triple;
-import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentLinkedList;
 import org.sosy_lab.common.collect.PersistentList;
 import org.sosy_lab.common.collect.PersistentSortedMap;
@@ -44,7 +41,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTarget;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder;
 
 
@@ -56,27 +52,22 @@ public class BnBRegionsMaker {
   /**
    * Determines whether or not the field is in global region
    * @param parent - element's base
+   * @param pMemberType
    * @param name - name of element
    * @return true if global, else otherwise
    */
-  public boolean isInGlobalRegion(final CType parent, final String name){
+  public boolean isInGlobalRegion(final CType parent, CType pMemberType, final String name){
 
     if (regions.isEmpty()){
       return true;
     }
 
-    for (BnBRegion current : regions){
-      if (current.getElem().equals(name)
-          && current.getRegionParent().equals(parent)){
-        if (current.isPartOfGlobal()){
-          return true;
-        } else {
-          return false;
-        }
-
-      }
+    BnBRegion toCheck = new BnBRegionImpl(pMemberType, parent, name);
+    if (regions.contains(toCheck)){
+      return false;
     }
-   // (new Exception("Not found " + parent + " " + name)).printStackTrace();
+
+    // (new Exception("Not found " + parent + " " + name)).printStackTrace();
     return true;
   }
 
@@ -115,7 +106,7 @@ public class BnBRegionsMaker {
         Set<String> set = usedFields.get(basicType).get(structType);
         if (!set.isEmpty()) {
           for (String name : set){
-            regions.add(new BnBRegionImpl(basicType, (CCompositeType) structType, name));
+            regions.add(new BnBRegionImpl(basicType, structType, name));
           }
         }
       }
@@ -202,7 +193,7 @@ public class BnBRegionsMaker {
 
             for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
               if (curOffset == offset){
-                if (!isInGlobalRegion(containerType, field.getName())){
+                if (!isInGlobalRegion(containerType, field.getType(), field.getName())){
                   regName = field.getType().toString() + " " + containerType.toString() + " " + field.getName();
                 } else {
                   regName = field.getType().toString() + " global";
@@ -221,8 +212,9 @@ public class BnBRegionsMaker {
               regName = target;
             }
           }
-          if (!targetRegions.containsKey(regName))
+          if (!targetRegions.containsKey(regName)) {
             targetRegions.put(regName, new ArrayList<PointerTarget>());
+          }
           targetRegions.get(regName).add(pt);
         }
       } else {

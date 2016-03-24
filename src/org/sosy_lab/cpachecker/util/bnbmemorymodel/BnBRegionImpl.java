@@ -23,7 +23,6 @@
  */
 package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 
@@ -34,13 +33,59 @@ public class BnBRegionImpl implements BnBRegion {
 
   /**
    * @param pType - types that will be present in this region
-   * @param parent - struct with fields or null if global
+   * @param pStructType - struct with fields or null if global
    * @param name - field name
    */
-  public BnBRegionImpl(CType pType, CCompositeType parent, String name){
-    regionParent = parent;
+  public BnBRegionImpl(CType pType, CType pStructType, String name){
+    regionParent = pStructType;
     elemType = pType;
     elemName = name;
+  }
+
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((elemName == null) ? 0 : elemName.hashCode());
+    result = prime * result + ((elemType == null) ? 0 : elemType.hashCode());
+    result = prime * result + ((regionParent == null) ? 0 : regionParent.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    BnBRegionImpl other = (BnBRegionImpl) obj;
+    if (elemName == null) {
+      if (other.elemName != null) {
+        return false;
+      }
+    } else if (!elemName.equals(other.elemName)) {
+      return false;
+    }
+    if (elemType == null) {
+      if (other.elemType != null) {
+        return false;
+      }
+    } else if (!elemType.equals(other.elemType)) {
+      return false;
+    }
+    if (regionParent == null) {
+      if (other.regionParent != null) {
+        return false;
+      }
+    } else if (!regionParent.equals(other.regionParent)) {
+      return false;
+    }
+    return true;
   }
 
   @Override

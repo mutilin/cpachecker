@@ -30,7 +30,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 
-import org.sosy_lab.common.Pair;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
@@ -55,8 +54,6 @@ import org.sosy_lab.cpachecker.cfa.model.MultiEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
@@ -154,7 +151,6 @@ public class ComplexTypeFieldStatistics {
   private void visit(CFieldReference ref, boolean referenced){
     CExpression parent;
     CType parentType;
-    int fieldNumber = 0;
 
     //System.out.println("LLL:" + ref.toString() + ' ' + referenced);
     parent = ref.getFieldOwner();
@@ -165,20 +161,14 @@ public class ComplexTypeFieldStatistics {
 
     parentType = parent.getExpressionType();
 
-    if (parentType instanceof CPointerType){
-      parentType = ((CPointerType)parentType).getType();
+    while (parentType instanceof CPointerType){
+      parentType = ((CPointerType) parentType).getType();
     }
     while (parentType instanceof CTypedefType){
       parentType = ((CTypedefType) parentType).getRealType();
     }
     while (parentType instanceof CElaboratedType){
       parentType = ((CElaboratedType) parentType).getRealType();
-    }
-
-    for (CCompositeTypeMemberDeclaration member : ((CCompositeType)parentType).getMembers()){
-      if (!member.getName().equals(ref.getFieldName())){
-        ++fieldNumber;
-      }
     }
 
     CType fieldType = ref.getExpressionType();

@@ -82,8 +82,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.AnalysisDirection;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCCodeException;
-import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.VariableClassification;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FunctionFormulaManagerView;
@@ -332,7 +332,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           String newRegion = null;
           if (BnBUsed && variableClassification.isPresent()) {
             BnBRegionsMaker regMk = variableClassification.get().getRegionsMaker();
-            boolean isGlobal = regMk.isInGlobalRegion(compositeType, memberName);
+            boolean isGlobal = regMk.isInGlobalRegion(compositeType, memberType, memberName);
             newRegion = regMk.getNewUfName(getUFName(memberType),
                     isGlobal ? null : compositeType.toString() + " " + memberName);
           }
