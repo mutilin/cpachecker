@@ -126,13 +126,8 @@ public class ComplexTypeFieldStatistics {
     } else if (param instanceof CComplexCastExpression){
       chooser(((CComplexCastExpression) param).getOperand());
     } else if (param instanceof CPointerExpression){
-      visit((CPointerExpression) param);
+      chooser(((CPointerExpression) param).getOperand());
     }
-  }
-
-  private void visit(CPointerExpression expr) {
-    //System.out.println("VVV: " + expr.getOperand());
-    chooser(expr.getOperand());
   }
 
   private void visit(CBinaryExpression bin){
