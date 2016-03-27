@@ -48,6 +48,7 @@ public class BnBRegionsMaker {
 
   private List<BnBRegionImpl> regions = new ArrayList<>();
   private Set<CType> containers = new HashSet<>();
+  private static final String GLOBAL = " global";
 
   /**
    * Determines whether or not the field is in global region
@@ -84,9 +85,9 @@ public class BnBRegionsMaker {
     Map<CType, HashMap<CType, HashSet<String>>> refdFields = ctfs.getRefdFields();
     Map<CType, HashSet<String>> sub;
 
-    // remove all those fields present in both maps
-    for (CType basicType : usedFields.keySet()){
-      if (refdFields.containsKey(basicType)){
+    // remove all fields present in both maps
+    for (CType basicType : refdFields.keySet()){
+      if (usedFields.containsKey(basicType)){
         sub = usedFields.get(basicType);
         for (CType structType : sub.keySet()){
           Set<String> set = refdFields.get(basicType).get(structType);
@@ -116,6 +117,7 @@ public class BnBRegionsMaker {
       containers.add(region.getRegionParent());
     }
 
+    //dumpRegions("Regions.txt");
   }
 
   /**
@@ -143,18 +145,7 @@ public class BnBRegionsMaker {
         int i = 0;
         for (BnBRegionImpl reg : regions) {
           result += "Number: " + (i++) + '\n';
-          result += "Type: " + reg.getType().toString() + '\n';
-          result += "Parent: ";
-
-          if (reg.getRegionParent() == null) {
-            result += "NULL";
-          } else {
-            result += reg.getRegionParent().toString();
-          }
-          result += '\n';
-          result += "Member:\n";
-          result += '\t' + reg.getElem() + "\n\n";
-
+          result += reg.toString() + '\n';
         }
       } else {
         result += "Empty regions\n";
@@ -180,11 +171,10 @@ public class BnBRegionsMaker {
 
     String regName = "";
     Map<String, ArrayList<PointerTarget>> targetRegions = new HashMap<>();
-    boolean found = false;
 
     for (String target : targets.keySet()){
       PersistentList<PointerTarget> pointerTargets = targets.get(target);
-      if (!(target.contains(" global") || target.contains(" struct"))){
+      if (!(target.contains(GLOBAL) || target.contains(" struct"))){
         for (PointerTarget pt : pointerTargets){
           CType containerType = pt.getContainerType();
           if (containerType instanceof CCompositeType && containers.contains(containerType)){
@@ -192,24 +182,19 @@ public class BnBRegionsMaker {
             int curOffset = 0;
 
             for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
-              if (curOffset == offset){
+              if (curOffset < offset){
+                offset += ptsb.getSize(field.getType());
+              } else if (curOffset == offset){
                 if (!isInGlobalRegion(containerType, field.getType(), field.getName())){
                   regName = field.getType().toString() + " " + containerType.toString() + " " + field.getName();
                 } else {
-                  regName = field.getType().toString() + " global";
+                  regName = field.getType().toString() + GLOBAL;
                 }
-                found = true;
                 break;
               } else {
-                offset += ptsb.getSize(field.getType());
+                regName = field.getType().toString() + GLOBAL;
+                break;
               }
-            }
-          }
-          if (!found) {
-            if (!target.contains(" global")) {
-              regName = target + " global";
-            } else {
-              regName = target;
             }
           }
           if (!targetRegions.containsKey(regName)) {

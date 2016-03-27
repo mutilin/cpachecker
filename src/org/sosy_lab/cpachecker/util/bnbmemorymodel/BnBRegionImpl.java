@@ -111,8 +111,9 @@ public class BnBRegionImpl implements BnBRegion {
   @Override
   public String toString(){
     String result = "";
+    result += "Type: " + elemType + '\n';
     result += "Parent: " + regionParent.toString() + '\n';
-    result += "Elem: " + elemName + '\n';
+    result += '\t' + "Elem: " + elemName + '\n';
     return result;
   }
 }

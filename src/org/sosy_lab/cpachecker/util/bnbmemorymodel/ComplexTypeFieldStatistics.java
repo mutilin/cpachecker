@@ -31,21 +31,10 @@ import java.util.HashSet;
 import java.util.Map;
 
 import org.sosy_lab.cpachecker.cfa.CFA;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CComplexCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
-import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression.UnaryOperator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
@@ -54,15 +43,15 @@ import org.sosy_lab.cpachecker.cfa.model.MultiEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
-import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
-import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
 
 public class ComplexTypeFieldStatistics {
 
-  private Map<CType, HashMap<CType, HashSet<String>>> usedFields = new HashMap<>();
-  private Map<CType, HashMap<CType, HashSet<String>>> refdFields = new HashMap<>();
+  private HashMap<CType, HashMap<CType, HashSet<String>>> usedFields = new HashMap<>();
+  private HashMap<CType, HashMap<CType, HashSet<String>>> refdFields = new HashMap<>();
+  private final BnBStatementVisitor statementVisitor = new BnBStatementVisitor();
+  private final BnBExpressionVisitor expressionVisitor = new BnBExpressionVisitor();
+  private final BnBMapMerger merger = new BnBMapMerger();
 
   public void findFieldsInCFA(CFA cfa){
     CFAEdge edge;
@@ -83,124 +72,41 @@ public class ComplexTypeFieldStatistics {
 
   private void visitEdge(CFAEdge edge) {
     CFAEdgeType edgeType;
-    CStatement statement;
     edgeType = edge.getEdgeType();
+    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result;
 
     if (edgeType == CFAEdgeType.StatementEdge){
        //Searching for address-taking and calling of the structure field
-      statement = ((CStatementEdge)edge).getStatement();
-      if (statement instanceof CExpressionAssignmentStatement){
-        chooser(((CExpressionAssignmentStatement)statement).getRightHandSide());
-        chooser(((CExpressionAssignmentStatement)statement).getLeftHandSide());
-      } else if (statement instanceof CFunctionCallStatement){
-        for (CExpression param : ((CFunctionCallStatement)statement)
-                                    .getFunctionCallExpression().getParameterExpressions()){
-          chooser(param);
-        }
-      } else if (statement instanceof CFunctionCallAssignmentStatement){
-        chooser(((CFunctionCallAssignmentStatement)statement).getLeftHandSide());
-        for (CExpression param : ((CFunctionCallAssignmentStatement)statement)
-                                    .getFunctionCallExpression().getParameterExpressions()){
-          chooser(param);
+      try {
+        result = (((CStatementEdge)edge).getStatement()).accept(statementVisitor);
+
+        usedFields = merger.mergeMaps(usedFields, result.get(false));
+        refdFields = merger.mergeMaps(refdFields, result.get(true));
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    } else if (edgeType == CFAEdgeType.FunctionCallEdge){
+      for (CExpression param : ((CFunctionCallEdge)edge).getArguments()){
+        try {
+          result = param.accept(expressionVisitor);
+
+          usedFields = merger.mergeMaps(usedFields, result.get(false));
+          refdFields = merger.mergeMaps(refdFields, result.get(true));
+        } catch (Exception e) {
+          e.printStackTrace();
         }
       }
     } else if (edgeType == CFAEdgeType.DeclarationEdge){
-      visit(((CDeclarationEdge)edge).getDeclaration());
-    } else if (edgeType == CFAEdgeType.FunctionCallEdge){
-      for (CExpression param : ((CFunctionCallEdge)edge).getArguments()){
-        chooser(param);
-      }
-    }
-  }
-
-  private void chooser(CExpression param) {
-    //TODO: make chooser a class that implements Visitor-type interfaces
-    if (param instanceof CUnaryExpression){
-      visit((CUnaryExpression) param);
-    } else if (param instanceof CFieldReference){
-      visit((CFieldReference) param, false);
-    } else if (param instanceof CBinaryExpression){
-      visit((CBinaryExpression) param);
-    } else if (param instanceof CCastExpression){
-      chooser(((CCastExpression)param).getOperand());
-    } else if (param instanceof CComplexCastExpression){
-      chooser(((CComplexCastExpression) param).getOperand());
-    } else if (param instanceof CPointerExpression){
-      chooser(((CPointerExpression) param).getOperand());
-    }
-  }
-
-  private void visit(CBinaryExpression bin){
-    chooser(bin.getOperand1());
-    chooser(bin.getOperand2());
-  }
-
-  private void visit(CUnaryExpression expr){
-    if (expr.getOperator() == UnaryOperator.AMPER){
-      if (expr.getOperand() instanceof CFieldReference){
-        visit((CFieldReference)expr.getOperand(), true);
-      }
-    }
-  }
-
-  private void visit(CFieldReference ref, boolean referenced){
-    CExpression parent;
-    CType parentType;
-
-    //System.out.println("LLL:" + ref.toString() + ' ' + referenced);
-    parent = ref.getFieldOwner();
-
-    if (parent == null){
-      return;
-    }
-
-    parentType = parent.getExpressionType();
-
-    while (parentType instanceof CPointerType){
-      parentType = ((CPointerType) parentType).getType();
-    }
-    while (parentType instanceof CTypedefType){
-      parentType = ((CTypedefType) parentType).getRealType();
-    }
-    while (parentType instanceof CElaboratedType){
-      parentType = ((CElaboratedType) parentType).getRealType();
-    }
-
-    CType fieldType = ref.getExpressionType();
-    if (!referenced) {
-
-      if (! usedFields.containsKey(fieldType)){
-        usedFields.put(fieldType, new HashMap<CType, HashSet<String>>());
-      }
-
-      if (! usedFields.get(fieldType).containsKey(parentType)){
-        usedFields.get(fieldType).put(parentType, new HashSet<String>());
-      }
-
-      usedFields.get(fieldType).get(parentType).add(ref.getFieldName());
-
-    } else {
-
-      if (! refdFields.containsKey(fieldType)){
-        refdFields.put(fieldType, new HashMap<CType, HashSet<String>>());
-      }
-
-      if (! refdFields.get(fieldType).containsKey(parentType)){
-        refdFields.get(fieldType).put(parentType, new HashSet<String>());
-      }
-
-      refdFields.get(fieldType).get(parentType).add(ref.getFieldName());
-
-    }
-
-    chooser(parent);
-  }
-
-  private void visit(CDeclaration decl){
-    if (decl instanceof CVariableDeclaration){
-      CInitializer init = ((CVariableDeclaration) decl).getInitializer();
-      if (init != null && init instanceof CInitializerExpression){
-        chooser(((CInitializerExpression) init).getExpression());
+      CDeclaration decl = ((CDeclarationEdge)edge).getDeclaration();
+      if (decl instanceof CVariableDeclaration){
+        CInitializer init = ((CVariableDeclaration) decl).getInitializer();
+        if (init != null && init instanceof CInitializerExpression){
+          try {
+            ((CInitializerExpression) init).getExpression().accept(expressionVisitor);
+          } catch (Exception e) {
+            e.printStackTrace();
+          }
+        }
       }
     }
   }
@@ -256,11 +162,9 @@ public class ComplexTypeFieldStatistics {
 
   }
 
-
   public Map<CType, HashMap<CType, HashSet<String>>> getUsedFields() {
     return usedFields;
   }
-
 
   public Map<CType, HashMap<CType, HashSet<String>>> getRefdFields() {
     return refdFields;
