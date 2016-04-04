@@ -134,11 +134,12 @@ public class BnBRegionsMaker {
 
       if (!containers.isEmpty()){
         for (CType container : containers){
+          result += container.toString() + '\n';
           result += ((CCompositeType)container).getMembers();
-          result += '\n';
+          result += "\n\n";
         }
       } else {
-        result += "Empty containers\n";
+        result += "Empty containers\n\n";
       }
 
       if (!regions.isEmpty()) {
@@ -170,7 +171,7 @@ public class BnBRegionsMaker {
       final PointerTargetSetBuilder ptsb){
 
     String regName = "";
-    Map<String, ArrayList<PointerTarget>> targetRegions = new HashMap<>();
+    Map<String, List<PointerTarget>> targetRegions = new HashMap<>();
 
     for (String target : targets.keySet()){
       PersistentList<PointerTarget> pointerTargets = targets.get(target);
@@ -204,12 +205,14 @@ public class BnBRegionsMaker {
         }
       } else {
         if (!targetRegions.containsKey(target)){
-          targetRegions.put(target, new ArrayList<PointerTarget>());
-        }
-        for (PointerTarget pt : pointerTargets){
-          if (!targetRegions.get(target).contains(pt)){
-            targetRegions.get(target).add(pt);
-          }
+          targetRegions.put(target, pointerTargets.subList(0, pointerTargets.size()));
+        } else {
+          Set<PointerTarget> pSet = new HashSet<>(pointerTargets);
+          Set<PointerTarget> present = new HashSet<>(targetRegions.get(target));
+
+          pSet.removeAll(present);
+
+          targetRegions.get(target).addAll(pSet);
         }
       }
     }
@@ -233,7 +236,7 @@ public class BnBRegionsMaker {
     if (region != null){
       result += region.replace(' ', '_');
     } else {
-      result += "global";
+      result += GLOBAL;
       //(new Exception("Global region")).printStackTrace();
     }
     return result;
