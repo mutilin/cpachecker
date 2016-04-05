@@ -80,8 +80,10 @@ public class ComplexTypeFieldStatistics {
       try {
         result = (((CStatementEdge)edge).getStatement()).accept(statementVisitor);
 
-        usedFields = merger.mergeMaps(usedFields, result.get(false));
-        refdFields = merger.mergeMaps(refdFields, result.get(true));
+        if (result != null){
+          usedFields = merger.mergeMaps(usedFields, result.get(false));
+          refdFields = merger.mergeMaps(refdFields, result.get(true));
+        }
       } catch (Exception e) {
         e.printStackTrace();
       }
@@ -90,8 +92,10 @@ public class ComplexTypeFieldStatistics {
         try {
           result = param.accept(expressionVisitor);
 
-          usedFields = merger.mergeMaps(usedFields, result.get(false));
-          refdFields = merger.mergeMaps(refdFields, result.get(true));
+          if (result != null){
+            usedFields = merger.mergeMaps(usedFields, result.get(false));
+            refdFields = merger.mergeMaps(refdFields, result.get(true));
+          }
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -102,7 +106,12 @@ public class ComplexTypeFieldStatistics {
         CInitializer init = ((CVariableDeclaration) decl).getInitializer();
         if (init != null && init instanceof CInitializerExpression){
           try {
-            ((CInitializerExpression) init).getExpression().accept(expressionVisitor);
+            result = ((CInitializerExpression) init).getExpression().accept(expressionVisitor);
+
+            if (result != null){
+              usedFields = merger.mergeMaps(usedFields, result.get(false));
+              refdFields = merger.mergeMaps(refdFields, result.get(true));
+            }
           } catch (Exception e) {
             e.printStackTrace();
           }
