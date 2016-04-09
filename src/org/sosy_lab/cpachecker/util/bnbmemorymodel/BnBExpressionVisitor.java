@@ -26,9 +26,7 @@ package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 
-import org.sosy_lab.common.Pair;
 import org.sosy_lab.cpachecker.cfa.ast.c.CAddressOfLabelExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
@@ -52,7 +50,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
-import org.sosy_lab.cpachecker.cpa.invariants.operators.Operator;
 
 public class BnBExpressionVisitor implements CRightHandSideVisitor<Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>>, Exception> {
 
@@ -63,7 +60,13 @@ public class BnBExpressionVisitor implements CRightHandSideVisitor<Map<Boolean, 
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
       CFunctionCallExpression pIastFunctionCallExpression) throws Exception {
-    return null;
+    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = new HashMap<>();
+
+    for(CExpression param : pIastFunctionCallExpression.getParameterExpressions()){
+      result = merger.mergeMaps(result, param.accept(this));
+    }
+
+    return result;
   }
 
   @Override
@@ -117,24 +120,20 @@ public class BnBExpressionVisitor implements CRightHandSideVisitor<Map<Boolean, 
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
       CFieldReference pIastFieldReference) throws Exception {
     CExpression parent = pIastFieldReference.getFieldOwner();
-
-    if (parent == null) {
-      return null;
-    }
-
     CType parentType = parent.getExpressionType();
 
-    while (parentType instanceof CPointerType){
-      parentType = ((CPointerType) parentType).getType();
+    while (parentType instanceof CPointerType) {
+      parentType = ((CPointerType)parentType).getType();
     }
-    while (parentType instanceof CTypedefType){
-      parentType = ((CTypedefType) parentType).getRealType();
+    while (parentType instanceof CTypedefType) {
+      parentType = ((CTypedefType)parentType).getRealType();
     }
-    while (parentType instanceof CElaboratedType){
-      parentType = ((CElaboratedType) parentType).getRealType();
+    while (parentType instanceof CElaboratedType) {
+      parentType = ((CElaboratedType)parentType).getRealType();
     }
 
     CType fieldType = pIastFieldReference.getExpressionType();
+
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = new HashMap<>();
     HashMap<CType, HashMap<CType, HashSet<String>>> part = new HashMap<>();
     HashMap<CType, HashSet<String>> part2 = new HashMap<>();
@@ -149,6 +148,12 @@ public class BnBExpressionVisitor implements CRightHandSideVisitor<Map<Boolean, 
   }
 
   //Don't think we even need this
+  @Override
+  public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
+      CIdExpression pIastIdExpression) throws Exception {
+    return null;
+  }
+
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
       CCharLiteralExpression pIastCharLiteralExpression) throws Exception {
@@ -182,7 +187,7 @@ public class BnBExpressionVisitor implements CRightHandSideVisitor<Map<Boolean, 
 
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
-      CImaginaryLiteralExpression PIastLiteralExpression) throws Exception {
+      CImaginaryLiteralExpression pIastLiteralExpression) throws Exception {
     return null;
   }
 
@@ -199,9 +204,4 @@ public class BnBExpressionVisitor implements CRightHandSideVisitor<Map<Boolean, 
     return null;
   }
 
-  @Override
-  public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
-      CIdExpression pIastIdExpression) throws Exception {
-    return null;
-  }
 }

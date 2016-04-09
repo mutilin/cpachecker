@@ -51,15 +51,13 @@ public class BnBStatementVisitor implements CStatementVisitor<Map<Boolean, HashM
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
       CExpressionAssignmentStatement pIastExpressionAssignmentStatement)
       throws Exception {
-    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = new HashMap<>();
-    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> first =
+    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result =
         pIastExpressionAssignmentStatement.getLeftHandSide().accept(visitor);
 
-    if (!(first == null || first.isEmpty())) {
-      result.putAll(first);
-    }
+    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> right =
+        pIastExpressionAssignmentStatement.getRightHandSide().accept(visitor);
 
-    result = merger.mergeMaps(result, pIastExpressionAssignmentStatement.getRightHandSide().accept(visitor));
+    result = merger.mergeMaps(result, right);
 
     return result;
   }

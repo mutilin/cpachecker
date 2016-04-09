@@ -63,35 +63,43 @@ public class BnBMapMerger {
     } else if (target == null || target.isEmpty()) {
       return source;
     } else {
-      //first add all new keys with values to target
-      Set<CType> notPresent = source.keySet();
-      notPresent.removeAll(target.keySet());
-      HashMap<CType, HashMap<CType, HashSet<String>>> result = new HashMap<>();
+      HashMap<CType, HashMap<CType, HashSet<String>>> result = target;
+
+      Set<CType> targetTypeSet = target.keySet();
+      Set<CType> sourceTypeSet = source.keySet();
+
+      //add all new keys with values to target
+      Set<CType> notPresent = new HashSet<>(sourceTypeSet);
+      notPresent.removeAll(targetTypeSet);
 
       for (CType type : notPresent) {
         result.put(type, source.get(type));
       }
 
       //from now on all of the keys are present in target
-      Set<CType> present = source.keySet();
+      Set<CType> present = new HashSet<>(sourceTypeSet);
       present.removeAll( notPresent );
+
       for (CType type : present) {
         //same idea
-        result.put(type, target.get(type));
-        Set<CType> nextNotPresent = source.get(type).keySet();
-        nextNotPresent.removeAll(target.get(type).keySet());
+        Set<CType> keySet = target.get(type).keySet();
+        Map<CType, HashSet<String>> map = source.get(type);
+
+        Set<CType> nextNotPresent = new HashSet<>(map.keySet());
+        nextNotPresent.removeAll(keySet);
 
         for (CType npType : nextNotPresent) {
-          result.get(type).put(npType, source.get(type).get(npType));
+          result.get(type).put(npType, map.get(npType));
         }
 
-        Set<CType> nextPresent = source.get(type).keySet();
+        Set<CType> nextPresent = new HashSet<>(map.keySet());
         nextPresent.removeAll(nextNotPresent);
+
         for (CType pType : nextPresent) {
-          result.get(type).put(pType, target.get(type).get(pType));
-          result.get(type).get(pType).addAll(source.get(type).get(pType));
+          result.get(type).get(pType).addAll(map.get(pType));
         }
       }
+
       return result;
     }
   }

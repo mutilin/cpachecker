@@ -46,6 +46,7 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Point
 
 public class BnBRegionsMaker {
 
+  private static final String STRUCT = " sruct";
   private List<BnBRegionImpl> regions = new ArrayList<>();
   private Set<CType> containers = new HashSet<>();
   private static final String GLOBAL = " global";
@@ -175,7 +176,7 @@ public class BnBRegionsMaker {
 
     for (String target : targets.keySet()){
       PersistentList<PointerTarget> pointerTargets = targets.get(target);
-      if (!(target.contains(GLOBAL) || target.contains(" struct"))){
+      if (!(target.contains(GLOBAL) || target.contains(STRUCT))){
         for (PointerTarget pt : pointerTargets){
           CType containerType = pt.getContainerType();
           if (containerType instanceof CCompositeType && containers.contains(containerType)){
@@ -205,14 +206,16 @@ public class BnBRegionsMaker {
         }
       } else {
         if (!targetRegions.containsKey(target)){
-          targetRegions.put(target, pointerTargets.subList(0, pointerTargets.size()));
+          targetRegions.put(target, new ArrayList<PointerTarget>(pointerTargets));
         } else {
           Set<PointerTarget> pSet = new HashSet<>(pointerTargets);
           Set<PointerTarget> present = new HashSet<>(targetRegions.get(target));
 
           pSet.removeAll(present);
 
-          targetRegions.get(target).addAll(pSet);
+          if (!pSet.isEmpty()){
+            targetRegions.get(target).addAll(pSet);
+          }
         }
       }
     }
