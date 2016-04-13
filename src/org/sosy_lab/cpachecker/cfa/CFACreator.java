@@ -23,10 +23,43 @@
  */
 package org.sosy_lab.cpachecker.cfa;
 
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Iterables;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.Writer;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+import java.util.logging.Level;
 
+import org.eclipse.cdt.internal.core.dom.parser.cpp.semantics.ExpressionTypes;
+import org.eclipse.jdt.core.dom.Statement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CParameterDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.LoopCExpressionVisitor;
+import org.sosy_lab.cpachecker.cfa.model.MultiEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
+import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
+import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
+import org.sosy_lab.cpachecker.util.LoopStructure.Loop;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.concurrency.Threads;
 import org.sosy_lab.common.configuration.Configuration;
@@ -91,23 +124,15 @@ import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.LiveVariables;
 import org.sosy_lab.cpachecker.util.LoopStructure;
-import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.VariableClassificationBuilder;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.Writer;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
-import java.util.Queue;
-import java.util.Set;
-import java.util.logging.Level;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableCollection;
+import com.google.common.collect.ImmutableMultimap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 
 /**
  * Class that encapsulates the whole CFA creation process.
@@ -125,6 +150,10 @@ public class CFACreator {
       description="For C files, run the preprocessor on them before parsing. " +
                   "Note that all file numbers printed by CPAchecker will refer to the pre-processed file, not the original input file.")
   private boolean usePreprocessor = false;
+
+  @Option(secure=true, name="cfa.loopApprox",
+      description="For loop approximation analysis")
+  private boolean useLoopApprox = false;
 
   @Option(secure=true, name="parser.readLineDirectives",
       description="For C files, read #line preprocessor directives and use their information for outputting line numbers."
@@ -238,6 +267,7 @@ private boolean classifyNodes = false;
   private final CFAReduction cfaReduction;
   private final ShutdownNotifier shutdownNotifier;
 
+  //collects different stats
   private static class CFACreatorStatistics implements Statistics {
 
     private final Timer parserInstantiationTime = new Timer();
@@ -267,7 +297,7 @@ private boolean classifyNodes = false;
         out.println("      Time for CFA pruning:   " + pruningTime);
       }
       if (variableClassificationTime.getNumberOfIntervals() > 0) {
-        out.println("      Time for var class.:    " + variableClassificationTime);
+        out.println("      Time for var class.:    " + pruningTime);
       }
       if (exportTime.getNumberOfIntervals() > 0) {
         out.println("    Time for CFA export:      " + exportTime);
@@ -278,6 +308,7 @@ private boolean classifyNodes = false;
   private final CFACreatorStatistics stats = new CFACreatorStatistics();
   private final Configuration config;
 
+  //CONSTRUCTOR
   public CFACreator(Configuration config, LogManager logger, ShutdownNotifier pShutdownNotifier)
       throws InvalidConfigurationException {
 
@@ -331,6 +362,7 @@ private boolean classifyNodes = false;
    * @throws InvalidConfigurationException If the main function that was specified in the configuration is not found.
    * @throws IOException If an I/O error occurs.
    * @throws ParserException If the parser or the CFA builder cannot handle the C code.
+   * @throws InterruptedException
    */
   public CFA parseFileAndCreateCFA(String program)
       throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
@@ -356,6 +388,7 @@ private boolean classifyNodes = false;
    * @throws InvalidConfigurationException If the main function that was specified in the configuration is not found.
    * @throws IOException If an I/O error occurs.
    * @throws ParserException If the parser or the CFA builder cannot handle the C code.
+   * @throws InterruptedException
    */
   public CFA parseFileAndCreateCFA(List<String> sourceFiles)
           throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
@@ -427,10 +460,25 @@ private boolean classifyNodes = false;
       sorter.assignSorting(function);
     }
 
-    // get loop information
-    // (needs post-order information)
+
+
+    //VOT ZDES MENYAUTSYA LOOPI
+
+
     Optional<LoopStructure> loopStructure = getLoopStructure(cfa);
     cfa.setLoopStructure(loopStructure);
+
+    if(useLoopApprox) {
+      System.out.println("USED LOOP APPROX ATTENTION");
+      if (language == Language.C) loopSimplificator(cfa);
+    }
+
+
+
+
+
+
+
 
     // FOURTH, insert call and return edges and build the supergraph
     if (interprocedural) {
@@ -507,6 +555,8 @@ private boolean classifyNodes = false;
 
     logger.log(Level.FINE, "DONE, CFA for", immutableCFA.getNumberOfFunctions(), "functions created.");
 
+
+
     return immutableCFA;
   }
 
@@ -532,6 +582,156 @@ private boolean classifyNodes = false;
     }
 
     return parseResult;
+  }
+
+  private void loopSimplificator(MutableCFA cfa) {
+
+    // get loop information
+    // (needs post-order information)
+    Optional<LoopStructure> loopStructure = getLoopStructure(cfa);
+
+    //obrabotat' edge vlojennix ciklov
+    //incrementi iz loopstructure
+    //some tests
+
+    ImmutableCollection<Loop> loopCol = loopStructure.get().getAllLoops();
+    for(Loop loop : loopCol) {
+      ImmutableSet<CFAEdge> edgeSet =
+          loop.getInnerLoopEdges();
+      for(CFAEdge undEdge : edgeSet) {
+        checkEdge(undEdge);
+      }
+
+    }
+    //}
+    /*ImmutableMultimap<String, Loop> loops = new ImmutableMultimap<>();
+
+    LoopStructure newLS = new LoopStructure();*/
+    cfa.setLoopStructure(loopStructure);
+
+  }
+
+  private CFAEdge checkEdge(CFAEdge undefCEdge) {
+
+    CFAEdge newEdge = null;
+    if(undefCEdge.getEdgeType() == CFAEdgeType.AssumeEdge) {
+
+      // esli naidetsya hotya bi odin + d duge zamenyat' na
+      //eto if vozvrashyat' true vsegda, no mojno zamenit' na funcciu
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.CallToReturnEdge) {
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.DeclarationEdge) {
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.FunctionCallEdge) {
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.MultiEdge) {
+      MultiEdge cEdges = (MultiEdge) undefCEdge;
+      List<CFAEdge> newEdges = new ArrayList<>();
+      for(int i = 0; i < cEdges.getEdges().size(); i++) {
+        CFAEdge undefPartCEdge = checkEdge(cEdges.getEdges().get(i));
+        if (undefPartCEdge != null) {
+          newEdges.add(undefPartCEdge);
+        } else {
+          newEdges.add(cEdges.getEdges().get(i));
+        }
+      }
+      MultiEdge newME = new MultiEdge(
+          cEdges.getPredecessor(),
+          cEdges.getSuccessor(),
+          newEdges);
+
+      cEdges.getPredecessor().addLeavingEdge(newME);
+      cEdges.getSuccessor().addEnteringEdge(newME);
+      cEdges.getPredecessor().removeLeavingEdge(cEdges);
+      cEdges.getSuccessor().removeEnteringEdge(cEdges);
+      newEdge = newME;
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.ReturnStatementEdge) {
+      //esli nashli plus zamenit' na fuction
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.StatementEdge) {
+
+      CStatementEdge cEdge = (CStatementEdge)undefCEdge;
+      if (cEdge.getStatement() instanceof CExpressionAssignmentStatement) {
+        CExpressionAssignmentStatement statement =
+            (CExpressionAssignmentStatement)cEdge.getStatement();
+        LoopCExpressionVisitor visitor = new LoopCExpressionVisitor();
+
+        visitor.visitDefault(statement.getRightHandSide());
+
+        if (visitor.getPlusExpressions().size() > 0) {
+          //assert visitor.getPlusExpressions().size() == 1;
+          CExpression expr = visitor.getPlusExpressions().get(0);
+          if(expr instanceof CBinaryExpression) {
+            CBinaryExpression be = (CBinaryExpression)expr;
+            FileLocation fileLocation = cEdge.getFileLocation();
+            CExpression left = statement.getLeftHandSide();
+            List<CExpression> params = new ArrayList<>(2);
+            params.add(be.getOperand1());
+            params.add(be.getOperand2());
+            List<CType> paramTypes = new ArrayList<>(2);
+            paramTypes.add(be.getOperand1().getExpressionType());
+            paramTypes.add(be.getOperand2().getExpressionType());
+
+            CFunctionType funcType = new CFunctionType(
+                true, false, be.getExpressionType(), paramTypes, false);
+
+            CParameterDeclaration p1 =
+                new CParameterDeclaration(
+                    cEdge.getFileLocation(),
+                    be.getOperand1().getExpressionType(),
+                    "p1"
+                );
+            CParameterDeclaration p2 =
+                new CParameterDeclaration(
+                    cEdge.getFileLocation(),
+                    be.getOperand2().getExpressionType(),
+                    "p2"
+                );
+            List<CParameterDeclaration> paramDecls = new ArrayList<>(2);
+            paramDecls.add(p1);
+            paramDecls.add(p2);
+
+            String newName = "obhodnaya_funkciya";
+            CFunctionDeclaration funcDecl =
+                new CFunctionDeclaration(cEdge.getFileLocation(),
+                    funcType, newName, paramDecls);
+
+            CExpression nameExpr = new CIdExpression(fileLocation, funcDecl);
+            CFunctionCallExpression fce = new CFunctionCallExpression(
+                cEdge.getFileLocation(),
+                statement.getRightHandSide().getExpressionType(),
+                nameExpr,
+                params, funcDecl);
+            CFunctionCallAssignmentStatement fc =
+                new CFunctionCallAssignmentStatement(
+                    cEdge.getFileLocation(),
+                    statement.getLeftHandSide(),
+                    fce);
+            newEdge =
+                new CStatementEdge(
+                    "undef function called",//cEdge.getRawStatement(),
+                    fc,
+                    fileLocation,
+                    cEdge.getPredecessor(),
+                    cEdge.getSuccessor()
+                );
+            //replace the old edge by the new one
+
+            cEdge.getPredecessor().addLeavingEdge(newEdge);
+            cEdge.getSuccessor().addEnteringEdge(newEdge);
+            cEdge.getPredecessor().removeLeavingEdge(cEdge);
+            cEdge.getSuccessor().removeEnteringEdge(cEdge);
+          }
+        }
+      }
+    }
+    return newEdge;
   }
 
   /** This method parses the sourceFiles and builds a CFA for each function.
@@ -584,7 +784,7 @@ private boolean classifyNodes = false;
    * @return either a modified old CFA or a complete new CFA
    */
   private MutableCFA postProcessingOnMutableCFAs(MutableCFA cfa, final List<Pair<ADeclaration, String>> globalDeclarations)
-          throws InvalidConfigurationException, CParserException, InterruptedException {
+          throws InvalidConfigurationException, CParserException {
 
     // remove all edges which don't have any effect on the program
     if (simplifyCfa) {
@@ -602,7 +802,7 @@ private boolean classifyNodes = false;
     }
 
     if (expandFunctionPointerArrayAssignments) {
-      ExpandFunctionPointerArrayAssignments transformer = new ExpandFunctionPointerArrayAssignments(logger);
+      ExpandFunctionPointerArrayAssignments transformer = new ExpandFunctionPointerArrayAssignments(logger, config);
       transformer.replaceFunctionPointerArrayAssignments(cfa);
     }
 
@@ -613,39 +813,8 @@ private boolean classifyNodes = false;
     }
 
     // Transform dummy loops into edges to termination nodes
-    transformDummyLoopsToEdges(cfa);
-
-    if (useFunctionCallUnwinding) {
-      // must be done before adding global vars
-      final FunctionCallUnwinder fca = new FunctionCallUnwinder(cfa, config);
-      cfa = fca.unwindRecursion();
-    }
-
-    if (useCFACloningForMultiThreadedPrograms && isMultiThreadedProgram(cfa)) {
-      // cloning must be done before adding global vars,
-      // current use case is ThreadingCPA, thus we check for the creation of new threads first.
-      logger.log(Level.INFO, "program contains concurrency, cloning functions...");
-      final CFACloner cloner = new CFACloner(cfa, config);
-      cfa = cloner.execute();
-    }
-
-    if (useGlobalVars) {
-      // add global variables at the beginning of main
-      insertGlobalDeclarations(cfa, globalDeclarations);
-    }
-
-    if (useMultiEdges) {
-      MultiEdgeCreator.createMultiEdges(cfa);
-    }
-
-    return cfa;
-  }
-
-  /** Transform dummy loops into edges to termination nodes */
-  private void transformDummyLoopsToEdges(MutableCFA cfa) throws InterruptedException {
     List<CFANode> toAdd = new ArrayList<>(1);
     for (CFANode node : cfa.getAllNodes()) {
-      this.shutdownNotifier.shutdownIfNecessary();
       Set<CFANode> visited = new HashSet<>();
       Queue<CFANode> waitlist = new ArrayDeque<>();
       waitlist.offer(node);
@@ -680,6 +849,31 @@ private boolean classifyNodes = false;
     for (CFANode nodeToAdd : toAdd) {
       cfa.addNode(nodeToAdd);
     }
+
+    if (useFunctionCallUnwinding) {
+      // must be done before adding global vars
+      final FunctionCallUnwinder fca = new FunctionCallUnwinder(cfa, config, logger);
+      cfa = fca.unwindRecursion();
+    }
+
+    if (useCFACloningForMultiThreadedPrograms && isMultiThreadedProgram(cfa)) {
+      // cloning must be done before adding global vars,
+      // current use case is ThreadingCPA, thus we check for the creation of new threads first.
+      logger.log(Level.INFO, "program contains concurrency, cloning functions...");
+      final CFACloner cloner = new CFACloner(cfa, config, logger);
+      cfa = cloner.execute();
+    }
+
+    if (useGlobalVars) {
+      // add global variables at the beginning of main
+      insertGlobalDeclarations(cfa, globalDeclarations);
+    }
+
+    if (useMultiEdges) {
+      MultiEdgeCreator.createMultiEdges(cfa);
+    }
+
+    return cfa;
   }
 
   /** check, whether the program contains function calls to crate a new thread. */
