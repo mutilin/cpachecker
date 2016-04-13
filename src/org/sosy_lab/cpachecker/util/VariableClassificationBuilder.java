@@ -330,7 +330,7 @@ public class VariableClassificationBuilder {
       dumpDomainTypeStatistics(domainTypeStatisticsFile, result);
     }
 
-    if (regionsStatisticsFile != null) {
+    if (regionsStatisticsFile != null && regMk != null) {
       try (Writer w = Files.openOutputFile(regionsStatisticsFile)){
         w.append("Regions information:\n\n");
         w.append(regMk.toString());
