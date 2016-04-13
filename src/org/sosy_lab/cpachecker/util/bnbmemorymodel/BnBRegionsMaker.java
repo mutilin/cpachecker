@@ -80,7 +80,6 @@ public class BnBRegionsMaker {
   public void makeRegions(final CFA cfa) {
     ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics();
     ctfs.findFieldsInCFA(cfa);
-    //ctfs.dumpStat("Stat.txt");
 
     Map<CType, HashMap<CType, HashSet<String>>> usedFields = ctfs.getUsedFields();
     Map<CType, HashMap<CType, HashSet<String>>> refdFields = ctfs.getRefdFields();
@@ -118,7 +117,6 @@ public class BnBRegionsMaker {
       containers.add(region.getRegionParent());
     }
 
-    //dumpRegions("Regions.txt");
   }
 
   /**
@@ -131,27 +129,7 @@ public class BnBRegionsMaker {
     try{
       FileWriter writer = new FileWriter(dump);
 
-      String result = "";
-
-      if (!containers.isEmpty()){
-        for (CType container : containers){
-          result += container.toString() + '\n';
-          result += ((CCompositeType)container).getMembers();
-          result += "\n\n";
-        }
-      } else {
-        result += "Empty containers\n\n";
-      }
-
-      if (!regions.isEmpty()) {
-        int i = 0;
-        for (BnBRegionImpl reg : regions) {
-          result += "Number: " + (i++) + '\n';
-          result += reg.toString() + '\n';
-        }
-      } else {
-        result += "Empty regions\n";
-      }
+      String result = toString();
 
       writer.write(result);
       writer.close();
@@ -159,6 +137,32 @@ public class BnBRegionsMaker {
     } catch (IOException e){
       System.out.println(e.getMessage());
     }
+  }
+
+  @Override
+  public String toString() {
+    String result = "";
+
+    if (!containers.isEmpty()){
+      for (CType container : containers){
+        result += container.toString() + '\n';
+        result += ((CCompositeType)container).getMembers();
+        result += "\n\n";
+      }
+    } else {
+      result += "Empty containers\n\n";
+    }
+
+    if (!regions.isEmpty()) {
+      int i = 0;
+      for (BnBRegionImpl reg : regions) {
+        result += "Number: " + (i++) + '\n';
+        result += reg.toString() + '\n';
+      }
+    } else {
+      result += "Empty regions\n";
+    }
+    return result;
   }
 
   /**

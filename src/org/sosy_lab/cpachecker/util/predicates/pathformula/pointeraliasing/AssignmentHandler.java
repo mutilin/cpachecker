@@ -242,8 +242,9 @@ class AssignmentHandler {
         if (updatedUFs == null) {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
           String ufName = CToFormulaConverterWithPointerAliasing.getUFName(lvalueType);
-          if (conv.isBnBUsed() && conv.getVariableClassification().isPresent()){
-            ufName = conv.getVariableClassification().get().getRegionsMaker()
+          Optional<VariableClassification> variableClassification = conv.getVariableClassification();
+          if (conv.isBnBUsed() && variableClassification.isPresent()){
+            ufName = variableClassification.get().getRegionsMaker()
                           .getNewUfName(ufName, lvalue.asAliased().getRegion());
           }
 

@@ -235,8 +235,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     String ufName = getUFName(type);
 
     if (BnBUsed && variableClassification.isPresent()){
-      BnBRegionsMaker regionsMaker = variableClassification.get().getRegionsMaker();
-      ufName = regionsMaker.getNewUfName(ufName, region);
+      ufName = variableClassification.get().getRegionsMaker().getNewUfName(ufName, region);
     }
 
     final int index = getIndex(ufName, type, ssa);
