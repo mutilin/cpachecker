@@ -125,6 +125,10 @@ public class CFACreator {
       description="For C files, run the preprocessor on them before parsing. " +
                   "Note that all file numbers printed by CPAchecker will refer to the pre-processed file, not the original input file.")
   private boolean usePreprocessor = false;
+    
+  @Option(secure=true, name="cfa.loopApprox",
+      description="For loop approximation analysis")
+  private boolean useLoopApprox = false;
 
   @Option(secure=true, name="parser.readLineDirectives",
       description="For C files, read #line preprocessor directives and use their information for outputting line numbers."
@@ -431,6 +435,11 @@ private boolean classifyNodes = false;
     // (needs post-order information)
     Optional<LoopStructure> loopStructure = getLoopStructure(cfa);
     cfa.setLoopStructure(loopStructure);
+      
+    if(useLoopApprox) {
+      System.out.println("USED LOOP APPROX ATTENTION");
+      if (language == Language.C) loopSimplificator(cfa);
+    }
 
     // FOURTH, insert call and return edges and build the supergraph
     if (interprocedural) {
@@ -509,6 +518,21 @@ private boolean classifyNodes = false;
 
     return immutableCFA;
   }
+    
+    private void loopSimplificator(MutableCFA cfa) {
+    Optional<LoopStructure> loopStructure = getLoopStructure(cfa);
+
+    ImmutableCollection<Loop> loopCol = loopStructure.get().getAllLoops();
+    for(Loop loop : loopCol) {
+      ImmutableSet<CFAEdge> edgeSet =
+          loop.getInnerLoopEdges();
+      for(CFAEdge undEdge : edgeSet) {
+        checkEdge(undEdge);
+      }
+    }
+    cfa.setLoopStructure(loopStructure);
+
+  }
 
   /** This method parses the program from the String and builds a CFA for each function.
    * The ParseResult is only a Wrapper for the CFAs of the functions and global declarations. */
@@ -532,6 +556,129 @@ private boolean classifyNodes = false;
     }
 
     return parseResult;
+  }
+    
+    private CFAEdge checkEdge(CFAEdge undefCEdge) {
+
+    CFAEdge newEdge = null;
+    if(undefCEdge.getEdgeType() == CFAEdgeType.AssumeEdge) {
+
+      // esli naidetsya hotya bi odin + d duge zamenyat' na
+      //eto if vozvrashyat' true vsegda, no mojno zamenit' na funcciu
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.CallToReturnEdge) {
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.DeclarationEdge) {
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.FunctionCallEdge) {
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.MultiEdge) {
+      MultiEdge cEdges = (MultiEdge) undefCEdge;
+      List<CFAEdge> newEdges = new ArrayList<>();
+      for(int i = 0; i < cEdges.getEdges().size(); i++) {
+        CFAEdge undefPartCEdge = checkEdge(cEdges.getEdges().get(i));
+        if (undefPartCEdge != null) {
+          newEdges.add(undefPartCEdge);
+        } else {
+          newEdges.add(cEdges.getEdges().get(i));
+        }
+      }
+      MultiEdge newME = new MultiEdge(
+          cEdges.getPredecessor(),
+          cEdges.getSuccessor(),
+          newEdges);
+
+      cEdges.getPredecessor().addLeavingEdge(newME);
+      cEdges.getSuccessor().addEnteringEdge(newME);
+      cEdges.getPredecessor().removeLeavingEdge(cEdges);
+      cEdges.getSuccessor().removeEnteringEdge(cEdges);
+      newEdge = newME;
+
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.ReturnStatementEdge) {
+      //esli nashli plus zamenit' na fuction
+    }
+    if(undefCEdge.getEdgeType() == CFAEdgeType.StatementEdge) {
+
+      CStatementEdge cEdge = (CStatementEdge)undefCEdge;
+      if (cEdge.getStatement() instanceof CExpressionAssignmentStatement) {
+        CExpressionAssignmentStatement statement =
+            (CExpressionAssignmentStatement)cEdge.getStatement();
+        LoopCExpressionVisitor visitor = new LoopCExpressionVisitor();
+
+        visitor.visitDefault(statement.getRightHandSide());
+
+        if (visitor.getPlusExpressions().size() > 0) {
+          //assert visitor.getPlusExpressions().size() == 1;
+          CExpression expr = visitor.getPlusExpressions().get(0);
+          if(expr instanceof CBinaryExpression) {
+            CBinaryExpression be = (CBinaryExpression)expr;
+            FileLocation fileLocation = cEdge.getFileLocation();
+            CExpression left = statement.getLeftHandSide();
+            List<CExpression> params = new ArrayList<>(2);
+            params.add(be.getOperand1());
+            params.add(be.getOperand2());
+            List<CType> paramTypes = new ArrayList<>(2);
+            paramTypes.add(be.getOperand1().getExpressionType());
+            paramTypes.add(be.getOperand2().getExpressionType());
+
+            CFunctionType funcType = new CFunctionType(
+                true, false, be.getExpressionType(), paramTypes, false);
+
+            CParameterDeclaration p1 =
+                new CParameterDeclaration(
+                    cEdge.getFileLocation(),
+                    be.getOperand1().getExpressionType(),
+                    "p1"
+                );
+            CParameterDeclaration p2 =
+                new CParameterDeclaration(
+                    cEdge.getFileLocation(),
+                    be.getOperand2().getExpressionType(),
+                    "p2"
+                );
+            List<CParameterDeclaration> paramDecls = new ArrayList<>(2);
+            paramDecls.add(p1);
+            paramDecls.add(p2);
+
+            String newName = "obhodnaya_funkciya";
+            CFunctionDeclaration funcDecl =
+                new CFunctionDeclaration(cEdge.getFileLocation(),
+                    funcType, newName, paramDecls);
+
+            CExpression nameExpr = new CIdExpression(fileLocation, funcDecl);
+            CFunctionCallExpression fce = new CFunctionCallExpression(
+                cEdge.getFileLocation(),
+                statement.getRightHandSide().getExpressionType(),
+                nameExpr,
+                params, funcDecl);
+            CFunctionCallAssignmentStatement fc =
+                new CFunctionCallAssignmentStatement(
+                    cEdge.getFileLocation(),
+                    statement.getLeftHandSide(),
+                    fce);
+            newEdge =
+                new CStatementEdge(
+                    "undef function called",//cEdge.getRawStatement(),
+                    fc,
+                    fileLocation,
+                    cEdge.getPredecessor(),
+                    cEdge.getSuccessor()
+                );
+            //replace the old edge by the new one
+
+            cEdge.getPredecessor().addLeavingEdge(newEdge);
+            cEdge.getSuccessor().addEnteringEdge(newEdge);
+            cEdge.getPredecessor().removeLeavingEdge(cEdge);
+            cEdge.getSuccessor().removeEnteringEdge(cEdge);
+          }
+        }
+      }
+    }
+    return newEdge;
   }
 
   /** This method parses the sourceFiles and builds a CFA for each function.
