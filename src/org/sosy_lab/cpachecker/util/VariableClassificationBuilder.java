@@ -145,9 +145,6 @@ public class VariableClassificationBuilder {
   @Option(secure=true, description = "Print some information about the variable classification.")
   private boolean printStatsOnStartup = false;
 
-  @Option(secure=true, description = "Print information about B&B Regions")
-  private Path regionsStatisticsFile = Paths.get("Regions.txt");
-
   /**
    * Use {@link FunctionEntryNode#getReturnVariable()} and
    * {@link AReturnStatement#asAssignment()} instead.
@@ -266,7 +263,6 @@ public class VariableClassificationBuilder {
       regMk = new BnBRegionsMaker();
       regMk.makeRegions(cfa);
     }
-    //regMk.dumpRegions("Regions.txt");
 
     VariableClassification result = new VariableClassification(
         hasRelevantNonIntAddVars,
@@ -330,14 +326,8 @@ public class VariableClassificationBuilder {
       dumpDomainTypeStatistics(domainTypeStatisticsFile, result);
     }
 
-    if (regionsStatisticsFile != null && regMk != null) {
-      try (Writer w = Files.openOutputFile(regionsStatisticsFile)){
-        w.append("Regions information:\n\n");
-        w.append(regMk.toString());
-        w.append("---------------------------");
-      } catch (IOException e) {
-        logger.logUserException(Level.WARNING, e, "Could not write regions information to file");
-      }
+    if (regMk != null) {
+      regMk.dumpRegions("Regions.txt");
     }
 
     return result;
