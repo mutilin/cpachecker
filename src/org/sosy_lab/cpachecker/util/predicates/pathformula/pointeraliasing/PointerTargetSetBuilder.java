@@ -51,6 +51,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDe
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.util.VariableClassification;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet.CompositeField;
 import org.sosy_lab.solver.api.BooleanFormula;
@@ -218,7 +219,7 @@ public interface PointerTargetSetBuilder {
      * @param currentType type of the allocated base or the next added pointer target
      */
     private void addTargets(final String name, CType type) {
-      targets = ptsMgr.addToTargets(name, type, null, 0, 0, targets, fields);
+      targets = ptsMgr.addToTargets(name, null, type, null, 0, 0, targets, fields);
     }
 
     @Override
@@ -329,7 +330,12 @@ public interface PointerTargetSetBuilder {
                        composite, memberName);
           }
           if (isTargetComposite && memberDeclaration.getName().equals(memberName)) {
-            targets = ptsMgr.addToTargets(base, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
+            BnBRegionsMaker regionsMaker = ptsMgr.getRegionsMaker();
+            String region = null;
+            if (regionsMaker != null && !regionsMaker.isInGlobalRegion(compositeType, memberDeclaration.getType(), memberName)){
+              region = compositeType.toString() + ' ' + memberName;
+            }
+            targets = ptsMgr.addToTargets(base, region, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
           }
           if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
             offset += ptsMgr.getSize(memberDeclaration.getType());
@@ -573,30 +579,10 @@ public interface PointerTargetSetBuilder {
     @Override
     public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
       if (!targets.isEmpty()){
-/*        for (String target : targets.keySet()){
-
-          for (PointerTarget pt : targets.get(target)){
-            String str = "TR: " + target + ' ' + pt.getBase() + ' '
-                + pt.getOffset() + ' ' + pt.getContainerType();
-            if (pt.getContainerType() != null){
-              str += (" " + pt.getContainerOffset());
-            }
-            System.out.println(str);
-          }
-        }
-        System.out.println("TR: ###############");
-
-        for (CompositeField field : fields.keySet()){
-          System.out.println("EQ1 " + field);
-        }
-
-        System.out.println("EQ1 ###############");
-*/
         Map<String, PersistentList<PointerTarget>> newTargets =
             pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
 
         targets = PathCopyingPersistentTreeMap.copyOf(newTargets);
-//        System.out.println("NT: #########");
       }
     }
 

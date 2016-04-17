@@ -189,7 +189,7 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
       typeHandler = aliasingTypeHandler;
       converter = new CToFormulaConverterWithPointerAliasing(options, fmgr,
           pMachineModel, pVariableClassification, logger, shutdownNotifier,
-          aliasingTypeHandler, direction, useBnB);
+          aliasingTypeHandler, direction);
 
     } else {
       final FormulaEncodingOptions options = new FormulaEncodingOptions(config);
@@ -441,6 +441,7 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
 /*    FIXME: find a better assertion type for the BnB cause
       assert symbolName.equals(CToFormulaConverterWithPointerAliasing.getUFName(symbolType));
 */
+
       return makeSsaUFMerger(symbolName, symbolType, oldIndex, newIndex, oldPts);
 
     } else {

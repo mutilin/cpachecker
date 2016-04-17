@@ -326,10 +326,6 @@ public class VariableClassificationBuilder {
       dumpDomainTypeStatistics(domainTypeStatisticsFile, result);
     }
 
-    if (regMk != null) {
-      regMk.dumpRegions("Regions.txt");
-    }
-
     return result;
   }
 

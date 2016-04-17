@@ -49,7 +49,7 @@ public class BnBRegionsMaker {
   private static final String STRUCT = " sruct";
   private List<BnBRegionImpl> regions = new ArrayList<>();
   private Set<CType> containers = new HashSet<>();
-  private static final String GLOBAL = " global";
+  public static final String GLOBAL = " global";
 
   /**
    * Determines whether or not the field is in global region
@@ -210,7 +210,7 @@ public class BnBRegionsMaker {
         }
       } else {
         if (!targetRegions.containsKey(target)){
-          targetRegions.put(target, new ArrayList<PointerTarget>(pointerTargets));
+          targetRegions.put(target, new ArrayList<>(pointerTargets));
         } else {
           Set<PointerTarget> pSet = new HashSet<>(pointerTargets);
           Set<PointerTarget> present = new HashSet<>(targetRegions.get(target));

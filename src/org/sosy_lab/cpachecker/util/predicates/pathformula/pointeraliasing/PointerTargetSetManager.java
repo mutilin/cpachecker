@@ -56,6 +56,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CVoidType;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegion;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FunctionFormulaManagerView;
@@ -98,16 +100,18 @@ class PointerTargetSetManager {
   private final BooleanFormulaManagerView bfmgr;
   private final FunctionFormulaManagerView ffmgr;
   private final TypeHandlerWithPointerAliasing typeHandler;
+  private final BnBRegionsMaker regMk;
 
   public PointerTargetSetManager(FormulaEncodingWithPointerAliasingOptions pOptions,
       FormulaManagerView pFormulaManager, TypeHandlerWithPointerAliasing pTypeHandler,
-      ShutdownNotifier pShutdownNotifier) {
+      ShutdownNotifier pShutdownNotifier, BnBRegionsMaker regionsMaker) {
     options = pOptions;
     formulaManager = pFormulaManager;
     bfmgr = formulaManager.getBooleanFormulaManager();
     ffmgr = formulaManager.getFunctionFormulaManager();
     typeHandler = pTypeHandler;
     shutdownNotifier = pShutdownNotifier;
+    regMk = regionsMaker;
   }
 
   public MergeResult<PointerTargetSet>
@@ -285,6 +289,10 @@ class PointerTargetSetManager {
     return mergedDeferredAllocations;
   }
 
+  public BnBRegionsMaker getRegionsMaker() {
+    return regMk;
+  }
+
   private static enum BaseUnitingConflictHandler implements MergeConflictHandler<String, CType> {
     INSTANCE;
 
@@ -372,7 +380,8 @@ class PointerTargetSetManager {
                                                                         base.getValue(),
                                                                         sharedFields,
                                                                         ssa,
-                                                                        pts));
+                                                                        pts,
+                                                                        null));
       }
     }
     return mergeFormula;
@@ -383,7 +392,8 @@ class PointerTargetSetManager {
                                                 final CType variableType,
                                                 final List<Pair<CCompositeType, String>> sharedFields,
                                                 final SSAMapBuilder ssa,
-                                                final PointerTargetSet pts) {
+                                                final PointerTargetSet pts,
+                                                String region) {
 
     assert !CTypeUtils.containsArray(variableType) : "Array access can't be encoded as a varaible";
 
@@ -397,6 +407,9 @@ class PointerTargetSetManager {
         final String memberName = memberDeclaration.getName();
         final CType memberType = CTypeUtils.simplifyType(memberDeclaration.getType());
         final String newPrefix = variablePrefix + CToFormulaConverterWithPointerAliasing.FIELD_NAME_SEPARATOR + memberName;
+        if (regMk != null && regMk.isInGlobalRegion(compositeType, memberType, memberName)){
+          region = compositeType.toString() + ' ' + memberName;
+        }
         if (ssa.getIndex(newPrefix) > 0) {
           sharedFields.add(Pair.of(compositeType, memberName));
           result = bfmgr.and(result, makeValueImportConstraints(
@@ -405,7 +418,8 @@ class PointerTargetSetManager {
                                        memberType,
                                        sharedFields,
                                        ssa,
-                                       pts));
+                                       pts,
+                                       region));
         }
         if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
           offset += typeHandler.getSizeof(memberType);
@@ -414,7 +428,7 @@ class PointerTargetSetManager {
     } else {
       if (ssa.getIndex(variablePrefix) > 0) {
         final FormulaType<?> variableFormulaType = typeHandler.getFormulaTypeFromCType(variableType);
-        result = bfmgr.and(result, formulaManager.makeEqual(makeDereferece(variableType, address, ssa),
+        result = bfmgr.and(result, formulaManager.makeEqual(makeDereferece(variableType, address, ssa, region),
                                                   formulaManager.makeVariable(variableFormulaType,
                                                                     variablePrefix,
                                                                     ssa.getIndex(variablePrefix))));
@@ -426,8 +440,12 @@ class PointerTargetSetManager {
 
   private Formula makeDereferece(final CType type,
                                  final Formula address,
-                                 final SSAMapBuilder ssa) {
-    final String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+                                 final SSAMapBuilder ssa,
+                                 final String region) {
+    String ufName = CToFormulaConverterWithPointerAliasing.getUFName(type);
+    if (regMk != null) {
+      ufName = regMk.getNewUfName(ufName, region);
+    }
     final int index = ssa.getIndex(ufName);
     final FormulaType<?> returnType = typeHandler.getFormulaTypeFromCType(type);
     return ffmgr.declareAndCallUninterpretedFunction(ufName, index, returnType, address);
@@ -476,12 +494,14 @@ class PointerTargetSetManager {
 
   @CheckReturnValue
   private static PersistentSortedMap<String, PersistentList<PointerTarget>> addToTarget(final String base,
+                         final String region,
                          final CType targetType,
                          final @Nullable CType containerType,
                          final int properOffset,
                          final int containerOffset,
                          final PersistentSortedMap<String, PersistentList<PointerTarget>> targets) {
-    final String type = CTypeUtils.typeToString(targetType);
+    String type = CTypeUtils.typeToString(targetType);
+    type += region != null ? ' ' + region : " global";
     PersistentList<PointerTarget> targetsForType = firstNonNull(targets.get(type),
                                                                 PersistentLinkedList.<PointerTarget>of());
     return targets.putAndCopy(type, targetsForType.with(new PointerTarget(base,
@@ -506,6 +526,7 @@ class PointerTargetSetManager {
    */
   @CheckReturnValue
   PersistentSortedMap<String, PersistentList<PointerTarget>> addToTargets(final String base,
+                          String region,
                           final CType currentType,
                           final @Nullable CType containerType,
                           final int properOffset,
@@ -524,7 +545,7 @@ class PointerTargetSetManager {
       }
       int offset = 0;
       for (int i = 0; i < length; ++i) {
-        targets = addToTargets(base, arrayType.getType(), arrayType, offset, containerOffset + properOffset, targets, fields);
+        targets = addToTargets(base, null, arrayType.getType(), arrayType, offset, containerOffset + properOffset, targets, fields);
         offset += getSize(arrayType.getType());
       }
     } else if (cType instanceof CCompositeType) {
@@ -535,14 +556,19 @@ class PointerTargetSetManager {
       int offset = 0;
       for (final CCompositeTypeMemberDeclaration memberDeclaration : compositeType.getMembers()) {
         if (fields.containsKey(CompositeField.of(type, memberDeclaration.getName()))) {
-          targets = addToTargets(base, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
+          if (regMk != null && !regMk.isInGlobalRegion(compositeType, memberDeclaration.getType(), memberDeclaration.getName())){
+            region = compositeType.toString() + ' ' + memberDeclaration.getName();
+          } else {
+            region = null;
+          }
+          targets = addToTargets(base, region, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
         }
         if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
           offset += getSize(memberDeclaration.getType());
         }
       }
     } else {
-      targets = addToTarget(base, cType, containerType, properOffset, containerOffset, targets);
+      targets = addToTarget(base, region, cType, containerType, properOffset, containerOffset, targets);
     }
 
     return targets;
@@ -560,7 +586,7 @@ class PointerTargetSetManager {
     for (final Map.Entry<String, CType> entry : bases.entrySet()) {
       String name = entry.getKey();
       CType type = CTypeUtils.simplifyType(entry.getValue());
-      targets = addToTargets(name, type, null, 0, 0, targets, fields);
+      targets = addToTargets(name, null, type, null, 0, 0, targets, fields);
     }
     return targets;
   }

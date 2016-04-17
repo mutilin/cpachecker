@@ -122,19 +122,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
   final FormulaType<?> voidPointerFormulaType;
   final Formula nullPointer;
-  final boolean BnBUsed;
-
-  public CToFormulaConverterWithPointerAliasing(final FormulaEncodingWithPointerAliasingOptions pOptions,
-                                   final FormulaManagerView formulaManagerView,
-                                   final MachineModel pMachineModel,
-                                   final Optional<VariableClassification> pVariableClassification,
-                                   final LogManager logger,
-                                   final ShutdownNotifier pShutdownNotifier,
-                                   final TypeHandlerWithPointerAliasing pTypeHandler,
-                                   final AnalysisDirection pDirection) {
-    this(pOptions, formulaManagerView, pMachineModel, pVariableClassification, logger, pShutdownNotifier,
-            pTypeHandler, pDirection, false);
-  }
+  final BnBRegionsMaker regMk;
 
   public CToFormulaConverterWithPointerAliasing(final FormulaEncodingWithPointerAliasingOptions pOptions,
                                                 final FormulaManagerView formulaManagerView,
@@ -143,17 +131,17 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
                                                 final LogManager logger,
                                                 final ShutdownNotifier pShutdownNotifier,
                                                 final TypeHandlerWithPointerAliasing pTypeHandler,
-                                                final AnalysisDirection pDirection,
-                                                final boolean useBnB) {
+                                                final AnalysisDirection pDirection) {
     super(pOptions, formulaManagerView, pMachineModel, pVariableClassification, logger, pShutdownNotifier, pTypeHandler, pDirection);
     variableClassification = pVariableClassification;
     options = pOptions;
     typeHandler = pTypeHandler;
-    ptsMgr = new PointerTargetSetManager(options, fmgr, typeHandler, shutdownNotifier);
+
+    regMk = variableClassification.isPresent() ? variableClassification.get().getRegionsMaker() : null;
+    ptsMgr = new PointerTargetSetManager(options, fmgr, typeHandler, shutdownNotifier, regMk);
 
     voidPointerFormulaType = typeHandler.getFormulaTypeFromCType(CPointerType.POINTER_TO_VOID);
     nullPointer = fmgr.makeNumber(voidPointerFormulaType, 0);
-    BnBUsed = useBnB;
   }
 
   public static String getUFName(final CType type) {
@@ -234,8 +222,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     type = CTypeUtils.simplifyType(type);
     String ufName = getUFName(type);
 
-    if (BnBUsed && variableClassification.isPresent()){
-      ufName = variableClassification.get().getRegionsMaker().getNewUfName(ufName, region);
+    if (regMk != null) {
+      ufName = regMk.getNewUfName(ufName, region);
     }
 
     final int index = getIndex(ufName, type, ssa);
@@ -265,10 +253,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           final CType memberType = CTypeUtils.simplifyType(memberDeclaration.getType());
           addAllFields(memberType, pts);
         }
-      }
-      if (BnBUsed && variableClassification.isPresent()){
-        //System.out.println("FROM ADD_ALL_FIELDS");
-        pts.updateTargetRegions(variableClassification);
       }
     } else if (type instanceof CArrayType) {
       final CType elementType = CTypeUtils.simplifyType(((CArrayType) type).getType());
@@ -329,8 +313,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           fields.add(Pair.of(compositeType, memberName));
 
           String newRegion = null;
-          if (BnBUsed && variableClassification.isPresent()) {
-            BnBRegionsMaker regMk = variableClassification.get().getRegionsMaker();
+          if (regMk != null) {
             boolean isGlobal = regMk.isInGlobalRegion(compositeType, memberType, memberName);
             newRegion = regMk.getNewUfName(getUFName(memberType),
                     isGlobal ? null : compositeType.toString() + " " + memberName);
@@ -681,15 +664,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
 
     final CIdExpression lhs =
         new CIdExpression(declaration.getFileLocation(), declaration);
-/*    if (variableClassification.isPresent()){
-      System.out.println("FROM MAKE_DECLARATION");
-      pts.updateTargetRegions(variableClassification);
-    }
-*/
-/*    for (String var : ssa.allVariables()){
-      System.out.println("OLD SSA: " + var + ' ' + ssa.getIndex(var));
-    }
-*/
+
     final AssignmentHandler assignmentHandler = new AssignmentHandler(this, declarationEdge, function, ssa, pts, constraints, errorConditions);
     final BooleanFormula result;
     if (initializer instanceof CInitializerExpression || initializer == null) {
@@ -720,9 +695,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
       throw new UnrecognizedCCodeException("Unrecognized initializer", declarationEdge, initializer);
     }
 
- /*   for (String var : ssa.allVariables()){
-      System.out.println("NEW SSA: " + var + ' ' + ssa.getIndex(var));
-    }*/
     return result;
   }
 
@@ -759,10 +731,6 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
           throws UnrecognizedCCodeException, InterruptedException {
 
     final CFunctionEntryNode entryNode = edge.getSuccessor();
-    if (BnBUsed && variableClassification.isPresent()){
-      //System.out.println("FROM MAKE_FCALL");
-      pts.updateTargetRegions(variableClassification);
-    }
     BooleanFormula result = super.makeFunctionCall(edge, callerFunction, ssa, pts, constraints, errorConditions);
 
     for (CParameterDeclaration formalParameter : entryNode.getFunctionParameters()) {
@@ -871,11 +839,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     return variableClassification;
   }
 
-  public CtoFormulaTypeHandler getTypeHandler() {
-    return typeHandler;
-  }
-
   public boolean isBnBUsed() {
-    return BnBUsed;
+    return regMk != null;
   }
 }

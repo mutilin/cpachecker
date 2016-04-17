@@ -143,10 +143,6 @@ class AssignmentHandler {
     pts.addEssentialFields(lhsVisitor.getUsedFields());
     // the pattern matching possibly aliased locations
 
-    if (conv.isBnBUsed()){
-      pts.updateTargetRegions(conv.getVariableClassification());
-    }
-
     final PointerTargetPattern pattern = lhsLocation.isUnaliasedLocation()
         ? null
         : PointerTargetPattern.forLeftHandSide(lhs, conv.typeHandler, conv.ptsMgr, edge, pts);
@@ -169,10 +165,6 @@ class AssignmentHandler {
 
     for (final Pair<CCompositeType, String> field : rhsAddressedFields) {
       pts.addField(field.getFirst(), field.getSecond());
-    }
-
-    if (conv.isBnBUsed()){
-      pts.updateTargetRegions(conv.getVariableClassification());
     }
 
     return result;
@@ -444,7 +436,6 @@ class AssignmentHandler {
       targetName = variableClassification.get().getRegionsMaker().getNewUfName(targetName, lvalue.asAliased().getRegion());
     }
 
-    //System.out.println("TNAME: " + targetName);
     final FormulaType<?> targetType = conv.getFormulaTypeFromCType(lvalueType);
     final int newIndex = useOldSSAIndices ?
             conv.getIndex(targetName, lvalueType, ssa) :
@@ -489,7 +480,6 @@ class AssignmentHandler {
                                          String region) throws InterruptedException {
     lvalueType = CTypeUtils.simplifyType(lvalueType);
     final int size = conv.getSizeof(lvalueType);
-    //pts.updateTargetRegions(conv.getVariableClassification());
 
     if (isSimpleType(lvalueType)) {
       Preconditions.checkArgument(startAddress != null,
@@ -514,7 +504,6 @@ class AssignmentHandler {
       pattern.setRange(size);
       for (final Pair<String, CType> uf : pUpdatedUFs) {
 
-        //System.out.println("Resulting UF: " + uf);
         final String ufName = uf.getFirst();
 
         final CType ssaType = ssa.getType(ufName);
@@ -551,7 +540,6 @@ class AssignmentHandler {
                                        final Formula lvalue) throws InterruptedException {
     if (!pattern.isExact()) {
 
-      //System.out.println("Resulting UF: " + ufName);
       for (final PointerTarget target : pts.getMatchingTargets(ufName, pattern)) {
         conv.shutdownNotifier.shutdownIfNecessary();
 
@@ -604,15 +592,12 @@ class AssignmentHandler {
       BooleanFormula consequent = bfmgr.makeBoolean(true);
       for (final Pair<String, CType> uf : pUpdatedUFs) {
 
-        //System.out.println("Resulting UF: " + uf);
         final String ufName = uf.getFirst();
 
         final CType ssaType = ssa.getType(ufName);
         final CType type = ssaType == null ? uf.getSecond() : ssaType;
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);
-
-        //System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
 
         final FormulaType<?> returnType = conv.getFormulaTypeFromCType(type);
         for (final PointerTarget spurious : pts.getSpuriousTargets(type, exact)) {
@@ -639,16 +624,13 @@ class AssignmentHandler {
     final PointerTargetPattern any = PointerTargetPattern.any();
     for (final Pair<String, CType> uf : pUpdatedUFs) {
 
-      //System.out.println("Resulting UF: " + uf);
       final String ufName = uf.getFirst();
 
       final CType ssaType = ssa.getType(ufName);
       final CType type = ssaType == null ? uf.getSecond() : ssaType;
-      //System.out.println(type == null);
+
       final int oldIndex = conv.getIndex(ufName, type, ssa);
       final int newIndex = conv.getFreshIndex(ufName, type, ssa);
-
-      //System.out.println("PAIR IND: " + oldIndex + ' ' + newIndex);
 
       final FormulaType<?> returnType = conv.getFormulaTypeFromCType(type);
       for (final PointerTarget target : pts.getMatchingTargets(type, any)) {
