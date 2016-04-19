@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 
@@ -39,7 +38,6 @@ import javax.annotation.Nullable;
 
 import org.sosy_lab.common.Pair;
 import org.sosy_lab.common.Triple;
-import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentLinkedList;
 import org.sosy_lab.common.collect.PersistentList;
 import org.sosy_lab.common.collect.PersistentSortedMap;
@@ -50,14 +48,12 @@ import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.util.VariableClassification;
 import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 import org.sosy_lab.cpachecker.util.predicates.interfaces.view.FormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet.CompositeField;
 import org.sosy_lab.solver.api.BooleanFormula;
 
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 
@@ -65,8 +61,6 @@ import com.google.common.collect.FluentIterable;
 public interface PointerTargetSetBuilder {
 
   BooleanFormula prepareBase(String name, CType type);
-
-  CType getBaseType(String base);
 
   void shareBase(String name, CType type);
 
@@ -126,8 +120,6 @@ public interface PointerTargetSetBuilder {
    * Returns an immutable PointerTargetSet with all the changes made to the builder.
    */
   PointerTargetSet build();
-
-  int getSize(CType pType);
 
   Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern);
 
@@ -537,11 +529,6 @@ public interface PointerTargetSetBuilder {
     }
 
     @Override
-    public CType getBaseType(String base){
-      return bases.get(base);
-    }
-
-    @Override
     public PersistentList<PointerTarget> getAllTargets(final CType type) {
       return firstNonNull(targets.get(CTypeUtils.typeToString(type)),
                           PersistentLinkedList.<PointerTarget>of());
@@ -571,12 +558,6 @@ public interface PointerTargetSetBuilder {
       } else {
         return result;
       }
-    }
-
-
-    @Override
-    public int getSize(CType pType) {
-      return ptsMgr.getSize(pType);
     }
 
 
@@ -709,19 +690,10 @@ public interface PointerTargetSetBuilder {
     }
 
     @Override
-    public int getSize(CType pType) {
-      throw new UnsupportedOperationException();
-    }
-
-    @Override
     public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern) {
       throw new UnsupportedOperationException();
     }
 
-    @Override
-    public CType getBaseType(String pBase) {
-      throw new UnsupportedOperationException();
-    }
   }
 
 

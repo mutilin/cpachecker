@@ -407,7 +407,7 @@ class PointerTargetSetManager {
         final String memberName = memberDeclaration.getName();
         final CType memberType = CTypeUtils.simplifyType(memberDeclaration.getType());
         final String newPrefix = variablePrefix + CToFormulaConverterWithPointerAliasing.FIELD_NAME_SEPARATOR + memberName;
-        if (regMk != null && regMk.isInGlobalRegion(compositeType, memberType, memberName)){
+        if (regMk != null && !regMk.isInGlobalRegion(compositeType, memberType, memberName)){
           region = compositeType.toString() + ' ' + memberName;
         }
         if (ssa.getIndex(newPrefix) > 0) {

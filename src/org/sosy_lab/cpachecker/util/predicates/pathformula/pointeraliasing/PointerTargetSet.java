@@ -68,25 +68,9 @@ public final class PointerTargetSet implements Serializable {
       this.fieldName = fieldName;
     }
 
-    public String getCompositeType(){
-      return compositeType;
-    }
-
-    public String getFieldName(){
-      return fieldName;
-    }
-
     public static CompositeField of(final @Nonnull String compositeType, final @Nonnull String fieldName) {
       return new CompositeField(compositeType, fieldName);
     }
-
-//    public String compositeType() {
-//      return compositeType;
-//    }
-
-//    public String fieldName() {
-//      return fieldName;
-//    }
 
     @Override
     public String toString() {
