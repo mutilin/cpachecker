@@ -168,8 +168,6 @@ class DynamicMemoryHandler {
       final Formula nondet = conv.makeFreshVariable(functionName,
                                                     CPointerType.POINTER_TO_VOID,
                                                     ssa);
-      //FIXME: debug output
-      //System.out.println(":ALLOC:");
       return conv.bfmgr.ifThenElse(conv.bfmgr.not(conv.fmgr.makeEqual(nondet, conv.nullPointer)),
                                     handleSucessfulMemoryAllocation(delegateFunctionName, parameters, e),
                                     conv.nullPointer);
@@ -251,7 +249,6 @@ class DynamicMemoryHandler {
       // Constraint is only necessary for correct error conditions
       constraints.addConstraint(conv.fmgr.makeEqual(conv.makeBaseAddressOfTerm(address), address));
     }
-    //System.out.println(":ALLOC:");
     return address;
   }
 

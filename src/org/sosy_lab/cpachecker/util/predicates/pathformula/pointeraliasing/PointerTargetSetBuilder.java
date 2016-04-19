@@ -330,9 +330,6 @@ public interface PointerTargetSetBuilder {
           if (compositeType.getKind() == ComplexTypeKind.STRUCT) {
             offset += ptsMgr.getSize(memberDeclaration.getType());
           }
-          //FIXME: output for the script
-         /* System.out.println("TTT2:##" + type + "##"
-              + memberDeclaration.getType() + "##" + memberDeclaration.getName());*/
         }
       }
     }

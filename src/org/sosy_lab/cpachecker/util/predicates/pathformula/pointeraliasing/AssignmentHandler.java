@@ -507,7 +507,7 @@ class AssignmentHandler {
         final String ufName = uf.getFirst();
 
         final CType ssaType = ssa.getType(ufName);
-        final CType type = ssaType == null ? lvalueType : ssaType;
+        final CType type = ssaType == null ? uf.getSecond() : ssaType;
 
         final int oldIndex = conv.getIndex(ufName, type, ssa);
         final int newIndex = conv.getFreshIndex(ufName, type, ssa);

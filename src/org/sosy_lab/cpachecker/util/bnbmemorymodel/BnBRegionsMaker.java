@@ -34,7 +34,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.sosy_lab.cpachecker.cfa.CFA;
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 
@@ -42,7 +41,6 @@ public class BnBRegionsMaker {
 
   private static final String STRUCT = " struct";
   private List<BnBRegionImpl> regions = new ArrayList<>();
-  private Set<CType> containers = new HashSet<>();
   private static final String GLOBAL = " global";
 
   /**
@@ -106,10 +104,6 @@ public class BnBRegionsMaker {
       }
     }
 
-    for (BnBRegionImpl region : regions){
-      containers.add(region.getRegionParent());
-    }
-
   }
 
   /**
@@ -135,16 +129,6 @@ public class BnBRegionsMaker {
   @Override
   public String toString() {
     String result = "";
-
-    if (!containers.isEmpty()){
-      for (CType container : containers){
-        result += container.toString() + '\n';
-        result += ((CCompositeType)container).getMembers();
-        result += "\n\n";
-      }
-    } else {
-      result += "Empty containers\n\n";
-    }
 
     if (!regions.isEmpty()) {
       int i = 0;
