@@ -46,10 +46,10 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Point
 
 public class BnBRegionsMaker {
 
-  private static final String STRUCT = " sruct";
+  private static final String STRUCT = " struct";
   private List<BnBRegionImpl> regions = new ArrayList<>();
   private Set<CType> containers = new HashSet<>();
-  public static final String GLOBAL = " global";
+  private static final String GLOBAL = " global";
 
   /**
    * Determines whether or not the field is in global region
@@ -230,6 +230,10 @@ public class BnBRegionsMaker {
     }
 
     return newTargets;
+  }
+
+  public static String getGlobal(){
+    return GLOBAL;
   }
 
   /**

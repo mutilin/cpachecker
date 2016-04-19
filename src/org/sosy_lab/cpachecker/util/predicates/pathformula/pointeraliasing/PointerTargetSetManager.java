@@ -501,7 +501,7 @@ class PointerTargetSetManager {
                          final int containerOffset,
                          final PersistentSortedMap<String, PersistentList<PointerTarget>> targets) {
     String type = CTypeUtils.typeToString(targetType);
-    type += region != null ? ' ' + region : " global";
+    type += region != null ? ' ' + region : BnBRegionsMaker.getGlobal();
     PersistentList<PointerTarget> targetsForType = firstNonNull(targets.get(type),
                                                                 PersistentLinkedList.<PointerTarget>of());
     return targets.putAndCopy(type, targetsForType.with(new PointerTarget(base,
