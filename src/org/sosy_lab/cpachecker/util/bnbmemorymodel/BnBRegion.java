@@ -33,6 +33,4 @@ public interface BnBRegion {
 
   String getElem();
 
-  boolean isPartOfGlobal();
-
 }

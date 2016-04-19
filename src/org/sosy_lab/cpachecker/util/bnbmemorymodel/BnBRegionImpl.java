@@ -104,11 +104,6 @@ public class BnBRegionImpl implements BnBRegion {
   }
 
   @Override
-  public boolean isPartOfGlobal() {
-    return regionParent == null;
-  }
-
-  @Override
   public String toString(){
     String result = "";
     result += "Type: " + elemType + '\n';

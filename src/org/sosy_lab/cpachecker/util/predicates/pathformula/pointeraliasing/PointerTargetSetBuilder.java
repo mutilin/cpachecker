@@ -127,11 +127,9 @@ public interface PointerTargetSetBuilder {
    */
   PointerTargetSet build();
 
-  void updateTargetRegions(Optional<VariableClassification> pVarClassif);
+  int getSize(CType pType);
 
-  public int getSize(CType pType);
-
-  public Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern);
+  Iterable<PointerTarget> getMatchingTargets(String pUfName, PointerTargetPattern pPattern);
 
   /**
    * Actual builder implementation for PointerTargetSet.
@@ -577,17 +575,6 @@ public interface PointerTargetSetBuilder {
 
 
     @Override
-    public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
-      if (!targets.isEmpty()){
-        Map<String, PersistentList<PointerTarget>> newTargets =
-            pVarClassif.get().getRegionsMaker().getNewTargetsWithRegions(targets, this);
-
-        targets = PathCopyingPersistentTreeMap.copyOf(newTargets);
-      }
-    }
-
-
-    @Override
     public int getSize(CType pType) {
       return ptsMgr.getSize(pType);
     }
@@ -595,7 +582,7 @@ public interface PointerTargetSetBuilder {
 
     @Override
     public Iterable<PointerTarget> getMatchingTargets(String ufName, PointerTargetPattern pattern) {
-      ufName = ufName.replace("-", " ").substring(1, ufName.length());
+      ufName = ufName.replace("_", " ").substring(1, ufName.length());
       return from(getAllTargets(ufName)).filter(pattern);
     }
 
@@ -719,11 +706,6 @@ public interface PointerTargetSetBuilder {
     @Override
     public PointerTargetSet build() {
       return PointerTargetSet.emptyPointerTargetSet();
-    }
-
-    @Override
-    public void updateTargetRegions(Optional<VariableClassification> pVarClassif) {
-      throw new UnsupportedOperationException();
     }
 
     @Override

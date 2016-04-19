@@ -33,15 +33,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.sosy_lab.common.collect.PersistentLinkedList;
-import org.sosy_lab.common.collect.PersistentList;
-import org.sosy_lab.common.collect.PersistentSortedMap;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTarget;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder;
 
 
 public class BnBRegionsMaker {
@@ -69,7 +63,6 @@ public class BnBRegionsMaker {
       return false;
     }
 
-    // (new Exception("Not found " + parent + " " + name)).printStackTrace();
     return true;
   }
 
@@ -165,73 +158,6 @@ public class BnBRegionsMaker {
     return result;
   }
 
-  /**
-   * Updates targets of the PointerTargetSet taking into account region information
-   * @param targets - list of targets in the PointerTargetSet
-   * @param ptsb - PointerTargetSetBuilder connected to the holder of @param targets
-   * @return targets with the information about regions
-   */
-  public Map<String, PersistentList<PointerTarget>> getNewTargetsWithRegions(
-      final PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
-      final PointerTargetSetBuilder ptsb){
-
-    String regName = "";
-    Map<String, List<PointerTarget>> targetRegions = new HashMap<>();
-
-    for (String target : targets.keySet()){
-      PersistentList<PointerTarget> pointerTargets = targets.get(target);
-      if (!(target.contains(GLOBAL) || target.contains(STRUCT))){
-        for (PointerTarget pt : pointerTargets){
-          CType containerType = pt.getContainerType();
-          if (containerType instanceof CCompositeType && containers.contains(containerType)){
-            int offset = pt.getContainerOffset();
-            int curOffset = 0;
-
-            for (CCompositeTypeMemberDeclaration field : ((CCompositeType) containerType).getMembers()){
-              if (curOffset < offset){
-                offset += ptsb.getSize(field.getType());
-              } else if (curOffset == offset){
-                if (!isInGlobalRegion(containerType, field.getType(), field.getName())){
-                  regName = field.getType().toString() + " " + containerType.toString() + " " + field.getName();
-                } else {
-                  regName = field.getType().toString() + GLOBAL;
-                }
-                break;
-              } else {
-                regName = field.getType().toString() + GLOBAL;
-                break;
-              }
-            }
-          }
-          if (!targetRegions.containsKey(regName)) {
-            targetRegions.put(regName, new ArrayList<PointerTarget>());
-          }
-          targetRegions.get(regName).add(pt);
-        }
-      } else {
-        if (!targetRegions.containsKey(target)){
-          targetRegions.put(target, new ArrayList<>(pointerTargets));
-        } else {
-          Set<PointerTarget> pSet = new HashSet<>(pointerTargets);
-          Set<PointerTarget> present = new HashSet<>(targetRegions.get(target));
-
-          pSet.removeAll(present);
-
-          if (!pSet.isEmpty()){
-            targetRegions.get(target).addAll(pSet);
-          }
-        }
-      }
-    }
-
-    Map<String, PersistentList<PointerTarget>> newTargets = new HashMap<>();
-    for (String type : targetRegions.keySet()){
-      newTargets.put(type, PersistentLinkedList.copyOf(targetRegions.get(type)));
-    }
-
-    return newTargets;
-  }
-
   public static String getGlobal(){
     return GLOBAL;
   }
@@ -248,7 +174,6 @@ public class BnBRegionsMaker {
       result += region.replace(' ', '_');
     } else {
       result += GLOBAL;
-      //(new Exception("Global region")).printStackTrace();
     }
     return result;
   }
