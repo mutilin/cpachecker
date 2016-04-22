@@ -105,6 +105,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.VariableClassification.Partition;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -185,9 +186,16 @@ public class VariableClassificationBuilder {
   private final CollectingLHSVisitor collectingLHSVisitor = new CollectingLHSVisitor();
 
   private final LogManager logger;
+  private final boolean useBnB;
 
   public VariableClassificationBuilder(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = checkNotNull(pLogger);
+    String key = "useBnB";
+    if (config.hasProperty(key)){
+      useBnB = new Boolean(config.getProperty(key));
+    } else {
+      useBnB = false;
+    }
     config.inject(this);
   }
 
@@ -248,6 +256,12 @@ public class VariableClassificationBuilder {
 
     boolean hasRelevantNonIntAddVars = !Sets.intersection(relevantVariables, nonIntAddVars).isEmpty();
 
+    BnBRegionsMaker regionsMaker = null;
+    if (useBnB) {
+      regionsMaker = new BnBRegionsMaker();
+      regionsMaker.makeRegions(cfa);
+    }
+
     VariableClassification result = new VariableClassification(
         hasRelevantNonIntAddVars,
         intBoolVars,
@@ -263,7 +277,8 @@ public class VariableClassificationBuilder {
         dependencies.edgeToPartition,
         extractAssumedVariables(cfa.getAllNodes()),
         extractAssignedVariables(cfa.getAllNodes()),
-        logger);
+        logger,
+        regionsMaker);
 
     if (printStatsOnStartup) {
       printStats(result);
