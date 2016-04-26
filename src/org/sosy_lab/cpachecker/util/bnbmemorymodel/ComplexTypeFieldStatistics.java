@@ -29,7 +29,9 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.logging.Level;
 
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
@@ -51,6 +53,11 @@ public class ComplexTypeFieldStatistics {
   private final BnBStatementVisitor statementVisitor = new BnBStatementVisitor();
   private final BnBExpressionVisitor expressionVisitor = new BnBExpressionVisitor();
   private final BnBMapMerger merger = new BnBMapMerger();
+  private final LogManager logger;
+
+  public ComplexTypeFieldStatistics(LogManager logger) {
+    this.logger = logger;
+  }
 
   public void findFieldsInCFA(CFA cfa){
     for (CFANode node : cfa.getAllNodes()){
@@ -60,53 +67,51 @@ public class ComplexTypeFieldStatistics {
     }
   }
 
+  //Searching for address-taking and calling of the structure field
   private void visitEdge(CFAEdge edge) {
     CFAEdgeType edgeType;
     edgeType = edge.getEdgeType();
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result;
 
-    if (edgeType == CFAEdgeType.StatementEdge){
-       //Searching for address-taking and calling of the structure field
-      try {
-        result = (((CStatementEdge)edge).getStatement()).accept(statementVisitor);
+    try {
+      switch (edgeType){
+        case StatementEdge:
+          result = (((CStatementEdge) edge).getStatement()).accept(statementVisitor);
 
-        if (result != null){
-          usedFields = merger.mergeMaps(usedFields, result.get(false));
-          refdFields = merger.mergeMaps(refdFields, result.get(true));
-        }
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-    } else if (edgeType == CFAEdgeType.FunctionCallEdge){
-      for (CExpression param : ((CFunctionCallEdge)edge).getArguments()){
-        try {
-          result = param.accept(expressionVisitor);
-
-          if (result != null){
+          if (result != null) {
             usedFields = merger.mergeMaps(usedFields, result.get(false));
             refdFields = merger.mergeMaps(refdFields, result.get(true));
           }
-        } catch (Exception e) {
-          e.printStackTrace();
-        }
-      }
-    } else if (edgeType == CFAEdgeType.DeclarationEdge){
-      CDeclaration decl = ((CDeclarationEdge)edge).getDeclaration();
-      if (decl instanceof CVariableDeclaration){
-        CInitializer init = ((CVariableDeclaration) decl).getInitializer();
-        if (init != null && init instanceof CInitializerExpression){
-          try {
-            result = ((CInitializerExpression) init).getExpression().accept(expressionVisitor);
+          break;
 
-            if (result != null){
-              usedFields = merger.mergeMaps(usedFields, result.get(false));
-              refdFields = merger.mergeMaps(refdFields, result.get(true));
-            }
-          } catch (Exception e) {
-            e.printStackTrace();
+        case FunctionCallEdge:
+          for (CExpression param : ((CFunctionCallEdge) edge).getArguments()) {
+              result = param.accept(expressionVisitor);
+
+              if (result != null) {
+                usedFields = merger.mergeMaps(usedFields, result.get(false));
+                refdFields = merger.mergeMaps(refdFields, result.get(true));
+              }
           }
-        }
+          break;
+
+        case DeclarationEdge:
+          CDeclaration decl = ((CDeclarationEdge) edge).getDeclaration();
+          if (decl instanceof CVariableDeclaration) {
+            CInitializer init = ((CVariableDeclaration) decl).getInitializer();
+            if (init != null && init instanceof CInitializerExpression) {
+                result = ((CInitializerExpression) init).getExpression().accept(expressionVisitor);
+
+                if (result != null) {
+                  usedFields = merger.mergeMaps(usedFields, result.get(false));
+                  refdFields = merger.mergeMaps(refdFields, result.get(true));
+                }
+            }
+          }
+          break;
       }
+    } catch (Exception e) {
+      logger.logException(Level.WARNING, e, "Exception while gathering information about struct type field usage");
     }
   }
 
@@ -155,8 +160,7 @@ public class ComplexTypeFieldStatistics {
       writer.close();
 
     } catch (IOException e) {
-      System.out.println(e.getMessage());
-      e.printStackTrace();
+      logger.logException(Level.WARNING, e, "Exception while writing field usage information");
     }
 
   }

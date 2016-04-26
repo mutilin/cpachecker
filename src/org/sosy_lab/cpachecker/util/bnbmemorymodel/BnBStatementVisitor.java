@@ -55,9 +55,7 @@ public class BnBStatementVisitor implements CStatementVisitor<Map<Boolean, HashM
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> right =
         pIastExpressionAssignmentStatement.getRightHandSide().accept(visitor);
 
-    result = merger.mergeMaps(result, right);
-
-    return result;
+    return merger.mergeMaps(result, right);
   }
 
   @Override

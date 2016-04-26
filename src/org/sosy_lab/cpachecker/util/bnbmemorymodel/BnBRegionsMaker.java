@@ -26,22 +26,26 @@ package org.sosy_lab.cpachecker.util.bnbmemorymodel;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
 
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 
 public class BnBRegionsMaker {
 
-  private static final String STRUCT = " struct";
-  private List<BnBRegionImpl> regions = new ArrayList<>();
+  private Set<BnBRegionImpl> regions = new HashSet<>();
   private static final String GLOBAL = " global";
+  private final LogManager logger;
+
+  public BnBRegionsMaker(LogManager logger) {
+    this.logger = logger;
+  }
 
   /**
    * Determines whether or not the field is in global region
@@ -69,7 +73,7 @@ public class BnBRegionsMaker {
    * @param cfa - program CFA
    */
   public void makeRegions(final CFA cfa) {
-    ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics();
+    ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics(logger);
     ctfs.findFieldsInCFA(cfa);
 
     Map<CType, HashMap<CType, HashSet<String>>> usedFields = ctfs.getUsedFields();
@@ -103,7 +107,6 @@ public class BnBRegionsMaker {
         }
       }
     }
-
   }
 
   /**
@@ -122,7 +125,7 @@ public class BnBRegionsMaker {
       writer.close();
 
     } catch (IOException e){
-      System.out.println(e.getMessage());
+      logger.logException(Level.WARNING, e, "Exception while writing the regions statistics");
     }
   }
 

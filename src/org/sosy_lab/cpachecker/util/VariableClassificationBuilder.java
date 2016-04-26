@@ -258,7 +258,7 @@ public class VariableClassificationBuilder {
 
     BnBRegionsMaker regionsMaker = null;
     if (useBnB) {
-      regionsMaker = new BnBRegionsMaker();
+      regionsMaker = new BnBRegionsMaker(logger);
       regionsMaker.makeRegions(cfa);
     }
 

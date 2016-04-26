@@ -301,13 +301,11 @@ class DynamicMemoryHandler {
 
   static String makeAllocVariableName(final String functionName, final CType type,
       final SSAMapBuilder ssa, final CtoFormulaConverter conv) {
-    String s = functionName
+    return functionName
             + "_"
             + CToFormulaConverterWithPointerAliasing.getUFName(type)
             + MALLOC_INDEX_SEPARATOR
             + conv.makeFreshIndex(functionName, type, ssa);
-    System.out.println("DMH alloc var name: " + s);
-    return s;
   }
 
   private static Integer tryEvaluateExpression(CExpression e) {

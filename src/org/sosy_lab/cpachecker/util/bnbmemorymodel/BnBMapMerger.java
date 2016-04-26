@@ -33,38 +33,35 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 public class BnBMapMerger {
 
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> mergeMaps(
-            Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> target,
-            Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> source) {
-
-    Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = new HashMap<>();
-
-    if (source == null || source.isEmpty()){
-      result = target;
-    } else if (target == null || target.isEmpty()) {
-      result = source;
-    } else {
-      for (Boolean refd : source.keySet()) {
-        if (!target.containsKey(refd)) {
-          target.put(refd, source.get(refd));
-        } else {
-          result.put(refd, mergeMaps(target.get(refd), source.get(refd)));
-        }
-      }
-    }
-    return result;
-  }
-
-  public HashMap<CType, HashMap<CType, HashSet<String>>> mergeMaps(
-      HashMap<CType, HashMap<CType, HashSet<String>>> target,
-      HashMap<CType, HashMap<CType, HashSet<String>>> source) {
+          Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> target,
+          Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> source) {
 
     if (source == null || source.isEmpty()){
       return target;
     } else if (target == null || target.isEmpty()) {
       return source;
     } else {
-      HashMap<CType, HashMap<CType, HashSet<String>>> result = target;
+      Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = target;
+      for (Boolean refd : source.keySet()) {
+        if (!target.containsKey(refd)) {
+          result.put(refd, source.get(refd));
+        } else {
+          result.put(refd, mergeMaps(target.get(refd), source.get(refd)));
+        }
+      }
+      return result;
+    }
+  }
 
+  public HashMap<CType, HashMap<CType, HashSet<String>>> mergeMaps(
+          HashMap<CType, HashMap<CType, HashSet<String>>> target,
+          HashMap<CType, HashMap<CType, HashSet<String>>> source) {
+
+    if (source == null || source.isEmpty()){
+      return target;
+    } else if (target == null || target.isEmpty()) {
+      return source;
+    } else {
       Set<CType> targetTypeSet = target.keySet();
       Set<CType> sourceTypeSet = source.keySet();
 
@@ -73,7 +70,7 @@ public class BnBMapMerger {
       notPresent.removeAll(targetTypeSet);
 
       for (CType type : notPresent) {
-        result.put(type, source.get(type));
+        target.put(type, source.get(type));
       }
 
       //from now on all of the keys are present in target
@@ -89,18 +86,17 @@ public class BnBMapMerger {
         nextNotPresent.removeAll(keySet);
 
         for (CType npType : nextNotPresent) {
-          result.get(type).put(npType, map.get(npType));
+          target.get(type).put(npType, map.get(npType));
         }
 
         Set<CType> nextPresent = new HashSet<>(map.keySet());
         nextPresent.removeAll(nextNotPresent);
 
         for (CType pType : nextPresent) {
-          result.get(type).get(pType).addAll(map.get(pType));
+          target.get(type).get(pType).addAll(map.get(pType));
         }
       }
-
-      return result;
+      return target;
     }
   }
 }
