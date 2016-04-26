@@ -105,6 +105,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.VariableClassification.Partition;
+import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBException;
 import org.sosy_lab.cpachecker.util.bnbmemorymodel.BnBRegionsMaker;
 
 import java.io.IOException;
@@ -202,7 +203,7 @@ public class VariableClassificationBuilder {
   /** This function does the whole work:
    * creating all maps, collecting vars, solving dependencies.
    * The function runs only once, after that it does nothing. */
-  public VariableClassification build(CFA cfa) throws UnrecognizedCCodeException {
+  public VariableClassification build(CFA cfa) throws UnrecognizedCCodeException, BnBException {
     checkArgument(cfa.getLanguage() == Language.C, "VariableClassification currently only supports C");
 
     // fill maps

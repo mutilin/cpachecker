@@ -72,7 +72,7 @@ public class BnBRegionsMaker {
    * Gathers information about struct field usage and constructs regions
    * @param cfa - program CFA
    */
-  public void makeRegions(final CFA cfa) {
+  public void makeRegions(final CFA cfa) throws BnBException{
     ComplexTypeFieldStatistics ctfs = new ComplexTypeFieldStatistics(logger);
     ctfs.findFieldsInCFA(cfa);
 

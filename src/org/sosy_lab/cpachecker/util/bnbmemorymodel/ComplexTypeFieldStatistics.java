@@ -59,7 +59,7 @@ public class ComplexTypeFieldStatistics {
     this.logger = logger;
   }
 
-  public void findFieldsInCFA(CFA cfa){
+  public void findFieldsInCFA(CFA cfa) throws BnBException {
     for (CFANode node : cfa.getAllNodes()){
       for (int i = 0; i < node.getNumEnteringEdges(); ++i){
         visitEdge(node.getEnteringEdge(i));
@@ -68,7 +68,7 @@ public class ComplexTypeFieldStatistics {
   }
 
   //Searching for address-taking and calling of the structure field
-  private void visitEdge(CFAEdge edge) {
+  private void visitEdge(CFAEdge edge) throws BnBException {
     CFAEdgeType edgeType;
     edgeType = edge.getEdgeType();
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result;
@@ -110,8 +110,9 @@ public class ComplexTypeFieldStatistics {
           }
           break;
       }
-    } catch (Exception e) {
+    } catch (BnBException e) {
       logger.logException(Level.WARNING, e, "Exception while gathering information about struct type field usage");
+      throw e;
     }
   }
 

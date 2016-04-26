@@ -35,20 +35,20 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatementVisitor;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-public class BnBStatementVisitor implements CStatementVisitor<Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>>, Exception> {
+public class BnBStatementVisitor implements CStatementVisitor<Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>>, BnBException> {
   private final BnBExpressionVisitor visitor = new BnBExpressionVisitor();
   private final BnBMapMerger merger = new BnBMapMerger();
 
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
-      CExpressionStatement pIastExpressionStatement) throws Exception {
+      CExpressionStatement pIastExpressionStatement) throws BnBException {
     return pIastExpressionStatement.getExpression().accept(visitor);
   }
 
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
       CExpressionAssignmentStatement pIastExpressionAssignmentStatement)
-      throws Exception {
+      throws BnBException {
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result =
         pIastExpressionAssignmentStatement.getLeftHandSide().accept(visitor);
 
@@ -61,7 +61,7 @@ public class BnBStatementVisitor implements CStatementVisitor<Map<Boolean, HashM
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
       CFunctionCallAssignmentStatement pIastFunctionCallAssignmentStatement)
-      throws Exception {
+      throws BnBException {
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = new HashMap<>();
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> first =
         pIastFunctionCallAssignmentStatement.getLeftHandSide().accept(visitor);
@@ -79,7 +79,7 @@ public class BnBStatementVisitor implements CStatementVisitor<Map<Boolean, HashM
 
   @Override
   public Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> visit(
-      CFunctionCallStatement pIastFunctionCallStatement) throws Exception {
+      CFunctionCallStatement pIastFunctionCallStatement) throws BnBException {
     Map<Boolean, HashMap<CType, HashMap<CType, HashSet<String>>>> result = new HashMap<>();
 
     for (CExpression param : pIastFunctionCallStatement.getFunctionCallExpression().getParameterExpressions()){
