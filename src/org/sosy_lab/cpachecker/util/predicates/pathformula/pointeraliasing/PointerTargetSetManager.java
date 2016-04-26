@@ -100,6 +100,7 @@ public class PointerTargetSetManager {
   private final FunctionFormulaManagerView ffmgr;
   private final TypeHandlerWithPointerAliasing typeHandler;
   private final BnBRegionsMaker regionsMaker;
+  private static boolean useBnB;
 
   public PointerTargetSetManager(FormulaEncodingWithPointerAliasingOptions pOptions,
                                  FormulaManagerView pFormulaManager, TypeHandlerWithPointerAliasing pTypeHandler,
@@ -111,6 +112,7 @@ public class PointerTargetSetManager {
     typeHandler = pTypeHandler;
     shutdownNotifier = pShutdownNotifier;
     regionsMaker = regMk;
+    useBnB = regionsMaker != null;
   }
 
   public PointerTargetSetManager(FormulaEncodingWithPointerAliasingOptions pOptions,
@@ -499,11 +501,13 @@ public class PointerTargetSetManager {
                          final int properOffset,
                          final int containerOffset,
                          final PersistentSortedMap<String, PersistentList<PointerTarget>> targets) {
-    String type = CTypeUtils.typeToString(targetType);
-    type += region != null ? ' ' + region : BnBRegionsMaker.getGlobal();
-    PersistentList<PointerTarget> targetsForType = firstNonNull(targets.get(type),
+    String ufName = CToFormulaConverterWithPointerAliasing.getUFName(targetType);
+    if (region != null && useBnB) {
+      ufName = BnBRegionsMaker.getNewUfName(ufName, region);
+    }
+    PersistentList<PointerTarget> targetsForType = firstNonNull(targets.get(ufName),
                                                                 PersistentLinkedList.<PointerTarget>of());
-    return targets.putAndCopy(type, targetsForType.with(new PointerTarget(base,
+    return targets.putAndCopy(ufName, targetsForType.with(new PointerTarget(base,
                                                                              containerType,
                                                                              properOffset,
                                                                              containerOffset)));

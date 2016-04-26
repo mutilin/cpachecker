@@ -155,7 +155,7 @@ public class BnBRegionsMaker {
    * @param region - null if global or parent_name + " " + field_name
    * @return new UF name for the CType with region information
    */
-  public String getNewUfName(final String ufName, String region){
+  public static String getNewUfName(final String ufName, String region){
     String result = ufName + "_";
     if (region != null){
       result += region.replace(' ', '_');
