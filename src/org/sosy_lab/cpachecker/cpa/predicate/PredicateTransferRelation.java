@@ -93,6 +93,9 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
   @Option(secure = true, description = "Use formula reporting states for strengthening.")
   private boolean strengthenWithFormulaReportingStates = false;
 
+  @Option(secure=true, description = "max tracked memory locations per region, 0 means no limit")
+  private int maxTargetsPerRegion = 0;
+
   // statistics
   final Timer postTimer = new Timer();
   final Timer satCheckTimer = new Timer();
@@ -153,6 +156,11 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
       // calculate strongest post
       PathFormula pathFormula = convertEdgeToPathFormula(element.getPathFormula(), edge);
       logger.log(Level.ALL, "New path formula is", pathFormula);
+
+      if (maxTargetsPerRegion > 0 &&
+          pathFormula.getPointerTargetSet().getTargets().getMaxTargetCount() > maxTargetsPerRegion) {
+        return Collections.emptySet();
+      }
 
       // Check whether we should do a SAT check.s
       boolean satCheck = shouldDoSatCheck(edge, pathFormula);
