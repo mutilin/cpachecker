@@ -93,8 +93,9 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
   @Option(secure = true, description = "Use formula reporting states for strengthening.")
   private boolean strengthenWithFormulaReportingStates = false;
 
-  @Option(secure=true, description = "max tracked memory locations per region, 0 means no limit")
-  private int maxTargetsPerRegion = 0;
+  @Option(secure=true, description = "max number of times an edge allocating "
+      + "new memory locations in the most pupulated region can be analyzed (<= 0 -- unliminted, > 0 -- unsound!)")
+  private int maxTargetLimitRaisesPerLine = 0;
 
   // statistics
   final Timer postTimer = new Timer();
@@ -157,9 +158,14 @@ public class PredicateTransferRelation extends SingleEdgeTransferRelation {
       PathFormula pathFormula = convertEdgeToPathFormula(element.getPathFormula(), edge);
       logger.log(Level.ALL, "New path formula is", pathFormula);
 
-      if (maxTargetsPerRegion > 0 &&
-          pathFormula.getPointerTargetSet().getTargets().getMaxTargetCount() > maxTargetsPerRegion) {
-        return Collections.emptySet();
+      if (maxTargetLimitRaisesPerLine > 0 &&
+          pathFormula.getPointerTargetSet().getTargets().getMaxTargetCount() >
+          element.getPathFormula().getPointerTargetSet().getTargets().getMaxTargetCount()) {
+          if (pathFormula.getTargetLimitRaises(edge) >= maxTargetLimitRaisesPerLine) {
+            return Collections.emptySet();
+          } else {
+            pathFormula = pathFormula.raiseTargetLimit(edge);
+          }
       }
 
       // Check whether we should do a SAT check.s

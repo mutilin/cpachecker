@@ -102,6 +102,10 @@ public final class Targets {
     this.maxBucketSize = maxBucketSize;
   }
 
+  private static final boolean isGlobal(final String ufName) {
+    return ufName.contains("global");
+  }
+
   public static @Nonnull Targets emptyTargets() {
     return EMPTY_INSTANCE;
   }
@@ -112,7 +116,7 @@ public final class Targets {
     final int ufSize = firstNonNull(bucketSizes.get(ufName), 0) + 1;
     return new Targets(targets.putAndCopy(ufName, ufTargets.with(target)),
                        bucketSizes.putAndCopy(ufName, ufSize),
-                       max(ufSize, maxBucketSize));
+                       !isGlobal(ufName) ? max(ufSize, maxBucketSize) : maxBucketSize);
   }
 
   public @Nonnull PersistentList<PointerTarget> getAll(final @Nonnull String ufName) {
@@ -167,8 +171,11 @@ public final class Targets {
                                                   Targets.<String>countOnConflict(targets));
 
     int maxSize = 0;
-    for (int v : bucketSizes.values()) {
-      maxSize = max(maxSize, v);
+    for (Entry<String, Integer> e : bucketSizes.entrySet()) {
+      final int v = e.getValue();
+      if (v > maxSize && !isGlobal(e.getKey())){
+        maxSize = v;
+      }
     }
     return new Targets(targets, bucketSizes, maxSize);
   }
