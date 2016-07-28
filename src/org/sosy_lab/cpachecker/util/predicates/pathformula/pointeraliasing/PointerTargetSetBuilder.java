@@ -54,11 +54,15 @@ import org.sosy_lab.solver.api.BooleanFormula;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.stream.Collectors;
+import java.util.function.BiConsumer;
+import java.util.function.BinaryOperator;
+import java.util.function.Supplier;
+import java.util.stream.Collector;
 
 
 public interface PointerTargetSetBuilder {
@@ -449,6 +453,48 @@ public interface PointerTargetSetBuilder {
       }
     }
 
+    static class PersistentLinkedListBuilder<T> {
+      public void add(final T e) {
+        list = list.with(e);
+      }
+
+      public PersistentLinkedList<T> build() {
+        return list;
+      }
+
+      PersistentLinkedList<T> list = PersistentLinkedList.of();
+    }
+
+    public static <T> Collector<T, ?, PersistentLinkedList<T>> toPersistentLinkedList() {
+      return new Collector<T, PersistentLinkedListBuilder<T>, PersistentLinkedList<T>>() {
+
+        @Override
+        public Supplier<PersistentLinkedListBuilder<T>> supplier() {
+          return PersistentLinkedListBuilder::new;
+        }
+
+        @Override
+        public BiConsumer<PersistentLinkedListBuilder<T>, T> accumulator() {
+          return PersistentLinkedListBuilder::add;
+        }
+
+        @Override
+        public BinaryOperator<PersistentLinkedListBuilder<T>> combiner() {
+          throw new UnsupportedOperationException("Should be used sequentially");
+        }
+
+        @Override
+        public java.util.function.Function<PersistentLinkedListBuilder<T>, PersistentLinkedList<T>> finisher() {
+          return PersistentLinkedListBuilder::build;
+        }
+
+        @Override
+        public Set<Characteristics> characteristics() {
+          return EnumSet.noneOf(Characteristics.class);
+        }
+      };
+    }
+
     /**
      * Adds a new pointer(variable/field)-object mapping to the set of tracked pending objects with yet unknown type
      * to be allocated.
@@ -526,10 +572,10 @@ public interface PointerTargetSetBuilder {
          .filter((p) -> p.getFirst().equals(pointer))
          .map((p) -> p.getSecond())
          .collect(toCollection(HashSet::new));
-      deferredAllocations = PersistentLinkedList.copyOf(
+      deferredAllocations =
           deferredAllocations.stream()
             .filter((p) -> !p.getFirst().equals(pointer))
-            .collect(Collectors.toList()));
+            .collect(toPersistentLinkedList());
       deferredAllocations.forEach((p) -> result.remove(p.getSecond()));
       return ImmutableSet.copyOf(result);
     }
@@ -549,10 +595,10 @@ public interface PointerTargetSetBuilder {
           .filter((p) -> p.getFirst().equals(pointer))
           .map((p) -> p.getSecond())
           .collect(toCollection(HashSet::new));
-      deferredAllocations = PersistentLinkedList.copyOf(
+      deferredAllocations =
           deferredAllocations.stream()
             .filter((p) -> !result.contains(p.getSecond()))
-            .collect(Collectors.toList()));
+            .collect(toPersistentLinkedList());
       return ImmutableSet.copyOf(result);
     }
 
