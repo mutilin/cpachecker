@@ -510,7 +510,7 @@ class DynamicMemoryHandler {
   private void handleDeferredAllocationTypeRevelation(
       final String pointerVariable, final CType type)
       throws UnrecognizedCCodeException, InterruptedException {
-    final DeferredAllocationPool deferredAllocationPool = pts.removeDeferredAllocation(pointerVariable);
+    final DeferredAllocation deferredAllocationPool = pts.removeDeferredAllocation(pointerVariable);
     for (final String baseVariable : deferredAllocationPool.getBaseVariables()) {
       makeAllocation(deferredAllocationPool.wasAllocationZeroing(),
                           getAllocationType(type, deferredAllocationPool.getSize()),
@@ -527,7 +527,7 @@ class DynamicMemoryHandler {
    */
   private void handleDeferredAllocationPointerEscape(final String pointerVariable)
       throws UnrecognizedCCodeException, InterruptedException {
-    final DeferredAllocationPool deferredAllocationPool = pts.removeDeferredAllocation(pointerVariable);
+    final DeferredAllocation deferredAllocationPool = pts.removeDeferredAllocation(pointerVariable);
     final CIntegerLiteralExpression size = deferredAllocationPool.getSize() != null ?
                                              deferredAllocationPool.getSize() :
                                              new CIntegerLiteralExpression(
