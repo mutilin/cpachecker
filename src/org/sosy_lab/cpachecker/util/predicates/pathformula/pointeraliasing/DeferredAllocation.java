@@ -23,8 +23,6 @@
  */
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
-import com.google.common.base.Optional;
-
 import org.sosy_lab.cpachecker.cfa.ast.c.CIntegerLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
@@ -32,6 +30,7 @@ import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.Optional;
 
 import javax.annotation.concurrent.Immutable;
 
@@ -86,7 +85,7 @@ class DeferredAllocation implements Serializable {
   }
 
   DeferredAllocation(final String base, final boolean isZeroed) {
-    this(base, Optional.absent(), isZeroed);
+    this(base, Optional.empty(), isZeroed);
   }
 
   String getBase() {
@@ -175,7 +174,7 @@ class DeferredAllocation implements Serializable {
       return new DeferredAllocation(base,
                                     sizeType != null ?
                                         Optional.of(CIntegerLiteralExpression.createDummyLiteral(size, sizeType)) :
-                                        Optional.absent(),
+                                        Optional.empty(),
                                     isZeroed);
     }
   }

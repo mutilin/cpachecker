@@ -29,7 +29,6 @@ import static java.util.stream.Collectors.toCollection;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.CTypeUtils.checkIsSimplified;
 
 import com.google.common.base.Function;
-import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
@@ -57,6 +56,7 @@ import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.function.BiConsumer;
@@ -509,8 +509,7 @@ public interface PointerTargetSetBuilder {
         final boolean isZeroed,
         final Optional<CIntegerLiteralExpression> size,
         final String base) {
-      final DeferredAllocation deferredAllocation = new DeferredAllocation(base, size, isZeroed);
-      final Pair<String, DeferredAllocation> p = Pair.of(pointer, deferredAllocation);
+      final Pair<String, DeferredAllocation> p = Pair.of(pointer, new DeferredAllocation(base, size, isZeroed));
       if (!deferredAllocations.contains(p)) {
         deferredAllocations = deferredAllocations.with(p);
       }
