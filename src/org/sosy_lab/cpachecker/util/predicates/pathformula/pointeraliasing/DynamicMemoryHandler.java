@@ -692,7 +692,8 @@ class DynamicMemoryHandler {
   private void handleDeferredAllocationPointerRemoval(final Object pointer, final boolean isReturn) {
       conv.logger.logfOnce(Level.WARNING,
                            (!isReturn ? "Assignment to the" : "Destroying the") +
-                             " void * pointer  %s produces garbage! (in the following line(s):\n %s)",
+                             " void * pointer  %s produces garbage or "
+                             + "the memory pointed by it is unused! (in the following line(s):\n %s)",
                            pointer,
                            edge);
   }
