@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
+import static java.util.stream.Collectors.toCollection;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise2;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.wrap;
@@ -68,7 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.function.BiConsumer;
 import java.util.logging.Level;
 
@@ -535,15 +536,16 @@ class DynamicMemoryHandler {
    * @param rhs The right hand side of the C expression.
    * @param rhsExpression The expression of the right hand side.
    * @param lhsType The type of the left hand side.
-   * @param lhsUsedDeferredAllocationPointers A map of all used deferred allocation pointers on the left hand side.
-   * @param rhsUsedDeferredAllocationPointers A map of all used deferred allocation pointers on the right hand side.
+   * @param lhsLearnedPointerTypes A map of all used deferred allocation pointers on the left hand side.
+   * @param rhsLearnedPointerTypes A map of all used deferred allocation pointers on the right hand side.
    * @throws UnrecognizedCCodeException If the C code was unrecognizable.
    * @throws InterruptedException If the execution was interrupted.
    */
   void handleDeferredAllocationsInAssignment(final CLeftHandSide lhs, final CRightHandSide rhs,
       final Expression rhsExpression, final CType lhsType,
-      final Map<String, CType> lhsUsedDeferredAllocationPointers,
-      final Map<String, CType> rhsUsedDeferredAllocationPointers) throws UnrecognizedCCodeException, InterruptedException {
+      final CExpressionVisitorWithPointerAliasing visitor,
+      final Map<String, CType> lhsLearnedPointerTypes,
+      final Map<String, CType> rhsLearnedPointerTypes) throws UnrecognizedCCodeException, InterruptedException {
     // Handle allocations: reveal the actual type form the LHS type or defer the allocation until later
     boolean isAllocation = false;
     if ((conv.options.revealAllocationTypeFromLHS() || conv.options.deferUntypedAllocations()) &&
@@ -551,29 +553,32 @@ class DynamicMemoryHandler {
         !rhsExpression.isNondetValue() && rhsExpression.isValue()) {
       final Set<String> rhsVariables = conv.fmgr.extractVariableNames(rhsExpression.asValue().getValue());
       // Actually there is always either 1 variable (just address) or 2 variables (nondet + allocation address)
-      for (String variable : rhsVariables) {
-        if (PointerTargetSet.isBaseName(variable)) {
-          variable = PointerTargetSet.getBase(variable);
-        }
+      for (final String mangledVariable : rhsVariables) {
+        final String variable =
+            PointerTargetSet.isBaseName(mangledVariable) ? PointerTargetSet.getBase(mangledVariable) : mangledVariable;
         if (pts.isTemporaryDeferredAllocationPointer(variable)) {
           if (!isAllocation) {
             // We can reveal the type from the LHS
             if (CExpressionVisitorWithPointerAliasing.isRevealingType(lhsType)) {
               handleDeferredAllocationTypeRevelation(variable, lhsType);
             // We can defer the allocation and start tracking the variable in the LHS
-            } else if (lhsType.equals(CPointerType.POINTER_TO_VOID) &&
-                       // TODO: remove the double-check (?)
-                       CExpressionVisitorWithPointerAliasing.isUnaliasedLocation(lhs) &&
-                       lhsLocation.isUnaliasedLocation()) {
-              final String variableName = lhsLocation.asUnaliasedLocation().getVariableName();
-              if (pts.isDeferredAllocationPointer(variableName)) {
-                handleDeferredAllocationPointerRemoval(variableName, false);
-              }
-              pts.addDeferredAllocationPointer(variableName, variable); // Now we track the LHS
-              // And not the RHS, because the LHS is its only alias
-              handleDeferredAllocationPointerRemoval(variable, false);
             } else {
-              handleDeferredAllocationPointerEscape(variable);
+              final Optional<String> lhsPointer = lhs.accept(visitor.getPointerApproximatingVisitor());
+              lhsPointer.ifPresent( (s) -> {
+                pts.removeDeferredAllocationPointer(s).forEach((_d) ->
+                  handleDeferredAllocationPointerRemoval(s, false));
+                pts.addDeferredAllocationPointer(s, variable); // Now we track the LHS
+                // And not the RHS, it was a dummy, not a code pointer approximation
+                pts.removeDeferredAllocationPointer(variable).forEach( (_d) ->
+                  handleDeferredAllocationPointerRemoval(variable, false));
+              } );
+              if (!lhsPointer.isPresent()) {
+                conv.logger.logfOnce(Level.WARNING,
+                    "Can't start tracking deferred allocation -- can't approximate this LHS: %s (here: %s)",
+                    lhs, edge);
+                pts.removeDeferredAllocationPointer(variable).forEach( (_d) ->
+                  handleDeferredAllocationPointerRemoval(variable, false));
+              }
             }
             isAllocation = true;
           } else {
@@ -587,10 +592,9 @@ class DynamicMemoryHandler {
     if (conv.options.deferUntypedAllocations() && !isAllocation) {
       handleDeferredAllocationsInAssignment(lhs,
                                             rhs,
-                                            lhsLocation,
-                                            rhsExpression,
-                                            lhsUsedDeferredAllocationPointers,
-                                            rhsUsedDeferredAllocationPointers);
+                                            visitor,
+                                            lhsLearnedPointerTypes,
+                                            rhsLearnedPointerTypes);
     }
   }
 
@@ -629,7 +633,7 @@ class DynamicMemoryHandler {
     match(lhs)
       .with(CIdExpression.class, (e) -> pts.removeDeferredAllocationPointer(e.getName()))
       .orElse(ImmutableSet.of())
-      .forEach((d) -> handleDeferredAllocationPointerRemoval(lhs, false));
+      .forEach((_d) -> handleDeferredAllocationPointerRemoval(lhs, false));
    /* For some unknown reason this does not typecheck when inlined as argument to reraise2... */
    final ThrowingRunnable2<UnrecognizedCCodeException, InterruptedException> action = () ->
      lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(wrap((l) ->
@@ -674,12 +678,9 @@ class DynamicMemoryHandler {
    * @param function The name of the function.
    */
   void handleDeferredAllocationInFunctionExit(final String function) {
-    SortedSet<String> localVariables = 
-      CFAUtils.filterVariablesOfFunction(pts.getDeferredAllocationPointers().stream().collect(TreeSet::new),
-                                         function);
-
-    for (final String variable : localVariables) {
-      handleDeferredAllocationPointerRemoval(variable, true);
-    }
+      CFAUtils.filterVariablesOfFunction(pts.getDeferredAllocationPointers().stream()
+                                            .collect(toCollection(TreeSet::new)),
+                                         function)
+        .forEach((v) -> handleDeferredAllocationPointerRemoval(v, true));
   }
 }

@@ -318,22 +318,6 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
   }
 
   /**
-   * Checks, whether a C expression is an unaliased location or not.
-   *
-   * @param e The C expression to check.
-   * @return Whether the expression is an unaliased location or not.
-   */
-  static boolean isUnaliasedLocation(final CExpression e) {
-    if (e instanceof CIdExpression) {
-      return true;
-    } else if (e instanceof CFieldReference && !((CFieldReference) e).isPointerDereference()) {
-      return isUnaliasedLocation(((CFieldReference) e).getFieldOwner());
-    } else {
-      return false;
-    }
-  }
-
-  /**
    * Checks, whether the given type is revealing or not.
    *
    * @param type The type to check.
