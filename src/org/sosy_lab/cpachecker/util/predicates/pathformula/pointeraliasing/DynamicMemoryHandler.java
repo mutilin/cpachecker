@@ -56,6 +56,7 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.ThrowingRunnable2;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Value;
 import org.sosy_lab.solver.api.BooleanFormula;
@@ -605,6 +606,7 @@ class DynamicMemoryHandler {
    */
   private void handleDeferredAllocationsInAssignment(final CLeftHandSide lhs,
                                                      final CRightHandSide rhs,
+                                                     final CExpressionVisitorWithPointerAliasing visitor,
                                                      final Map<String, CType> lhsLearnedPointerTypes,
                                                      final Map<String, CType> rhsLearnedPointerTypes)
                                                          throws UnrecognizedCCodeException, InterruptedException {
@@ -623,72 +625,46 @@ class DynamicMemoryHandler {
     reraise2(UnrecognizedCCodeException.class, InterruptedException.class, () -> {
       lhsLearnedPointerTypes.forEach(handleRevelation);
       rhsLearnedPointerTypes.forEach(handleRevelation);
-      });
+    });
     match(lhs)
       .with(CIdExpression.class, (e) -> pts.removeDeferredAllocationPointer(e.getName()))
       .orElse(ImmutableSet.of())
-      .forEach((d) ->
-               );
+      .forEach((d) -> handleDeferredAllocationPointerRemoval(lhs, false));
+   /* For some unknown reason this does not typecheck when inlined as argument to reraise2... */
+   final ThrowingRunnable2<UnrecognizedCCodeException, InterruptedException> action = () ->
+     lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(wrap((l) ->
+       rhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((r) ->
+         pts.addDeferredAllocationPointer(l, r))));
+   reraise2(UnrecognizedCCodeException.class, InterruptedException.class, action);
   }
 
   /**
    * Handles deferred allocations in assume expressions.
    *
    * @param e The expression in the C code.
-   * @param usedDeferredAllocationPointers A map of all used deferred allocation pointers.
+   * @param learnedPointerTypes A map of all used deferred allocation pointers.
    * @throws UnrecognizedCCodeException If the C code was unrecognizable.
    * @throws InterruptedException If the execution gets interrupted.
    */
   void handleDeferredAllocationsInAssume(final CExpression e,
-                                         final Map<String, CType> usedDeferredAllocationPointers)
+                                         final Map<String, CType> learnedPointerTypes)
        throws UnrecognizedCCodeException, InterruptedException {
-
-    for (final Map.Entry<String, CType> usedPointer : usedDeferredAllocationPointers.entrySet()) {
-      if (!usedPointer.getValue().equals(CPointerType.POINTER_TO_VOID)) {
-        handleDeferredAllocationTypeRevelation(usedPointer.getKey(), usedPointer.getValue());
-      } else if (e instanceof CBinaryExpression) {
-        final CBinaryExpression binaryExpression = (CBinaryExpression) e;
-        switch (binaryExpression.getOperator()) {
-        case EQUALS:
-        case NOT_EQUALS:
-        case GREATER_EQUAL:
-        case GREATER_THAN:
-        case LESS_EQUAL:
-        case LESS_THAN:
-          final CType operand1Type = typeHandler.getSimplifiedType(binaryExpression.getOperand1());
-          final CType operand2Type = typeHandler.getSimplifiedType(binaryExpression.getOperand2());
-          CType type = null;
-          if (CExpressionVisitorWithPointerAliasing.isRevealingType(operand1Type)) {
-            type = operand1Type;
-          } else if (CExpressionVisitorWithPointerAliasing.isRevealingType(operand2Type)) {
-            type = operand2Type;
-          }
-          if (type != null) {
-            handleDeferredAllocationTypeRevelation(usedPointer.getKey(), type);
-          }
-          break;
-        default:
-          throw new UnrecognizedCCodeException("unexpected binary operator in assume", e);
-        }
-      }
-    }
+    reraise2(UnrecognizedCCodeException.class, InterruptedException.class, () ->
+       learnedPointerTypes.forEach(wrap((s, t) -> handleDeferredAllocationTypeRevelation(s, t))));
   }
 
   /**
    * Removes a pointer variable from tracking.
    *
-   * @param pointerVariable The name of the pointer variable.
+   * @param pointer The expression or string corresponding to the pointer.
    * @param isReturn A flag indicating if the variable is a return variable.
    */
-  private void handleDeferredAllocationPointerRemoval(final String pointerVariable,
-      final boolean isReturn) {
-    if (pts.removeDeferredAllocatinPointer(pointerVariable)) {
+  private void handleDeferredAllocationPointerRemoval(final Object pointer, final boolean isReturn) {
       conv.logger.logfOnce(Level.WARNING,
                            (!isReturn ? "Assignment to the" : "Destroying the") +
                              " void * pointer  %s produces garbage! (in the following line(s):\n %s)",
-                           pointerVariable,
+                           pointer,
                            edge);
-    }
   }
 
   /**
@@ -698,7 +674,9 @@ class DynamicMemoryHandler {
    * @param function The name of the function.
    */
   void handleDeferredAllocationInFunctionExit(final String function) {
-    SortedSet<String> localVariables = CFAUtils.filterVariablesOfFunction(pts.getDeferredAllocationVariables(), function);
+    SortedSet<String> localVariables = 
+      CFAUtils.filterVariablesOfFunction(pts.getDeferredAllocationPointers().stream().collect(TreeSet::new),
+                                         function);
 
     for (final String variable : localVariables) {
       handleDeferredAllocationPointerRemoval(variable, true);

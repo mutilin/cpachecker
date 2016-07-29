@@ -42,6 +42,16 @@ public class ExceptionWrapper {
      void accept(T1 t1, T2 t2) throws Exception;
   }
 
+  @FunctionalInterface
+  public interface ThrowingRunnable<E extends Exception> {
+    void run() throws E;
+  }
+
+  @FunctionalInterface
+  public interface ThrowingRunnable2<E1 extends Exception, E2 extends Exception> {
+    void run() throws E1, E2;
+  }
+
   private static class WrappedException extends RuntimeException {
 
     private WrappedException(final Exception e) {
@@ -64,7 +74,7 @@ public class ExceptionWrapper {
     return (x, y) -> { try { c.accept(x, y); } catch (Exception e) { throw new WrappedException(e);}};
   }
 
-  public static <E extends Exception> void reraise(final Class<E> cl, final Runnable a) throws E {
+  public static <E extends Exception> void reraise(final Class<E> cl, final ThrowingRunnable<E> a) throws E {
     try {
       a.run();
     } catch (WrappedException e) {
@@ -79,7 +89,8 @@ public class ExceptionWrapper {
 
   public static <E1 extends Exception, E2 extends Exception> void reraise2(final Class<E1> cl1,
                                                                            final Class<E2> cl2,
-                                                                           final Runnable a) throws E1, E2 {
+                                                                           final ThrowingRunnable2<E1, E2> a)
+                                                                               throws E1, E2 {
     try {
       a.run();
     } catch (WrappedException e) {

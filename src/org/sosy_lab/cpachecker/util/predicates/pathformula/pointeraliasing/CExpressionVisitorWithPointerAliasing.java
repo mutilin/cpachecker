@@ -344,6 +344,10 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
            !type.equals(CPointerType.POINTER_TO_VOID);
   }
 
+  public PointerApproximatingVisitor getPointerApproximatingVisitor() {
+    return pointerApproximatingVisitorInstance;
+  }
+
   /**
    * Evaluates the expression of a cast expression.
    *
@@ -360,7 +364,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
     // TODO: is the second isUnaliasedLocation() check really needed?
     if (isRevealingType(resultType)) {
-      operand.accept(new PointerApproximatingVisitor()).ifPresent((s) -> learnedPointerTypes.put(s, resultType));
+      operand.accept(getPointerApproximatingVisitor()).ifPresent((s) -> learnedPointerTypes.put(s, resultType));
     }
 
     final CType operandType = typeHandler.getSimplifiedType(operand);
@@ -539,6 +543,19 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
     final CType t1 = typeHandler.getSimplifiedType(exp.getOperand1());
     final CType t2 = typeHandler.getSimplifiedType(exp.getOperand2());
+
+    if (t1.equals(CPointerType.POINTER_TO_VOID) || t2.equals(CPointerType.POINTER_TO_VOID)) {
+      Optional<CExpression> toHandle = Optional.empty();
+      if (isRevealingType(t1)) {
+        toHandle = Optional.of(exp.getOperand2());
+      } else if (isRevealingType(t2)) {
+        toHandle = Optional.of(exp.getOperand1());
+      }
+      if (toHandle.isPresent()) {
+        toHandle.get().accept(getPointerApproximatingVisitor()).ifPresent((s) -> learnedPointerTypes.put(s, t1));
+      }
+    }
+
     final BinaryOperator op = exp.getOperator();
 
     switch (op) {
@@ -647,7 +664,12 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
   }
 
   class PointerApproximatingVisitor
-    extends DefaultCExpressionVisitor<Optional<String>, UnrecognizedCCodeException> {
+    extends DefaultCExpressionVisitor<Optional<String>, UnrecognizedCCodeException>
+   implements CRightHandSideVisitor<Optional<String>, UnrecognizedCCodeException>{
+
+    private PointerApproximatingVisitor() {
+
+    }
 
     @Override
     public Optional<String> visit(CArraySubscriptExpression e) throws UnrecognizedCCodeException {
@@ -698,6 +720,12 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     protected Optional<String> visitDefault(CExpression pExp) throws RuntimeException {
       return Optional.empty();
     }
+
+    @Override
+    public Optional<String> visit(CFunctionCallExpression call)
+        throws UnrecognizedCCodeException {
+      return Optional.empty();
+    }
   }
 
   private final CToFormulaConverterWithPointerAliasing conv;
@@ -710,6 +738,8 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
   private final BaseVisitor baseVisitor;
   private final ExpressionToFormulaVisitor delegate;
+
+  private final PointerApproximatingVisitor pointerApproximatingVisitorInstance = new PointerApproximatingVisitor();
 
   private final List<Pair<CCompositeType, String>> usedFields = new ArrayList<>(1);
   private final List<Pair<CCompositeType, String>> initializedFields = new ArrayList<>();
