@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import static java.util.stream.Collectors.toCollection;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise2;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.wrap;
 
@@ -53,6 +54,7 @@ import org.sosy_lab.cpachecker.cpa.value.ExpressionValueVisitor;
 import org.sosy_lab.cpachecker.cpa.value.type.NumericValue;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
@@ -592,6 +594,7 @@ class DynamicMemoryHandler {
     if (conv.options.deferUntypedAllocations() && !isAllocation) {
       handleDeferredAllocationsInAssignment(lhs,
                                             rhs,
+                                            lhsType,
                                             visitor,
                                             lhsLearnedPointerTypes,
                                             rhsLearnedPointerTypes);
@@ -610,10 +613,14 @@ class DynamicMemoryHandler {
    */
   private void handleDeferredAllocationsInAssignment(final CLeftHandSide lhs,
                                                      final CRightHandSide rhs,
+                                                     final CType lhsType,
                                                      final CExpressionVisitorWithPointerAliasing visitor,
                                                      final Map<String, CType> lhsLearnedPointerTypes,
                                                      final Map<String, CType> rhsLearnedPointerTypes)
                                                          throws UnrecognizedCCodeException, InterruptedException {
+    if (!(lhsType instanceof CPointerType || lhsType instanceof CArrayType)) {
+      return;
+    }
     /* The order of handling in the following:
      *   1. Revealing learned types, allocating corresponding pointed objects and removing the objects from
      *   deferred allocations
@@ -626,19 +633,38 @@ class DynamicMemoryHandler {
      */
     final BiConsumer<String, CType> handleRevelation = wrap((ptr, typ) ->
       handleDeferredAllocationTypeRevelation(ptr, typ));
+    final CType lType = typeHandler.simplifyType(lhsType);
+    final CType rType = rhs != null ? typeHandler.getSimplifiedType(rhs) : CPointerType.POINTER_TO_VOID;
+    final Optional<Pair<CRightHandSide, CType>> toHandle;
+    if (rhs != null && CExpressionVisitorWithPointerAliasing.isRevealingType(lType)) {
+      toHandle = Optional.of(Pair.of(rhs, lType));
+    } else if (CExpressionVisitorWithPointerAliasing.isRevealingType(rType)) {
+      toHandle = Optional.of(Pair.of(lhs, rType));
+    } else {
+      toHandle = Optional.empty();
+    }
+    // Reveal the type from the assignment itself (i.e. lhs from rhs and vice versa)
+    reraise(UnrecognizedCCodeException.class, () ->
+      toHandle.ifPresent(wrap((p) ->
+         p.getFirst().accept(visitor.getPointerApproximatingVisitor()).ifPresent((s) -> {
+           if (!lhsLearnedPointerTypes.containsKey(s) && !rhsLearnedPointerTypes.containsKey(s)) {
+             handleRevelation.accept(s, p.getSecond());
+           }}))));
     reraise2(UnrecognizedCCodeException.class, InterruptedException.class, () -> {
       lhsLearnedPointerTypes.forEach(handleRevelation);
       rhsLearnedPointerTypes.forEach(handleRevelation);
     });
     match(lhs)
-      .with(CIdExpression.class, (e) -> pts.removeDeferredAllocationPointer(e.getName()))
+      .with(CIdExpression.class, (e) -> pts.removeDeferredAllocationPointer(e.getDeclaration().getQualifiedName()))
       .orElse(ImmutableSet.of())
       .forEach((_d) -> handleDeferredAllocationPointerRemoval(lhs, false));
    /* For some unknown reason this does not typecheck when inlined as argument to reraise2... */
    final ThrowingRunnable2<UnrecognizedCCodeException, InterruptedException> action = () ->
-     lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(wrap((l) ->
-       rhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((r) ->
-         pts.addDeferredAllocationPointer(l, r))));
+     lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(wrap((l) -> {
+       if (rhs != null) {
+         rhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((r) ->
+           pts.addDeferredAllocationPointer(l, r));
+       }}));
    reraise2(UnrecognizedCCodeException.class, InterruptedException.class, action);
   }
 
@@ -680,7 +706,8 @@ class DynamicMemoryHandler {
   void handleDeferredAllocationInFunctionExit(final String function) {
       CFAUtils.filterVariablesOfFunction(pts.getDeferredAllocationPointers().stream()
                                             .collect(toCollection(TreeSet::new)),
-                                         function)
-        .forEach((v) -> handleDeferredAllocationPointerRemoval(v, true));
+                                         function).stream()
+        .forEach((v) ->
+          pts.removeDeferredAllocationPointer(v).forEach( (_d) -> handleDeferredAllocationPointerRemoval(v, true)));
   }
 }

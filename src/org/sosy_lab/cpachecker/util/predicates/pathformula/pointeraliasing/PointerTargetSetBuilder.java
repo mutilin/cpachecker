@@ -480,7 +480,7 @@ public interface PointerTargetSetBuilder {
 
         @Override
         public BinaryOperator<PersistentLinkedListBuilder<T>> combiner() {
-          throw new UnsupportedOperationException("Should be used sequentially");
+          return (_a1, _a2) -> { throw new UnsupportedOperationException("Should be used sequentially"); };
         }
 
         @Override

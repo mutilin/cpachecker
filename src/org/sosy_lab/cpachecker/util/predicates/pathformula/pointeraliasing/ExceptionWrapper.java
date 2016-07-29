@@ -67,7 +67,12 @@ public class ExceptionWrapper {
   }
 
   public static <S> Consumer<S> wrap(final ThrowingConsumer<S> c) {
-    return (x) -> { try { c.accept(x); } catch (Exception e) { throw new WrappedException(e);}};
+    return (x) -> {
+      try {
+        c.accept(x);
+      } catch (Exception e) {
+        throw new WrappedException(e);
+      }};
   }
 
   public static <S1, S2> BiConsumer<S1, S2> wrap(final ThrowingBiConsumer<S1, S2> c) {
@@ -78,11 +83,16 @@ public class ExceptionWrapper {
     try {
       a.run();
     } catch (WrappedException e) {
-      final Optional<E> r = match(e.getException()).with(cl, Function.identity()).result();
+      final Exception ex = e.getException();
+      final Optional<E> r = match(ex).with(cl, Function.identity()).result();
       if (r.isPresent()) {
-        throw r.get();
+        r.get();
       } else {
-        throw e;
+        if (ex instanceof RuntimeException) {
+          throw (RuntimeException) ex;
+        } else {
+          throw e;
+        }
       }
     }
   }
@@ -103,7 +113,11 @@ public class ExceptionWrapper {
         if (r2.isPresent()) {
           throw r2.get();
         } else {
-          throw e;
+          if (ex instanceof RuntimeException) {
+            throw (RuntimeException) ex;
+          } else {
+            throw e;
+          }
         }
       }
     }

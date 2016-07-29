@@ -24,6 +24,8 @@
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.wrap;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -529,15 +531,18 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     final CType t2 = typeHandler.getSimplifiedType(exp.getOperand2());
 
     if (t1.equals(CPointerType.POINTER_TO_VOID) || t2.equals(CPointerType.POINTER_TO_VOID)) {
-      Optional<CExpression> toHandle = Optional.empty();
+      final Optional<Pair<CExpression, CType>> toHandle;
       if (isRevealingType(t1)) {
-        toHandle = Optional.of(exp.getOperand2());
+        toHandle = Optional.of(Pair.of(exp.getOperand2(), t1));
       } else if (isRevealingType(t2)) {
-        toHandle = Optional.of(exp.getOperand1());
+        toHandle = Optional.of(Pair.of(exp.getOperand1(), t2));
+      } else {
+        toHandle = Optional.empty();
       }
-      if (toHandle.isPresent()) {
-        toHandle.get().accept(getPointerApproximatingVisitor()).ifPresent((s) -> learnedPointerTypes.put(s, t1));
-      }
+      reraise(UnrecognizedCCodeException.class, () ->
+        toHandle.ifPresent(wrap((p) ->
+           p.getFirst().accept(getPointerApproximatingVisitor()).ifPresent((s) ->
+             learnedPointerTypes.put(s, p.getSecond())))));
     }
 
     final BinaryOperator op = exp.getOperator();
@@ -687,7 +692,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
     @Override
     public Optional<String> visit(CIdExpression e) throws UnrecognizedCCodeException {
-      return Optional.of(e.getName());
+      return Optional.of(e.getDeclaration().getQualifiedName());
     }
 
     @Override
