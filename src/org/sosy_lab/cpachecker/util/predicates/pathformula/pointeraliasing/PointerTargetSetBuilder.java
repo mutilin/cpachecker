@@ -85,6 +85,8 @@ public interface PointerTargetSetBuilder {
 
   ImmutableSet<DeferredAllocation> removeDeferredAllocationPointer(String pointer);
 
+  boolean canRemoveDeferredAllocationPointer(String pointer);
+
   ImmutableSet<DeferredAllocation> removeDeferredAllocations(String pointer);
 
   ImmutableSet<String> getDeferredAllocationPointers();
@@ -509,6 +511,24 @@ public interface PointerTargetSetBuilder {
     }
 
     /**
+     * Returns {@code false} if there are some yet unallocated objects that are pointed <b>exclusively</b> by the given
+     * pointer. Otherwise, returns {@code true}.
+     */
+    @Override
+    public boolean canRemoveDeferredAllocationPointer(final String pointer) {
+      final Set<DeferredAllocation> result =
+          deferredAllocations.stream()
+           .filter((p) -> p.getFirst().equals(pointer))
+           .map(Pair::getSecond)
+           .collect(toCollection(HashSet::new));
+      if (result.isEmpty()) {
+        return true;
+      }
+      deferredAllocations.forEach((p) -> { if (!p.getFirst().equals(pointer)) { result.remove(p.getSecond()); }});
+      return result.isEmpty();
+    }
+
+    /**
      * Removes all pointer-object mappings mentioning the specified pointer (variable or field) from the set of tracked
      * pending objects to be allocated. Returns the set of all objects orphaned by this operation (not pointed by any
      * pointer other than the removed one). This is intended to be used when a pointer variable is assigned a new value
@@ -809,6 +829,11 @@ public interface PointerTargetSetBuilder {
     @Override
     public PointerTargetSet build() {
       return PointerTargetSet.emptyPointerTargetSet();
+    }
+
+    @Override
+    public boolean canRemoveDeferredAllocationPointer(String pPointer) {
+      throw new UnsupportedOperationException();
     }
   }
 }

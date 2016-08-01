@@ -86,6 +86,15 @@ public class ExceptionWrapper {
     return (x, y) -> { try { c.accept(x, y); } catch (Exception e) { throw new WrappedException(e);}};
   }
 
+  public static Runnable catchAll(final ThrowingRunnable<? extends Exception> r) {
+    return () -> {
+      try {
+        r.run();
+      } catch (Exception e) {
+        throw new WrappedException(e);
+      }};
+  }
+
   public static <E extends Exception> void rethrow(final Class<E> cl, final ThrowingRunnable<E> a) throws E {
     try {
       a.run();

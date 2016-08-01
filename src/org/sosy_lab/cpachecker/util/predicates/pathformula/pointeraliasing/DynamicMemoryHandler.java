@@ -25,9 +25,8 @@ package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import static java.util.stream.Collectors.toCollection;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.rethrow;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.rethrow2;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.catchAll;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.rethrow2;
 
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
@@ -57,7 +56,6 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.ThrowingRunnable2;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Value;
 import org.sosy_lab.solver.api.BooleanFormula;
@@ -287,6 +285,8 @@ class DynamicMemoryHandler {
                                                                          BigInteger.valueOf(s))),
                                          newBase);
       address = conv.makeConstant(PointerTargetSet.getBaseName(newBase), CPointerType.POINTER_TO_VOID);
+      constraints.addConstraint(
+        conv.fmgr.makeGreaterThan(address, conv.fmgr.makeNumber(typeHandler.getPointerType(), 0L), true));
     }
 
     if (errorConditions.isEnabled()) {
@@ -626,8 +626,6 @@ class DynamicMemoryHandler {
      *   for allocation as the corresponding relations would have been removed on the first step, if we rearranged
      *   2 with 3 we would remove extra relations arising from the premature propagation.
      */
-    final BiConsumer<String, CType> handleRevelation = catchAll((ptr, typ) ->
-      handleDeferredAllocationTypeRevelation(ptr, typ));
     final CType lType = typeHandler.simplifyType(lhsType);
     final CType rType = rhs != null ? typeHandler.getSimplifiedType(rhs) : CPointerType.POINTER_TO_VOID;
     final Optional<Pair<CRightHandSide, CType>> toHandle;
@@ -638,30 +636,37 @@ class DynamicMemoryHandler {
     } else {
       toHandle = Optional.empty();
     }
-    // Reveal the type from the assignment itself (i.e. lhs from rhs and vice versa)
-    rethrow(UnrecognizedCCodeException.class, () ->
-      toHandle.ifPresent(catchAll((p) ->
-         p.getFirst().accept(visitor.getPointerApproximatingVisitor()).ifPresent((s) -> {
-           if (!lhsLearnedPointerTypes.containsKey(s) && !rhsLearnedPointerTypes.containsKey(s)) {
-             handleRevelation.accept(s, p.getSecond());
-           }}))));
+    final BiConsumer<String, CType> handleRevelation = catchAll((ptr, typ) ->
+      handleDeferredAllocationTypeRevelation(ptr, typ));
     rethrow2(UnrecognizedCCodeException.class, InterruptedException.class, () -> {
+      // Reveal the type from usages (type casts, comparisons) in both sides
       lhsLearnedPointerTypes.forEach(handleRevelation);
       rhsLearnedPointerTypes.forEach(handleRevelation);
+      // Reveal the type from the assignment itself (i.e. lhs from rhs and vice versa)
+      toHandle.ifPresent(catchAll((p) ->
+      p.getFirst().accept(visitor.getPointerApproximatingVisitor()).ifPresent((s) -> {
+        if (!lhsLearnedPointerTypes.containsKey(s) && !rhsLearnedPointerTypes.containsKey(s)) {
+          handleRevelation.accept(s, p.getSecond());
+        }})));
+      // If LHS is a variable, remove previous points-to bindings containing it
+      // If LHS is not a variable, try to remove bindings and only actually remove if no dangling objects arises
+      match(lhs)
+        .with_(CIdExpression.class, (e) ->
+          pts.removeDeferredAllocationPointer(e.getDeclaration().getQualifiedName())
+             .forEach((_d) -> handleDeferredAllocationPointerRemoval(lhs, false)))
+        .orElseRun(catchAll(() ->
+          lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((lhsPointer) -> {
+            if (pts.canRemoveDeferredAllocationPointer(lhsPointer)) {
+              pts.removeDeferredAllocationPointer(lhsPointer);
+            }
+          })));
+      // And now propagate points-to bindings from the RHS to the LHS
+      lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(catchAll((l) -> {
+        if (rhs != null) {
+          rhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((r) ->
+            pts.addDeferredAllocationPointer(l, r));
+        }}));
     });
-    match(lhs)
-      .with_(CIdExpression.class, (e) ->
-        pts.removeDeferredAllocationPointer(e.getDeclaration().getQualifiedName())
-           .forEach((_d) -> handleDeferredAllocationPointerRemoval(lhs, false)))
-      .end();
-   /* For some unknown reason this does not typecheck when inlined as argument to reraise2... */
-   final ThrowingRunnable2<UnrecognizedCCodeException, InterruptedException> action = () ->
-     lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(catchAll((l) -> {
-       if (rhs != null) {
-         rhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((r) ->
-           pts.addDeferredAllocationPointer(l, r));
-       }}));
-   rethrow2(UnrecognizedCCodeException.class, InterruptedException.class, action);
   }
 
   /**
