@@ -24,8 +24,8 @@
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.wrap;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.catchAll;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.rethrow;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Maps;
@@ -539,8 +539,8 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
       } else {
         toHandle = Optional.empty();
       }
-      reraise(UnrecognizedCCodeException.class, () ->
-        toHandle.ifPresent(wrap((p) ->
+      rethrow(UnrecognizedCCodeException.class, () ->
+        toHandle.ifPresent(catchAll((p) ->
            p.getFirst().accept(getPointerApproximatingVisitor()).ifPresent((s) ->
              learnedPointerTypes.put(s, p.getSecond())))));
     }

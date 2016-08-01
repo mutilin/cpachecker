@@ -27,6 +27,7 @@ import static com.google.common.base.Predicates.not;
 import static com.google.common.collect.FluentIterable.from;
 import static java.util.stream.Collectors.toCollection;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.CTypeUtils.checkIsSimplified;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PersistentLinkedListBuilder.toPersistentLinkedList;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -53,16 +54,11 @@ import org.sosy_lab.solver.api.BooleanFormula;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.SortedSet;
-import java.util.function.BiConsumer;
-import java.util.function.BinaryOperator;
-import java.util.function.Supplier;
-import java.util.stream.Collector;
 
 
 public interface PointerTargetSetBuilder {
@@ -453,48 +449,6 @@ public interface PointerTargetSetBuilder {
       }
     }
 
-    static class PersistentLinkedListBuilder<T> {
-      public void add(final T e) {
-        list = list.with(e);
-      }
-
-      public PersistentLinkedList<T> build() {
-        return list;
-      }
-
-      PersistentLinkedList<T> list = PersistentLinkedList.of();
-    }
-
-    public static <T> Collector<T, ?, PersistentLinkedList<T>> toPersistentLinkedList() {
-      return new Collector<T, PersistentLinkedListBuilder<T>, PersistentLinkedList<T>>() {
-
-        @Override
-        public Supplier<PersistentLinkedListBuilder<T>> supplier() {
-          return PersistentLinkedListBuilder::new;
-        }
-
-        @Override
-        public BiConsumer<PersistentLinkedListBuilder<T>, T> accumulator() {
-          return PersistentLinkedListBuilder::add;
-        }
-
-        @Override
-        public BinaryOperator<PersistentLinkedListBuilder<T>> combiner() {
-          return (_a1, _a2) -> { throw new UnsupportedOperationException("Should be used sequentially"); };
-        }
-
-        @Override
-        public java.util.function.Function<PersistentLinkedListBuilder<T>, PersistentLinkedList<T>> finisher() {
-          return PersistentLinkedListBuilder::build;
-        }
-
-        @Override
-        public Set<Characteristics> characteristics() {
-          return EnumSet.noneOf(Characteristics.class);
-        }
-      };
-    }
-
     /**
      * Adds a new pointer(variable/field)-object mapping to the set of tracked pending objects with yet unknown type
      * to be allocated.
@@ -569,7 +523,7 @@ public interface PointerTargetSetBuilder {
       final Set<DeferredAllocation> result =
         deferredAllocations.stream()
          .filter((p) -> p.getFirst().equals(pointer))
-         .map((p) -> p.getSecond())
+         .map(Pair::getSecond)
          .collect(toCollection(HashSet::new));
       deferredAllocations =
           deferredAllocations.stream()
@@ -592,7 +546,7 @@ public interface PointerTargetSetBuilder {
       final Set<DeferredAllocation> result =
           deferredAllocations.stream()
           .filter((p) -> p.getFirst().equals(pointer))
-          .map((p) -> p.getSecond())
+          .map(Pair::getSecond)
           .collect(toCollection(HashSet::new));
       deferredAllocations =
           deferredAllocations.stream()
@@ -610,8 +564,8 @@ public interface PointerTargetSetBuilder {
     public ImmutableSet<String> getDeferredAllocationPointers() {
       return ImmutableSet.copyOf((Collection<String>)
           deferredAllocations.stream()
-          .map((p) -> p.getFirst())
-          .collect(toCollection(HashSet::new)));
+            .map(Pair::getFirst)
+            .collect(toCollection(HashSet::new)));
     }
 
     /**

@@ -23,13 +23,20 @@
  */
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
-
-import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
+/**
+ * The class contains utility functions allowing to workaround (circumvent) Java method typing regarding checked
+ * exceptions (and throws clauses), especially for lambda functions. Normally a lambda functions potentially throwing a
+ * checked (non-runtime) exception can't be passed to a higher-order method declaring a non-throwing function as its
+ * parameter. The class offers the following workaround for this case:
+ *  <pre>
+ *  {@code
+ *  rethrow(CheckedException.class, methodRequiringNonThrowingFunction(catchAll(() -> /* lambda body ... /)));
+ *  }
+ *  </pre>
+ */
 public class ExceptionWrapper {
 
   @FunctionalInterface
@@ -66,7 +73,7 @@ public class ExceptionWrapper {
     private static final long serialVersionUID = -4533358885010669201L;
   }
 
-  public static <S> Consumer<S> wrap(final ThrowingConsumer<S> c) {
+  public static <S> Consumer<S> catchAll(final ThrowingConsumer<S> c) {
     return (x) -> {
       try {
         c.accept(x);
@@ -75,18 +82,17 @@ public class ExceptionWrapper {
       }};
   }
 
-  public static <S1, S2> BiConsumer<S1, S2> wrap(final ThrowingBiConsumer<S1, S2> c) {
+  public static <S1, S2> BiConsumer<S1, S2> catchAll(final ThrowingBiConsumer<S1, S2> c) {
     return (x, y) -> { try { c.accept(x, y); } catch (Exception e) { throw new WrappedException(e);}};
   }
 
-  public static <E extends Exception> void reraise(final Class<E> cl, final ThrowingRunnable<E> a) throws E {
+  public static <E extends Exception> void rethrow(final Class<E> cl, final ThrowingRunnable<E> a) throws E {
     try {
       a.run();
     } catch (WrappedException e) {
       final Exception ex = e.getException();
-      final Optional<E> r = match(ex).with(cl, Function.identity()).result();
-      if (r.isPresent()) {
-        r.get();
+      if (cl.isInstance(ex)) {
+        throw cl.cast(ex);
       } else {
         if (ex instanceof RuntimeException) {
           throw (RuntimeException) ex;
@@ -97,7 +103,7 @@ public class ExceptionWrapper {
     }
   }
 
-  public static <E1 extends Exception, E2 extends Exception> void reraise2(final Class<E1> cl1,
+  public static <E1 extends Exception, E2 extends Exception> void rethrow2(final Class<E1> cl1,
                                                                            final Class<E2> cl2,
                                                                            final ThrowingRunnable2<E1, E2> a)
                                                                                throws E1, E2 {
@@ -105,13 +111,11 @@ public class ExceptionWrapper {
       a.run();
     } catch (WrappedException e) {
       final Exception ex = e.getException();
-      final Optional<E1> r1 = match(ex).with(cl1, Function.identity()).result();
-      if (r1.isPresent()) {
-        throw r1.get();
+      if (cl1.isInstance(ex)) {
+        throw cl1.cast(ex);
       } else {
-        final Optional<E2> r2 = match(ex).with(cl2, Function.identity()).result();
-        if (r2.isPresent()) {
-          throw r2.get();
+        if (cl2.isInstance(ex)) {
+          throw cl2.cast(ex);
         } else {
           if (ex instanceof RuntimeException) {
             throw (RuntimeException) ex;

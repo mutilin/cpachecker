@@ -24,25 +24,46 @@
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+/**
+ * The class offers a convenient (but somewhat less efficient) alternative to a chain of {@code instanceof} checks:
+ * <pre>
+ * if (obj instancef Class1) {
+ *   final Class1 casted = (Class1) obj;
+ *   // body1 ...
+ * } else if (obj instancef Class2) {
+ *   final Class2 casted = (Class2) obj;
+ *   // body2 ...
+ * } else {
+ *    // body3 ...
+ * }
+ * </pre>
+ * can be encoded as:
+ * <pre>
+ * {@code
+ * match(obj).with(Class1.class, (casted) -> /* body1 /).or(Class2.class, (casted) -> /* body2 /).orElse(/* body3 /);
+ * }
+ * </pre>
+ */
 public class ClassMatcher {
-  public static class ClassMatcher1<R> {
-    private ClassMatcher1(final Object scrutinee, final R result) {
+  public static class ClassMatcherWithResult<R> {
+    private ClassMatcherWithResult(final Object scrutinee, final R result) {
         this.scrutinee = scrutinee;
         this.result = Optional.of(result);
     }
 
-    private ClassMatcher1(final Object scrutinee) {
+    private ClassMatcherWithResult(final Object scrutinee) {
       this.scrutinee = scrutinee;
       this.result = Optional.empty();
     }
 
-    public <Y> ClassMatcher1<R> with(final Class<Y> targetClass, final Function<? super Y, ? extends R> f) {
+    public <Y> ClassMatcherWithResult<R> or(final Class<Y> targetClass, final Function<? super Y, ? extends R> f) {
       if (result.isPresent()) {
         return this;
       }
@@ -52,12 +73,12 @@ public class ClassMatcher {
       return this;
     }
 
-    public ClassMatcher1<R> withNull(final R r) {
+    public ClassMatcherWithResult<R> orNull(final Supplier<R> r) {
       if (result.isPresent()) {
         return this;
       }
       if (scrutinee == null) {
-        result = Optional.of(r);
+        result = Optional.of(r.get());
       }
       return this;
     }
@@ -66,11 +87,11 @@ public class ClassMatcher {
       return result.orElse(r);
     }
 
-    public R orElseGet(Supplier<? extends R> s) {
+    public R orElseGet(final Supplier<? extends R> s) {
       return result.orElseGet(s);
     }
 
-    public <X extends Throwable> R orElseThrow(Supplier<X> e) throws X {
+    public <X extends Throwable> R orElseThrow(final Supplier<X> e) throws X {
       return result.orElseThrow(e);
     }
 
@@ -82,6 +103,63 @@ public class ClassMatcher {
     private @Nonnull Optional<R> result = Optional.empty();
   }
 
+  public static class ClassMatcherWithoutResult {
+    private ClassMatcherWithoutResult(final Object scrutinee, final boolean matched) {
+        this.scrutinee = scrutinee;
+        this.matched = matched;
+    }
+
+    private ClassMatcherWithoutResult(final Object scrutinee) {
+      this.scrutinee = scrutinee;
+      this.matched = false;
+    }
+
+    public <Y> ClassMatcherWithoutResult or(final Class<Y> targetClass, final Consumer<? super Y> f) {
+      if (matched) {
+        return this;
+      }
+      if (targetClass.isInstance(scrutinee)) {
+        f.accept(targetClass.cast(scrutinee));
+        matched = true;
+      }
+      return this;
+    }
+
+    public ClassMatcherWithoutResult orNull(final Runnable r) {
+      if (matched) {
+        return this;
+      }
+      if (scrutinee == null) {
+        r.run();
+        matched = true;
+      }
+      return this;
+    }
+
+    public void orElseRun(final Runnable r) {
+      if (!matched) {
+        r.run();
+      }
+    }
+
+    public <X extends Throwable> void orElseThrow(final Supplier<X> e) throws X {
+      if (!matched) {
+        throw e.get();
+      }
+    }
+
+    public void end() {
+
+    }
+
+    public boolean matched() {
+      return matched;
+    }
+
+    private final @Nullable Object scrutinee;
+    private boolean matched;
+  }
+
   private ClassMatcher(Object scrutinee) {
     this.scrutinee = scrutinee;
   }
@@ -90,11 +168,26 @@ public class ClassMatcher {
     return new ClassMatcher(scrutinee);
   }
 
-  public <Y, R> ClassMatcher1<R> with(final Class<Y> targetClass, final Function<? super Y, ? extends R> f) {
+  public <Y, R> ClassMatcherWithResult<R> with(final Class<Y> targetClass, final Function<? super Y, ? extends R> f) {
     if (targetClass.isInstance(scrutinee)) {
-      return new ClassMatcher1<>(scrutinee, f.apply(targetClass.cast(scrutinee)));
+      return new ClassMatcherWithResult<>(scrutinee, f.apply(targetClass.cast(scrutinee)));
     }
-    return new ClassMatcher1<>(scrutinee);
+    return new ClassMatcherWithResult<>(scrutinee);
+  }
+
+  public <Y, R> ClassMatcherWithResult<R> with(final Class<Y> targetClass, final Supplier<? extends R> f) {
+    if (targetClass.isInstance(scrutinee)) {
+      return new ClassMatcherWithResult<>(scrutinee, f.get());
+    }
+    return new ClassMatcherWithResult<>(scrutinee);
+  }
+
+  public <Y> ClassMatcherWithoutResult with_(final Class<Y> targetClass, final Consumer<? super Y> f) {
+    if (targetClass.isInstance(scrutinee)) {
+      f.accept(targetClass.cast(scrutinee));
+      return new ClassMatcherWithoutResult(scrutinee, true);
+    }
+    return new ClassMatcherWithoutResult(scrutinee);
   }
 
   private final @Nullable Object scrutinee;

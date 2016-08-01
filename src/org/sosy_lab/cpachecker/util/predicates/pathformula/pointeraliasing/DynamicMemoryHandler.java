@@ -25,11 +25,9 @@ package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import static java.util.stream.Collectors.toCollection;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ClassMatcher.match;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.reraise2;
-import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.wrap;
-
-import com.google.common.collect.ImmutableSet;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.rethrow;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.rethrow2;
+import static org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.ExceptionWrapper.catchAll;
 
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
@@ -490,28 +488,25 @@ class DynamicMemoryHandler {
     }
   }
 
-  private static CType unwrapPointerOrArray(final CType type) {
-    return match(type)
-      .with(CPointerType.class, (t) -> unwrapPointerOrArray(t.getType()))
-      .with(CArrayType.class, (t) -> unwrapPointerOrArray(t.getType()))
-      .orElse(type);
+  private static CType unwrapPointers(final CType type) {
+    return match(type).with(CPointerType.class, (t) -> unwrapPointers(t.getType())).orElse(type);
   }
 
   /**
-   * Returns the type of the allocated dynamic variable by the usage pointer type of the void *
-   * variable and the allocation size
+   * Returns the type of the allocated dynamic variable by the revealed non-void pointer type of the
+   * void * variable and the allocation size
    *
    * @param type The usage pointer type.
    * @param sizeLiteral The allocation size.
    * @return The type of the allocated dynamic variable.
    */
-  private CType getAllocationType(final CType type, final Optional<CIntegerLiteralExpression> sizeLiteral) {
+  private CType getAllocationType(final CType type,  final Optional<CIntegerLiteralExpression> sizeLiteral) {
     return
       match(type)
         .with(CPointerType.class, (t) ->
-              { final CType tt = unwrapPointerOrArray(t);
+              { final CType tt = unwrapPointers(t);
                 return sizeLiteral.map((s) -> refineType(tt, s)).orElse(tt); })
-        .with(CArrayType.class, (t) -> sizeLiteral.map((s) -> refineType(t, s)).orElse(t))
+        .or(CArrayType.class, (t) -> sizeLiteral.map((s) -> refineType(t, s)).orElse(t))
         .orElseThrow(() -> new IllegalArgumentException("Either pointer or array type expected"));
   }
 
@@ -525,9 +520,9 @@ class DynamicMemoryHandler {
    */
   private void handleDeferredAllocationTypeRevelation(final String pointer, final CType type)
       throws UnrecognizedCCodeException, InterruptedException {
-    reraise2(UnrecognizedCCodeException.class, InterruptedException.class, () ->
+    rethrow2(UnrecognizedCCodeException.class, InterruptedException.class, () ->
       pts.removeDeferredAllocations(pointer)
-         .forEach(wrap((d) ->
+         .forEach(catchAll((d) ->
                        makeAllocation(d.isZeroed(), getAllocationType(type, d.getSize()), d.getBase()))));
   }
 
@@ -631,7 +626,7 @@ class DynamicMemoryHandler {
      *   for allocation as the corresponding relations would have been removed on the first step, if we rearranged
      *   2 with 3 we would remove extra relations arising from the premature propagation.
      */
-    final BiConsumer<String, CType> handleRevelation = wrap((ptr, typ) ->
+    final BiConsumer<String, CType> handleRevelation = catchAll((ptr, typ) ->
       handleDeferredAllocationTypeRevelation(ptr, typ));
     final CType lType = typeHandler.simplifyType(lhsType);
     final CType rType = rhs != null ? typeHandler.getSimplifiedType(rhs) : CPointerType.POINTER_TO_VOID;
@@ -644,28 +639,29 @@ class DynamicMemoryHandler {
       toHandle = Optional.empty();
     }
     // Reveal the type from the assignment itself (i.e. lhs from rhs and vice versa)
-    reraise(UnrecognizedCCodeException.class, () ->
-      toHandle.ifPresent(wrap((p) ->
+    rethrow(UnrecognizedCCodeException.class, () ->
+      toHandle.ifPresent(catchAll((p) ->
          p.getFirst().accept(visitor.getPointerApproximatingVisitor()).ifPresent((s) -> {
            if (!lhsLearnedPointerTypes.containsKey(s) && !rhsLearnedPointerTypes.containsKey(s)) {
              handleRevelation.accept(s, p.getSecond());
            }}))));
-    reraise2(UnrecognizedCCodeException.class, InterruptedException.class, () -> {
+    rethrow2(UnrecognizedCCodeException.class, InterruptedException.class, () -> {
       lhsLearnedPointerTypes.forEach(handleRevelation);
       rhsLearnedPointerTypes.forEach(handleRevelation);
     });
     match(lhs)
-      .with(CIdExpression.class, (e) -> pts.removeDeferredAllocationPointer(e.getDeclaration().getQualifiedName()))
-      .orElse(ImmutableSet.of())
-      .forEach((_d) -> handleDeferredAllocationPointerRemoval(lhs, false));
+      .with_(CIdExpression.class, (e) ->
+        pts.removeDeferredAllocationPointer(e.getDeclaration().getQualifiedName())
+           .forEach((_d) -> handleDeferredAllocationPointerRemoval(lhs, false)))
+      .end();
    /* For some unknown reason this does not typecheck when inlined as argument to reraise2... */
    final ThrowingRunnable2<UnrecognizedCCodeException, InterruptedException> action = () ->
-     lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(wrap((l) -> {
+     lhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent(catchAll((l) -> {
        if (rhs != null) {
          rhs.accept(visitor.getPointerApproximatingVisitor()).ifPresent((r) ->
            pts.addDeferredAllocationPointer(l, r));
        }}));
-   reraise2(UnrecognizedCCodeException.class, InterruptedException.class, action);
+   rethrow2(UnrecognizedCCodeException.class, InterruptedException.class, action);
   }
 
   /**
@@ -679,8 +675,8 @@ class DynamicMemoryHandler {
   void handleDeferredAllocationsInAssume(final CExpression e,
                                          final Map<String, CType> learnedPointerTypes)
        throws UnrecognizedCCodeException, InterruptedException {
-    reraise2(UnrecognizedCCodeException.class, InterruptedException.class, () ->
-       learnedPointerTypes.forEach(wrap((s, t) -> handleDeferredAllocationTypeRevelation(s, t))));
+    rethrow2(UnrecognizedCCodeException.class, InterruptedException.class, () ->
+       learnedPointerTypes.forEach(catchAll((s, t) -> handleDeferredAllocationTypeRevelation(s, t))));
   }
 
   /**
