@@ -131,6 +131,7 @@ public interface PointerTargetSetBuilder {
     private final TypeHandlerWithPointerAliasing typeHandler;
     private final PointerTargetSetManager ptsMgr;
     private final FormulaEncodingWithPointerAliasingOptions options;
+    private final MemoryRegionManager regionMgr;
 
     // These fields all exist in PointerTargetSet and are documented there.
     private PersistentSortedMap<String, CType> bases;
@@ -187,7 +188,8 @@ public interface PointerTargetSetBuilder {
         final FormulaManagerView pFormulaManager,
         final TypeHandlerWithPointerAliasing pTypeHandler,
         final PointerTargetSetManager pPtsMgr,
-        final FormulaEncodingWithPointerAliasingOptions pOptions) {
+        final FormulaEncodingWithPointerAliasingOptions pOptions,
+        final MemoryRegionManager pRegionMgr) {
       bases = pointerTargetSet.getBases();
       lastBase = pointerTargetSet.getLastBase();
       fields = pointerTargetSet.getFields();
@@ -197,6 +199,7 @@ public interface PointerTargetSetBuilder {
       typeHandler = pTypeHandler;
       ptsMgr = pPtsMgr;
       options = pOptions;
+      regionMgr = pRegionMgr;
     }
 
 
@@ -209,7 +212,7 @@ public interface PointerTargetSetBuilder {
      * @param type The type of the allocated base or the next added pointer target
      */
     private void addTargets(final String name, CType type) {
-      targets = ptsMgr.addToTargets(name, type, null, 0, 0, targets, fields);
+      targets = ptsMgr.addToTargets(name, null, type, null, 0, 0, targets, fields);
     }
 
     /**
@@ -343,7 +346,8 @@ public interface PointerTargetSetBuilder {
                        composite, memberName);
           }
           if (isTargetComposite && memberDeclaration.getName().equals(memberName)) {
-            targets = ptsMgr.addToTargets(base, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
+            MemoryRegion newRegion = regionMgr.makeMemoryRegion(compositeType, memberDeclaration.getType(), memberDeclaration.getName());
+            targets = ptsMgr.addToTargets(base, newRegion, memberDeclaration.getType(), compositeType, offset, containerOffset + properOffset, targets, fields);
           }
         }
       }
