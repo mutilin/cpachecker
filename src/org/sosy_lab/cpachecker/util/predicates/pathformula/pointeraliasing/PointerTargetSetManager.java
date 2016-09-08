@@ -657,20 +657,23 @@ class PointerTargetSetManager {
    * Adds pointer targets for every used (tracked) (sub)field of the newly allocated base.
    *
    * @param base The name of the base.
-   * @param regionName The string key of the target.
+   * @param region The region of the target.
    * @param containerType The type of the container, might be {@code null}.
    * @param properOffset The offset.
    * @param containerOffset The offset in the container.
    * @param targets The map of available targets.
+   * @param regionMgr The region manager.
    * @return The new map of targets.
    */
   @CheckReturnValue
   private static PersistentSortedMap<String, PersistentList<PointerTarget>> addToTarget(final String base,
-                         final String regionName,
+                         final MemoryRegion region,
                          final @Nullable CType containerType,
                          final int properOffset,
                          final int containerOffset,
-                         final PersistentSortedMap<String, PersistentList<PointerTarget>> targets) {
+                         final PersistentSortedMap<String, PersistentList<PointerTarget>> targets,
+                         MemoryRegionManager regionMgr) {
+    String regionName = regionMgr.getPointerAccessName(region);
     PersistentList<PointerTarget> targetsForRegion =
         targets.getOrDefault(regionName, PersistentLinkedList.of());
     return targets.putAndCopy(regionName, targetsForRegion.with(new PointerTarget(base,
@@ -716,7 +719,8 @@ class PointerTargetSetManager {
       final int length = CTypeUtils.getArrayLength(arrayType, options);
       int offset = 0;
       for (int i = 0; i < length; ++i) {
-        targets = addToTargets(base, region, arrayType.getType(), arrayType, offset, containerOffset + properOffset, targets, fields);
+        //TODO: create region with arrayType.getType()
+        targets = addToTargets(base, null, arrayType.getType(), arrayType, offset, containerOffset + properOffset, targets, fields);
         offset += typeHandler.getSizeof(arrayType.getType());
       }
     } else if (cType instanceof CCompositeType) {
@@ -732,13 +736,11 @@ class PointerTargetSetManager {
         }
       }
     } else {
-      String regionName;
-      if(region!=null) {
-        regionName = regionMgr.getPointerAccessName(region);
-      } else {
-        regionName = regionMgr.getPointerAccessName(regionMgr.makeMemoryRegion(cType));
+      MemoryRegion newRegion = region;
+      if(newRegion == null) {
+        newRegion = regionMgr.makeMemoryRegion(cType);
       }
-      targets = addToTarget(base, regionName, containerType, properOffset, containerOffset, targets);
+      targets = addToTarget(base, newRegion, containerType, properOffset, containerOffset, targets, regionMgr);
     }
 
     return targets;

@@ -341,7 +341,8 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
 
         final Formula address = conv.fmgr.makePlus(base.getAddress(), offset);
         addEqualBaseAddressConstraint(base.getAddress(), address);
-        final MemoryRegion region = regionMgr.makeMemoryRegion(fieldOwnerType, e.getExpressionType(), fieldName);
+        final CType fieldType = typeHandler.simplifyType(e.getExpressionType());
+        final MemoryRegion region = regionMgr.makeMemoryRegion(fieldOwnerType, fieldType, fieldName);
         return AliasedLocation.ofAddressWithRegion(address, region);
       } else {
         throw new UnrecognizedCCodeException("Field owner of a non-composite type", edge, e);

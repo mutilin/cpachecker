@@ -95,16 +95,18 @@ public class BnBRegionManager implements MemoryRegionManager {
   protected static class FieldBnBRegion implements MemoryRegion {
 
     private final CType fieldOwnerType;
+    private final CType fieldType;
     private final String fieldName;
 
-    protected FieldBnBRegion(CType pFieldOwnerType, String pFieldName) {
+    protected FieldBnBRegion(CType pFieldOwnerType, CType pFieldType, String pFieldName) {
       fieldOwnerType = pFieldOwnerType;
+      fieldType = pFieldType;
       fieldName = pFieldName;
     }
 
     @Override
     public CType getType() {
-      return fieldOwnerType;
+      return fieldType;
     }
 
     @Override
@@ -117,6 +119,7 @@ public class BnBRegionManager implements MemoryRegionManager {
     @Override
     public String toString() {
       return "FieldBnBRegion [fieldOwnerType=" + fieldOwnerType
+          + ", fieldType=" + fieldType
           + ", fieldName=" + fieldName + "]";
     }
 
@@ -125,6 +128,7 @@ public class BnBRegionManager implements MemoryRegionManager {
       final int prime = 31;
       int result = 1;
       result = prime * result + ((fieldName == null) ? 0 : fieldName.hashCode());
+      result = prime * result + ((fieldType == null) ? 0 : fieldType.hashCode());
       result = prime * result + ((fieldOwnerType == null) ? 0 : fieldOwnerType.hashCode());
       return result;
     }
@@ -146,6 +150,13 @@ public class BnBRegionManager implements MemoryRegionManager {
           return false;
         }
       } else if (!fieldName.equals(other.fieldName)) {
+        return false;
+      }
+      if (fieldType == null) {
+        if (other.fieldType != null) {
+          return false;
+        }
+      } else if (!fieldType.equals(other.fieldType)) {
         return false;
       }
       if (fieldOwnerType == null) {
@@ -188,7 +199,7 @@ public class BnBRegionManager implements MemoryRegionManager {
     CTypeUtils.checkIsSimplified(pFieldType);
     if(fieldRegions.containsEntry(pFieldOwnerType, pFieldName)) {
       //common case - likely
-      return new FieldBnBRegion(pFieldOwnerType, pFieldName);
+      return new FieldBnBRegion(pFieldOwnerType, pFieldType, pFieldName);
     } else {
       //field inside global region - unlikely
       return new GlobalBnBRegion(pFieldType);

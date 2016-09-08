@@ -31,6 +31,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 public class DefaultRegionManager implements MemoryRegionManager {
 
   protected static class DefaultMemoryRegion implements MemoryRegion {
+
     private final CType type;
 
     protected DefaultMemoryRegion(CType pType) {
@@ -45,6 +46,11 @@ public class DefaultRegionManager implements MemoryRegionManager {
     @Override
     public String getName() {
       return CToFormulaConverterWithPointerAliasing.getPointerAccessNameForType(type);
+    }
+
+    @Override
+    public String toString() {
+      return "DefaultMemoryRegion [type=" + type + "]";
     }
   }
 
@@ -66,7 +72,7 @@ public class DefaultRegionManager implements MemoryRegionManager {
     checkNotNull(pType);
     checkNotNull(pExpressionType);
     checkNotNull(pFieldName);
-    CTypeUtils.checkIsSimplified(pType);
-    return new DefaultMemoryRegion(pType);
+    CTypeUtils.checkIsSimplified(pExpressionType);
+    return new DefaultMemoryRegion(pExpressionType);
   }
 }

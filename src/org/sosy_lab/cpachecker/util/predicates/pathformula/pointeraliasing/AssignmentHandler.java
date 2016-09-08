@@ -454,7 +454,7 @@ class AssignmentHandler {
         if (updatedRegions == null) {
           assert isSimpleType(lvalueType) : "Should be impossible due to the first if statement";
           MemoryRegion region = lvalue.asAliased().getMemoryRegion();
-          if(region==null) {
+          if(region == null) {
             region = regionMgr.makeMemoryRegion(lvalueType);
           }
           updatedRegions = Collections.singleton(region);
@@ -482,7 +482,7 @@ class AssignmentHandler {
       final Set<MemoryRegion> updatedRegions)
       throws InterruptedException {
     MemoryRegion region = lvalue.getMemoryRegion();
-    if(region==null) {
+    if(region == null) {
       region = regionMgr.makeMemoryRegion(lvalueType);
     }
     addRetentionForAssignment(region,
@@ -606,7 +606,7 @@ class AssignmentHandler {
                         newLvalueType,
                         ssa)))) {
           final Pair<? extends Location, CType> newLvalue =
-                                         shiftCompositeLvalue(lvalue, offset, memberName, memberDeclaration.getType());
+                                         shiftCompositeLvalue(lvalueType, lvalue, offset, memberName, memberDeclaration.getType());
           final Pair<? extends Expression, CType> newRvalue =
                              shiftCompositeRvalue(rvalue, offset, memberName, rvalueType, memberDeclaration.getType());
 
@@ -673,7 +673,7 @@ class AssignmentHandler {
       region = null;
     } else {
       region = lvalue.asAliased().getMemoryRegion();
-      if(region==null) {
+      if(region == null) {
         region = regionMgr.makeMemoryRegion(lvalueType);
       }
       targetName = regionMgr.getPointerAccessName(region);
@@ -831,7 +831,7 @@ class AssignmentHandler {
    * and adding a constraint for each of them.
    */
   private void addRetentionConstraintsWithoutQuantifiers(
-      final MemoryRegion region,
+      MemoryRegion region,
       CType lvalueType,
       final PointerTargetPattern pattern,
       final Formula startAddress,
@@ -839,8 +839,8 @@ class AssignmentHandler {
       final Set<MemoryRegion> regionsToRetain)
       throws InterruptedException {
 
+    checkNotNull(region);
     if (isSimpleType(lvalueType)) {
-      checkNotNull(region);
       addSimpleTypeRetentionConstraints(pattern, ImmutableSet.of(region), startAddress);
 
     } else if (pattern.isExact()) {
@@ -850,10 +850,13 @@ class AssignmentHandler {
       // For semiexact retention constraints we need the first element type of the composite
       if (lvalueType instanceof CArrayType) {
         lvalueType = checkIsSimplified(((CArrayType) lvalueType).getType());
+        region = regionMgr.makeMemoryRegion(lvalueType);
       } else { // CCompositeType
-        lvalueType = checkIsSimplified(((CCompositeType) lvalueType).getMembers().get(0).getType());
+        CCompositeTypeMemberDeclaration memberDeclaration = ((CCompositeType) lvalueType).getMembers().get(0);
+        region = regionMgr.makeMemoryRegion(lvalueType, checkIsSimplified(memberDeclaration.getType()), memberDeclaration.getName());
       }
-      addSemiexactRetentionConstraints(pattern, lvalueType, startAddress, size, regionsToRetain);
+      //for lvalueType
+      addSemiexactRetentionConstraints(pattern, region, startAddress, size, regionsToRetain);
 
     } else { // Inexact pointer target pattern
       addInexactRetentionConstraints(startAddress, size, regionsToRetain);
@@ -868,7 +871,7 @@ class AssignmentHandler {
    */
   private void makeRetentionConstraints(
       final Set<MemoryRegion> regions,
-      final Function<CType, ? extends Iterable<PointerTarget>> targetLookup,
+      final Function<MemoryRegion, ? extends Iterable<PointerTarget>> targetLookup,
       final BiConsumer<Formula, BooleanFormula> constraintConsumer)
       throws InterruptedException {
 
@@ -878,7 +881,7 @@ class AssignmentHandler {
       final int newIndex = conv.getFreshIndex(ufName, region.getType(), ssa);
       final FormulaType<?> targetType = conv.getFormulaTypeFromCType(region.getType());
 
-      for (final PointerTarget target : targetLookup.apply(region.getType())) {
+      for (final PointerTarget target : targetLookup.apply(region)) {
         conv.shutdownNotifier.shutdownIfNecessary();
         final Formula targetAddress = conv.makeFormulaForTarget(target);
         constraintConsumer.accept(
@@ -901,7 +904,7 @@ class AssignmentHandler {
     if (!pattern.isExact()) {
       makeRetentionConstraints(
           regions,
-          type -> pts.getMatchingTargets(type, pattern),
+          region -> pts.getMatchingTargets(region, pattern),
           (targetAddress, constraint) -> {
             final BooleanFormula updateCondition = fmgr.makeEqual(targetAddress, startAddress);
             constraints.addConstraint(bfmgr.or(updateCondition, constraint));
@@ -920,7 +923,7 @@ class AssignmentHandler {
       final Predicate<PointerTarget> pattern, final Set<MemoryRegion> regions) throws InterruptedException {
     makeRetentionConstraints(
         regions,
-        type -> pts.getNonMatchingTargets(type, pattern),
+        region -> pts.getNonMatchingTargets(region, pattern),
         (targetAddress, constraint) -> constraints.addConstraint(constraint));
   }
 
@@ -932,12 +935,12 @@ class AssignmentHandler {
    */
   private void addSemiexactRetentionConstraints(
       final PointerTargetPattern pattern,
-      final CType firstElementType,
+      final MemoryRegion firstElementRegion,
       final Formula startAddress,
       final int size,
       final Set<MemoryRegion> regions)
       throws InterruptedException {
-    for (final PointerTarget target : pts.getMatchingTargets(firstElementType, pattern)) {
+    for (final PointerTarget target : pts.getMatchingTargets(firstElementRegion, pattern)) {
       final Formula candidateAddress = conv.makeFormulaForTarget(target);
       final BooleanFormula negAntecedent =
           bfmgr.not(fmgr.makeEqual(candidateAddress, startAddress));
@@ -1046,15 +1049,17 @@ class AssignmentHandler {
    * @param memberType The type of the member.
    * @return A tuple of location and type after the shift.
    */
-  private Pair<? extends Location, CType> shiftCompositeLvalue(final Location lvalue,
+  private Pair<? extends Location, CType> shiftCompositeLvalue(final CType lvalueType,
+                                                               final Location lvalue,
                                                                final int offset,
                                                                final String memberName,
                                                                final CType memberType) {
     final CType newLvalueType = checkIsSimplified(memberType);
     if (lvalue.isAliased()) {
       final Formula offsetFormula = fmgr.makeNumber(conv.voidPointerFormulaType, offset);
-      final AliasedLocation newLvalue = Location.ofAddress(fmgr.makePlus(lvalue.asAliased().getAddress(),
-                                                                         offsetFormula));
+      final MemoryRegion region = regionMgr.makeMemoryRegion(lvalueType, newLvalueType, memberName);
+      final AliasedLocation newLvalue = Location.ofAddressWithRegion(fmgr.makePlus(lvalue.asAliased().getAddress(),
+                                                                         offsetFormula), region);
       return Pair.of(newLvalue, newLvalueType);
 
     } else {
