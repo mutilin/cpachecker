@@ -302,6 +302,12 @@ public class PredicateAbstractionManager {
     logger.log(Level.ALL, "Path formula:", pathFormula);
     logger.log(Level.ALL, "Predicates:", pPredicates);
 
+    if(!pPredicates.isEmpty()) {
+      logger.log(Level.SEVERE, "Computing abstraction", stats.numCallsAbstraction, "with", pPredicates.size(), "predicates");
+      logger.log(Level.SEVERE, "Old abstraction:", abstractionFormula.asFormula());
+      logger.log(Level.SEVERE, "Path formula:", pathFormula);
+      logger.log(Level.SEVERE, "Predicates:", pPredicates);
+    }
     final BooleanFormula absFormula = abstractionFormula.asInstantiatedFormula();
     final BooleanFormula symbFormula = getFormulaFromPathFormula(pathFormula);
     final BooleanFormula f = bfmgr.and(absFormula, symbFormula);
@@ -646,6 +652,9 @@ public class PredicateAbstractionManager {
     stats.maxPredicates = Math.max(stats.maxPredicates, pPredicates.size());
     stats.numIrrelevantPredicates += pPredicates.size() - relevantPredicates.size();
 
+    logger.log(Level.SEVERE, "Stats numTotalPredicates=",  stats.numTotalPredicates,
+        " maxPredicates=", stats.maxPredicates,
+        " numIrrelevantPredicates=", stats.numIrrelevantPredicates);
     return relevantPredicates;
   }
 
