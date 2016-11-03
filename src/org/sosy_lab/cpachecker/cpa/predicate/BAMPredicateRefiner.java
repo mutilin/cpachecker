@@ -298,27 +298,28 @@ public abstract class BAMPredicateRefiner implements Refiner {
         pRepeatedCounterexample = false;
         secondRepeatedCEX = false;
       }
-
+/*
       else if (pRepeatedCounterexample && !secondRepeatedCEX) {
         pRepeatedCounterexample = false;
         secondRepeatedCEX = true;
       }
-
+*/
       // in case of a (twice) repeated CEX,
       // we try to improve the reduce-operator by refining the relevantPredicatesComputer.
-      else if (pRepeatedCounterexample && secondRepeatedCEX) {
+      else {//if (pRepeatedCounterexample/* && secondRepeatedCEX*/) {
+        System.out.println("BAMStrategy.performRefinement: (twice) repeated CEX");
         final RelevantPredicatesComputer relevantPredicatesComputer = predicateCpa.getRelevantPredicatesComputer();
         if (relevantPredicatesComputer instanceof RefineableRelevantPredicatesComputer) {
           //even abstractions agree; try refining relevant predicates reducer
           RelevantPredicatesComputer newRelevantPredicatesComputer =
               refineRelevantPredicatesComputer(abstractionStatesTrace, pReached, (RefineableRelevantPredicatesComputer)relevantPredicatesComputer);
 
-          if (newRelevantPredicatesComputer.equals(relevantPredicatesComputer)) {
+          /*if (newRelevantPredicatesComputer.equals(relevantPredicatesComputer)) {
             // repeated CEX && relevantPredicatesComputer was refined && refinement does not produce progress -> error
             // TODO if this happens, there might be a bug in the analysis!
             throw new RefinementFailedException(Reason.RepeatedCounterexample, null);
 
-          } else {
+          } else {*/
             // we have a better relevantPredicatesComputer, thus update it.
             logger.logf(Level.FINEST, "refining relevantPredicatesComputer from %s to %s",
                 relevantPredicatesComputer, newRelevantPredicatesComputer);
@@ -327,7 +328,7 @@ public abstract class BAMPredicateRefiner implements Refiner {
             // reset flags and continue
             pRepeatedCounterexample = false;
             secondRepeatedCEX = false;
-          }
+          //}
 
         } else {
           throw new RefinementFailedException(Reason.RepeatedCounterexample, null);

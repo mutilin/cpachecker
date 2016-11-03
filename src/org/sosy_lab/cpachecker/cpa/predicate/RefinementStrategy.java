@@ -33,14 +33,15 @@ import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.predicates.smt.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.cpachecker.util.statistics.AbstractStatistics;
 import org.sosy_lab.cpachecker.util.statistics.StatInt;
 import org.sosy_lab.cpachecker.util.statistics.StatKind;
-import org.sosy_lab.java_smt.api.SolverException;
 import org.sosy_lab.java_smt.api.BooleanFormula;
+import org.sosy_lab.java_smt.api.SolverException;
 
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -144,6 +145,7 @@ public abstract class RefinementStrategy {
     int pathLengthToInfeasibility = 0;
 
     BooleanFormula lastItp = null;
+    System.out.println("");
 
     // Traverse the path
     for (Pair<BooleanFormula, ARGState> interpolationPoint : Pair.zipList(pInterpolants, abstractionStatesTrace)) {
@@ -186,6 +188,7 @@ public abstract class RefinementStrategy {
         }
       }
       lastItp = itp;
+      System.out.println(AbstractStates.extractLocation(w) + " <-> " + itp);
 
       nonTrivialStates++;
       previousItpWasTrue = false;

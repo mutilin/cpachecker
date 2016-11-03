@@ -46,7 +46,22 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.UnmodifiableIterator;
-
+import java.io.IOException;
+import java.util.AbstractCollection;
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.Set;
+import javax.annotation.Nullable;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -65,24 +80,6 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGPath.PathPosition;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.GraphUtils;
 import org.sosy_lab.cpachecker.util.LoopStructure.Loop;
-
-import java.io.IOException;
-import java.util.AbstractCollection;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Optional;
-import java.util.Set;
-
-import javax.annotation.Nullable;
 
 /**
  * Helper class with collection of ARG related utility methods.
@@ -280,9 +277,15 @@ public class ARGUtils {
     List<ARGState> states = new ArrayList<>();
     ARGState currentElement = root;
     while (currentElement.getChildren().size() > 0) {
+      //if(currentElement.isTarget()) {
+      //  System.out.println("Target state found " + currentElement);
+      //}
       states.add(currentElement);
       currentElement = currentElement.getChildren().iterator().next();
     }
+    //if(currentElement.isTarget()) {
+    //  System.out.println("Last target state found " + currentElement);
+    //}
     states.add(currentElement);
     return new ARGPath(states);
   }

@@ -32,7 +32,20 @@ import static org.sosy_lab.cpachecker.util.statistics.StatisticsWriter.writingSt
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -72,18 +85,6 @@ import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 import org.sosy_lab.java_smt.api.BooleanFormula;
-
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.logging.Level;
 
 /**
  * This class provides a basic refiner implementation for predicate analysis.
@@ -131,7 +132,7 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
   private final StatTimer prefixSelectionTime = new StatTimer("Selecting infeasible sliced prefixes");
 
   // the previously analyzed counterexample to detect repeated counterexamples
-  private ImmutableList<CFANode> lastErrorPath = null;
+  private Set<ImmutableList<CFANode>> lastErrorPaths = new HashSet<>();
 
   private final PathChecker pathChecker;
 
@@ -228,6 +229,7 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
     return formulas;
   }
 
+  static int num = 0;
   @Override
   public CounterexampleInfo performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace) throws CPAException, InterruptedException {
     totalRefinement.start();
@@ -236,8 +238,8 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
       final ImmutableList<CFANode> errorPath =
           ImmutableList.copyOf(
               Lists.transform(allStatesTrace.asStatesList(), AbstractStates.EXTRACT_LOCATION));
-      final boolean repeatedCounterexample = errorPath.equals(lastErrorPath);
-      lastErrorPath = errorPath;
+      final boolean repeatedCounterexample = lastErrorPaths.contains(errorPath);
+      lastErrorPaths.add(errorPath);
 
       Set<ARGState> elementsOnPath = extractElementsOnPath(allStatesTrace);
       // No branches/merges in path, it is precise.
@@ -246,6 +248,21 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
       if (elementsOnPath.size() == allStatesTrace.size()) {
         elementsOnPath = Collections.emptySet();
         branchingOccurred = false;
+      }
+
+      String trace = allStatesTrace.toString();
+      int beginIndex = trace.indexOf("Function start dummy edge");
+      if(beginIndex!=-1) {
+        trace = trace.substring(beginIndex);
+      }
+      String fileName = "error_trace_" + num++;
+      System.out.println("\nallStatesTrace=[" + fileName + "]");
+      try {
+        PrintStream file = new PrintStream(new FileOutputStream(fileName, false));
+        file.println(trace);
+        file.close();
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
       }
 
       // create path with all abstraction location elements (excluding the initial element)
@@ -263,6 +280,7 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
       // find new invariants (this is a noop if no invariants should be used/generated)
       invariantsManager.findInvariants(allStatesTrace, abstractionStatesTrace, pfmgr, solver);
 
+      System.out.println("repeatedCounterexample=" + repeatedCounterexample);
       // Compute invariants if desired, and if the counterexample is not a repeated one
       // (otherwise invariants for the same location didn't help before, so they won't help now).
       if (!repeatedCounterexample && (invariantsManager.addToPrecision() || usePathInvariants)) {
