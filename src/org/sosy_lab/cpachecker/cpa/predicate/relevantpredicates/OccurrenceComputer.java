@@ -23,13 +23,12 @@
  */
 package org.sosy_lab.cpachecker.cpa.predicate.relevantpredicates;
 
+import java.util.Collection;
+import java.util.Set;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.blocks.ReferencedVariable;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
 import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
-
-import java.util.Collection;
-import java.util.Set;
 
 
 /**
@@ -50,6 +49,10 @@ public class OccurrenceComputer extends AbstractRelevantPredicatesComputer<Block
   @Override
   protected boolean isRelevant(Block context, AbstractionPredicate predicate) {
     Set<String> variables = fmgr.extractVariableNames(predicate.getSymbolicAtom());
+    if(context.getCallNode().getFunctionName().equals("ncp_init_header")) {
+      //System.out.println("context for ncp_init_header " + context.getNodes());
+      System.out.println("context for ncp_init_header " + context.getReferencedVariables());
+    }
     for (ReferencedVariable var : context.getReferencedVariables()) {
 
       // short cut
@@ -63,6 +66,10 @@ public class OccurrenceComputer extends AbstractRelevantPredicatesComputer<Block
       // This handling causes an over-approximation of the set of variables, because
       // a predicate-variable "f" is relevant, if "foo" is one of the referenced variables.
       for (String variable : variables) {
+        if(context.getCallNode().getFunctionName().equals("ncp_init_header")
+            && variable.contains("ncp_init_header::req")) {
+          System.out.println("contains(" + variable + "," + var.getName() + ")" + variable.contains(var.getName()));
+        }
         if (variable.contains(var.getName())) {
           return true;
         }

@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.logging.Level;
 import org.sosy_lab.common.collect.PersistentMap;
 import org.sosy_lab.common.log.LogManager;
@@ -87,6 +88,15 @@ public class BAMPredicateReducer implements Reducer {
             new HashSet<>(predicates),
             new HashSet<>(
                 cpa.getRelevantPredicatesComputer().getRelevantPredicates(pContext, predicates)));
+
+    if(!removePredicates.isEmpty()) {
+      System.out.println("removePredicates["
+        + pLocation.getFunctionName()
+        + "]="
+        + removePredicates);
+    }
+
+    removePredicates = new HashSet<>();
 
     PathFormula pathFormula = predicateElement.getPathFormula();
 
@@ -215,7 +225,18 @@ public class BAMPredicateReducer implements Reducer {
       functionPredicatesBuilder.putAll(functionname, cpa.getRelevantPredicatesComputer().getRelevantPredicates(
           context, expandedPredicatePrecision.getFunctionPredicates().get(functionname)));
     }
-    final ImmutableSetMultimap<String, AbstractionPredicate> functionPredicates = functionPredicatesBuilder.build();
+    ImmutableSetMultimap<String, AbstractionPredicate> old = expandedPredicatePrecision.getFunctionPredicates();
+
+    final ImmutableSetMultimap<String, AbstractionPredicate> functionPredicates = old;//functionPredicatesBuilder.build();
+
+    if(!old.equals(functionPredicates)) {
+      System.out.println("\nfunction=" + context.getCallNode().getFunctionName());
+      for(Entry<String, AbstractionPredicate> e: old.entries()) {
+        if(!functionPredicates.containsEntry(e.getKey(), e.getValue())) {
+          System.out.println("removed precision for "+ e.getKey() + ":" + e.getValue());
+        }
+      }
+    }
 
     // we only need local predicates with used variables and with nodes from the block
     final ImmutableSetMultimap.Builder<CFANode, AbstractionPredicate> localPredicatesBuilder = ImmutableSetMultimap.builder();
