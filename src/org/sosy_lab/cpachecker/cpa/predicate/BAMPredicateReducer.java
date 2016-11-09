@@ -96,7 +96,7 @@ public class BAMPredicateReducer implements Reducer {
         + removePredicates);
     }
 
-    removePredicates = new HashSet<>();
+    //removePredicates = new HashSet<>();
 
     PathFormula pathFormula = predicateElement.getPathFormula();
 
