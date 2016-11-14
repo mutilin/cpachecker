@@ -92,6 +92,8 @@ public class BAMPredicateReducer implements Reducer {
     if(!removePredicates.isEmpty()) {
       System.out.println("removePredicates["
         + pLocation.getFunctionName()
+        + ","
+        + pLocation.getNodeNumber()
         + "]="
         + removePredicates);
     }
@@ -103,6 +105,11 @@ public class BAMPredicateReducer implements Reducer {
     assert bfmgr.isTrue(pathFormula.getFormula());
 
     AbstractionFormula newAbstraction = pamgr.reduce(oldAbstraction, removePredicates, pathFormula.getSsa());
+
+    if(!removePredicates.isEmpty()) {
+      System.out.println("oldAbstraction=" + oldAbstraction.asFormula());
+      System.out.println("newAbstraction=" + newAbstraction.asFormula());
+    }
 
     PersistentMap<CFANode, Integer> abstractionLocations = predicateElement.getAbstractionLocationsOnPath()
         .empty();
@@ -131,6 +138,16 @@ public class BAMPredicateReducer implements Reducer {
         cpa.getRelevantPredicatesComputer().getRelevantPredicates(pReducedContext, rootPredicates);
     //for each removed predicate, we have to lookup the old (expanded) value and insert it to the reducedStates region
 
+    if(!relevantRootPredicates.isEmpty()) {
+      System.out.println("relevantRootPredicates["
+        + pReducedContext.getCallNode().getFunctionName()
+        + ","
+        + pReducedContext.getCallNode().getNodeNumber()
+        + "]="
+        + relevantRootPredicates);
+      System.out.println("rootState=" + rootAbstraction.asFormula());
+      System.out.println("reducedState=" + reducedAbstraction.asFormula());
+    }
     PathFormula oldPathFormula = reducedState.getPathFormula();
     assert bfmgr.isTrue(oldPathFormula.getFormula()) : "Formula should be TRUE, but formula is " + oldPathFormula.getFormula();
     SSAMap oldSSA = oldPathFormula.getSsa();
@@ -153,6 +170,9 @@ public class BAMPredicateReducer implements Reducer {
         pamgr.expand(reducedAbstraction.asRegion(), rootAbstraction.asRegion(),
             relevantRootPredicates, newSSA, reducedAbstraction.getBlockFormula());
 
+    if(!relevantRootPredicates.isEmpty()) {
+      System.out.println("newAbstractionFormula=" + newAbstractionFormula.asFormula());
+    }
     PersistentMap<CFANode, Integer> abstractionLocations = reducedState.getAbstractionLocationsOnPath();
 
     return PredicateAbstractState.mkAbstractionState(newPathFormula,

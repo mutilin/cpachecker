@@ -334,6 +334,7 @@ public abstract class BAMPredicateRefiner implements Refiner {
           throw new RefinementFailedException(Reason.RepeatedCounterexample, null);
         }
       }
+      System.out.println("pInterpolants=" + pInterpolants);
 
       super.performRefinement(pReached, abstractionStatesTrace, pInterpolants, pRepeatedCounterexample);
     }
