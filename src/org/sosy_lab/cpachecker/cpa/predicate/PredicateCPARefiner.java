@@ -285,6 +285,7 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
       // find new invariants (this is a noop if no invariants should be used/generated)
       invariantsManager.findInvariants(allStatesTrace, abstractionStatesTrace, pfmgr, solver);
 
+      System.out.println("repeatedCounterexample=" + repeatedCounterexample);
       // Compute invariants if desired, and if the counterexample is not a repeated one
       // (otherwise invariants for the same location didn't help before, so they won't help now).
       if (!repeatedCounterexample && (invariantsManager.addToPrecision() || usePathInvariants)) {
