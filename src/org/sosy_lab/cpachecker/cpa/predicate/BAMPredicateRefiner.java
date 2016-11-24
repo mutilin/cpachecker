@@ -323,6 +323,7 @@ public abstract class BAMPredicateRefiner implements Refiner {
           boolean eqComputer = newRelevantPredicatesComputer.equals(relevantPredicatesComputer);
           if(eqComputer) {
             repeatedFailCounter++;
+            System.out.println("Repeated counterexample counter=" + repeatedFailCounter);
           }
 
           if (failAfterRepeatedCounterexample && eqComputer) {
