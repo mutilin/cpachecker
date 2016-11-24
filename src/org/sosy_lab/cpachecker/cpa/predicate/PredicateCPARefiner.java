@@ -32,6 +32,8 @@ import static org.sosy_lab.cpachecker.util.statistics.StatisticsWriter.writingSt
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -229,6 +231,7 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
     return formulas;
   }
 
+  static int num = 0;
   @Override
   public CounterexampleInfo performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace) throws CPAException, InterruptedException {
     totalRefinement.start();
@@ -251,6 +254,21 @@ public class PredicateCPARefiner implements ARGBasedRefiner, StatisticsProvider 
         elementsOnPath = Collections.emptySet();
         branchingOccurred = false;
       }
+      String trace = allStatesTrace.toString();
+      int beginIndex = trace.indexOf("Function start dummy edge");
+      if(beginIndex!=-1) {
+        trace = trace.substring(beginIndex);
+      }
+      String fileName = "error_trace_" + num++;
+      System.out.println("\nallStatesTrace=[" + fileName + "]");
+      try {
+        PrintStream file = new PrintStream(new FileOutputStream(fileName, false));
+        file.println(trace);
+        file.close();
+      } catch (FileNotFoundException e) {
+        e.printStackTrace();
+      }
+
 
       // create path with all abstraction location elements (excluding the initial element)
       // the last element is the element corresponding to the error location
