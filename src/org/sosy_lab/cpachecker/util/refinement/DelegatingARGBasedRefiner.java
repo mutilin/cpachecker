@@ -109,6 +109,7 @@ public final class DelegatingARGBasedRefiner implements ARGBasedRefiner, Statist
           // ignore and try the next refiner
           logger.logf(Level.FINE, "refinement %d of %d reported repeated counterexample, "
               + "restarting refinement with next refiner", i + 1, refiners.size());
+          System.out.println("repeated counterexample=" + totalRefinementsSelected.get(i).getValue() + " for-" + (i + 1));
         }
       }
     }
