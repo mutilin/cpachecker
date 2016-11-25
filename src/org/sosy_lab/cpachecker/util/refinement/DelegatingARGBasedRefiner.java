@@ -90,11 +90,13 @@ public final class DelegatingARGBasedRefiner implements ARGBasedRefiner, Statist
       totalRefinementsSelected.get(i).inc();
       try {
 
+        System.out.println("starting refinement=" + totalRefinementsSelected.get(i).getValue() + " for-" + (i + 1));
         logger.logf(Level.FINE, "starting refinement %d of %d with %s", i + 1, refiners.size(),
             refiners.get(i).getClass().getSimpleName());
         cex = refiners.get(i).performRefinementForPath(reached, pErrorPath);
 
         if (cex.isSpurious()) {
+          System.out.println("successful refinement=" + totalRefinementsSelected.get(i).getValue() + " for-" + (i + 1));
           logger.logf(Level.FINE, "refinement %d of %d was successful", i + 1, refiners.size());
           totalRefinementsFinished.get(i).inc();
           break;

@@ -31,6 +31,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
 import java.io.PrintStream;
@@ -54,6 +55,7 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.counterexample.CFAPathWithAssumptions;
 import org.sosy_lab.cpachecker.core.defaults.precision.VariableTrackingPrecision;
@@ -190,9 +192,11 @@ public class ValueAnalysisRefiner
       }
 
       List<Precision> precisions = new ArrayList<>(2);
+      Multimap<CFANode, MemoryLocation> inc = pInterpolationTree.extractPrecisionIncrement(root);
+      System.out.println("Value increment = " + inc);
       // merge the value precisions of the subtree, and refine it
       precisions.add(mergeValuePrecisionsForSubgraph(root, pReached)
-          .withIncrement(pInterpolationTree.extractPrecisionIncrement(root)));
+          .withIncrement(inc));
 
       // merge the predicate precisions of the subtree, if available
       if (predicatePrecisionIsAvailable) {
