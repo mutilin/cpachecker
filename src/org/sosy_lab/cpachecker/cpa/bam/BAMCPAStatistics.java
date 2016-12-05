@@ -139,7 +139,7 @@ class BAMCPAStatistics implements Statistics {
     out.println("Time for searching for similar cache entries:                   " + data.bamCache.searchingTimer + " (Calls: " + data.bamCache.searchingTimer.getNumberOfIntervals() + ")");
     out.println("Time for reducing precisions:                                   " + reducer.reducePrecisionTime + " (Calls: " + reducer.reducePrecisionTime.getNumberOfIntervals() + ")");
     out.println("Time for expanding precisions:                                  " + reducer.expandPrecisionTime + " (Calls: " + reducer.expandPrecisionTime.getNumberOfIntervals() + ")");
-
+    out.println("Time for collecting precision:           " + BAMReachedSet.tmpTimer);
 
     for (BAMBasedRefiner refiner : refiners) {
       // TODO We print these statistics also for use-cases of BAM-refiners, that never use timers. Can we ignore them?
