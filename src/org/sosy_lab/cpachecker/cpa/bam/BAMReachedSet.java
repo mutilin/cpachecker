@@ -153,7 +153,7 @@ public class BAMReachedSet extends ARGReachedSet.ForwardingARGReachedSet {
         } else {
           Precision targetPrecision = currentReachedSet.getPrecision(argState);
           tmpTimer.start();
-          Precision newPrecision = collectPrecision(currentReachedSet, argState, targetPrecision);
+          Precision newPrecision = collectPrecision(currentReachedSet, argState, targetPrecision, new HashSet<>());
           tmpTimer.stop();
           return newPrecision;
         }
@@ -186,7 +186,8 @@ public class BAMReachedSet extends ARGReachedSet.ForwardingARGReachedSet {
         throw new UnsupportedOperationException("should not be needed");
       }
 
-      private Precision collectPrecision(ReachedSet reached, AbstractState state, Precision pTargetPrecision) {
+      private Precision collectPrecision(ReachedSet reached, AbstractState state, Precision pTargetPrecision,
+          Collection<ReachedSet> handledSets) {
         Collection<VariableTrackingPrecision> valuePrecisions = new HashSet<>();
         Collection<PredicatePrecision> predicatePrecisions = new HashSet<>();
         Queue<ARGState> worklist = new ArrayQueue<>();
@@ -208,10 +209,13 @@ public class BAMReachedSet extends ARGReachedSet.ForwardingARGReachedSet {
           worklist.addAll(currentState.getChildren());
           if (data.hasInitialState(currentState)) {
             ReachedSet other = data.getReachedSetForInitialState(currentState);
-            AbstractState reducedState = other.getFirstState();
-            Precision collectedPrecision = collectPrecision(other, reducedState, pTargetPrecision);
-            valuePrecisions.add(Precisions.extractPrecisionByType(collectedPrecision, VariableTrackingPrecision.class));
-            predicatePrecisions.add(Precisions.extractPrecisionByType(collectedPrecision, PredicatePrecision.class));
+            if (!handledSets.contains(other)) {
+              AbstractState reducedState = other.getFirstState();
+              handledSets.add(other);
+              Precision collectedPrecision = collectPrecision(other, reducedState, pTargetPrecision, handledSets);
+              valuePrecisions.add(Precisions.extractPrecisionByType(collectedPrecision, VariableTrackingPrecision.class));
+              predicatePrecisions.add(Precisions.extractPrecisionByType(collectedPrecision, PredicatePrecision.class));
+            }
           }
         }
         VariableTrackingPrecision initialValuePrecision = Precisions.extractPrecisionByType(pTargetPrecision, VariableTrackingPrecision.class);
