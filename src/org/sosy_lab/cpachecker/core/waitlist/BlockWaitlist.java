@@ -60,9 +60,10 @@ public class BlockWaitlist implements Waitlist {
     //previous block in the list
     private Block prev;
 
-    Block(WaitlistFactory factory) {
+    Block(WaitlistFactory factory, int limit) {
       mainWaitlist = factory.createWaitlistInstance();
       extraWaitlist = factory.createWaitlistInstance();
+      limitResources = limit;
     }
 
     @SuppressWarnings("unused")
@@ -161,14 +162,17 @@ public class BlockWaitlist implements Waitlist {
   private Block currBlock;
   //map of inactive blocks (where resource limits are reached)
   private Map<String,Block> inactiveBlocksMap;
+  //resource limit
+  private int resourceLimit;
   /**
    * Constructor that needs a factory for the waitlist implementation that
    * should be used to store states with the same block.
    */
-  protected BlockWaitlist(WaitlistFactory pSecondaryStrategy) {
+  protected BlockWaitlist(WaitlistFactory pSecondaryStrategy, int limit) {
     wrappedWaitlist = Preconditions.checkNotNull(pSecondaryStrategy);
     activeBlocksMap = new HashMap<>();
     inactiveBlocksMap = new HashMap<>();
+    resourceLimit = limit;
   }
 
   /**
@@ -275,7 +279,7 @@ public class BlockWaitlist implements Waitlist {
 
     if(currBlock == null) {
       //create entry block
-        Block b = new Block(wrappedWaitlist);
+        Block b = new Block(wrappedWaitlist, resourceLimit);
         b.isEntryBlock = true;
         addNewBlock(b);
         b.addStateToMain(pState);
@@ -314,7 +318,7 @@ public class BlockWaitlist implements Waitlist {
           block.addStateToMain(pState);
         } else {
           //create new block
-          Block newBlock = new Block(wrappedWaitlist);
+          Block newBlock = new Block(wrappedWaitlist, resourceLimit);
           addNewBlock(newBlock);
           newBlock.addStateToMain(pState);
           //do not check resources
