@@ -395,4 +395,7 @@ public class BlockWaitlist implements Waitlist {
     size = 0;
   }
 
+  public static WaitlistFactory factory(final WaitlistFactory pSecondaryStrategy, int resourceLimit) {
+    return () -> new BlockWaitlist(pSecondaryStrategy, resourceLimit);
+  }
 }
