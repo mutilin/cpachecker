@@ -41,6 +41,7 @@ public class BlockWaitlist implements Waitlist {
   }
 
   private static class Block {
+    public static final String ENTRY_BLOCK_NAME = "main";
     //function name which is the basis for the block
     private String name;
     //current number of used resources
@@ -60,10 +61,11 @@ public class BlockWaitlist implements Waitlist {
     //previous block in the list
     private Block prev;
 
-    Block(WaitlistFactory factory, int limit) {
+    Block(String pName, WaitlistFactory factory, int limit) {
       mainWaitlist = factory.createWaitlistInstance();
       extraWaitlist = factory.createWaitlistInstance();
       limitResources = limit;
+      name = pName;
     }
 
     @SuppressWarnings("unused")
@@ -83,6 +85,7 @@ public class BlockWaitlist implements Waitlist {
       mainWaitlist.add(e);
       incResources(e);
       lastCallstack = retreiveCallstack(e);
+      System.out.println("BlockWaitlist. (add to main) Resources[" + name + "]=" + countResources);
     }
 
     /**
@@ -93,6 +96,7 @@ public class BlockWaitlist implements Waitlist {
     void addStateToExtra(AbstractState e) {
       extraWaitlist.add(e);
       incResources(e);
+      System.out.println("BlockWaitlist. (add to extra) Resources[" + name + "]=" + countResources);
     }
 
     /**
@@ -138,12 +142,12 @@ public class BlockWaitlist implements Waitlist {
         //because it contains path continuations into depth
         res = extraWaitlist.pop();
         //remove resources for e
-        decResources(res);
+        //decResources(res);
         return res;
       } else if(!mainWaitlist.isEmpty()) {
         res = mainWaitlist.pop();
         //remove resources for e
-        decResources(res);
+        //decResources(res);
         return res;
       } else {
         assert false : "invalid pop: current block is empty";
@@ -176,14 +180,25 @@ public class BlockWaitlist implements Waitlist {
   }
 
   /**
-   * add newBlock as the last element in the activeList
-   * @param newBlock the block to be added
+   * add new block as the last element in the activeList
+   *
+   * @param pFunc - name of the block
+   * @param pState - first state to be added
+   * @param isEntry - is the block for entry function
    */
-  private void addNewBlock(Block newBlock) {
-    newBlock.prev = currBlock;
-    currBlock = newBlock;
-    activeBlocksMap.put(newBlock.name, newBlock);
+  private void addNewBlock(String pFunc, AbstractState pState, boolean isEntry) {
+    Block b;
+    if(activeBlocksMap.containsKey(pFunc)) {
+      b = activeBlocksMap.get(pFunc);
+    } else {
+      b = new Block(pFunc, wrappedWaitlist, resourceLimit);
+      activeBlocksMap.put(pFunc, b);
+      b.isEntryBlock = isEntry;
+    }
+    b.prev = currBlock;
+    currBlock = b;
     size++;
+    b.addStateToMain(pState);
   }
 
   /**
@@ -191,14 +206,19 @@ public class BlockWaitlist implements Waitlist {
    * the other blocks should not be removed
    */
   private void removeLastBlock() {
+    System.out.println("BlockWaitlist. Remove block " + currBlock.name);
     //remove currBlock from activeBlocksMap
-    activeBlocksMap.remove(currBlock.name);
+
+    //do not remove from the map to count resources
+    //TODO: understand it
+    //activeBlocksMap.remove(currBlock.name);
+
     //change the references prev, next
     //(remove currBlock from activeBlocks)
+    Block b = currBlock;
     currBlock = currBlock.prev;
-    size--;
     //clear block references
-    currBlock.prev = null;
+    b.prev = null;
   }
 
   /**
@@ -206,6 +226,7 @@ public class BlockWaitlist implements Waitlist {
    */
   private void makeLastBlockInactive() {
     assert currBlock!=null;
+    System.out.println("BlockWaitlist. Make block inactive " + currBlock.name);
     inactiveBlocksMap.put(currBlock.name, currBlock);
     //save resource count
     currBlock.savedResources = currBlock.countResources;
@@ -221,7 +242,9 @@ public class BlockWaitlist implements Waitlist {
    */
   private boolean isBlock(String func) {
     Matcher matcher = ldvPattern.matcher(func);
-    return matcher.matches();
+    boolean b = matcher.matches();
+    System.out.println("func " + func + "=" + b);
+    return b;
   }
 
   /**
@@ -237,7 +260,7 @@ public class BlockWaitlist implements Waitlist {
         }
         callStack = callStack.getPreviousState();
     }
-    return null;
+    return Block.ENTRY_BLOCK_NAME;
   }
 
 
@@ -277,13 +300,13 @@ public class BlockWaitlist implements Waitlist {
     String func = callStack.getCurrentFunction();
     size++;
 
+    System.out.println("BlockWaitlist. Add state=" + pState);
+
     if(currBlock == null) {
       //create entry block
-        Block b = new Block(wrappedWaitlist, resourceLimit);
-        b.isEntryBlock = true;
-        addNewBlock(b);
-        b.addStateToMain(pState);
-        return;
+      System.out.println("BlockWaitlist. entry block " + func);
+      addNewBlock(Block.ENTRY_BLOCK_NAME, pState, true);
+      return;
     }
 
     Block prevBlock = currBlock.prev;
@@ -293,6 +316,7 @@ public class BlockWaitlist implements Waitlist {
       //if exit from the function to previous block
       CallstackState prevCallstack = prevBlock.getLastCallstack();
       if(prevCallstack.equals(callStack)) {
+        System.out.println("BlockWaitlist. prev block " + func);
         assert getBlockForState(pState) == prevBlock;
         //add return state to the previous block
         prevBlock.addStateToExtra(pState);
@@ -312,18 +336,24 @@ public class BlockWaitlist implements Waitlist {
       if(isBlock(func)) {
         //check whether block is inactive
         if(inactiveBlocksMap.containsKey(func)) {
+          System.out.println("BlockWaitlist. inactive block " + func);
           //add state to inactive block
           //TODO: optimization - do not add
           Block block = inactiveBlocksMap.get(func);
           block.addStateToMain(pState);
         } else {
+          System.out.println("BlockWaitlist. new block " + func);
           //create new block
-          Block newBlock = new Block(wrappedWaitlist, resourceLimit);
-          addNewBlock(newBlock);
-          newBlock.addStateToMain(pState);
-          //do not check resources
+          addNewBlock(func, pState, false);
+          //check resources
+          if(currBlock.checkResources()) {
+            //stop analysis for the current block
+            makeLastBlockInactive();
+          }
         }
       } else {
+        System.out.println("BlockWaitlist. same block " + currBlock.name + " for " + func);
+        assert getBlockForState(pState) == currBlock;
         //new state belongs to the same block
         currBlock.addStateToMain(pState);
         if(currBlock.checkResources()) {
@@ -346,15 +376,18 @@ public class BlockWaitlist implements Waitlist {
 
   @Override
   public boolean remove(AbstractState pState) {
+    System.out.println("BlockWaitlist. Remove state=" + pState);
     //remove may be called even if the state is not in the waitlist
     Block block = getBlockForState(pState);
     if(block==null) {
       return false;
     }
+    System.out.println("Found block " + block.name);
     boolean b = block.removeState(pState);
     if(!b) {
       return false;
     }
+    size--;
     //if block becomes empty and it is the last,
     //then it it should be removed
     //together with all previous empty blocks
@@ -370,6 +403,8 @@ public class BlockWaitlist implements Waitlist {
   public AbstractState pop() {
     assert !isEmpty() && !currBlock.isEmpty();
     AbstractState e = currBlock.popState();
+    System.out.println("BlockWaitlist. Pop state=" + e);
+    size--;
 
     while(currBlock!=null && currBlock.isEmpty()) {
       removeLastBlock();
