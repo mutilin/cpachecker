@@ -41,7 +41,7 @@ public class BlockWaitlist implements Waitlist {
   }
 
   private static class Block {
-    public static final String ENTRY_BLOCK_NAME = "main";
+    public static final String ENTRY_BLOCK_NAME = "entry_block_main";
     //function name which is the basis for the block
     private String name;
     //current number of used resources
@@ -127,7 +127,10 @@ public class BlockWaitlist implements Waitlist {
     }
 
     boolean removeState(AbstractState e) {
-      boolean b = mainWaitlist.remove(e) && extraWaitlist.remove(e);
+      boolean b = mainWaitlist.remove(e) || extraWaitlist.remove(e);
+
+      System.out.println("block " + name + ", isEmpty=" + isEmpty());
+
       if(b) {
         //remove resources for e in block
         decResources(e);
@@ -352,13 +355,26 @@ public class BlockWaitlist implements Waitlist {
           }
         }
       } else {
-        System.out.println("BlockWaitlist. same block " + currBlock.name + " for " + func);
-        assert getBlockForState(pState) == currBlock;
-        //new state belongs to the same block
-        currBlock.addStateToMain(pState);
-        if(currBlock.checkResources()) {
-          //stop analysis for the current block
-          makeLastBlockInactive();
+        String sFunc = getBlockFunc(pState);
+        if(inactiveBlocksMap.containsKey(sFunc)) {
+          System.out.println("BlockWaitlist. inactive block " + sFunc + " for " + func);
+          //TODO: optimization - do not add
+          Block block = inactiveBlocksMap.get(sFunc);
+          block.addStateToMain(pState);
+        } else {
+          System.out.println("BlockWaitlist. same block " + currBlock.name + " for " + func);
+          Block b = currBlock;
+          while(b!=null) {
+            System.out.println("block " + b.name + " isEmpty=" + b.isEmpty());
+            b = b.prev;
+          }
+          assert getBlockForState(pState) == currBlock;
+          //new state belongs to the same block
+          currBlock.addStateToMain(pState);
+          if(currBlock.checkResources()) {
+            //stop analysis for the current block
+            makeLastBlockInactive();
+          }
         }
       }
     }
@@ -384,31 +400,42 @@ public class BlockWaitlist implements Waitlist {
     }
     System.out.println("Found block " + block.name);
     boolean b = block.removeState(pState);
+    System.out.println("removeState=" + b);
     if(!b) {
       return false;
     }
     size--;
+    System.out.println("size=" + size);
     //if block becomes empty and it is the last,
     //then it it should be removed
     //together with all previous empty blocks
-    if(block==currBlock) {
-      while(currBlock!=null && currBlock.isEmpty()) {
-        removeLastBlock();
-      }
+    //if(block==currBlock) {
+    //always clean empty blocks
+    while(currBlock!=null && currBlock.isEmpty()) {
+      System.out.println("remove empty " + currBlock.name);
+      removeLastBlock();
     }
+    //}
     return true;
   }
 
+  boolean unknownIfHasInactive = true;
   @Override
   public AbstractState pop() {
-    assert !isEmpty() && !currBlock.isEmpty();
-    AbstractState e = currBlock.popState();
-    System.out.println("BlockWaitlist. Pop state=" + e);
-    size--;
+    assert !isEmpty();
 
     while(currBlock!=null && currBlock.isEmpty()) {
       removeLastBlock();
     }
+
+    if(unknownIfHasInactive && isEmptyList()) {
+      throw new RuntimeException("Waitlist contains only inactive blocks " + inactiveBlocksMap.keySet());
+    }
+    assert !isEmpty();
+    AbstractState e = currBlock.popState();
+    System.out.println("BlockWaitlist. Pop state=" + e);
+    size--;
+
     return e;
   }
 
@@ -417,9 +444,23 @@ public class BlockWaitlist implements Waitlist {
     return size;
   }
 
+  private boolean isEmptyList() {
+    Block b = currBlock;
+    while(b!=null) {
+      if(!b.isEmpty()) {
+        return false;
+      }
+      b = b.prev;
+    }
+    return true;
+  }
+
   @Override
   public boolean isEmpty() {
-    return currBlock == null;
+    if(unknownIfHasInactive) {
+      return size==0;
+    }
+    return isEmptyList();
   }
 
   @Override
