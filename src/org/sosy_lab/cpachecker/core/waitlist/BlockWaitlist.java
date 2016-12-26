@@ -253,28 +253,23 @@ public class BlockWaitlist implements Waitlist {
   }
 
   /**
-   * @return function name for the block
+   * @return key for the block
    */
-  private String getBlockFunc(CallstackState callStack) {
-    while(callStack!=null) {
-        //get current function
-        String func = callStack.getCurrentFunction();
-        if(isBlock(func)) {
-          return func;
-        }
-        callStack = callStack.getPreviousState();
-    }
-    return Block.ENTRY_BLOCK_NAME;
-  }
-
   private BKey getBlockKey(AbstractState e) {
     CallstackState callStack = retreiveCallstack(e);
-    String func = getBlockFunc(callStack);
-    if(func == null) {
-      //not found
-      return null;
+    String resFunc = Block.ENTRY_BLOCK_NAME;
+    int resDepth = 1;
+    while(callStack!=null) {
+      //get current function
+      String func = callStack.getCurrentFunction();
+      if(isBlock(func)) {
+        resFunc = func;
+        resDepth = callStack.getDepth();
+        break;
+      }
+      callStack = callStack.getPreviousState();
     }
-    BKey key = new BKey(func,callStack.getDepth());
+    BKey key = new BKey(resFunc,resDepth);
     return key;
   }
 
