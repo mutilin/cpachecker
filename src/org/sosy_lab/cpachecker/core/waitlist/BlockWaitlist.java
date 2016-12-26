@@ -24,9 +24,10 @@
 package org.sosy_lab.cpachecker.core.waitlist;
 
 import com.google.common.base.Preconditions;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -52,29 +53,19 @@ public class BlockWaitlist implements Waitlist {
     private int limitResources;
     //main waitlist
     private Waitlist mainWaitlist;
-    //additional waitlist
-    private Waitlist extraWaitlist;
-    //last state from which the function going into the next block is called
-    private CallstackState lastCallstack;
     //is it a block for entry function
     private boolean isEntryBlock;
     //previous block in the list
-    private Block prev;
 
-    Block(String pName, WaitlistFactory factory, int limit) {
+    Block(BKey key, WaitlistFactory factory, int limit) {
       mainWaitlist = factory.createWaitlistInstance();
-      extraWaitlist = factory.createWaitlistInstance();
       limitResources = limit;
-      name = pName;
+      name = key.name;
     }
 
     @SuppressWarnings("unused")
     public int getSavedResources() {
       return savedResources;
-    }
-
-    CallstackState getLastCallstack() {
-      return lastCallstack;
     }
 
     /**
@@ -84,19 +75,7 @@ public class BlockWaitlist implements Waitlist {
     void addStateToMain(AbstractState e) {
       mainWaitlist.add(e);
       incResources(e);
-      lastCallstack = retreiveCallstack(e);
       System.out.println("BlockWaitlist. (add to main) Resources[" + name + "]=" + countResources);
-    }
-
-    /**
-     * Add state to extra waitlist,
-     * increment used resources
-     * @param e the state to be added
-     */
-    void addStateToExtra(AbstractState e) {
-      extraWaitlist.add(e);
-      incResources(e);
-      System.out.println("BlockWaitlist. (add to extra) Resources[" + name + "]=" + countResources);
     }
 
     /**
@@ -123,11 +102,11 @@ public class BlockWaitlist implements Waitlist {
     }
 
     boolean isEmpty() {
-      return mainWaitlist.isEmpty() && extraWaitlist.isEmpty();
+      return mainWaitlist.isEmpty();
     }
 
     boolean removeState(AbstractState e) {
-      boolean b = mainWaitlist.remove(e) || extraWaitlist.remove(e);
+      boolean b = mainWaitlist.remove(e);
 
       System.out.println("block " + name + ", isEmpty=" + isEmpty());
 
@@ -140,14 +119,7 @@ public class BlockWaitlist implements Waitlist {
 
     AbstractState popState() {
       AbstractState res;
-      if(!extraWaitlist.isEmpty()) {
-        //first of all take state from extra
-        //because it contains path continuations into depth
-        res = extraWaitlist.pop();
-        //remove resources for e
-        //decResources(res);
-        return res;
-      } else if(!mainWaitlist.isEmpty()) {
+      if(!mainWaitlist.isEmpty()) {
         res = mainWaitlist.pop();
         //remove resources for e
         //decResources(res);
@@ -159,16 +131,70 @@ public class BlockWaitlist implements Waitlist {
     }
   }
 
+  private static class BKey implements Comparable<BKey> {
+    String name;
+    int callStackDepth;
+
+    BKey(String pName, int pDepth) {
+      name = pName;
+      callStackDepth = pDepth;
+    }
+
+    @Override
+    public int compareTo(BKey k2) {
+      if(callStackDepth!=k2.callStackDepth) {
+        return Integer.compare(callStackDepth, k2.callStackDepth);
+      }
+      return name.compareTo(k2.name);
+    }
+
+    @Override
+    public String toString() {
+      return "[" + name + ", " + callStackDepth + "]";
+    }
+
+    @Override
+    public int hashCode() {
+      final int prime = 31;
+      int result = 1;
+      result = prime * result + callStackDepth;
+      result = prime * result + ((name == null) ? 0 : name.hashCode());
+      return result;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null) {
+        return false;
+      }
+      if (getClass() != obj.getClass()) {
+        return false;
+      }
+      BKey other = (BKey) obj;
+      if (callStackDepth != other.callStackDepth) {
+        return false;
+      }
+      if (name == null) {
+        if (other.name != null) {
+          return false;
+        }
+      } else if (!name.equals(other.name)) {
+        return false;
+      }
+      return true;
+    }
+  }
+
   private final WaitlistFactory wrappedWaitlist;
 
   private int size = 0;
   //the map of active blocks (for efficient state removal)
-  private Map<String,Block> activeBlocksMap;
-  //the last element of the list of active blocks
-  //current block
-  private Block currBlock;
+  private final NavigableMap<BKey, Block> activeBlocksMap = new TreeMap<>();
   //map of inactive blocks (where resource limits are reached)
-  private Map<String,Block> inactiveBlocksMap;
+  private final NavigableMap<BKey,Block> inactiveBlocksMap = new TreeMap<>();
   //resource limit
   private int resourceLimit;
   /**
@@ -177,63 +203,39 @@ public class BlockWaitlist implements Waitlist {
    */
   protected BlockWaitlist(WaitlistFactory pSecondaryStrategy, int limit) {
     wrappedWaitlist = Preconditions.checkNotNull(pSecondaryStrategy);
-    activeBlocksMap = new HashMap<>();
-    inactiveBlocksMap = new HashMap<>();
     resourceLimit = limit;
   }
 
   /**
    * add new block as the last element in the activeList
    *
-   * @param pFunc - name of the block
+   * @param key - key of the block
    * @param pState - first state to be added
-   * @param isEntry - is the block for entry function
    */
-  private void addNewBlock(String pFunc, AbstractState pState, boolean isEntry) {
+  private void addNewBlock(BKey key, AbstractState pState) {
     Block b;
-    if(activeBlocksMap.containsKey(pFunc)) {
-      b = activeBlocksMap.get(pFunc);
+    if(activeBlocksMap.containsKey(key)) {
+      b = activeBlocksMap.get(key);
     } else {
-      b = new Block(pFunc, wrappedWaitlist, resourceLimit);
-      activeBlocksMap.put(pFunc, b);
-      b.isEntryBlock = isEntry;
+      b = new Block(key, wrappedWaitlist, resourceLimit);
+      activeBlocksMap.put(key, b);
+      b.isEntryBlock = key.name.equals(Block.ENTRY_BLOCK_NAME);
     }
-    b.prev = currBlock;
-    currBlock = b;
     size++;
     b.addStateToMain(pState);
   }
 
   /**
-   * While last block is not empty
-   * the other blocks should not be removed
-   */
-  private void removeLastBlock() {
-    System.out.println("BlockWaitlist. Remove block " + currBlock.name);
-    //remove currBlock from activeBlocksMap
-
-    //do not remove from the map to count resources
-    //TODO: understand it
-    //activeBlocksMap.remove(currBlock.name);
-
-    //change the references prev, next
-    //(remove currBlock from activeBlocks)
-    Block b = currBlock;
-    currBlock = currBlock.prev;
-    //clear block references
-    b.prev = null;
-  }
-
-  /**
    * mark last active block as inactive
    */
-  private void makeLastBlockInactive() {
-    assert currBlock!=null;
-    System.out.println("BlockWaitlist. Make block inactive " + currBlock.name);
-    inactiveBlocksMap.put(currBlock.name, currBlock);
+  private void makeBlockInactive(BKey key) {
+    System.out.println("BlockWaitlist. Make block inactive " + key);
+    Block b = activeBlocksMap.get(key);
+    inactiveBlocksMap.put(key, b);
     //save resource count
-    currBlock.savedResources = currBlock.countResources;
-    removeLastBlock();
+    b.savedResources = b.countResources;
+    //TODO: remove from active blocks?
+    activeBlocksMap.remove(key);
   }
 
   Pattern ldvPattern = Pattern.compile("ldv_.*_instance_.*");
@@ -253,8 +255,7 @@ public class BlockWaitlist implements Waitlist {
   /**
    * @return function name for the block
    */
-  private String getBlockFunc(AbstractState e) {
-    CallstackState callStack = retreiveCallstack(e);
+  private String getBlockFunc(CallstackState callStack) {
     while(callStack!=null) {
         //get current function
         String func = callStack.getCurrentFunction();
@@ -266,6 +267,16 @@ public class BlockWaitlist implements Waitlist {
     return Block.ENTRY_BLOCK_NAME;
   }
 
+  private BKey getBlockKey(AbstractState e) {
+    CallstackState callStack = retreiveCallstack(e);
+    String func = getBlockFunc(callStack);
+    if(func == null) {
+      //not found
+      return null;
+    }
+    BKey key = new BKey(func,callStack.getDepth());
+    return key;
+  }
 
   /**
    * get block for state e
@@ -273,19 +284,17 @@ public class BlockWaitlist implements Waitlist {
    * @return block for state e
    */
   private Block getBlockForState(AbstractState e) {
-    String func = getBlockFunc(e);
-    if(func == null) {
-      //not found
-      return null;
-    }
+    BKey key = getBlockKey(e);
+    assert key!=null;
+
     //search block in active blocks
-    Block block = activeBlocksMap.get(func);
+    Block block = activeBlocksMap.get(key);
     if(block != null) {
       return block;
     }
 
     //search block in inactive blocks
-    block = inactiveBlocksMap.get(func);
+    block = inactiveBlocksMap.get(key);
     if(block != null) {
       return block;
     }
@@ -299,83 +308,31 @@ public class BlockWaitlist implements Waitlist {
 
   @Override
   public void add(AbstractState pState) {
-    CallstackState callStack = retreiveCallstack(pState);
-    String func = callStack.getCurrentFunction();
+    BKey key = getBlockKey(pState);
     size++;
 
-    System.out.println("BlockWaitlist. Add state=" + pState);
+    //for debug only
+    CallstackState callStack = retreiveCallstack(pState);
+    String func = callStack.getCurrentFunction();
+    System.out.println("BlockWaitlist. Add state=" + pState + ", size=" + size);
 
-    if(currBlock == null) {
-      //create entry block
-      System.out.println("BlockWaitlist. entry block " + func);
-      addNewBlock(Block.ENTRY_BLOCK_NAME, pState, true);
-      return;
-    }
-
-    Block prevBlock = currBlock.prev;
-
-    //three variants: current, previous, new
-    if(prevBlock!=null) {
-      //if exit from the function to previous block
-      CallstackState prevCallstack = prevBlock.getLastCallstack();
-      if(prevCallstack.equals(callStack)) {
-        System.out.println("BlockWaitlist. prev block " + func);
-        assert getBlockForState(pState) == prevBlock;
-        //add return state to the previous block
-        prevBlock.addStateToExtra(pState);
-        //do not check resources here
-        return;
-      }
-    }
-
-    if(func.equals(currBlock.name)) {
-      //state belongs to the current block
-      currBlock.addStateToMain(pState);
-      if(currBlock.checkResources()) {
-          //stop analysis for the current block
-          makeLastBlockInactive();
-      }
+    if(inactiveBlocksMap.containsKey(key)) {
+      System.out.println("BlockWaitlist. inactive block " + key + " for " + func);
+      //TODO: optimization - do not add
+      Block block = inactiveBlocksMap.get(key);
+      block.addStateToMain(pState);
     } else {
-      if(isBlock(func)) {
-        //check whether block is inactive
-        if(inactiveBlocksMap.containsKey(func)) {
-          System.out.println("BlockWaitlist. inactive block " + func);
-          //add state to inactive block
-          //TODO: optimization - do not add
-          Block block = inactiveBlocksMap.get(func);
-          block.addStateToMain(pState);
-        } else {
-          System.out.println("BlockWaitlist. new block " + func);
-          //create new block
-          addNewBlock(func, pState, false);
-          //check resources
-          if(currBlock.checkResources()) {
-            //stop analysis for the current block
-            makeLastBlockInactive();
-          }
+      Block b = activeBlocksMap.get(key);
+      if(b!=null) {
+        System.out.println("BlockWaitlist. existing block " + key + " for " + func);
+        b.addStateToMain(pState);
+        if(b.checkResources()) {
+          //stop analysis for the current block
+          makeBlockInactive(key);
         }
       } else {
-        String sFunc = getBlockFunc(pState);
-        if(inactiveBlocksMap.containsKey(sFunc)) {
-          System.out.println("BlockWaitlist. inactive block " + sFunc + " for " + func);
-          //TODO: optimization - do not add
-          Block block = inactiveBlocksMap.get(sFunc);
-          block.addStateToMain(pState);
-        } else {
-          System.out.println("BlockWaitlist. same block " + currBlock.name + " for " + func);
-          Block b = currBlock;
-          while(b!=null) {
-            System.out.println("block " + b.name + " isEmpty=" + b.isEmpty());
-            b = b.prev;
-          }
-          assert getBlockForState(pState) == currBlock;
-          //new state belongs to the same block
-          currBlock.addStateToMain(pState);
-          if(currBlock.checkResources()) {
-            //stop analysis for the current block
-            makeLastBlockInactive();
-          }
-        }
+        System.out.println("BlockWaitlist. new block " + key + " for " + func);
+        addNewBlock(key, pState);
       }
     }
   }
@@ -386,8 +343,7 @@ public class BlockWaitlist implements Waitlist {
     if(block == null) {
         return false;
     }
-    return block.mainWaitlist.contains(pState)
-        || block.extraWaitlist.contains(pState);
+    return block.mainWaitlist.contains(pState);
   }
 
   @Override
@@ -404,18 +360,14 @@ public class BlockWaitlist implements Waitlist {
     if(!b) {
       return false;
     }
+    Entry<BKey, Block> e = activeBlocksMap.lastEntry();
+    while(e!=null && e.getValue().isEmpty()) {
+      System.out.println("BlockWaitlist. Remove empty block=" + e.getKey());
+      activeBlocksMap.pollLastEntry();
+      e = activeBlocksMap.lastEntry();
+    }
     size--;
     System.out.println("size=" + size);
-    //if block becomes empty and it is the last,
-    //then it it should be removed
-    //together with all previous empty blocks
-    //if(block==currBlock) {
-    //always clean empty blocks
-    while(currBlock!=null && currBlock.isEmpty()) {
-      System.out.println("remove empty " + currBlock.name);
-      removeLastBlock();
-    }
-    //}
     return true;
   }
 
@@ -423,20 +375,23 @@ public class BlockWaitlist implements Waitlist {
   @Override
   public AbstractState pop() {
     assert !isEmpty();
-
-    while(currBlock!=null && currBlock.isEmpty()) {
-      removeLastBlock();
+    Entry<BKey, Block> e = activeBlocksMap.lastEntry();
+    while(e!=null && e.getValue().isEmpty()) {
+      System.out.println("BlockWaitlist. Pop.Remove empty block=" + e.getKey());
+      activeBlocksMap.pollLastEntry();
+      e = activeBlocksMap.lastEntry();
     }
 
-    if(unknownIfHasInactive && isEmptyList()) {
+    if(unknownIfHasInactive && isEmptyMap()) {
       throw new RuntimeException("Waitlist contains only inactive blocks " + inactiveBlocksMap.keySet());
     }
     assert !isEmpty();
-    AbstractState e = currBlock.popState();
-    System.out.println("BlockWaitlist. Pop state=" + e);
+    Entry<BKey, Block> highestEntry = activeBlocksMap.lastEntry();
+    AbstractState state = highestEntry.getValue().popState();
+    System.out.println("BlockWaitlist. Pop state=" + state);
     size--;
 
-    return e;
+    return state;
   }
 
   @Override
@@ -444,13 +399,15 @@ public class BlockWaitlist implements Waitlist {
     return size;
   }
 
-  private boolean isEmptyList() {
-    Block b = currBlock;
-    while(b!=null) {
+  private boolean isEmptyMap() {
+    Iterator<BKey> i = activeBlocksMap.descendingKeySet().iterator();
+
+    while(i.hasNext()) {
+      BKey key = i.next();
+      Block b = activeBlocksMap.get(key);
       if(!b.isEmpty()) {
         return false;
       }
-      b = b.prev;
     }
     return true;
   }
@@ -460,14 +417,13 @@ public class BlockWaitlist implements Waitlist {
     if(unknownIfHasInactive) {
       return size==0;
     }
-    return isEmptyList();
+    return isEmptyMap();
   }
 
   @Override
   public void clear() {
     activeBlocksMap.clear();
     inactiveBlocksMap.clear();
-    currBlock = null;
     size = 0;
   }
 
