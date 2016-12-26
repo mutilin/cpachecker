@@ -75,7 +75,7 @@ public class BlockWaitlist implements Waitlist {
     void addStateToMain(AbstractState e) {
       mainWaitlist.add(e);
       incResources(e);
-      System.out.println("BlockWaitlist. (add to main) Resources[" + name + "]=" + countResources);
+      //System.out.println("BlockWaitlist. (add to main) Resources[" + name + "]=" + countResources);
     }
 
     /**
@@ -108,7 +108,7 @@ public class BlockWaitlist implements Waitlist {
     boolean removeState(AbstractState e) {
       boolean b = mainWaitlist.remove(e);
 
-      System.out.println("block " + name + ", isEmpty=" + isEmpty());
+      //System.out.println("block " + name + ", isEmpty=" + isEmpty());
 
       if(b) {
         //remove resources for e in block
@@ -248,7 +248,7 @@ public class BlockWaitlist implements Waitlist {
   private boolean isBlock(String func) {
     Matcher matcher = ldvPattern.matcher(func);
     boolean b = matcher.matches();
-    System.out.println("func " + func + "=" + b);
+    //System.out.println("func " + func + "=" + b);
     return b;
   }
 
@@ -269,8 +269,7 @@ public class BlockWaitlist implements Waitlist {
       }
       callStack = callStack.getPreviousState();
     }
-    BKey key = new BKey(resFunc,resDepth);
-    return key;
+    return new BKey(resFunc,resDepth);
   }
 
   /**
@@ -309,24 +308,24 @@ public class BlockWaitlist implements Waitlist {
     //for debug only
     CallstackState callStack = retreiveCallstack(pState);
     String func = callStack.getCurrentFunction();
-    System.out.println("BlockWaitlist. Add state=" + pState + ", size=" + size);
+    //System.out.println("BlockWaitlist. Add state=" + pState + ", size=" + size);
 
     if(inactiveBlocksMap.containsKey(key)) {
-      System.out.println("BlockWaitlist. inactive block " + key + " for " + func);
+      //System.out.println("BlockWaitlist. inactive block " + key + " for " + func);
       //TODO: optimization - do not add
       Block block = inactiveBlocksMap.get(key);
       block.addStateToMain(pState);
     } else {
       Block b = activeBlocksMap.get(key);
       if(b!=null) {
-        System.out.println("BlockWaitlist. existing block " + key + " for " + func);
+        //System.out.println("BlockWaitlist. existing block " + key + " for " + func);
         b.addStateToMain(pState);
         if(b.checkResources()) {
           //stop analysis for the current block
           makeBlockInactive(key);
         }
       } else {
-        System.out.println("BlockWaitlist. new block " + key + " for " + func);
+        //System.out.println("BlockWaitlist. new block " + key + " for " + func);
         addNewBlock(key, pState);
       }
     }
@@ -343,26 +342,27 @@ public class BlockWaitlist implements Waitlist {
 
   @Override
   public boolean remove(AbstractState pState) {
-    System.out.println("BlockWaitlist. Remove state=" + pState);
+    //System.out.println("BlockWaitlist. Remove state=" + pState);
     //remove may be called even if the state is not in the waitlist
     Block block = getBlockForState(pState);
     if(block==null) {
       return false;
     }
-    System.out.println("Found block " + block.name);
+    //System.out.println("Found block " + block.name);
     boolean b = block.removeState(pState);
-    System.out.println("removeState=" + b);
+    //System.out.println("removeState=" + b);
     if(!b) {
       return false;
     }
+    /*
     Entry<BKey, Block> e = activeBlocksMap.lastEntry();
     while(e!=null && e.getValue().isEmpty()) {
-      System.out.println("BlockWaitlist. Remove empty block=" + e.getKey());
+      System.out.println("BlockWaitlist. Remove empty block=" + e.getKey() + ", resources=" + e.getValue().countResources);
       activeBlocksMap.pollLastEntry();
       e = activeBlocksMap.lastEntry();
-    }
+    }*/
     size--;
-    System.out.println("size=" + size);
+    //System.out.println("size=" + size);
     return true;
   }
 
@@ -372,7 +372,7 @@ public class BlockWaitlist implements Waitlist {
     assert !isEmpty();
     Entry<BKey, Block> e = activeBlocksMap.lastEntry();
     while(e!=null && e.getValue().isEmpty()) {
-      System.out.println("BlockWaitlist. Pop.Remove empty block=" + e.getKey());
+      System.out.println("BlockWaitlist. Pop.Remove empty block=" + e.getKey() + ", resources=" + e.getValue().countResources);
       activeBlocksMap.pollLastEntry();
       e = activeBlocksMap.lastEntry();
     }
@@ -383,7 +383,7 @@ public class BlockWaitlist implements Waitlist {
     assert !isEmpty();
     Entry<BKey, Block> highestEntry = activeBlocksMap.lastEntry();
     AbstractState state = highestEntry.getValue().popState();
-    System.out.println("BlockWaitlist. Pop state=" + state);
+    //System.out.println("BlockWaitlist. Pop state=" + state);
     size--;
 
     return state;
@@ -395,6 +395,17 @@ public class BlockWaitlist implements Waitlist {
   }
 
   private boolean isEmptyMap() {
+    if(activeBlocksMap.isEmpty()) {
+      return true;
+    }
+    //fast detection if last block is not empty
+    Entry<BKey, Block> highestEntry = activeBlocksMap.lastEntry();
+    if(!highestEntry.getValue().isEmpty()) {
+      return false;
+    }
+
+    //slow path
+    System.out.println("isEmptyMap. Slow path");
     Iterator<BKey> i = activeBlocksMap.descendingKeySet().iterator();
 
     while(i.hasNext()) {
