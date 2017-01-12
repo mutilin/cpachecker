@@ -47,17 +47,17 @@ import org.sosy_lab.cpachecker.cfa.CFACreator;
 public class PropertyFileParser {
 
   private static final String REACHABILITY_LABEL_SPECIFICATION_FILE =
-      "config/specification/sv-comp-errorlabel.spc";
+      "sv-comp-errorlabel";
   private static final String REACHABILITY_SPECIFICATION_FILE =
-      "config/specification/sv-comp-reachability.spc";
+      "sv-comp-reachability";
   private static final String MEMORYSAFETY_SPECIFICATION_FILE_DEREF =
-      "config/specification/memorysafety-deref.spc";
+      "memorysafety-deref";
   private static final String MEMORYSAFETY_SPECIFICATION_FILE_FREE =
-      "config/specification/memorysafety-free.spc";
+      "memorysafety-free";
   private static final String MEMORYSAFETY_SPECIFICATION_FILE_MEMTRACK =
-      "config/specification/memorysafety-memtrack.spc";
-  private static final String OVERFLOW_SPECIFICATION_FILE = "config/specification/overflow.spc";
-  private static final String DEADLOCK_SPECIFICATION_FILE = "config/specification/deadlock.spc";
+      "memorysafety-memtrack";
+  private static final String OVERFLOW_SPECIFICATION_FILE = "overflow";
+  private static final String DEADLOCK_SPECIFICATION_FILE = "deadlock";
 
   public static class InvalidPropertyFileException extends Exception {
 

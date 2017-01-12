@@ -390,23 +390,29 @@ class CmdLineArguments {
     }
   }
 
+  private static String handleNormalSpecification(String specification) {
+    Path specFile = findFile(SPECIFICATION_FILES_TEMPLATE, specification);
+    if (specFile != null) {
+      specification = specFile.toString();
+    } else {
+      ERROR_OUTPUT.println(
+          "Checking for property "
+              + specification
+              + " is currently not supported by CPAchecker.");
+      System.exit(ERROR_EXIT_CODE);
+    }
+    return specification;
+  }
+
   private static String handleSpecificationDefinition(
       final Map<String, String> options,
       Set<SpecificationProperty> pSpecificationProperties,
       String specification)
       throws InvalidCmdlineArgumentException {
+
     // handle normal specification definitions
     if (SPECIFICATION_FILES_PATTERN.matcher(specification).matches()) {
-      Path specFile = findFile(SPECIFICATION_FILES_TEMPLATE, specification);
-      if (specFile != null) {
-        specification = specFile.toString();
-      } else {
-        ERROR_OUTPUT.println(
-            "Checking for property "
-                + specification
-                + " is currently not supported by CPAchecker.");
-        System.exit(ERROR_EXIT_CODE);
-      }
+      return handleNormalSpecification(specification);
     }
 
     // handle property files, as demanded by SV-COMP, which are just mapped to an explicit entry function and
@@ -428,6 +434,10 @@ class CmdLineArguments {
         assert !properties.isEmpty();
 
         specification = getSpecifications(options, properties);
+
+        if (SPECIFICATION_FILES_PATTERN.matcher(specification).matches()) {
+          return handleNormalSpecification(specification);
+        }
 
       } else {
         ERROR_OUTPUT.println("The property file " + specification + " does not exist.");
