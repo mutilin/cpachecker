@@ -41,6 +41,11 @@ public class FunctionValue  implements Value, Serializable  {
     str = pString;
   }
 
+  public String getName()
+  {
+    return str;
+  }
+
   @Override
   public boolean isNumericValue() {
     // TODO Auto-generated method stub

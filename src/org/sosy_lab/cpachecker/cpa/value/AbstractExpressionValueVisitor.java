@@ -232,6 +232,22 @@ public abstract class AbstractExpressionValueVisitor
           castCValue(rVal, calculationType, machineModel, logger, binaryExpr.getFileLocation());
     }
 
+    if (lVal instanceof FunctionValue || rVal instanceof FunctionValue)
+    {
+      switch (binaryOperator) {
+      case EQUALS:
+        return new NumericValue(((FunctionValue) lVal).getName()
+                .equals(((FunctionValue) rVal).getName()) ? 1 : 0);
+
+      case NOT_EQUALS:
+        return new NumericValue(((FunctionValue) lVal).getName()
+            .equals(((FunctionValue) rVal).getName()) ? 0 : 1);
+
+      default:
+        throw new AssertionError("unhandled binary operator");
+      }
+    }
+
     if (lVal instanceof SymbolicValue || rVal instanceof SymbolicValue) {
       return calculateSymbolicBinaryExpression(lVal, rVal, binaryExpr);
     }
@@ -902,7 +918,7 @@ public abstract class AbstractExpressionValueVisitor
       return new NumericValue(machineModel.getAlignof(unaryOperand.getExpressionType()));
     }
     if (unaryOperator == UnaryOperator.AMPER) {
-      return new FunctionValue(unaryOperand.toString());
+      return new FunctionValue(((CIdExpression)unaryOperand).getName());
     }
 
     final Value value = unaryOperand.accept(this);
