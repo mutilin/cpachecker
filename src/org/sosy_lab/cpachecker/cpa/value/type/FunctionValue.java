@@ -46,6 +46,11 @@ public class FunctionValue  implements Value, Serializable  {
     return str;
   }
 
+  public boolean equals(FunctionValue func)
+  {
+    return str.equals(func.getName());
+  }
+
   @Override
   public boolean isNumericValue() {
     // TODO Auto-generated method stub
