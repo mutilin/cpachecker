@@ -23,18 +23,17 @@
  */
 package org.sosy_lab.cpachecker.cpa.location;
 
+import java.util.Collection;
+import java.util.Collections;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
-import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 
-import java.util.Collection;
-import java.util.Collections;
-
-public class LocationTransferRelation implements TransferRelation {
+public class LocationTransferRelation implements TransferRelationWithThread {
 
   private final LocationStateFactory factory;
 
@@ -61,5 +60,24 @@ public class LocationTransferRelation implements TransferRelation {
 
     CFANode node = ((LocationState) element).getLocationNode();
     return CFAUtils.successorsOf(node).transform(n -> factory.getState(n)).toList();
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    throw new CPATransferException("Not supported");
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    return Collections.singleton(pState);
+  }
+
+  @Override
+  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
+    return true;
   }
 }

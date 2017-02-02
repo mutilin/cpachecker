@@ -42,6 +42,7 @@ import org.sosy_lab.cpachecker.core.algorithm.AssumptionCollectorAlgorithm;
 import org.sosy_lab.cpachecker.core.algorithm.BDDCPARestrictionAlgorithm;
 import org.sosy_lab.cpachecker.core.algorithm.CEGARAlgorithm;
 import org.sosy_lab.cpachecker.core.algorithm.CPAAlgorithm;
+import org.sosy_lab.cpachecker.core.algorithm.CPAThreadAlgorithm;
 import org.sosy_lab.cpachecker.core.algorithm.CustomInstructionRequirementsExtractingAlgorithm;
 import org.sosy_lab.cpachecker.core.algorithm.ExceptionHandlingAlgorithm;
 import org.sosy_lab.cpachecker.core.algorithm.ExternalCBMCAlgorithm;
@@ -165,6 +166,10 @@ public class CoreComponentsFactory {
       description="stop the analysis with the result unknown if the program does not satisfies certain restrictions.")
   private boolean unknownIfUnrestrictedProgram = false;
 
+  @Option(secure=true,
+      description="stop the analysis with the result unknown if the program does not satisfies certain restrictions.")
+  private boolean useSpecialThreadAlgorithm = false;
+
   @Option(
     secure = true,
     name = "algorithm.CBMC",
@@ -281,7 +286,11 @@ public class CoreComponentsFactory {
               aggregatedReachedSets);
 
     } else {
-      algorithm = CPAAlgorithm.create(cpa, logger, config, shutdownNotifier);
+      if (useSpecialThreadAlgorithm) {
+        algorithm = CPAThreadAlgorithm.create(cpa, logger, config, shutdownNotifier);
+      } else {
+        algorithm = CPAAlgorithm.create(cpa, logger, config, shutdownNotifier);
+      }
 
       if (useAnalysisWithEnablerCPAAlgorithm) {
         algorithm = new AnalysisWithRefinableEnablerCPAAlgorithm(algorithm, cpa, cfa, logger, config, shutdownNotifier);

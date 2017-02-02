@@ -26,7 +26,9 @@ package org.sosy_lab.cpachecker.cpa.callstack;
 import static org.sosy_lab.cpachecker.util.CFAUtils.leavingEdges;
 
 import com.google.common.collect.ImmutableSet;
-
+import java.util.Collection;
+import java.util.Collections;
+import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -51,16 +53,13 @@ import org.sosy_lab.cpachecker.core.AnalysisDirection;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCodeException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.logging.Level;
-
 @Options(prefix="cpa.callstack")
-public class CallstackTransferRelation extends SingleEdgeTransferRelation {
+public class CallstackTransferRelation extends SingleEdgeTransferRelation implements TransferRelationWithThread {
 
   // set of functions that may not appear in the source code
   // the value of the map entry is the explanation for the user
@@ -378,5 +377,24 @@ public class CallstackTransferRelation extends SingleEdgeTransferRelation {
 
   public void disableRecursiveContext() {
     isRecursiveContext = false;
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    throw new CPATransferException("Unsupported");
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    return Collections.singleton(pState);
+  }
+
+  @Override
+  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
+    return true;
   }
 }

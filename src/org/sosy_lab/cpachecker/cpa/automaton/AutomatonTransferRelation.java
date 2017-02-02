@@ -46,6 +46,7 @@ import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonExpression.ResultValue;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState.AutomatonUnknownState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -56,7 +57,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatKind;
 /** The TransferRelation of this CPA determines the AbstractSuccessor of a {@link AutomatonState}
  * and strengthens an {@link AutomatonState.AutomatonUnknownState}.
  */
-class AutomatonTransferRelation extends SingleEdgeTransferRelation {
+class AutomatonTransferRelation extends SingleEdgeTransferRelation implements TransferRelationWithThread {
 
   private final ControlAutomatonCPA cpa;
   private final LogManager logger;
@@ -333,5 +334,24 @@ class AutomatonTransferRelation extends SingleEdgeTransferRelation {
       assert !from(successors).anyMatch(instanceOf(AutomatonUnknownState.class));
       return successors;
     }
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    throw new CPATransferException("Not supported");
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    return Collections.singleton(pState);
+  }
+
+  @Override
+  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
+    return true;
   }
 }

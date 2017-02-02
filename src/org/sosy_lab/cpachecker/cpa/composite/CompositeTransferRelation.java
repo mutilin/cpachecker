@@ -33,7 +33,12 @@ import static org.sosy_lab.cpachecker.util.AbstractStates.extractStateByType;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -50,21 +55,15 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithLocations;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.core.interfaces.pcc.ProofChecker;
 import org.sosy_lab.cpachecker.cpa.assumptions.storage.AssumptionStorageTransferRelation;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateTransferRelation;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 @Options(prefix = "cpa.composite")
-final class CompositeTransferRelation implements TransferRelation {
+final class CompositeTransferRelation implements TransferRelationWithThread {
 
   @Option(secure=true, description="By enabling this option the CompositeTransferRelation"
       + " will compute abstract successors for as many edges as possible in one call. For"
@@ -480,5 +479,84 @@ final class CompositeTransferRelation implements TransferRelation {
     if (resultCount != states.size()) { return false; }
 
     return result;
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    CompositeState compositeState = (CompositeState) pState;
+    CompositeState compositeEnvState = (CompositeState) pStateInEnv;
+    CompositePrecision compositePrecision = (CompositePrecision)pPrecision;
+    Collection<CompositeState> results;
+
+    AbstractStateWithLocations locState = extractStateByType(compositeEnvState, AbstractStateWithLocations.class);
+    if (locState == null) {
+      throw new CPATransferException("Analysis without any CPA tracking locations is not supported, please add one to the configuration (e.g., LocationCPA).");
+    }
+
+    results = new ArrayList<>(2);
+
+    for (CFAEdge edge : locState.getOutgoingEdges()) {
+      performTransferInEnvironmentForEdge(compositeState, compositeEnvState, compositePrecision, edge, results);
+    }
+    if (results.isEmpty()) {
+      results = Collections.singleton(compositeState);
+    }
+
+    return results;
+  }
+
+  private void performTransferInEnvironmentForEdge(CompositeState pCompositeState,
+      CompositeState pCompositeEnvState, CompositePrecision pCompositePrecision, CFAEdge pEdge,
+      Collection<CompositeState> pResults) throws CPATransferException, InterruptedException {
+
+    List<Collection<? extends AbstractState>> lTransferResults = new ArrayList<>(size);
+    boolean newStateDiscovered = false;
+    int resultCount = 1;
+    for (int i = 0; i < size; ++i) {
+      TransferRelationWithThread lCurrentTransfer = (TransferRelationWithThread) transferRelations.get(i);
+      AbstractState lCurrentElement1 = pCompositeState.get(i);
+      AbstractState lCurrentElement2 = pCompositeEnvState.get(i);
+      Precision precision = pCompositePrecision.get(i);
+
+      //Consider the result is only single state
+      Collection<? extends AbstractState> result =
+          lCurrentTransfer.performTransferInEnvironment(lCurrentElement1, lCurrentElement2, pEdge, precision);
+      if (!result.equals(Collections.singleton(lCurrentElement1))) {
+        newStateDiscovered = true;
+      }
+      resultCount *= result.size();
+      lTransferResults.add(result);
+    }
+    if (newStateDiscovered) {
+      Collection<List<AbstractState>> lResultingElements = createCartesianProduct(lTransferResults, resultCount);
+      pResults.addAll(transformedImmutableListCopy(lResultingElements, CompositeState::new));
+    }
+  }
+
+  @Override
+  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
+    CompositeState compositeState1 = (CompositeState) pState1;
+    CompositeState compositeState2 = (CompositeState) pState2;
+    for (int i = 0; i < size; ++i) {
+      TransferRelationWithThread lCurrentTransfer = (TransferRelationWithThread) transferRelations.get(i);
+      AbstractState lCurrentElement1 = compositeState1.get(i);
+      AbstractState lCurrentElement2 = compositeState2.get(i);
+
+      boolean result = lCurrentTransfer.isCompatible(lCurrentElement1, lCurrentElement2);
+      if (!result) {
+        return false;
+      }
+
+    }
+    return true;
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+    throw new CPATransferException("Not supported");
   }
 }

@@ -126,6 +126,7 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState;
 import org.sosy_lab.cpachecker.cpa.constraints.domain.ConstraintsState;
@@ -156,7 +157,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class ValueAnalysisTransferRelation
     extends ForwardingTransferRelation<ValueAnalysisState, ValueAnalysisState, VariableTrackingPrecision>
-    implements StatisticsProvider {
+    implements StatisticsProvider, TransferRelationWithThread {
   // set of functions that may not appear in the source code
   // the value of the map entry is the explanation for the user
   private static final Map<String, String> UNSUPPORTED_FUNCTIONS
@@ -1775,5 +1776,58 @@ public class ValueAnalysisTransferRelation
   /** returns an initialized, empty visitor */
   private ExpressionValueVisitor getVisitor() {
     return new ExpressionValueVisitor(state, functionName, machineModel, logger);
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+
+    throw new CPATransferException("Not supported");
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
+      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
+
+    Collection<ValueAnalysisState> resultStates = new ArrayList<>();
+    ValueAnalysisState stateInEnv = (ValueAnalysisState) pStateInEnv;
+    ValueAnalysisState state = (ValueAnalysisState) pState;
+    Collection<? extends AbstractState> threadResults = getAbstractSuccessorsForEdge(pStateInEnv, pPrecision, pEdge);
+    boolean isSomethingNew = false;
+    for (AbstractState resultState : threadResults) {
+      isSomethingNew = false;
+      ValueAnalysisState result = (ValueAnalysisState) resultState;
+      Set<MemoryLocation> diff = stateInEnv.getDifference(result);
+      ValueAnalysisState newState = ValueAnalysisState.copyOf(state);
+      for (MemoryLocation mem : diff) {
+        if (!mem.isOnFunctionStack()) {
+          isSomethingNew = true;
+          newState.assignConstant(mem, result.getValueFor(mem), result.getTypeForMemoryLocation(mem));
+        }
+      }
+      if (isSomethingNew) {
+        resultStates.add(newState);
+      }
+    }
+
+    return resultStates;
+  }
+
+  @Override
+  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
+    ValueAnalysisState valueState1 = (ValueAnalysisState) pState1;
+    ValueAnalysisState valueState2 = (ValueAnalysisState) pState2;
+
+    Set<MemoryLocation> diff = valueState1.getDifference(valueState2);
+    //What is with globals with unnknown values
+    for (MemoryLocation m : diff) {
+      //Difference should not contain global vars in case of compatibility
+      if (!m.isOnFunctionStack()) {
+        return false;
+      }
+    }
+    return true;
   }
 }
