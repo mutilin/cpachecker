@@ -302,15 +302,19 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
       stats.transferTimer.stop();
     }
     if (transferRelation instanceof TransferRelationWithThread) {
-      for (AbstractState e1 : reachedSet) {
-        for (AbstractState envState : reachedSet) {
-          Collection<? extends AbstractState> successorsInEnv;
-          if (((TransferRelationWithThread)transferRelation).isCompatible(e1, envState)) {
-            successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(e1, envState, precision);
-            for (AbstractState s : successorsInEnv) {
-              if (!successorsInEnv.equals(e1)) {
-                successors.addAll(successorsInEnv);
-              }
+      for (AbstractState envState : reachedSet) {
+        Collection<? extends AbstractState> successorsInEnv;
+        if (((TransferRelationWithThread)transferRelation).isCompatible(state, envState)) {
+          successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(state, envState, precision);
+          for (AbstractState s : successorsInEnv) {
+            if (!s.equals(state)) {
+              successors.add(s);
+            }
+          }
+          successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(envState, state, precision);
+          for (AbstractState s : successorsInEnv) {
+            if (!s.equals(envState)) {
+              successors.add(s);
             }
           }
         }
