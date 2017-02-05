@@ -233,7 +233,7 @@ public abstract class AbstractExpressionValueVisitor
           castCValue(rVal, calculationType, machineModel, logger, binaryExpr.getFileLocation());
     }
 
-    if (lVal instanceof FunctionValue || rVal instanceof FunctionValue)
+    if (lVal instanceof FunctionValue && rVal instanceof FunctionValue)
     {
       switch (binaryOperator) {
       case EQUALS:
