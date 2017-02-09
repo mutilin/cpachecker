@@ -26,7 +26,6 @@ package org.sosy_lab.cpachecker.cpa.value;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Function;
-import java.util.Optional;
 import com.google.common.collect.ImmutableSet;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -64,6 +63,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 import java.io.PrintStream;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 
 @Options(prefix="cpa.value.abstraction")
