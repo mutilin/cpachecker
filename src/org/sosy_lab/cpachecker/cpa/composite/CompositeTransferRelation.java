@@ -498,7 +498,13 @@ final class CompositeTransferRelation implements TransferRelationWithThread {
     results = new ArrayList<>(2);
 
     for (CFAEdge edge : locState.getOutgoingEdges()) {
-      performTransferInEnvironmentForEdge(compositeState, compositeEnvState, compositePrecision, edge, results);
+      switch (edge.getEdgeType()) {
+        case DeclarationEdge:
+        case BlankEdge:
+          break;
+        default:
+          performTransferInEnvironmentForEdge(compositeState, compositeEnvState, compositePrecision, edge, results);
+      }
     }
     if (results.isEmpty()) {
       results = Collections.singleton(compositeState);
