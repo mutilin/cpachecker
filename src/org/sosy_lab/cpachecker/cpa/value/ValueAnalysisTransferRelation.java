@@ -74,6 +74,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFloatLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
@@ -857,7 +858,9 @@ public class ValueAnalysisTransferRelation
 
     // external function call - do nothing
     } else if (expression instanceof AFunctionCallStatement) {
-
+     /* if (expression instanceof CFunctionCallStatement) {
+        return handleExternFunctionCall((CFunctionCallStatement)expression);
+      }*/
     // there is such a case
     } else if (expression instanceof AExpressionStatement) {
 
@@ -866,6 +869,38 @@ public class ValueAnalysisTransferRelation
     }
 
     return state;
+  }
+
+  private ValueAnalysisState handleExternFunctionCall(CFunctionCallStatement pExpression) {
+    final String LOCK = "__VERIFIER_lock";
+    final String UNLOCK = "__VERIFIER_unlock";
+    ValueAnalysisState newState = ValueAnalysisState.copyOf(state);
+    String function = pExpression.getFunctionCallExpression().getFunctionNameExpression().toString();
+
+    if (LOCK.equals(function)) {
+      if (newState.contains(LOCK)) {
+        Value v = newState.getValueFor(LOCK);
+        if (v.isUnknown() || (v.isNumericValue() && v.asNumericValue().getNumber().intValue() == 0)) {
+          newState.assignConstant(LOCK, new NumericValue(1));
+        } else {
+          return null;
+        }
+      } else {
+        newState.assignConstant(LOCK, new NumericValue(1));
+      }
+    } else if (UNLOCK.equals(function)) {
+      if (newState.contains(LOCK)) {
+        Value v = newState.getValueFor(LOCK);
+        if ((v.isNumericValue() && v.asNumericValue().getNumber().intValue() == 1)) {
+          newState.assignConstant(LOCK, new NumericValue(0));
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    }
+    return newState ;
   }
 
   private ValueAnalysisState handleFunctionAssignment(
@@ -1807,6 +1842,14 @@ public class ValueAnalysisTransferRelation
           newState.assignConstant(mem, result.getValueFor(mem), result.getTypeForMemoryLocation(mem));
         }
       }
+      //We may forget something, f.e. v = nondet_int() in environment.
+      diff = result.getDifference(stateInEnv);
+      for (MemoryLocation mem : diff) {
+        if (!mem.isOnFunctionStack()) {
+          isSomethingNew = true;
+          newState.forget(mem);
+        }
+      }
       if (isSomethingNew) {
         resultStates.add(newState);
       }
@@ -1828,6 +1871,15 @@ public class ValueAnalysisTransferRelation
         return false;
       }
     }
+   /* final String LOCK = "__VERIFIER_lock";
+    if (valueState1.contains(LOCK) && valueState2.contains(LOCK)) {
+      Value value1 = valueState1.getValueFor(LOCK);
+      Value value2 = valueState2.getValueFor(LOCK);
+      if (value1.isNumericValue() && value1.asNumericValue().getNumber().intValue() == 1 &&
+          value2.isNumericValue() && value2.asNumericValue().getNumber().intValue() == 1) {
+        return false;
+      }
+    }*/
     return true;
   }
 }
