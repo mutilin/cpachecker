@@ -263,6 +263,10 @@ public class CallstackTransferRelation extends SingleEdgeTransferRelation implem
       return false;
     }
 
+    if (isRecursiveContext) { // external CPA has seen recursion
+      return true;
+    }
+
     if (skipRecursion) {
       return true;
     }
