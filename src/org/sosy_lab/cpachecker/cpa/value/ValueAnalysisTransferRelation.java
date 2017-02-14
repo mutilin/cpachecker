@@ -122,6 +122,7 @@ import org.sosy_lab.cpachecker.cpa.value.symbolic.ConstraintsStrengthenOperator;
 import org.sosy_lab.cpachecker.cpa.value.symbolic.SymbolicValueAssigner;
 import org.sosy_lab.cpachecker.cpa.value.type.ArrayValue;
 import org.sosy_lab.cpachecker.cpa.value.type.BooleanValue;
+import org.sosy_lab.cpachecker.cpa.value.type.FunctionValue;
 import org.sosy_lab.cpachecker.cpa.value.type.NullValue;
 import org.sosy_lab.cpachecker.cpa.value.type.NumericValue;
 import org.sosy_lab.cpachecker.cpa.value.type.Value;
@@ -257,6 +258,8 @@ public class ValueAnalysisTransferRelation
 
   private StatCounter totalAssumptions = new StatCounter("Number of Assumptions");
   private StatCounter deterministicAssumptions = new StatCounter("Number of deterministic Assumptions");
+  final StatCounter functionsAdd = new StatCounter("Number of functions add");
+  final StatCounter functionsCall = new StatCounter("Number of functions call");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -266,7 +269,9 @@ public class ValueAnalysisTransferRelation
 
       writer.put(totalAssumptions)
             .put(deterministicAssumptions)
-            .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%");
+            .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%")
+            .put(functionsAdd)
+            .put(functionsCall);
     }
 
     @Override
@@ -854,6 +859,7 @@ public class ValueAnalysisTransferRelation
     } else if (expression instanceof AFunctionCallStatement) {
 
     // there is such a case
+      functionsCall.inc();
     } else if (expression instanceof AExpressionStatement) {
 
     } else {
@@ -1040,6 +1046,10 @@ public class ValueAnalysisTransferRelation
        value = visitor.evaluate((JRightHandSide) exp, (JType) lType);
     } else if (exp instanceof CRightHandSide) {
        value = visitor.evaluate((CRightHandSide) exp, (CType) lType);
+       if (value instanceof FunctionValue)
+       {
+         functionsAdd.inc();
+       }
     } else {
       throw new AssertionError("unknown righthandside-expression: " + exp);
     }
