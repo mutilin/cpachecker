@@ -258,8 +258,10 @@ public class ValueAnalysisTransferRelation
 
   private StatCounter totalAssumptions = new StatCounter("Number of Assumptions");
   private StatCounter deterministicAssumptions = new StatCounter("Number of deterministic Assumptions");
-  final StatCounter functionsAdd = new StatCounter("Number of functions add");
+  final StatCounter functionsAdd = new StatCounter("Number of assignment functions");
+  final StatCounter structAdd = new StatCounter("Number of assignment structures");
   final StatCounter functionsCall = new StatCounter("Number of functions call");
+  final StatCounter valuesAdd = new StatCounter("Number of assignment values");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -271,7 +273,9 @@ public class ValueAnalysisTransferRelation
             .put(deterministicAssumptions)
             .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%")
             .put(functionsAdd)
-            .put(functionsCall);
+            .put(functionsCall)
+            .put(structAdd)
+            .put(valuesAdd);
     }
 
     @Override
@@ -379,7 +383,7 @@ public class ValueAnalysisTransferRelation
       visitor.reset();
 
     }
-
+    functionsCall.inc();
     return newElement;
   }
 
@@ -859,7 +863,6 @@ public class ValueAnalysisTransferRelation
     } else if (expression instanceof AFunctionCallStatement) {
 
     // there is such a case
-      functionsCall.inc();
     } else if (expression instanceof AExpressionStatement) {
 
     } else {
@@ -1037,6 +1040,7 @@ public class ValueAnalysisTransferRelation
           && ((CCompositeType) canonicaltype).getKind() == ComplexTypeKind.STRUCT
           && exp instanceof CLeftHandSide) {
         handleAssignmentToStruct(newElement, assignedVar, (CCompositeType) canonicaltype, (CExpression) exp, visitor);
+        structAdd.inc();
         return;
       }
     }
@@ -1049,6 +1053,10 @@ public class ValueAnalysisTransferRelation
        if (value instanceof FunctionValue)
        {
          functionsAdd.inc();
+       }
+       else
+       {
+         valuesAdd.inc();
        }
     } else {
       throw new AssertionError("unknown righthandside-expression: " + exp);
