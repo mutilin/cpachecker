@@ -37,6 +37,11 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public class ThreadCPAStatistics implements Statistics {
 
   public final StatTimer transfer = new StatTimer("Time for transfer relation");
+  public final StatTimer transferInEnv = new StatTimer("Time for transfer in environment");
+  public final StatTimer threadComp = new StatTimer("Time for thread compatibility check");
+  public final StatTimer compatibility = new StatTimer("Time for compatibility check");
+  public final StatCounter compatibleStates = new StatCounter("Number of compatible pairs");
+  public final StatCounter uncompatibleStates = new StatCounter("Number of uncompatible pairs");
   public final StatCounter threadCreates = new StatCounter("Number of thread creates");
   public final StatCounter threadJoins = new StatCounter("Number of thread joins");
   public final StatInt maxNumberOfThreads = new StatInt(StatKind.COUNT, "Max number of threads");
@@ -45,6 +50,11 @@ public class ThreadCPAStatistics implements Statistics {
   public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
     StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(pOut);
     writer.put(transfer)
+          .put(transferInEnv)
+          .put(compatibility)
+          .put(threadComp)
+          .put(compatibleStates)
+          .put(uncompatibleStates)
           .put(threadCreates)
           .put(threadJoins)
           .put(maxNumberOfThreads);

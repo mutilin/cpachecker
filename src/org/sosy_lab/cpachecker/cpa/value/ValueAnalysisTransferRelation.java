@@ -154,6 +154,7 @@ import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 import org.sosy_lab.cpachecker.util.states.MemoryLocationValueHandler;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class ValueAnalysisTransferRelation
@@ -263,6 +264,8 @@ public class ValueAnalysisTransferRelation
 
   private StatCounter totalAssumptions = new StatCounter("Number of Assumptions");
   private StatCounter deterministicAssumptions = new StatCounter("Number of deterministic Assumptions");
+  private StatTimer transferInEnv = new StatTimer("Time for transfer in environment");
+  private StatTimer compatibility = new StatTimer("Time for compatibility check");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -272,7 +275,9 @@ public class ValueAnalysisTransferRelation
 
       writer.put(totalAssumptions)
             .put(deterministicAssumptions)
-            .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%");
+            .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%")
+            .put(transferInEnv)
+            .put(compatibility);
     }
 
     @Override
@@ -1821,11 +1826,14 @@ public class ValueAnalysisTransferRelation
     throw new CPATransferException("Not supported");
   }
 
+  private final static boolean havocEnabled = true;
+
   @Override
   public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
       AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
       throws CPATransferException, InterruptedException {
 
+    transferInEnv.start();
     Collection<ValueAnalysisState> resultStates = new ArrayList<>();
     ValueAnalysisState stateInEnv = (ValueAnalysisState) pStateInEnv;
     ValueAnalysisState state = (ValueAnalysisState) pState;
@@ -1837,9 +1845,14 @@ public class ValueAnalysisTransferRelation
       Set<MemoryLocation> diff = stateInEnv.getDifference(result);
       ValueAnalysisState newState = ValueAnalysisState.copyOf(state);
       for (MemoryLocation mem : diff) {
-        if (!mem.isOnFunctionStack()) {
+        //Do not assign a constant if the value is undef
+        if (!mem.isOnFunctionStack() && newState.contains(mem)) {
           isSomethingNew = true;
-          newState.assignConstant(mem, result.getValueFor(mem), result.getTypeForMemoryLocation(mem));
+          if (havocEnabled) {
+            newState.forget(mem);
+          } else {
+            newState.assignConstant(mem, result.getValueFor(mem), result.getTypeForMemoryLocation(mem));
+          }
         }
       }
       //We may forget something, f.e. v = nondet_int() in environment.
@@ -1854,7 +1867,7 @@ public class ValueAnalysisTransferRelation
         resultStates.add(newState);
       }
     }
-
+    transferInEnv.stop();
     return resultStates;
   }
 
@@ -1863,11 +1876,13 @@ public class ValueAnalysisTransferRelation
     ValueAnalysisState valueState1 = (ValueAnalysisState) pState1;
     ValueAnalysisState valueState2 = (ValueAnalysisState) pState2;
 
+    compatibility.start();
     Set<MemoryLocation> diff = valueState1.getDifference(valueState2);
-    //What is with globals with unnknown values
+    //What is with globals with unknown values
     for (MemoryLocation m : diff) {
       //Difference should not contain global vars in case of compatibility
-      if (!m.isOnFunctionStack()) {
+      if (!m.isOnFunctionStack() && valueState1.contains(m)) {
+        compatibility.stop();
         return false;
       }
     }
@@ -1880,6 +1895,7 @@ public class ValueAnalysisTransferRelation
         return false;
       }
     }*/
+    compatibility.stop();
     return true;
   }
 }

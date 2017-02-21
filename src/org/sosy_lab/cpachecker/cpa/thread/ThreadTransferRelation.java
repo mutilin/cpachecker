@@ -222,15 +222,27 @@ public class ThreadTransferRelation extends SingleEdgeTransferRelation implement
   public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
     ThreadState state1 = (ThreadState) pState1;
     ThreadState state2 = (ThreadState) pState2;
-    if (!state1.isCompatibleWith(state2)) {
-      return false;
+    threadStatistics.compatibility.start();
+    try {
+      threadStatistics.threadComp.start();
+      boolean r = state1.isCompatibleWith(state2);
+      threadStatistics.threadComp.stop();
+      if (!r) {
+        threadStatistics.uncompatibleStates.inc();
+        return false;
+      }
+      if (!locationTransfer.isCompatible(state1.getLocationState(), state2.getLocationState())) {
+        threadStatistics.uncompatibleStates.inc();
+        return false;
+      }
+      if (!callstackTransfer.isCompatible(state1.getCallstackState(), state2.getCallstackState())) {
+        threadStatistics.uncompatibleStates.inc();
+        return false;
+      }
+      threadStatistics.compatibleStates.inc();
+      return true;
+    } finally {
+      threadStatistics.compatibility.stop();
     }
-    if (!locationTransfer.isCompatible(state1.getLocationState(), state2.getLocationState())) {
-      return false;
-    }
-    if (!callstackTransfer.isCompatible(state1.getCallstackState(), state2.getCallstackState())) {
-      return false;
-    }
-    return true;
   }
 }

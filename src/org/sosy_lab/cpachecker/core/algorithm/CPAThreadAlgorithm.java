@@ -84,6 +84,9 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
     private Timer chooseTimer        = new Timer();
     private Timer precisionTimer     = new Timer();
     private Timer transferTimer      = new Timer();
+    private Timer transferInEnvTimer = new Timer();
+    private Timer compatibleTimer    = new Timer();
+    private Timer transitionTimer    = new Timer();
     private Timer mergeTimer         = new Timer();
     private Timer stopTimer          = new Timer();
     private Timer addTimer           = new Timer();
@@ -97,6 +100,7 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
     private int   countMerge        = 0;
     private int   countStop         = 0;
     private int   countBreak        = 0;
+    private int   transitionsInThread = 0;
 
     @Override
     public String getName() {
@@ -127,6 +131,10 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
       }
       out.println("  Time for precision adjustment:  " + precisionTimer);
       out.println("  Time for transfer relation:     " + transferTimer);
+      out.println("  Number of transition in threads:" + transitionsInThread);
+      out.println("  Time for transfer in environment:" + transferInEnvTimer);
+      out.println("    Time for compatibility check: " + compatibleTimer);
+      out.println("    Time for transition:          " + transitionTimer);
       if (mergeTimer.getNumberOfIntervals() > 0) {
         out.println("  Time for merge operator:        " + mergeTimer);
       }
@@ -301,25 +309,46 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
     } finally {
       stats.transferTimer.stop();
     }
+    stats.transferInEnvTimer.start();
     if (transferRelation instanceof TransferRelationWithThread) {
       for (AbstractState envState : reachedSet) {
         Collection<? extends AbstractState> successorsInEnv;
-        if (((TransferRelationWithThread)transferRelation).isCompatible(state, envState)) {
+        stats.compatibleTimer.start();
+        boolean r = ((TransferRelationWithThread)transferRelation).isCompatible(state, envState);
+        stats.compatibleTimer.stop();
+        if (r) {
+          stats.transitionTimer.start();
+          stats.transitionsInThread++;
           successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(state, envState, precision);
+          stats.transitionTimer.stop();
           for (AbstractState s : successorsInEnv) {
             if (!s.equals(state)) {
               successors.add(s);
+              /*System.out.println("Perform a new environment transition: ");
+              System.out.println(state);
+              System.out.println(" -> ");
+              System.out.println(s);
+              System.out.println("");*/
             }
           }
+          stats.transitionTimer.start();
+          stats.transitionsInThread++;
           successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(envState, state, precision);
+          stats.transitionTimer.stop();
           for (AbstractState s : successorsInEnv) {
             if (!s.equals(envState)) {
               successors.add(s);
+              /*System.out.println("Perform a new environment transition: ");
+              System.out.println(envState);
+              System.out.println(" -> ");
+              System.out.println(s);
+              System.out.println("");*/
             }
           }
         }
       }
     }
+    stats.transferInEnvTimer.stop();
     // TODO When we have a nice way to mark the analysis result as incomplete,
     // we could continue analysis on a CPATransferException with the next state from waitlist.
 
