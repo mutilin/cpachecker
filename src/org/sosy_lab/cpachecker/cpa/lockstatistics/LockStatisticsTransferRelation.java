@@ -23,8 +23,10 @@
  */
 package org.sosy_lab.cpachecker.cpa.lockstatistics;
 
+import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -47,8 +49,8 @@ import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 public class LockStatisticsTransferRelation implements TransferRelationWithThread
 {
 
-  private final static String LOCK = "pthread_mutex_lock";
-  private final static String UNLOCK = "pthread_mutex_unlock";
+  private final static List<String> LOCK = Lists.newArrayList("pthread_mutex_lock", "__VERIFIER_atomic_begin");
+  private final static List<String> UNLOCK = Lists.newArrayList("pthread_mutex_unlock", "__VERIFIER_atomic_end");
 
   private final LogManager logger;
 
@@ -97,10 +99,11 @@ public class LockStatisticsTransferRelation implements TransferRelationWithThrea
 
   private void handleFunctionCallExpression(LockStatisticsStateBuilder builder, CFunctionCallExpression function) {
     String functionName = function.getFunctionNameExpression().toASTString();
-    if (functionName.equals(LOCK)) {
-      builder.add(LockIdentifier.of(LOCK));
-    } else if (functionName.equals(UNLOCK)) {
-      builder.free(LockIdentifier.of(LOCK));
+    if (LOCK.contains(functionName)) {
+      builder.add(LockIdentifier.of(functionName));
+    } else if (UNLOCK.contains(functionName)) {
+      String tmpName = LOCK.get(UNLOCK.indexOf(functionName));
+      builder.free(LockIdentifier.of(tmpName));
     }
   }
 
