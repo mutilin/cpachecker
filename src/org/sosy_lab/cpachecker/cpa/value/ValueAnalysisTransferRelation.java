@@ -262,6 +262,7 @@ public class ValueAnalysisTransferRelation
   final StatCounter structAdd = new StatCounter("Number of assignment structures");
   final StatCounter functionsCall = new StatCounter("Number of functions call");
   final StatCounter valuesAdd = new StatCounter("Number of assignment values");
+  final StatCounter referenceAdd = new StatCounter("Number of reference");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -275,7 +276,8 @@ public class ValueAnalysisTransferRelation
             .put(functionsAdd)
             .put(functionsCall)
             .put(structAdd)
-            .put(valuesAdd);
+            .put(valuesAdd)
+            .put(referenceAdd);
     }
 
     @Override
@@ -948,6 +950,10 @@ public class ValueAnalysisTransferRelation
 
       if (memLoc != null) {
         return handleAssignmentToVariable(memLoc, op1.getExpressionType(), op2, v);
+      }
+      else
+      {
+        referenceAdd.inc();
       }
 
     } else if (op1 instanceof AArraySubscriptExpression) {
