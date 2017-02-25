@@ -23,11 +23,10 @@
  */
 package org.sosy_lab.cpachecker.cpa.value;
 
-import java.util.List;
-
 import org.sosy_lab.common.log.LogManagerWithoutDuplicates;
 import org.sosy_lab.cpachecker.cfa.ast.AIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
@@ -48,6 +47,8 @@ import org.sosy_lab.cpachecker.core.defaults.ForwardingTransferRelation;
 import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
+
+import java.util.List;
 
 
 /**
@@ -246,8 +247,11 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
     public MemoryLocation visit(CFieldReference pIastFieldReference) throws UnrecognizedCCodeException {
 
       if (pIastFieldReference.isPointerDereference()) {
-        evv.missingPointer = true;
-        return null;
+        if (pIastFieldReference.getFieldOwner() instanceof CBinaryExpression)
+        {
+          evv.missingPointer = true;
+          return null;
+        }
       }
 
       CLeftHandSide fieldOwner = (CLeftHandSide) pIastFieldReference.getFieldOwner();
@@ -292,8 +296,7 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
       } else if (ownerType instanceof CCompositeType) {
         return getFieldOffset((CCompositeType) ownerType, fieldName);
       } else if (ownerType instanceof CPointerType) {
-        evv.missingPointer = true;
-        return null;
+        return getFieldOffset((CCompositeType) ((CPointerType) ownerType).getType(), fieldName);
       }
 
       throw new AssertionError();

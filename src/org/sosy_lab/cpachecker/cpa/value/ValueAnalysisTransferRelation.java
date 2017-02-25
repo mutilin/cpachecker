@@ -54,6 +54,7 @@ import org.sosy_lab.cpachecker.cfa.ast.AStatement;
 import org.sosy_lab.cpachecker.cfa.ast.AVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
@@ -94,6 +95,7 @@ import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.Type;
 import org.sosy_lab.cpachecker.cfa.types.c.CComplexType.ComplexTypeKind;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
+import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
@@ -257,12 +259,18 @@ public class ValueAnalysisTransferRelation
   private int currentNumberOfIterations = 0;
 
   private StatCounter totalAssumptions = new StatCounter("Number of Assumptions");
+  private StatCounter functionPointerAssumptions = new StatCounter("Number of func pointer Assumptions");
   private StatCounter deterministicAssumptions = new StatCounter("Number of deterministic Assumptions");
   final StatCounter functionsAdd = new StatCounter("Number of assignment functions");
-  final StatCounter structAdd = new StatCounter("Number of assignment structures");
-  final StatCounter functionsCall = new StatCounter("Number of functions call");
+  final StatCounter functionsPointerAdd = new StatCounter("Number of assignment pointer functions");
+  final StatCounter structAdd = new StatCounter("Number of assignment structures (st1 = st2)");
+  final StatCounter functionsCall = new StatCounter("Number of all functions call");
+  final StatCounter functionsPointerCall = new StatCounter("Number of function pointers call (s.f(), s->f())");
+  final StatCounter functionsPointerDotCall = new StatCounter("Number of function pointers call (s.f())");
+  final StatCounter functionsPointerArrowCall = new StatCounter("Number of function pointers call (s->f())");
   final StatCounter valuesAdd = new StatCounter("Number of assignment values");
-  final StatCounter referenceAdd = new StatCounter("Number of reference");
+  final StatCounter memLocNullAdd = new StatCounter("Number of memLoc == null");
+  final StatCounter memLocNullFunctionAdd = new StatCounter("Number of memLoc == null function");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -271,13 +279,19 @@ public class ValueAnalysisTransferRelation
       StatisticsWriter writer = writingStatisticsTo(out);
 
       writer.put(totalAssumptions)
+            .put(functionPointerAssumptions)
             .put(deterministicAssumptions)
             .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%")
             .put(functionsAdd)
+            .put(functionsPointerAdd)
             .put(functionsCall)
+            .put(functionsPointerCall)
+            .put(functionsPointerDotCall)
+            .put(functionsPointerArrowCall)
             .put(structAdd)
             .put(valuesAdd)
-            .put(referenceAdd);
+            .put(memLocNullAdd)
+            .put(memLocNullFunctionAdd);
     }
 
     @Override
@@ -386,6 +400,20 @@ public class ValueAnalysisTransferRelation
 
     }
     functionsCall.inc();
+
+    if (callEdge.getRawStatement().indexOf("pointer") == 0)
+    {
+      functionsPointerCall.inc();
+      if (callEdge.getRawStatement().indexOf(".") > 0)
+      {
+        functionsPointerDotCall.inc();
+      }
+      else if (callEdge.getRawStatement().indexOf("->") > 0)
+      {
+        functionsPointerArrowCall.inc();
+      }
+    }
+
     return newElement;
   }
 
@@ -615,6 +643,15 @@ public class ValueAnalysisTransferRelation
       throws UnrecognizedCCodeException {
 
     totalAssumptions.inc();
+
+    if (expression instanceof CBinaryExpression)
+    {
+      if (((CBinaryExpression) expression).getOperand1().getExpressionType() instanceof CPointerType
+          && ((CBinaryExpression) expression).getOperand2().getExpressionType() instanceof CFunctionType)
+      {
+        functionPointerAssumptions.inc();
+      }
+    }
 
     Pair<AExpression, Boolean> simplifiedExpression = simplifyAssumption(expression, truthValue);
     expression = simplifiedExpression.getFirst();
@@ -953,7 +990,12 @@ public class ValueAnalysisTransferRelation
       }
       else
       {
-        referenceAdd.inc();
+        memLocNullAdd.inc();
+        if (op1.getExpressionType() instanceof CPointerType
+            && op2.getExpressionType() instanceof CPointerType)
+        {
+            memLocNullFunctionAdd.inc();
+        }
       }
 
     } else if (op1 instanceof AArraySubscriptExpression) {
@@ -1059,6 +1101,10 @@ public class ValueAnalysisTransferRelation
        if (value instanceof FunctionValue)
        {
          functionsAdd.inc();
+         if (lType instanceof CPointerType)
+         {
+           functionsPointerAdd.inc();
+         }
        }
        else
        {
