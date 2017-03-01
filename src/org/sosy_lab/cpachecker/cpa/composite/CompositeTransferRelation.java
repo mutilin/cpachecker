@@ -565,4 +565,36 @@ final class CompositeTransferRelation implements TransferRelationWithThread {
       throws CPATransferException, InterruptedException {
     throw new CPATransferException("Not supported");
   }
+
+  @Override
+  public boolean isValueableTransition(AbstractState pState, AbstractState pChild) {
+    CompositeState compositeState1 = (CompositeState) pState;
+    CompositeState compositeState2 = (CompositeState) pChild;
+    for (int i = 0; i < size; ++i) {
+      TransferRelationWithThread lCurrentTransfer = (TransferRelationWithThread) transferRelations.get(i);
+      AbstractState lCurrentElement1 = compositeState1.get(i);
+      AbstractState lCurrentElement2 = compositeState2.get(i);
+
+      boolean result = lCurrentTransfer.isValueableTransition(lCurrentElement1, lCurrentElement2);
+      if (result) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public boolean isValueableState(AbstractState pState) {
+    CompositeState compositeState = (CompositeState) pState;
+    for (int i = 0; i < size; ++i) {
+      TransferRelationWithThread lCurrentTransfer = (TransferRelationWithThread) transferRelations.get(i);
+      AbstractState lCurrentElement = compositeState.get(i);
+
+      boolean result = lCurrentTransfer.isValueableState(lCurrentElement);
+      if (result) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

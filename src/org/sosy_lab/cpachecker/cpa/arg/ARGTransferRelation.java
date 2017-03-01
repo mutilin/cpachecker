@@ -23,18 +23,18 @@
  */
 package org.sosy_lab.cpachecker.cpa.arg;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnsupportedCodeException;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-
-public class ARGTransferRelation implements TransferRelation {
+public class ARGTransferRelation implements TransferRelationWithThread {
 
   private final TransferRelation transferRelation;
 
@@ -85,5 +85,111 @@ public class ARGTransferRelation implements TransferRelation {
     throw new UnsupportedOperationException(
         "ARGCPA needs to be used as the outer-most CPA,"
         + " thus it does not support returning successors for a single edge.");
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(
+      AbstractState state,
+      AbstractState stateInEnv,
+      Precision precision)
+          throws CPATransferException, InterruptedException {
+    assert transferRelation instanceof TransferRelationWithThread;
+    ARGState element = (ARGState)state;
+    ARGState envElement = (ARGState)stateInEnv;
+
+    // covered elements may be in the reached set, but should always be ignored
+    if (element.isCovered()) {
+      return Collections.emptySet();
+    }
+
+    element.markExpanded();
+
+    AbstractState wrappedState = element.getWrappedState();
+    AbstractState wrappedEnvState = envElement.getWrappedState();
+    Collection<? extends AbstractState> successors;
+    try {
+      successors = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(wrappedState, wrappedEnvState, precision);
+    } catch (UnsupportedCodeException e) {
+      // setting parent of this unsupported code part
+      e.setParentState(element);
+      throw e;
+    }
+
+    if (successors.isEmpty()) {
+      return Collections.emptySet();
+    }
+
+    Collection<ARGState> wrappedSuccessors = new ArrayList<>();
+    for (AbstractState absElement : successors) {
+      ARGState successorElem = new ARGState(absElement, element);
+      wrappedSuccessors.add(successorElem);
+    }
+
+    return wrappedSuccessors;
+  }
+
+  @Override
+  public Collection<? extends AbstractState> performTransferInEnvironment(
+      AbstractState state,
+      AbstractState stateInEnv,
+      CFAEdge edge,
+      Precision precision)
+          throws CPATransferException, InterruptedException {
+    assert transferRelation instanceof TransferRelationWithThread;
+    ARGState element = (ARGState)state;
+    ARGState envElement = (ARGState)stateInEnv;
+
+    // covered elements may be in the reached set, but should always be ignored
+    if (element.isCovered()) {
+      return Collections.emptySet();
+    }
+
+    element.markExpanded();
+
+    AbstractState wrappedState = element.getWrappedState();
+    AbstractState wrappedEnvState = envElement.getWrappedState();
+    Collection<? extends AbstractState> successors;
+    try {
+      successors = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(wrappedState, wrappedEnvState, edge, precision);
+    } catch (UnsupportedCodeException e) {
+      // setting parent of this unsupported code part
+      e.setParentState(element);
+      throw e;
+    }
+
+    if (successors.isEmpty()) {
+      return Collections.emptySet();
+    }
+
+    Collection<ARGState> wrappedSuccessors = new ArrayList<>();
+    for (AbstractState absElement : successors) {
+      ARGState successorElem = new ARGState(absElement, element);
+      wrappedSuccessors.add(successorElem);
+    }
+
+    return wrappedSuccessors;
+  }
+
+  @Override
+  public boolean isCompatible(AbstractState state1, AbstractState state2) {
+    assert transferRelation instanceof TransferRelationWithThread;
+    ARGState argState1 = (ARGState) state1;
+    ARGState argState2 = (ARGState) state2;
+    return ((TransferRelationWithThread)transferRelation).isCompatible(argState1.getWrappedState(), argState2.getWrappedState());
+  }
+
+  @Override
+  public boolean isValueableTransition(AbstractState state, AbstractState child) {
+    assert transferRelation instanceof TransferRelationWithThread;
+    ARGState argState1 = (ARGState) state;
+    ARGState argState2 = (ARGState) child;
+    return ((TransferRelationWithThread)transferRelation).isValueableTransition(argState1.getWrappedState(), argState2.getWrappedState());
+  }
+
+  @Override
+  public boolean isValueableState(AbstractState state) {
+    assert transferRelation instanceof TransferRelationWithThread;
+    ARGState argState = (ARGState) state;
+    return ((TransferRelationWithThread)transferRelation).isValueableState(argState.getWrappedState());
   }
 }

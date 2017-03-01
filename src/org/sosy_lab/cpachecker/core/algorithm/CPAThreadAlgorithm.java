@@ -68,10 +68,12 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelationWithThread;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
+import org.sosy_lab.cpachecker.core.reachedset.ValuableTransitionReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGMergeJoinCPAEnabledAnalysis;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState;
 import org.sosy_lab.cpachecker.cpa.location.LocationState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -84,6 +86,7 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
     private Timer chooseTimer        = new Timer();
     private Timer precisionTimer     = new Timer();
     private Timer transferTimer      = new Timer();
+    private Timer valueableCheck     = new Timer();
     private Timer transferInEnvTimer = new Timer();
     private Timer compatibleTimer    = new Timer();
     private Timer transitionTimer    = new Timer();
@@ -131,6 +134,7 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
       }
       out.println("  Time for precision adjustment:  " + precisionTimer);
       out.println("  Time for transfer relation:     " + transferTimer);
+      out.println("  Time for valueable check:       " + valueableCheck);
       out.println("  Number of transition in threads:" + transitionsInThread);
       out.println("  Time for transfer in environment:" + transferInEnvTimer);
       out.println("    Time for compatibility check: " + compatibleTimer);
@@ -240,6 +244,10 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
   }
 
   private AlgorithmStatus run0(final ReachedSet reachedSet) throws CPAException, InterruptedException {
+    if (! (reachedSet instanceof ValuableTransitionReachedSet)){
+      throw new CPAException("Thread algorithm expects ValueableTransitionReachedSet to work with");
+    }
+
     while (reachedSet.hasWaitingState()) {
       shutdownNotifier.shutdownIfNecessary();
 
@@ -260,7 +268,7 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
 
       logger.log(Level.FINER, "Retrieved state from waitlist");
       try {
-        if (handleState(state, precision, reachedSet)) {
+        if (handleState(state, precision, (ValuableTransitionReachedSet)reachedSet)) {
           // Prec operator requested break
           return status;
         }
@@ -284,7 +292,7 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
    * @return true if analysis should terminate, false if analysis should continue with next state
    */
   private boolean handleState(
-      final AbstractState state, final Precision precision, final ReachedSet reachedSet)
+      final AbstractState state, final Precision precision, final ValuableTransitionReachedSet reachedSet)
       throws CPAException, InterruptedException {
     logger.log(Level.ALL, "Current state is", state, "with precision", precision);
 
@@ -311,43 +319,30 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
     }
     stats.transferInEnvTimer.start();
     if (transferRelation instanceof TransferRelationWithThread) {
-      for (AbstractState envState : reachedSet) {
-        Collection<? extends AbstractState> successorsInEnv;
-        stats.compatibleTimer.start();
-        boolean r = ((TransferRelationWithThread)transferRelation).isCompatible(state, envState);
-        stats.compatibleTimer.stop();
+      stats.valueableCheck.start();
+      boolean r = ((TransferRelationWithThread)transferRelation).isValueableState(state);
+      stats.valueableCheck.stop();
+      if (r) {
+        reachedSet.addStateAsValuable(state);
+        for (AbstractState envState : reachedSet.getValueableTransitions()) {
+          performTransitionInEnvironment(state, envState, precision, successors);
+        }
+      }
+      for (AbstractState child : successors) {
+        stats.valueableCheck.start();
+        r = ((TransferRelationWithThread)transferRelation).isValueableTransition(state, child);
+        stats.valueableCheck.stop();
         if (r) {
-          stats.transitionTimer.start();
-          stats.transitionsInThread++;
-          successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(state, envState, precision);
-          stats.transitionTimer.stop();
-          for (AbstractState s : successorsInEnv) {
-            if (!s.equals(state)) {
-              successors.add(s);
-              /*System.out.println("Perform a new environment transition: ");
-              System.out.println(state);
-              System.out.println(" -> ");
-              System.out.println(s);
-              System.out.println("");*/
-            }
+          reachedSet.addTransitionAsValuable(state);
+          for (AbstractState oldState : reachedSet.getValueableStates()) {
+            performTransitionInEnvironment(oldState, state, precision, successors);
           }
-          stats.transitionTimer.start();
-          stats.transitionsInThread++;
-          successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(envState, state, precision);
-          stats.transitionTimer.stop();
-          for (AbstractState s : successorsInEnv) {
-            if (!s.equals(envState)) {
-              successors.add(s);
-              /*System.out.println("Perform a new environment transition: ");
-              System.out.println(envState);
-              System.out.println(" -> ");
-              System.out.println(s);
-              System.out.println("");*/
-            }
-          }
+          //We have already considered all possible edges
+          break;
         }
       }
     }
+
     stats.transferInEnvTimer.stop();
     // TODO When we have a nice way to mark the analysis result as incomplete,
     // we could continue analysis on a CPATransferException with the next state from waitlist.
@@ -474,6 +469,9 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
       } else {
         logger.log(Level.FINER, "No need to stop, adding successor to waitlist");
 
+        if (!reached.isEmpty()) {
+          System.out.println("Why we did not stop?");
+        }
         stats.addTimer.start();
         reachedSet.add(successor, successorPrecision);
         stats.addTimer.stop();
@@ -481,6 +479,30 @@ public class CPAThreadAlgorithm implements Algorithm, StatisticsProvider {
     }
 
     return false;
+  }
+
+  private void performTransitionInEnvironment(AbstractState state, AbstractState envState,
+      Precision precision, Collection<AbstractState> successors) throws CPATransferException, InterruptedException {
+    Collection<? extends AbstractState> successorsInEnv;
+    stats.compatibleTimer.start();
+    boolean r = ((TransferRelationWithThread)transferRelation).isCompatible(state, envState);
+    stats.compatibleTimer.stop();
+    if (r) {
+      stats.transitionTimer.start();
+      stats.transitionsInThread++;
+      successorsInEnv = ((TransferRelationWithThread)transferRelation).performTransferInEnvironment(state, envState, precision);
+      stats.transitionTimer.stop();
+      for (AbstractState s : successorsInEnv) {
+        if (!s.equals(state)) {
+          successors.add(s);
+          /*System.out.println("Perform a new environment transition: ");
+          System.out.println(state);
+          System.out.println(" -> ");
+          System.out.println(s);
+          System.out.println("");*/
+        }
+      }
+    }
   }
 
   private boolean isProgramNeverTerminating(final ReachedSet reachedSet) {

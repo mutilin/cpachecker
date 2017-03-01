@@ -61,23 +61,4 @@ public class LocationTransferRelation implements TransferRelationWithThread {
     CFANode node = ((LocationState) element).getLocationNode();
     return CFAUtils.successorsOf(node).transform(n -> factory.getState(n)).toList();
   }
-
-  @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-    throw new CPATransferException("Not supported");
-  }
-
-  @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-    return Collections.singleton(pState);
-  }
-
-  @Override
-  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
-    return true;
-  }
 }

@@ -196,29 +196,6 @@ public class ThreadTransferRelation extends SingleEdgeTransferRelation implement
   }
 
   @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-    throw new CPATransferException("Not yet supported");
-  }
-
-  @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-    /*if (pEdge.getEdgeType() == CFAEdgeType.FunctionCallEdge) {
-      if (isThreadCreateFunction(((CFunctionCallEdge)pEdge).getSummaryEdge().getExpression())) {
-        //skip it
-        return Collections.singleton(pState);
-      }
-    }
-    ThreadState state = (ThreadState) pState;
-    ThreadStateBuilder builder = state.getBuilder();
-    LocationState newLoc = locationTransfer. */
-    return Collections.singleton(pState);
-  }
-
-  @Override
   public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
     ThreadState state1 = (ThreadState) pState1;
     ThreadState state2 = (ThreadState) pState2;

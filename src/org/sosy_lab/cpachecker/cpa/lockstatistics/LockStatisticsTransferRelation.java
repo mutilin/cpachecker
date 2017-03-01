@@ -141,25 +141,4 @@ public class LockStatisticsTransferRelation implements TransferRelationWithThrea
     sb.delete(sb.length() - 2, sb.length());
     return sb.toString();
   }
-
-  @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-    throw new CPATransferException("Not supported");
-  }
-
-  @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, CFAEdge pEdge, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-    return Collections.singleton(pState);
-  }
-
-  @Override
-  public boolean isCompatible(AbstractState pState1, AbstractState pState2) {
-    LockStatisticsState state1 = (LockStatisticsState) pState1;
-    LockStatisticsState state2 = (LockStatisticsState) pState2;
-    return !state1.intersects(state2);
-  }
 }

@@ -275,7 +275,7 @@ public class ThreadState implements AbstractState, AbstractStateWithLocations, P
 
   @Override
   public String toString() {
-    return threadSet.toString();
+    return location.toString() + "\n" + callstack.toString() + "\n" + threadSet.toString();
   }
 
   public class StoredThreadState extends ThreadState {

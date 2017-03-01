@@ -24,24 +24,31 @@
 package org.sosy_lab.cpachecker.core.interfaces;
 
 import java.util.Collection;
+import java.util.Collections;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 
 public interface TransferRelationWithThread extends TransferRelation {
 
-  Collection<? extends AbstractState> performTransferInEnvironment(
+  default Collection<? extends AbstractState> performTransferInEnvironment(
       AbstractState state,
       AbstractState stateInEnv,
       Precision precision)
-          throws CPATransferException, InterruptedException;
+          throws CPATransferException, InterruptedException {
+    throw new CPATransferException("The transition without edge is not supported");
+  }
 
-  Collection<? extends AbstractState> performTransferInEnvironment(
+  default Collection<? extends AbstractState> performTransferInEnvironment(
       AbstractState state,
       AbstractState stateInEnv,
       CFAEdge edge,
       Precision precision)
-          throws CPATransferException, InterruptedException;
+          throws CPATransferException, InterruptedException {
+    return Collections.singleton(state);
+  }
 
-  boolean isCompatible(AbstractState state1, AbstractState state2);
+  default boolean isCompatible(AbstractState state1, AbstractState state2) { return true; }
 
+  default boolean isValueableTransition(AbstractState state, AbstractState child) { return false; }
+  default boolean isValueableState(AbstractState state) { return false; }
 }

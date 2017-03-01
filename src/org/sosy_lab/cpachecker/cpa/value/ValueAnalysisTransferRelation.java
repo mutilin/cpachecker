@@ -266,6 +266,7 @@ public class ValueAnalysisTransferRelation
   private StatCounter deterministicAssumptions = new StatCounter("Number of deterministic Assumptions");
   private StatTimer transferInEnv = new StatTimer("Time for transfer in environment");
   private StatTimer compatibility = new StatTimer("Time for compatibility check");
+  private StatTimer valueability = new StatTimer("Time for valueability check");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -277,7 +278,8 @@ public class ValueAnalysisTransferRelation
             .put(deterministicAssumptions)
             .put("Level of Determinism", getCurrentLevelOfDeterminism() + "%")
             .put(transferInEnv)
-            .put(compatibility);
+            .put(compatibility)
+            .put(valueability);
     }
 
     @Override
@@ -1818,14 +1820,6 @@ public class ValueAnalysisTransferRelation
     return new ExpressionValueVisitor(state, functionName, machineModel, logger);
   }
 
-  @Override
-  public Collection<? extends AbstractState> performTransferInEnvironment(AbstractState pState,
-      AbstractState pStateInEnv, Precision pPrecision)
-      throws CPATransferException, InterruptedException {
-
-    throw new CPATransferException("Not supported");
-  }
-
   private final static boolean havocEnabled = true;
 
   @Override
@@ -1897,5 +1891,40 @@ public class ValueAnalysisTransferRelation
     }*/
     compatibility.stop();
     return true;
+  }
+
+  @Override
+  public boolean isValueableTransition(AbstractState pState, AbstractState pChild) {
+    valueability.start();
+    ValueAnalysisState valueState1 = (ValueAnalysisState) pState;
+    ValueAnalysisState valueState2 = (ValueAnalysisState) pChild;
+    Set<MemoryLocation> diff = valueState1.getDifference(valueState2);
+    //What is with globals with unknown values
+    for (MemoryLocation m : diff) {
+      //Difference should not contain global vars in case of compatibility
+      if (!m.isOnFunctionStack() && valueState1.contains(m)) {
+        valueability.stop();
+        return true;
+      }
+    }
+    diff = valueState2.getDifference(valueState1);
+    for (MemoryLocation mem : diff) {
+      if (!mem.isOnFunctionStack()) {
+        valueability.stop();
+        return true;
+      }
+    }
+    valueability.stop();
+    return false;
+  }
+
+  @Override
+  public boolean isValueableState(AbstractState pState) {
+    ValueAnalysisState valueState = (ValueAnalysisState) pState;
+    if (valueState.getGlobalMemoryLocations().isEmpty()) {
+      return false;
+    } else {
+      return true;
+    }
   }
 }

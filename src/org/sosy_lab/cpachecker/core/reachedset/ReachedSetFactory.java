@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.core.reachedset;
 
+import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -39,13 +40,11 @@ import org.sosy_lab.cpachecker.core.waitlist.Waitlist;
 import org.sosy_lab.cpachecker.core.waitlist.Waitlist.WaitlistFactory;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonVariableWaitlist;
 
-import javax.annotation.Nullable;
-
 @Options(prefix="analysis")
 public class ReachedSetFactory {
 
   private static enum ReachedSetType {
-    NORMAL, LOCATIONMAPPED, PARTITIONED, PSEUDOPARTITIONED
+    NORMAL, LOCATIONMAPPED, PARTITIONED, PSEUDOPARTITIONED, VALUEABLE
   }
 
   @Option(secure=true, name="traversal.order",
@@ -148,6 +147,9 @@ public class ReachedSetFactory {
 
     case LOCATIONMAPPED:
       return new LocationMappedReachedSet(waitlistFactory);
+
+    case VALUEABLE:
+      return new ValuableTransitionReachedSet(waitlistFactory);
 
     case NORMAL:
     default:
