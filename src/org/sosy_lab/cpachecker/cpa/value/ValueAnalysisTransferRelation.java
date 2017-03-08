@@ -270,7 +270,6 @@ public class ValueAnalysisTransferRelation
   final StatCounter functionsPointerArrowCall = new StatCounter("Number of function pointers call (s->f())");
   final StatCounter valuesAdd = new StatCounter("Number of assignment values");
   final StatCounter memLocNullAdd = new StatCounter("Number of memLoc == null");
-  final StatCounter memLocNullFunctionAdd = new StatCounter("Number of memLoc == null function");
 
   private Statistics transferStatistics = new Statistics() {
 
@@ -290,8 +289,7 @@ public class ValueAnalysisTransferRelation
             .put(functionsPointerArrowCall)
             .put(structAdd)
             .put(valuesAdd)
-            .put(memLocNullAdd)
-            .put(memLocNullFunctionAdd);
+            .put(memLocNullAdd);
     }
 
     @Override
@@ -401,14 +399,14 @@ public class ValueAnalysisTransferRelation
     }
     functionsCall.inc();
 
-    if (callEdge.getRawStatement().indexOf("pointer") == 0)
+    if (callEdge.getRawStatement().startsWith("pointer call("))
     {
       functionsPointerCall.inc();
-      if (callEdge.getRawStatement().indexOf(".") > 0)
+      if (callEdge.getRawStatement().lastIndexOf(".") > 0)
       {
         functionsPointerDotCall.inc();
       }
-      else if (callEdge.getRawStatement().indexOf("->") > 0)
+      else if (callEdge.getRawStatement().lastIndexOf("->") > 0)
       {
         functionsPointerArrowCall.inc();
       }
@@ -991,11 +989,6 @@ public class ValueAnalysisTransferRelation
       else
       {
         memLocNullAdd.inc();
-        if (op1.getExpressionType() instanceof CPointerType
-            && op2.getExpressionType() instanceof CPointerType)
-        {
-            memLocNullFunctionAdd.inc();
-        }
       }
 
     } else if (op1 instanceof AArraySubscriptExpression) {
