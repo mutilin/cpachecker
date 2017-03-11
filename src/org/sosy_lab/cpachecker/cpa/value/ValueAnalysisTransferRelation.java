@@ -402,13 +402,42 @@ public class ValueAnalysisTransferRelation
     if (callEdge.getRawStatement().startsWith("pointer call("))
     {
       functionsPointerCall.inc();
-      if (callEdge.getRawStatement().lastIndexOf(".") > 0)
+
+      int cnt1 = 0;
+      int cnt2 = 0;
+      for (AExpression arg : arguments)
+      {
+        int n1 = arg.toString().split("\\.").length - 1;
+        cnt1 += (n1 >= 0) ? n1 : 0;
+        int n2 = arg.toString().split("->").length - 1;
+        cnt2 += (n2 >= 0) ? n2 : 0;
+      }
+
+      int n10 = callEdge.getRawStatement().split("\\.").length - 1;
+      int cnt10 = (n10 >= 0) ? n10 : 0;
+      int n20 = callEdge.getRawStatement().split("->").length - 1;
+      int cnt20 = (n20 >= 0) ? n20 : 0;
+
+      if (cnt20 > cnt2 && cnt10 == cnt1)
+      {
+        functionsPointerArrowCall.inc();
+      }
+      else if (cnt10 > cnt1 && cnt20 == cnt2)
       {
         functionsPointerDotCall.inc();
       }
-      else if (callEdge.getRawStatement().lastIndexOf("->") > 0)
+      else if (cnt10 > cnt1 && cnt20 > cnt2)
       {
-        functionsPointerArrowCall.inc();
+        int len1 = callEdge.getRawStatement().split("\\.")[0].length();
+        int len2 = callEdge.getRawStatement().split("->")[0].length();
+        if (len2 > len1)
+        {
+          functionsPointerArrowCall.inc();
+        }
+        else if (len2 < len1)
+        {
+          functionsPointerDotCall.inc();
+        }
       }
     }
 
