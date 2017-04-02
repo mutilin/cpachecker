@@ -47,6 +47,7 @@ import org.sosy_lab.cpachecker.core.defaults.ForwardingTransferRelation;
 import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
+import org.sosy_lab.cpachecker.util.states.PointerToMemoryLocation;
 
 import java.util.List;
 
@@ -281,8 +282,16 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
 
       if (pStartLocation.isOnFunctionStack()) {
 
-        return MemoryLocation.valueOf(
-            pStartLocation.getFunctionName(), pStartLocation.getIdentifier(), baseOffset + offset);
+        if(pOwnerType instanceof CPointerType)
+        {
+          return PointerToMemoryLocation.valueOf(
+              pStartLocation.getFunctionName(), pStartLocation.getIdentifier(), baseOffset + offset);
+        }
+        else
+        {
+          return MemoryLocation.valueOf(
+              pStartLocation.getFunctionName(), pStartLocation.getIdentifier(), baseOffset + offset);
+        }
       } else {
 
         return MemoryLocation.valueOf(pStartLocation.getIdentifier(), baseOffset + offset);
@@ -375,7 +384,14 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
     public MemoryLocation visit(CIdExpression idExp) throws UnrecognizedCCodeException {
 
       if (idExp.getDeclaration() != null) {
-        return MemoryLocation.valueOf(idExp.getDeclaration().getQualifiedName());
+        if (idExp.getExpressionType() instanceof CPointerType)
+        {
+          return PointerToMemoryLocation.valueOf(idExp.getDeclaration().getQualifiedName());
+        }
+        else
+        {
+          return MemoryLocation.valueOf(idExp.getDeclaration().getQualifiedName());
+        }
       }
 
       boolean isGlobal = ForwardingTransferRelation.isGlobal(idExp);
