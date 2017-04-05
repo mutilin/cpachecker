@@ -60,7 +60,7 @@ public class PointerToMemoryLocation extends MemoryLocation implements Comparabl
       return true;
     }
 
-    if (!(other instanceof MemoryLocation)) {
+    if (!(other instanceof PointerToMemoryLocation)) {
       return false;
     }
 
