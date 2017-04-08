@@ -401,8 +401,6 @@ public class ValueAnalysisTransferRelation
 
     if (callEdge.getRawStatement().startsWith("pointer call("))
     {
-      functionsPointerCall.inc();
-
       int cnt1 = 0;
       int cnt2 = 0;
       for (AExpression arg : arguments)
@@ -420,10 +418,12 @@ public class ValueAnalysisTransferRelation
 
       if (cnt20 > cnt2 && cnt10 == cnt1)
       {
+        functionsPointerCall.inc();
         functionsPointerArrowCall.inc();
       }
       else if (cnt10 > cnt1 && cnt20 == cnt2)
       {
+        functionsPointerCall.inc();
         functionsPointerDotCall.inc();
       }
       else if (cnt10 > cnt1 && cnt20 > cnt2)
@@ -432,10 +432,12 @@ public class ValueAnalysisTransferRelation
         int len2 = callEdge.getRawStatement().split("->")[0].length();
         if (len2 > len1)
         {
+          functionsPointerCall.inc();
           functionsPointerArrowCall.inc();
         }
         else if (len2 < len1)
         {
+          functionsPointerCall.inc();
           functionsPointerDotCall.inc();
         }
       }
