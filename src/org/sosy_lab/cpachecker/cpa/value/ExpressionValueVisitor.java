@@ -253,6 +253,10 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
           evv.missingPointer = true;
           return null;
         }
+        else
+        {
+          return new PointerToMemoryLocation(pIastFieldReference.getFieldName(), null);
+        }
       }
 
       CLeftHandSide fieldOwner = (CLeftHandSide) pIastFieldReference.getFieldOwner();

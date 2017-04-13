@@ -43,12 +43,12 @@ public class PointerToMemoryLocation extends MemoryLocation implements Comparabl
 
   private static final long serialVersionUID = -8910967707373729035L;
 
-  private PointerToMemoryLocation(String pFunctionName, String pIdentifier, @Nullable Long pOffset) {
+  public PointerToMemoryLocation(String pFunctionName, String pIdentifier, @Nullable Long pOffset) {
 
     super(pFunctionName, pIdentifier, pOffset);
   }
 
-  private PointerToMemoryLocation(String pIdentifier, @Nullable Long pOffset) {
+  public PointerToMemoryLocation(String pIdentifier, @Nullable Long pOffset) {
     super(pIdentifier, pOffset);
 
   }

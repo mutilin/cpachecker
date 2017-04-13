@@ -247,6 +247,34 @@ public abstract class AbstractExpressionValueVisitor
       }
     }
 
+    if (lVal instanceof FunctionValue && rVal instanceof NumericValue)
+    {
+      switch (binaryOperator) {
+      case EQUALS:
+        return new NumericValue(((FunctionValue) lVal).equals((rVal)) ? 1 : 0);
+
+      case NOT_EQUALS:
+        return new NumericValue(((FunctionValue) lVal).equals((rVal)) ? 0 : 1);
+
+      default:
+        throw new AssertionError("unhandled binary operator");
+      }
+    }
+
+    if (lVal instanceof NumericValue && rVal instanceof FunctionValue)
+    {
+      switch (binaryOperator) {
+      case EQUALS:
+        return new NumericValue(((FunctionValue) rVal).equals((lVal)) ? 1 : 0);
+
+      case NOT_EQUALS:
+        return new NumericValue(((FunctionValue) rVal).equals((lVal)) ? 0 : 1);
+
+      default:
+        throw new AssertionError("unhandled binary operator");
+      }
+    }
+
     if (lVal instanceof SymbolicValue || rVal instanceof SymbolicValue) {
       return calculateSymbolicBinaryExpression(lVal, rVal, binaryExpr);
     }
