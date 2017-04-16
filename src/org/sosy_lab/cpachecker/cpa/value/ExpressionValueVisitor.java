@@ -255,7 +255,7 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
         }
         else
         {
-          return new PointerToMemoryLocation(pIastFieldReference.getFieldName(), null);
+          return PointerToMemoryLocation.valueOf(null, pIastFieldReference.getFieldName());
         }
       }
 
