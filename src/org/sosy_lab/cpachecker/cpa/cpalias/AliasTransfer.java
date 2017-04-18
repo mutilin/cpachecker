@@ -28,6 +28,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.logging.LogManager;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
@@ -48,44 +53,63 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.cpa.callstack.CallstackState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
+import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 
+@Options(prefix = "cpa.alias")
 public class AliasTransfer extends SingleEdgeTransferRelation {
   private static final String assign = "rcu_assign_pointer";
   private static final String deref = "rcu_dereference";
+
+  @Option(secure = true, name = "flowSense", description = "enable analysis flow sensitivity")
+  private boolean flowSense = false;
+
+  private final LogManager log;
+
+  public AliasTransfer(Configuration config, LogManager log) throws InvalidConfigurationException {
+    config.inject(this);
+    this.log = log;
+  }
 
   @Override
   public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
 
+    IdentifierCreator ic = new IdentifierCreator();
     AliasState result = (AliasState) state;
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
         CDeclaration cdecl = ((CDeclarationEdge) cfaEdge).getDeclaration();
-        handleDeclaration(result, cdecl);
+        handleDeclaration(result, cdecl, ic);
         break;
       case StatementEdge:
         CStatement st = ((CStatementEdge) cfaEdge).getStatement();
-        handleStatement(result, st);
+        handleStatement(result, st, ic);
         break;
       case FunctionCallEdge:
         CFunctionCallExpression fce = ((CFunctionCallEdge) cfaEdge).getSummaryEdge()
             .getExpression().getFunctionCallExpression();
-        handleFunctionCall(result, fce);
+        handleFunctionCall(result, fce, ic);
         break;
+      case AssumeEdge:
+      case CallToReturnEdge:
+      case FunctionReturnEdge:
+      case ReturnStatementEdge:
+      case BlankEdge:
+        break;
+      default:
+        throw new UnrecognizedCCodeException("Unrecognized CFA edge.", cfaEdge);
     }
 
     return Collections.singleton(result);
   }
 
-  private void handleStatement(AliasState pResult, CStatement pSt) {
+  private void handleStatement(AliasState pResult, CStatement pSt, IdentifierCreator ic) {
     if (pSt instanceof CExpressionAssignmentStatement) {
-      IdentifierCreator ic = new IdentifierCreator();
-
       CExpressionAssignmentStatement as = (CExpressionAssignmentStatement) pSt;
       AbstractIdentifier ail = as.getLeftHandSide().accept(ic);
       if (ail.isPointer()) {
@@ -94,23 +118,30 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         if (!pResult.getAlias().containsKey(ail)) {
           pResult.getAlias().put(ail, new HashSet<>());
         }
+        if (flowSense) {
+          pResult.getAlias().get(ail).clear();
+        }
         pResult.getAlias().get(ail).add(air);
       }
     } else if (pSt instanceof CFunctionCallAssignmentStatement) {
-      IdentifierCreator ic = new IdentifierCreator();
-
       CFunctionCallAssignmentStatement fca = (CFunctionCallAssignmentStatement) pSt;
       AbstractIdentifier ail = fca.getLeftHandSide().accept(ic);
-      handleFunctionCall(pResult, fca.getRightHandSide());
-      if (!pResult.getAlias().containsKey(ail)) {
-        pResult.getAlias().put(ail, new HashSet<>());
-      }
-      ic.clearDereference();
-      AbstractIdentifier fi = fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
-      pResult.getAlias().get(ail).add(fi);
-      // p = rcu_dereference(gp);
-      if (fca.getRightHandSide().getDeclaration().getName().equals(deref)) {
-        addToRCU(pResult, ail);
+      if (ail.isPointer()) {
+        handleFunctionCall(pResult, fca.getRightHandSide(), ic);
+        if (!pResult.getAlias().containsKey(ail)) {
+          pResult.getAlias().put(ail, new HashSet<>());
+        }
+        ic.clearDereference();
+        AbstractIdentifier fi =
+            fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
+        if (flowSense) {
+          pResult.getAlias().get(ail).clear();
+        }
+        pResult.getAlias().get(ail).add(fi);
+        // p = rcu_dereference(gp);
+        if (fca.getRightHandSide().getDeclaration().getName().contains(deref)) {
+          addToRCU(pResult, ail);
+        }
       }
     }
   }
@@ -124,9 +155,8 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
   }
 
 
-  private void handleFunctionCall(AliasState pResult, CFunctionCallExpression pRhs) {
-    IdentifierCreator ic = new IdentifierCreator();
-
+  private void handleFunctionCall(AliasState pResult, CFunctionCallExpression pRhs,
+                                  IdentifierCreator ic) {
     CFunctionDeclaration fd = pRhs.getDeclaration();
     List<CParameterDeclaration> formParams = fd.getParameters();
     List<CExpression> factParams = pRhs.getParameterExpressions();
@@ -140,42 +170,48 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
     for (int i = 0; i < formParams.size(); ++i) {
       ic.clearDereference();
-      form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration());
-      ic.clearDereference();
-      fact = factParams.get(i).accept(ic);
-      pResult.getAlias().get(form).add(fact);
-      // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
-      if (fd.getName().equals(assign) || fd.getName().equals(deref)) {
-        addToRCU(pResult, fact);
+      form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic);
+      if (form.isPointer()) {
+        ic.clearDereference();
+        fact = factParams.get(i).accept(ic);
+        if (flowSense) {
+          pResult.getAlias().get(form).clear();
+        }
+        pResult.getAlias().get(form).add(fact);
+        // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
+        if (fd.getName().contains(assign) || fd.getName().contains(deref)) {
+          addToRCU(pResult, fact);
+        }
       }
     }
   }
 
-  private AbstractIdentifier handleDeclaration(AliasState pResult, CDeclaration pCdecl) {
+  private AbstractIdentifier handleDeclaration(AliasState pResult, CDeclaration pCdecl,
+                                               IdentifierCreator ic) {
     if (pCdecl instanceof CVariableDeclaration) {
-      IdentifierCreator ic = new IdentifierCreator();
-
       CVariableDeclaration var = (CVariableDeclaration) pCdecl;
       //TODO: replace with smth adequate
       String functionName = AbstractStates.extractStateByType(pResult, CallstackState.class)
           .getCurrentFunction();
       AbstractIdentifier ail = ic.createIdentifier(var, functionName, 0);
-      CInitializer init = var.getInitializer();
-      AbstractIdentifier air;
-      if (init != null) {
-        if (init instanceof CInitializerExpression) {
-          air = ((CInitializerExpression) init).getExpression().accept(ic);
+      if (ail.isPointer()) {
+        CInitializer init = var.getInitializer();
+        AbstractIdentifier air;
+        if (init != null) {
+          if (init instanceof CInitializerExpression) {
+            air = ((CInitializerExpression) init).getExpression().accept(ic);
+            if (!pResult.getAlias().containsKey(ail)) {
+              pResult.getAlias().put(ail, new HashSet<>());
+            }
+            pResult.getAlias().get(ail).add(air);
+          }
+        } else {
           if (!pResult.getAlias().containsKey(ail)) {
             pResult.getAlias().put(ail, new HashSet<>());
           }
-          pResult.getAlias().get(ail).add(air);
         }
-      } else {
-        if (!pResult.getAlias().containsKey(ail)) {
-          pResult.getAlias().put(ail, new HashSet<>());
-        }
+        return ail;
       }
-      return ail;
     }
     return null;
   }
