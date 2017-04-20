@@ -56,7 +56,7 @@ public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider
   private final CFA cfa;
   private final LogManager log;
   private final TransferRelation transfer;
-  private final MergeOperator merge;
+  //private final MergeOperator merge;
   private final AbstractDomain domain;
 
   protected AliasCPA(Configuration config, LogManager log, CFA cfa)
@@ -66,7 +66,7 @@ public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider
     this.log = log;
     this.cfa = cfa;
     this.transfer = new AliasTransfer(config, log);
-    this.merge = new AliasMerge();
+    //this.merge = new AliasMerge();
     this.domain = new AliasDomain();
   }
 
@@ -82,7 +82,7 @@ public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider
 
   @Override
   public MergeOperator getMergeOperator() {
-    return merge;
+    return null;//merge;
   }
 
   @Override

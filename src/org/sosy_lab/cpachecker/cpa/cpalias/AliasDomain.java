@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.cpalias;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractDomain;
@@ -34,7 +35,27 @@ public class AliasDomain implements AbstractDomain {
   @Override
   public AbstractState join(
       AbstractState state1, AbstractState state2) throws CPAException, InterruptedException {
-    return null;
+    AliasState st2 = (AliasState) state2;
+    AliasState st1 = (AliasState) state1;
+
+    Map<AbstractIdentifier, Set<AbstractIdentifier>> alias = new HashMap<>();
+    Set<AbstractIdentifier> rcu;
+
+    for (AbstractIdentifier id : st1.getAlias().keySet()) {
+      alias.put(id, st1.getAlias().get(id));
+      alias.get(id).addAll(st2.getAlias().get(id));
+    }
+
+    for (AbstractIdentifier id : st2.getAlias().keySet()) {
+      if (!st1.getAlias().containsKey(id)) {
+        alias.put(id, st2.getAlias().get(id));
+      }
+    }
+
+    rcu = st1.getPrcu();
+    rcu.addAll(st2.getPrcu());
+
+    return new AliasState(alias, rcu);
   }
 
   @Override
