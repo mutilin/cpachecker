@@ -43,6 +43,7 @@ public class AliasMerge implements MergeOperator {
     Map<AbstractIdentifier, Set<AbstractIdentifier>> alias = new HashMap<>();
     Set<AbstractIdentifier> rcu;
 
+    //TODO implement cloning carefully, now aliases are added to the state1
     for (AbstractIdentifier id : st1.getAlias().keySet()) {
       alias.put(id, st1.getAlias().get(id));
       alias.get(id).addAll(st2.getAlias().get(id));

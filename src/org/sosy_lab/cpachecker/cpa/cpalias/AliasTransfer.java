@@ -58,8 +58,10 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 
+//TODO is it possible to use ForwardingTransferRelation?
 @Options(prefix = "cpa.alias")
 public class AliasTransfer extends SingleEdgeTransferRelation {
+  //TODO better to implement them as options
   private static final String assign = "rcu_assign_pointer";
   private static final String deref = "rcu_dereference";
 
@@ -147,6 +149,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
   }
 
   private void addToRCU(AliasState pResult, AbstractIdentifier pId) {
+    //TODO Does it work? Seems, this is an infinite recursion loop.
     Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
     pResult.getPrcu().add(pId);
     for (AbstractIdentifier ai : alias) {
@@ -190,10 +193,11 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
                                                IdentifierCreator ic) {
     if (pCdecl instanceof CVariableDeclaration) {
       CVariableDeclaration var = (CVariableDeclaration) pCdecl;
-      //TODO: replace with smth adequate
+      //TODO: replace with smth adequate.
+      //Common practice is: extractLocation().getFunctionName()
       String functionName = AbstractStates.extractStateByType(pResult, CallstackState.class)
           .getCurrentFunction();
-      AbstractIdentifier ail = ic.createIdentifier(var, functionName, 0);
+      AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, functionName, 0);
       if (ail.isPointer()) {
         CInitializer init = var.getInitializer();
         AbstractIdentifier air;
@@ -213,6 +217,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         return ail;
       }
     }
+    //TODO Possible null pointer dereference in caller function
     return null;
   }
 }

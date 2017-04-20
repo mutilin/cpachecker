@@ -38,6 +38,7 @@ public class AliasState implements AbstractState {
     prcu = pprcu;
   }
 
+  //TODO implement add() (and others) in state, not use get() to add smth directly to map
   public Map<AbstractIdentifier, Set<AbstractIdentifier>> getAlias() {
     return alias;
   }

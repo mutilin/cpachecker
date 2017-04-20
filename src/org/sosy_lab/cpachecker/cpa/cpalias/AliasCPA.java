@@ -29,7 +29,6 @@ import java.util.HashSet;
 import java.util.logging.LogManager;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -45,6 +44,7 @@ import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
+//TODO extend from AbstractCPA
 @Options(prefix = "cpa.alias")
 public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider{
 
@@ -67,6 +67,7 @@ public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider
     this.cfa = cfa;
     this.transfer = new AliasTransfer(config, log);
     this.merge = new AliasMerge();
+    //TODO extend from DelegateAbstractDomain (modification AliasState is needed)
     this.domain = new AliasDomain();
   }
 
