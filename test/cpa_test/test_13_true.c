@@ -16,29 +16,35 @@ struct str
     struct str0 *st0;
 };
 
+void true_func() {
+}
+
+void err_func() {
+	ERROR: goto ERROR;
+}
+
 void
-func1(struct str *st_in)
+func1(struct str0 *st_in)
 {
-    struct str0 *st2;
-    st2 = st_in->st0;
-    if ((unsigned long)st2->fptr != (unsigned long) (void (*)(void))0)
-    {
-        st2->fptr();
-    }
-    else
-    {
-ERROR: goto ERROR;
-    }
+	st_in->fptr();
+}
+
+int g(void (*fn)(void)) {
+    struct str0 *st_dop;
+    st_dop->fptr = fn;
+    func1(st_dop);
 }
 
 int
 main(int argc, char **argv)
 {
-    struct str0 *st_dop;
-    st_dop->fptr = func0;
-    struct str *st;
-    st->st0 = st_dop;
-    func1(st);
+    int a = 3;
+    void (*func_var)(void);
+    if (a < 2) {
+		func_var = &err_func;
+	} else {
+		func_var = &true_func;
+	}
+    g(func_var);
     return 0;
 }
-

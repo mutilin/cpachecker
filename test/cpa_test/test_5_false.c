@@ -20,9 +20,9 @@ int
 main(int argc, char **argv)
 {
     struct str *st;
-    st->a = 2;
+    int a = 2;
 
-    if (st->a < 1)
+    if (a < 1)
         st->fptr = func0;
     else
         st->fptr = func1;
