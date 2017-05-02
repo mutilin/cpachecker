@@ -93,32 +93,72 @@ public class AliasState implements LatticeAbstractState<AliasState> {
       }
     }
 
-    rcu = this.getRcu();
+    rcu = new HashSet<>(this.getRcu());
     rcu.addAll(other.getRcu());
 
-    return new AliasState(alias, rcu);
+    AliasState newState = new AliasState(alias, rcu);
+    if (newState.equals(this)){
+      return this;
+    } else {
+      return newState;
+    }
   }
 
   @Override
   public boolean isLessOrEqual(AliasState other)
       throws CPAException, InterruptedException {
-    return other.getAlias().keySet().containsAll(this.getAlias().keySet()) &&
-        containsAll(other.getAlias(), this.getAlias()) &&
-        other.getRcu().containsAll(this.getRcu());
+    return ((this.getAlias().isEmpty() && other.getAlias().isEmpty()) ||
+        (other.getAlias().keySet().containsAll(this.getAlias().keySet()) &&
+        containsAll(other.getAlias(), this.getAlias()))) &&
+        ((other.getRcu().isEmpty() && this.getRcu().isEmpty()) ||
+        other.getRcu().containsAll(this.getRcu()));
   }
 
   private boolean containsAll(
-      Map<AbstractIdentifier, Set<AbstractIdentifier>> mG,
-      Map<AbstractIdentifier, Set<AbstractIdentifier>> mL) {
-    for (AbstractIdentifier id : mL.keySet()) {
-      if (!mG.get(id).containsAll(mL.get(id))) {
+      Map<AbstractIdentifier, Set<AbstractIdentifier>> greater,
+      Map<AbstractIdentifier, Set<AbstractIdentifier>> lesser) {
+    for (AbstractIdentifier id : lesser.keySet()) {
+      if (!greater.get(id).containsAll(lesser.get(id))) {
         return false;
       }
     }
     return true;
   }
 
+  @Override
+  public boolean equals(Object pO) {
+    if (this == pO) {
+      return true;
+    }
+    if (pO == null || getClass() != pO.getClass()) {
+      return false;
+    }
+
+    AliasState that = (AliasState) pO;
+
+    if (!alias.equals(that.alias)) {
+      return false;
+    }
+    if (!rcu.equals(that.rcu)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = alias.hashCode();
+    result = 31 * result + rcu.hashCode();
+    return result;
+  }
+
   public String getContents() {
     return "\nAlias: " + alias.toString() + "\nRCU: " + rcu.toString();
+  }
+
+  @Override
+  public String toString() {
+    return getContents();
   }
 }
