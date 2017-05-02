@@ -61,9 +61,14 @@ import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 //TODO is it possible to use ForwardingTransferRelation?
 @Options(prefix = "cpa.alias")
 public class AliasTransfer extends SingleEdgeTransferRelation {
-  //TODO better to implement them as options
-  private static final String assign = "rcu_assign_pointer";
-  private static final String deref = "rcu_dereference";
+
+  @Option(secure = true, name = "rcu_assign", description = "Name of a function responsible for "
+      + "assignments to RCU pointers")
+  private String assign = "rcu_assign_pointer";
+
+  @Option(secure = true, name = "rcu_deref", description = "Name of a function responsible for "
+      + "dereferences of RCU pointers")
+  private String deref = "rcu_dereference";
 
   @Option(secure = true, name = "flowSense", description = "enable analysis flow sensitivity")
   private boolean flowSense = false;
@@ -150,10 +155,13 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
   private void addToRCU(AliasState pResult, AbstractIdentifier pId) {
     //TODO Does it work? Seems, this is an infinite recursion loop.
-    Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
+    Set<AbstractIdentifier> old = pResult.getPrcu();
     pResult.getPrcu().add(pId);
-    for (AbstractIdentifier ai : alias) {
-      addToRCU(pResult, ai);
+    if (!pResult.getPrcu().equals(old)) {
+      Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
+      for (AbstractIdentifier ai : alias) {
+        addToRCU(pResult, ai);
+      }
     }
   }
 
@@ -174,7 +182,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     for (int i = 0; i < formParams.size(); ++i) {
       ic.clearDereference();
       form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic);
-      if (form.isPointer()) {
+      if (form != null && form.isPointer()) {
         ic.clearDereference();
         fact = factParams.get(i).accept(ic);
         if (flowSense) {
@@ -193,10 +201,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
                                                IdentifierCreator ic) {
     if (pCdecl instanceof CVariableDeclaration) {
       CVariableDeclaration var = (CVariableDeclaration) pCdecl;
-      //TODO: replace with smth adequate.
-      //Common practice is: extractLocation().getFunctionName()
-      String functionName = AbstractStates.extractStateByType(pResult, CallstackState.class)
-          .getCurrentFunction();
+      String functionName = AbstractStates.extractLocation(pResult).getFunctionName();
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, functionName, 0);
       if (ail.isPointer()) {
         CInitializer init = var.getInitializer();
@@ -217,7 +222,6 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         return ail;
       }
     }
-    //TODO Possible null pointer dereference in caller function
     return null;
   }
 }
