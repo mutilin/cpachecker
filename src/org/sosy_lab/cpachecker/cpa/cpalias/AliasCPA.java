@@ -32,7 +32,9 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
+import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
 import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
+import org.sosy_lab.cpachecker.core.defaults.DelegateAbstractDomain;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractDomain;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
@@ -46,7 +48,8 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 //TODO extend from AbstractCPA
 @Options(prefix = "cpa.alias")
-public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider{
+public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
+                                                     StatisticsProvider{
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(AliasCPA.class);
@@ -55,40 +58,35 @@ public class AliasCPA implements ConfigurableProgramAnalysis, StatisticsProvider
   private final Configuration config;
   private final CFA cfa;
   private final LogManager log;
-  private final TransferRelation transfer;
-  //private final MergeOperator merge;
-  private final AbstractDomain domain;
 
   protected AliasCPA(Configuration config, LogManager log, CFA cfa)
       throws InvalidConfigurationException {
+    super("JOIN", "SEP", DelegateAbstractDomain.<AliasState>getInstance(),
+          new AliasTransfer(config, log));
     config.inject(this);
     this.config = config;
     this.log = log;
     this.cfa = cfa;
-    this.transfer = new AliasTransfer(config, log);
-    //this.merge = new AliasMerge();
-    //TODO extend from DelegateAbstractDomain (modification AliasState is needed)
-    this.domain = new AliasDomain();
   }
 
   @Override
   public AbstractDomain getAbstractDomain() {
-    return domain;
+    return ((AbstractCPA) this).getAbstractDomain();
   }
 
   @Override
   public TransferRelation getTransferRelation() {
-    return transfer;
+    return ((AbstractCPA) this).getTransferRelation();
   }
 
   @Override
   public MergeOperator getMergeOperator() {
-    return null;//merge;
+    return ((AbstractCPA) this).getMergeOperator();
   }
 
   @Override
   public StopOperator getStopOperator() {
-    return null;
+    return ((AbstractCPA) this).getStopOperator();
   }
 
   @Override

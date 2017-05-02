@@ -51,7 +51,6 @@ import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
-import org.sosy_lab.cpachecker.cpa.callstack.CallstackState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -122,29 +121,23 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       if (ail.isPointer()) {
         ic.clearDereference();
         AbstractIdentifier air = as.getRightHandSide().accept(ic);
-        if (!pResult.getAlias().containsKey(ail)) {
-          pResult.getAlias().put(ail, new HashSet<>());
-        }
         if (flowSense) {
-          pResult.getAlias().get(ail).clear();
+          pResult.clearAlias(ail);
         }
-        pResult.getAlias().get(ail).add(air);
+        pResult.addAlias(ail, air);
       }
     } else if (pSt instanceof CFunctionCallAssignmentStatement) {
       CFunctionCallAssignmentStatement fca = (CFunctionCallAssignmentStatement) pSt;
       AbstractIdentifier ail = fca.getLeftHandSide().accept(ic);
       if (ail.isPointer()) {
         handleFunctionCall(pResult, fca.getRightHandSide(), ic);
-        if (!pResult.getAlias().containsKey(ail)) {
-          pResult.getAlias().put(ail, new HashSet<>());
-        }
         ic.clearDereference();
         AbstractIdentifier fi =
             fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
         if (flowSense) {
-          pResult.getAlias().get(ail).clear();
+          pResult.clearAlias(ail);
         }
-        pResult.getAlias().get(ail).add(fi);
+        pResult.addAlias(ail, fi);
         // p = rcu_dereference(gp);
         if (fca.getRightHandSide().getDeclaration().getName().contains(deref)) {
           addToRCU(pResult, ail);
@@ -155,14 +148,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
   private void addToRCU(AliasState pResult, AbstractIdentifier pId) {
     //TODO Does it work? Seems, this is an infinite recursion loop.
-    Set<AbstractIdentifier> old = pResult.getPrcu();
-    pResult.getPrcu().add(pId);
-    if (!pResult.getPrcu().equals(old)) {
-      Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
-      for (AbstractIdentifier ai : alias) {
-        addToRCU(pResult, ai);
-      }
-    }
+    AliasState.addToRCU(pResult, pId);
   }
 
 
@@ -186,9 +172,9 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         ic.clearDereference();
         fact = factParams.get(i).accept(ic);
         if (flowSense) {
-          pResult.getAlias().get(form).clear();
+          pResult.clearAlias(form);
         }
-        pResult.getAlias().get(form).add(fact);
+        pResult.addAlias(form, fact);
         // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
         if (fd.getName().contains(assign) || fd.getName().contains(deref)) {
           addToRCU(pResult, fact);
@@ -209,15 +195,10 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         if (init != null) {
           if (init instanceof CInitializerExpression) {
             air = ((CInitializerExpression) init).getExpression().accept(ic);
-            if (!pResult.getAlias().containsKey(ail)) {
-              pResult.getAlias().put(ail, new HashSet<>());
-            }
-            pResult.getAlias().get(ail).add(air);
+            pResult.addAlias(ail, air);
           }
         } else {
-          if (!pResult.getAlias().containsKey(ail)) {
-            pResult.getAlias().put(ail, new HashSet<>());
-          }
+          pResult.addAlias(ail, null);
         }
         return ail;
       }
