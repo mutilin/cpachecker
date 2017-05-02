@@ -27,6 +27,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -50,24 +52,26 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     return rcu;
   }
 
-  public static void addToRCU(AliasState pResult, AbstractIdentifier pId){
+  public static void addToRCU(AliasState pResult, AbstractIdentifier pId, LogManager pLogger){
     Set<AbstractIdentifier> old = pResult.getRcu();
     pResult.getRcu().add(pId);
-    if (!pResult.getRcu().equals(old)) {
+    if (!old.containsAll(pResult.getRcu())) {
       Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
+      pLogger.log(Level.ALL, "Added synonyms for <" + pId.toString() + "> which are: " + alias.toString());
       for (AbstractIdentifier ai : alias) {
-        addToRCU(pResult, ai);
+        addToRCU(pResult, ai, pLogger);
       }
     }
   }
 
-  public void addAlias(AbstractIdentifier key, AbstractIdentifier value) {
+  public void addAlias(AbstractIdentifier key, AbstractIdentifier value, LogManager logger) {
     if (!this.alias.containsKey(key)) {
       this.alias.put(key, new HashSet<>());
     }
     if (value != null) {
       this.alias.get(key).add(value);
     }
+    logger.log(Level.ALL, "Added alias <" + value.toString() + "> for key <" + key.toString() + ">");
   }
 
   public void clearAlias(AbstractIdentifier key) {
@@ -114,4 +118,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     return true;
   }
 
+  public String getContents() {
+    return "\nAlias: " + alias.toString() + "\nRCU: " + rcu.toString();
+  }
 }

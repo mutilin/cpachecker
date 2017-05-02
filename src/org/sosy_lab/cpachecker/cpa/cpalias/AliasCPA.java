@@ -23,13 +23,11 @@
  */
 package org.sosy_lab.cpachecker.cpa.cpalias;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.logging.LogManager;
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
@@ -41,20 +39,16 @@ import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.MergeOperator;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
-import org.sosy_lab.cpachecker.core.interfaces.Statistics;
-import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 //TODO extend from AbstractCPA
-public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
-                                                     StatisticsProvider{
+public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(AliasCPA.class);
   }
 
-  private final Configuration config;
   private final CFA cfa;
   private final LogManager log;
 
@@ -62,30 +56,18 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
       throws InvalidConfigurationException {
     super("JOIN", "SEP", DelegateAbstractDomain.<AliasState>getInstance(),
           new AliasTransfer(config, log));
-    config.inject(this);
-    this.config = config;
     this.log = log;
     this.cfa = cfa;
   }
 
   @Override
-  public AbstractDomain getAbstractDomain() {
-    return ((AbstractCPA) this).getAbstractDomain();
-  }
-
-  @Override
-  public TransferRelation getTransferRelation() {
-    return ((AbstractCPA) this).getTransferRelation();
-  }
-
-  @Override
   public MergeOperator getMergeOperator() {
-    return ((AbstractCPA) this).getMergeOperator();
+    return buildMergeOperator("JOIN");
   }
 
   @Override
   public StopOperator getStopOperator() {
-    return ((AbstractCPA) this).getStopOperator();
+    return buildStopOperator("SEP");
   }
 
   @Override
@@ -94,8 +76,4 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
     return new AliasState(new HashMap<>(), new HashSet<>());
   }
 
-  @Override
-  public void collectStatistics(Collection<Statistics> statsCollection) {
-
-  }
 }

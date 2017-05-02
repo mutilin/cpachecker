@@ -57,7 +57,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
   }
 
   @Override
-  public boolean isPointer() {
+  public boolean isDereferenced() {
     if (dereference > 0) {
       return true;
     }/* else if (LocalTransferRelation.findDereference(type) > 0) {
@@ -65,6 +65,12 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
     } */else {
       return false;
     }
+  }
+
+  @Override
+  public boolean isPointer() {
+    //TODO: implement this
+    return false;
   }
 
   @Override

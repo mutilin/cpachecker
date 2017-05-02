@@ -166,9 +166,9 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
     } else if (id1 instanceof SingleIdentifier && id2 instanceof SingleIdentifier) {
       SingleIdentifier s1 = (SingleIdentifier) id1;
       SingleIdentifier s2 = (SingleIdentifier) id2;
-      if (s1.isPointer() && !s2.isPointer()) {
+      if (s1.isDereferenced() && !s2.isDereferenced()) {
         main = s1;
-      } else if (s1.isPointer() && !s2.isPointer()) {
+      } else if (s1.isDereferenced() && !s2.isDereferenced()) {
         main = s2;
       } else if (s1.getType().getClass() == CSimpleType.class && s2.getType().getClass() != CSimpleType.class) {
         main = s2;

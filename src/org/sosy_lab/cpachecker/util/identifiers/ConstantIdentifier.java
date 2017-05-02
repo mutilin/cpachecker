@@ -107,8 +107,14 @@ public class ConstantIdentifier implements AbstractIdentifier {
   }
 
   @Override
-  public boolean isPointer() {
+  public boolean isDereferenced() {
     return (dereference > 0);
+  }
+
+  @Override
+  public boolean isPointer() {
+    //TODO: implement this
+    return false;
   }
 
   @Override
@@ -142,7 +148,7 @@ public class ConstantIdentifier implements AbstractIdentifier {
 
   @Override
   public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    if (isPointer() && !(name.equals("0"))) {
+    if (isDereferenced() && !(name.equals("0"))) {
       return DataType.GLOBAL;
     } else {
       return DataType.LOCAL;
