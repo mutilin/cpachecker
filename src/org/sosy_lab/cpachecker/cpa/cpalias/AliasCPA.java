@@ -47,7 +47,6 @@ import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 //TODO extend from AbstractCPA
-@Options(prefix = "cpa.alias")
 public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
                                                      StatisticsProvider{
 
