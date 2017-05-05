@@ -51,10 +51,12 @@ public class FunctionValue  implements Value, Serializable  {
     return str;
   }
 
+  /*
   public boolean equals(FunctionValue func)
   {
     return str.equals(func.getName());
   }
+  */
 
   @Override
   public boolean isNumericValue() {
@@ -86,10 +88,41 @@ public class FunctionValue  implements Value, Serializable  {
     return null;
   }
 
+  @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((str == null) ? 0 : str.hashCode());
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    FunctionValue other = (FunctionValue) obj;
+    if (str == null) {
+      if (other.str != null) {
+        return false;
+      }
+    } else if (!str.equals(other.str)) {
+      return false;
+    }
+    return true;
+  }
+
   public String getString() {
     return str;
   }
 
+  /*
   @Override
   public boolean equals(Object other) {
     //equals is only called if this object is a function pointer
@@ -101,5 +134,11 @@ public class FunctionValue  implements Value, Serializable  {
       return false;
     }
   }
+
+  @Override
+  public int hashCode() {
+    return getString().hashCode();
+  }
+  */
 
 }
