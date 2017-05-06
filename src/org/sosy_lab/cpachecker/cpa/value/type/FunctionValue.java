@@ -98,6 +98,9 @@ public class FunctionValue  implements Value, Serializable  {
 
   @Override
   public boolean equals(Object obj) {
+  //equals is only called if this object is a function pointer
+  //always false when comparing a functional pointer with zero
+  //if this object is not a functional pointer, then equals is not called.
     if (this == obj) {
       return true;
     }
@@ -121,24 +124,4 @@ public class FunctionValue  implements Value, Serializable  {
   public String getString() {
     return str;
   }
-
-  /*
-  @Override
-  public boolean equals(Object other) {
-    //equals is only called if this object is a function pointer
-    //always false when comparing a functional pointer with zero
-    //if this object is not a functional pointer, then equals is not called.
-    if (other instanceof FunctionValue) {
-      return this.getString().equals(((FunctionValue) other).getString());
-    } else {
-      return false;
-    }
-  }
-
-  @Override
-  public int hashCode() {
-    return getString().hashCode();
-  }
-  */
-
 }
