@@ -53,7 +53,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   }
 
   public static void addToRCU(AliasState pResult, AbstractIdentifier pId, LogManager pLogger){
-    Set<AbstractIdentifier> old = pResult.getRcu();
+    Set<AbstractIdentifier> old = new HashSet<>(pResult.getRcu());
     pResult.getRcu().add(pId);
     if (!old.containsAll(pResult.getRcu())) {
       Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
@@ -107,11 +107,23 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   @Override
   public boolean isLessOrEqual(AliasState other)
       throws CPAException, InterruptedException {
-    return ((this.getAlias().isEmpty() && other.getAlias().isEmpty()) ||
-        (other.getAlias().keySet().containsAll(this.getAlias().keySet()) &&
-        containsAll(other.getAlias(), this.getAlias()))) &&
-        ((other.getRcu().isEmpty() && this.getRcu().isEmpty()) ||
-        other.getRcu().containsAll(this.getRcu()));
+    boolean sameAlias = false;
+    boolean sameRcu = false;
+
+    if (this.getAlias().isEmpty() && other.getAlias().isEmpty()) {
+      sameAlias = true;
+    } else if (other.getAlias().keySet().containsAll(this.getAlias().keySet()) &&
+        containsAll(other.getAlias(), this.getAlias())) {
+      sameAlias = true;
+    }
+
+    if (other.getRcu().isEmpty() && this.getRcu().isEmpty()) {
+      sameRcu = true;
+    } else if (other.getRcu().containsAll(this.getRcu())) {
+      sameRcu = true;
+    }
+
+    return sameAlias && sameRcu;
   }
 
   private boolean containsAll(
