@@ -45,18 +45,12 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   }
 
   //TODO implement add() (and others) in state, not use get() to add smth directly to map
-  private Map<AbstractIdentifier, Set<AbstractIdentifier>> getAlias() {
-    return alias;
-  }
-  private Set<AbstractIdentifier> getRcu() {
-    return rcu;
-  }
 
   public static void addToRCU(AliasState pResult, AbstractIdentifier pId, LogManager pLogger){
-    Set<AbstractIdentifier> old = new HashSet<>(pResult.getRcu());
-    pResult.getRcu().add(pId);
-    if (!old.containsAll(pResult.getRcu())) {
-      Set<AbstractIdentifier> alias = pResult.getAlias().get(pId);
+    Set<AbstractIdentifier> old = new HashSet<>(pResult.rcu);
+    pResult.rcu.add(pId);
+    if (!old.containsAll(pResult.rcu)) {
+      Set<AbstractIdentifier> alias = pResult.alias.get(pId);
       pLogger.log(Level.ALL, "Added synonyms for <" + pId.toString() + "> which are: " + alias.toString());
       for (AbstractIdentifier ai : alias) {
         addToRCU(pResult, ai, pLogger);
@@ -82,19 +76,19 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   public AliasState join(AliasState other) {
     Map<AbstractIdentifier, Set<AbstractIdentifier>> alias = new HashMap<>();
     Set<AbstractIdentifier> rcu;
-    for (AbstractIdentifier id : this.getAlias().keySet()) {
-      alias.put(id, this.getAlias().get(id));
-      alias.get(id).addAll(other.getAlias().get(id));
+    for (AbstractIdentifier id : this.alias.keySet()) {
+      alias.put(id, this.alias.get(id));
+      alias.get(id).addAll(other.alias.get(id));
     }
 
-    for (AbstractIdentifier id : other.getAlias().keySet()) {
-      if (!this.getAlias().containsKey(id)) {
-        alias.put(id, other.getAlias().get(id));
+    for (AbstractIdentifier id : other.alias.keySet()) {
+      if (!this.alias.containsKey(id)) {
+        alias.put(id, other.alias.get(id));
       }
     }
 
-    rcu = new HashSet<>(this.getRcu());
-    rcu.addAll(other.getRcu());
+    rcu = new HashSet<>(this.rcu);
+    rcu.addAll(other.rcu);
 
     AliasState newState = new AliasState(alias, rcu);
     if (newState.equals(this)){
@@ -110,16 +104,16 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     boolean sameAlias = false;
     boolean sameRcu = false;
 
-    if (this.getAlias().isEmpty() && other.getAlias().isEmpty()) {
+    if (this.alias.isEmpty() && other.alias.isEmpty()) {
       sameAlias = true;
-    } else if (other.getAlias().keySet().containsAll(this.getAlias().keySet()) &&
-        containsAll(other.getAlias(), this.getAlias())) {
+    } else if (other.alias.keySet().containsAll(this.alias.keySet()) &&
+        containsAll(other.alias, this.alias)) {
       sameAlias = true;
     }
 
-    if (other.getRcu().isEmpty() && this.getRcu().isEmpty()) {
+    if (other.rcu.isEmpty() && this.rcu.isEmpty()) {
       sameRcu = true;
-    } else if (other.getRcu().containsAll(this.getRcu())) {
+    } else if (other.rcu.containsAll(this.rcu)) {
       sameRcu = true;
     }
 
