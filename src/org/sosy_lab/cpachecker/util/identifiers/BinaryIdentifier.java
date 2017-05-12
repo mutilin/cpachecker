@@ -140,8 +140,7 @@ public class BinaryIdentifier implements AbstractIdentifier {
 
   @Override
   public boolean isPointer() {
-    //TODO: implement this
-    return false;
+    return id1.isPointer() || id2.isPointer();
   }
 
   @Override

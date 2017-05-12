@@ -137,7 +137,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           if (flowSense) {
             pResult.clearAlias(ail);
           }
-          if (!(air instanceof ConstantIdentifier)) {
+          if (air.isPointer()) {
             pResult.addAlias(ail, air, logger);
           } else {
             pResult.addAlias(ail, null, logger);
@@ -219,7 +219,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         if (init != null) {
           if (init instanceof CInitializerExpression) {
             air = ((CInitializerExpression) init).getExpression().accept(ic);
-            if (!(air instanceof ConstantIdentifier)) {
+            if (air.isPointer()) {
               pResult.addAlias(ail, air, logger);
             } else {
               pResult.addAlias(ail, null, logger);

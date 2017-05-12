@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.util.identifiers;
 
 import java.util.Collection;
 import java.util.Map;
+import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.cpa.local.LocalTransferRelation;
@@ -119,8 +120,7 @@ public class StructureIdentifier extends SingleIdentifier{
 
   @Override
   public boolean isPointer() {
-    //TODO implement this
-    return false;
+    return (type instanceof CPointerType);
   }
 
   @Override

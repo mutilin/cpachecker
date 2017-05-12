@@ -113,7 +113,7 @@ public class ConstantIdentifier implements AbstractIdentifier {
 
   @Override
   public boolean isPointer() {
-    //TODO: implement this
+    // CPAlias is not interested in constants
     return false;
   }
 
