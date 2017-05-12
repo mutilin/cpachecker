@@ -53,6 +53,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 
 //TODO is it possible to use ForwardingTransferRelation?
@@ -102,10 +103,16 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
             .getExpression().getFunctionCallExpression();
         handleFunctionCall(result, fce, ic, cfaEdge.getPredecessor().getFunctionName());
         break;
-      case AssumeEdge:
       case CallToReturnEdge:
+        logger.log(Level.ALL, "ALIAS: CallToRet");
+        break;
       case FunctionReturnEdge:
+        logger.log(Level.ALL, "ALIAS: FuncRet");
+        break;
       case ReturnStatementEdge:
+        logger.log(Level.ALL, "ALIAS: RetSt");
+        break;
+      case AssumeEdge:
       case BlankEdge:
         break;
       default:
@@ -120,6 +127,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       logger.log(Level.ALL, "ALIAS: OK statement");
       ic.clear(functionName);
       if (pSt instanceof CExpressionAssignmentStatement) {
+        logger.log(Level.ALL, "ALIAS: Normal assignment");
         CExpressionAssignmentStatement as = (CExpressionAssignmentStatement) pSt;
         AbstractIdentifier ail = as.getLeftHandSide().accept(ic);
         if (ail.isPointer()) {
@@ -129,9 +137,14 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           if (flowSense) {
             pResult.clearAlias(ail);
           }
-          pResult.addAlias(ail, air, logger);
+          if (!(air instanceof ConstantIdentifier)) {
+            pResult.addAlias(ail, air, logger);
+          } else {
+            pResult.addAlias(ail, null, logger);
+          }
         }
       } else if (pSt instanceof CFunctionCallAssignmentStatement) {
+        logger.log(Level.ALL, "ALIAS: FC assignment");
         CFunctionCallAssignmentStatement fca = (CFunctionCallAssignmentStatement) pSt;
         AbstractIdentifier ail = fca.getLeftHandSide().accept(ic);
         if (ail.isPointer()) {
@@ -172,6 +185,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
     ic.clear(fd.getName());
 
+    logger.log(Level.ALL, "ALIAS: Function call for function: " + functionName + " " + fd.getName());
     for (int i = 0; i < formParams.size(); ++i) {
       ic.clearDereference();
       form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic, fd.getName());
@@ -205,9 +219,15 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         if (init != null) {
           if (init instanceof CInitializerExpression) {
             air = ((CInitializerExpression) init).getExpression().accept(ic);
+            if (!(air instanceof ConstantIdentifier)) {
+              pResult.addAlias(ail, air, logger);
+            } else {
+              pResult.addAlias(ail, null, logger);
+            }
             pResult.addAlias(ail, air, logger);
           }
         } else {
+          System.out.println("AIL: " + ail.toString());
           pResult.addAlias(ail, null, logger);
         }
         return ail;

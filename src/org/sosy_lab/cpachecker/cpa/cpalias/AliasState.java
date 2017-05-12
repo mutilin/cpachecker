@@ -51,9 +51,12 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     pResult.rcu.add(pId);
     if (!old.containsAll(pResult.rcu)) {
       Set<AbstractIdentifier> alias = pResult.alias.get(pId);
-      pLogger.log(Level.ALL, "Added synonyms for <" + pId.toString() + "> which are: " + alias.toString());
-      for (AbstractIdentifier ai : alias) {
-        addToRCU(pResult, ai, pLogger);
+      pLogger.log(Level.ALL, "Added synonyms for <" + (pId == null ? "NULL" : pId.toString()) +
+          "> which are: " + (alias == null? "NULL" : alias.toString()));
+      if (alias != null && !alias.isEmpty()) {
+        for (AbstractIdentifier ai : alias) {
+          addToRCU(pResult, ai, pLogger);
+        }
       }
     }
   }
@@ -65,7 +68,8 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     if (value != null) {
       this.alias.get(key).add(value);
     }
-    logger.log(Level.ALL, "Added alias <" + value.toString() + "> for key <" + key.toString() + ">");
+    logger.log(Level.ALL, "Added alias <" + (value == null? "NULL" : value.toString()) + "> for "
+        + "key <" + key.toString() + ">");
   }
 
   public void clearAlias(AbstractIdentifier key) {
