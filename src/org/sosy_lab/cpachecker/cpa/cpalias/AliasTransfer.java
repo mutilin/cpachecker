@@ -224,7 +224,6 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
             } else {
               pResult.addAlias(ail, null, logger);
             }
-            pResult.addAlias(ail, air, logger);
           }
         } else {
           System.out.println("AIL: " + ail.toString());
