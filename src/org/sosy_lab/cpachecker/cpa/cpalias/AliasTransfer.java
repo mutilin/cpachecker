@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.cpalias;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -137,11 +138,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           if (flowSense) {
             pResult.clearAlias(ail);
           }
-          if (air.isPointer()) {
-            pResult.addAlias(ail, air, logger);
-          } else {
-            pResult.addAlias(ail, null, logger);
-          }
+          addToAlias(pResult, ail, air);
         }
       } else if (pSt instanceof CFunctionCallAssignmentStatement) {
         logger.log(Level.ALL, "ALIAS: FC assignment");
@@ -158,11 +155,20 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           }
           pResult.addAlias(ail, fi, logger);
           // p = rcu_dereference(gp);
-          if (fca.getRightHandSide().getDeclaration().getName().contains(deref)) {
+          CFunctionDeclaration fd = fca.getRightHandSide().getDeclaration();
+          if (fd != null && fd.getName().contains(deref)) {
             addToRCU(pResult, ail);
           }
         }
       }
+    }
+  }
+
+  private void addToAlias(AliasState pResult, AbstractIdentifier pAil, AbstractIdentifier pAir) {
+    if (pAir.isPointer()) {
+      pResult.addAlias(pAil, pAir, logger);
+    } else {
+      pResult.addAlias(pAil, null, logger);
     }
   }
 
@@ -175,17 +181,23 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
   private void handleFunctionCall(AliasState pResult, CFunctionCallExpression pRhs,
                                   IdentifierCreator ic, String functionName) {
     CFunctionDeclaration fd = pRhs.getDeclaration();
-    List<CParameterDeclaration> formParams = fd.getParameters();
+    List<CParameterDeclaration> formParams = fd != null ? fd.getParameters() : new ArrayList<>();
     List<CExpression> factParams = pRhs.getParameterExpressions();
 
-    assert formParams.size() == factParams.size();
+    //assert formParams.size() == factParams.size();
 
     AbstractIdentifier form;
     AbstractIdentifier fact;
 
-    ic.clear(fd.getName());
+    if (fd != null) {
+      ic.clear(fd.getName());
+      logger.log(Level.ALL,
+          "ALIAS: Function call for function: " + functionName + " " + fd.getName());
+    } else {
+      logger.log(Level.ALL, "ALIAS: Function call for function without declaration: " + pRhs
+          .getFunctionNameExpression().toString());
+    }
 
-    logger.log(Level.ALL, "ALIAS: Function call for function: " + functionName + " " + fd.getName());
     for (int i = 0; i < formParams.size(); ++i) {
       ic.clearDereference();
       form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic, fd.getName());
@@ -197,7 +209,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         if (flowSense) {
           pResult.clearAlias(form);
         }
-        pResult.addAlias(form, fact, logger);
+        addToAlias(pResult, form, fact);
         // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
         if (fd.getName().contains(assign) || fd.getName().contains(deref)) {
           addToRCU(pResult, fact);
@@ -219,11 +231,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         if (init != null) {
           if (init instanceof CInitializerExpression) {
             air = ((CInitializerExpression) init).getExpression().accept(ic);
-            if (air.isPointer()) {
-              pResult.addAlias(ail, air, logger);
-            } else {
-              pResult.addAlias(ail, null, logger);
-            }
+            addToAlias(pResult, ail, air);
           }
         } else {
           System.out.println("AIL: " + ail.toString());

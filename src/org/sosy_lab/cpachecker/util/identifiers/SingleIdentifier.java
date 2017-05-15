@@ -70,7 +70,18 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
 
   @Override
   public boolean isPointer() {
-    return (type instanceof CPointerType);
+    return (type instanceof CPointerType) && (dereference == 0 || dereference < getRefNum());
+  }
+
+  private int getRefNum() {
+    String typeStr = type.toString();
+    int result = 0;
+    for (char ch : typeStr.toCharArray()) {
+      if (ch == '*') {
+        ++result;
+      }
+    }
+    return result;
   }
 
   @Override

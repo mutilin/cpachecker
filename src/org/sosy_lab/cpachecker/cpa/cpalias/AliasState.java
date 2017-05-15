@@ -58,6 +58,11 @@ public class AliasState implements LatticeAbstractState<AliasState> {
           addToRCU(pResult, ai, pLogger);
         }
       }
+      for (AbstractIdentifier key : pResult.alias.keySet()) {
+        if (pResult.alias.get(key).contains(pId)) {
+          addToRCU(pResult, key, pLogger);
+        }
+      }
     }
   }
 

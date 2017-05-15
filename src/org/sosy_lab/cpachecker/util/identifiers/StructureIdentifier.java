@@ -119,11 +119,6 @@ public class StructureIdentifier extends SingleIdentifier{
   }
 
   @Override
-  public boolean isPointer() {
-    return (type instanceof CPointerType);
-  }
-
-  @Override
   public String toLog() {
     return "s;" + name + ";" + dereference;
   }
