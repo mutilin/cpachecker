@@ -35,7 +35,10 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
+import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
@@ -163,8 +166,20 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
   private void handleDeclaration(CDeclaration pDeclaration, RCUState pResult, Precision pPrecision,
                                  IdentifierCreator pIc, String pFunctionName) {
-    pIc.clear(pFunctionName);
-
+    if (pDeclaration != null && pDeclaration instanceof CVariableDeclaration) {
+      CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
+      AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
+      RCUPrecision precision = (RCUPrecision) pPrecision;
+      if (precision.getRcuPtrs().contains(ail)) {
+        CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
+        if (initializer != null && initializer instanceof CInitializerExpression) {
+          pIc.clearDereference();
+          AbstractIdentifier init = ((CInitializerExpression) initializer).getExpression().accept(pIc);
+          pResult.addToRelations(ail, init);
+        }
+        pResult.addToRelations(ail, null);
+      }
+    }
   }
 
 

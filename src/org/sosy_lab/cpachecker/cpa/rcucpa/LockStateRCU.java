@@ -37,7 +37,7 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     return readLockCount <= other.readLockCount;
   }
 
-  private enum HeldLock {
+  public enum HeldLock {
     NO_LOCK, READ_LOCK, WRITE_LOCK
   }
 

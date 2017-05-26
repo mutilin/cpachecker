@@ -102,4 +102,13 @@ public class RCUState implements LatticeAbstractState<RCUState> {
       }
     }
   }
+
+  void addToRelations(AbstractIdentifier pAil, AbstractIdentifier pInit) {
+    if (!rcuRelations.containsKey(pAil)) {
+      rcuRelations.put(pAil, new HashSet<>());
+    }
+    if (pInit != null) {
+      rcuRelations.get(pAil).add(pInit);
+    }
+  }
 }
