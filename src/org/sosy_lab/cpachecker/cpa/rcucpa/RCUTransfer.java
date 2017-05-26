@@ -62,6 +62,10 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       + "assignment to RCU pointers")
   private String assign = "rcu_assign_pointer";
 
+  @Option(secure = true, name = "deref", description = "Name of a function responsible for "
+      + "dereferences of RCU pointers")
+  private String deref = "rcu_dereference";
+
   @Option(name = "fictReadLock", secure = true, description = "Name of a function marking a call "
       + "to a fictional read lock of RCU pointer")
   private String fictReadLock = "rlock_rcu";
@@ -100,9 +104,11 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       case StatementEdge:
         CStatement statement = ((CStatementEdge) cfaEdge).getStatement();
         if (statement instanceof CExpressionAssignmentStatement) {
-          handleAssignment();
+          handleAssignment((CExpressionAssignmentStatement) statement, result, precision, ic,
+              cfaEdge.getPredecessor().getFunctionName());
         } else if (statement instanceof CFunctionCallAssignmentStatement) {
-          handleFunctionCallAssignment();
+          handleFunctionCallAssignment((CFunctionCallAssignmentStatement) statement, result, ic,
+              cfaEdge.getPredecessor().getFunctionName());
         } else {
           break;
         }
@@ -156,12 +162,32 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     }
   }
 
-  private void handleFunctionCallAssignment() {
-
+  private void handleFunctionCallAssignment(CFunctionCallAssignmentStatement assignment,
+                                            RCUState pResult, IdentifierCreator pIc,
+                                            String functionName) {
+    CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
+    if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
+      pIc.clear(functionName);
+      AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
+      pIc.clearDereference();
+      AbstractIdentifier air = assignment.getFunctionCallExpression()
+                                .getParameterExpressions().get(0).accept(pIc);
+      pResult.addToRelations(ail, air);
+    }
   }
 
-  private void handleAssignment() {
+  private void handleAssignment(CExpressionAssignmentStatement assignment,
+                                RCUState pResult, Precision pPrecision,
+                                IdentifierCreator pIc, String functionName) {
+    RCUPrecision precision = (RCUPrecision) pPrecision;
+    pIc.clear(functionName);
+    AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
+    pIc.clearDereference();
+    AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
 
+    if (precision.getRcuPtrs().contains(ail) || precision.getRcuPtrs().contains(air)) {
+      pResult.addToRelations(ail, air);
+    }
   }
 
   private void handleDeclaration(CDeclaration pDeclaration, RCUState pResult, Precision pPrecision,

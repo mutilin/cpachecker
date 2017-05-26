@@ -128,39 +128,53 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       logger.log(Level.ALL, "ALIAS: OK statement");
       ic.clear(functionName);
       if (pSt instanceof CExpressionAssignmentStatement) {
-        logger.log(Level.ALL, "ALIAS: Normal assignment");
-        CExpressionAssignmentStatement as = (CExpressionAssignmentStatement) pSt;
-        AbstractIdentifier ail = as.getLeftHandSide().accept(ic);
-        if (ail.isPointer()) {
-          logger.log(Level.ALL, "ALIAS: Pointer in statement");
-          ic.clearDereference();
-          AbstractIdentifier air = as.getRightHandSide().accept(ic);
-          if (flowSense) {
-            pResult.clearAlias(ail);
-          }
-          addToAlias(pResult, ail, air);
-        }
+        handleAssignment(pResult, (CExpressionAssignmentStatement) pSt, ic);
       } else if (pSt instanceof CFunctionCallAssignmentStatement) {
-        logger.log(Level.ALL, "ALIAS: FC assignment");
-        CFunctionCallAssignmentStatement fca = (CFunctionCallAssignmentStatement) pSt;
-        AbstractIdentifier ail = fca.getLeftHandSide().accept(ic);
-        if (ail.isPointer()) {
-          logger.log(Level.ALL, "ALIAS: Pointer in statement 2");
-          handleFunctionCall(pResult, fca.getRightHandSide(), ic, functionName);
-          ic.clearDereference();
-          AbstractIdentifier fi =
-              fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
-          if (flowSense) {
-            pResult.clearAlias(ail);
-          }
-          pResult.addAlias(ail, fi, logger);
-          // p = rcu_dereference(gp);
-          CFunctionDeclaration fd = fca.getRightHandSide().getDeclaration();
-          if (fd != null && fd.getName().contains(deref)) {
-            addToRCU(pResult, ail);
-          }
-        }
+        handleFunctionCallAssignment(pResult,
+            (CFunctionCallAssignmentStatement) pSt, ic, functionName);
       }
+    }
+  }
+
+  private void handleFunctionCallAssignment(AliasState pResult,
+                                            CFunctionCallAssignmentStatement pSt,
+                                            IdentifierCreator ic,
+                                            String functionName) {
+    logger.log(Level.ALL, "ALIAS: FC assignment");
+    CFunctionCallAssignmentStatement fca = pSt;
+    AbstractIdentifier ail = fca.getLeftHandSide().accept(ic);
+    if (ail.isPointer()) {
+      logger.log(Level.ALL, "ALIAS: Pointer in statement 2");
+      handleFunctionCall(pResult, fca.getRightHandSide(), ic, functionName);
+      ic.clearDereference();
+      AbstractIdentifier fi =
+          fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
+      if (flowSense) {
+        pResult.clearAlias(ail);
+      }
+      pResult.addAlias(ail, fi, logger);
+      // p = rcu_dereference(gp);
+      CFunctionDeclaration fd = fca.getRightHandSide().getDeclaration();
+      if (fd != null && fd.getName().contains(deref)) {
+        addToRCU(pResult, ail);
+      }
+    }
+  }
+
+  private void handleAssignment(AliasState pResult,
+                                CExpressionAssignmentStatement pSt,
+                                IdentifierCreator ic) {
+    logger.log(Level.ALL, "ALIAS: Normal assignment");
+    CExpressionAssignmentStatement as = pSt;
+    AbstractIdentifier ail = as.getLeftHandSide().accept(ic);
+    if (ail.isPointer()) {
+      logger.log(Level.ALL, "ALIAS: Pointer in statement");
+      ic.clearDereference();
+      AbstractIdentifier air = as.getRightHandSide().accept(ic);
+      if (flowSense) {
+        pResult.clearAlias(ail);
+      }
+      addToAlias(pResult, ail, air);
     }
   }
 
