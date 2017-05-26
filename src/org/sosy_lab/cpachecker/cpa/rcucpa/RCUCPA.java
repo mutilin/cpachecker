@@ -25,6 +25,8 @@ package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -35,11 +37,19 @@ import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 
+@Options(prefix = "cpa.rcucpa")
 public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
+
+  @Option(name = "precisionFile", secure = true, description = "name of a file containing "
+      + "information on which pointers are RCU pointers")
+  private String fileName = "rcuPointers";
+
   protected RCUCPA(Configuration config, CFA cfa, LogManager logger)
       throws InvalidConfigurationException {
-    super("SEP", "SEP", DelegateAbstractDomain.<RCUState>getInstance(),
-  new RCUTransfer(config, logger));
+    super("SEP", "SEP",
+        DelegateAbstractDomain.<RCUState>getInstance(),
+        new RCUTransfer(config, logger));
+    config.inject(this);
   }
 
   @Override
@@ -51,6 +61,6 @@ public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
   @Override
   public Precision getInitialPrecision(
       CFANode node, StateSpacePartition partition) throws InterruptedException {
-    return null;
+    return new RCUPrecision(fileName);
   }
 }

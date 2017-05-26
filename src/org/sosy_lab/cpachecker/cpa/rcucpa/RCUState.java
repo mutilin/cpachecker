@@ -84,4 +84,22 @@ public class RCUState implements LatticeAbstractState<RCUState> {
 
     return true;
   }
+
+  LockStateRCU getLockState() {
+    return lockState;
+  }
+
+  void fillLocal() {
+    localAgain.addAll(outdatedRCU);
+    outdatedRCU.clear();
+  }
+
+  void addToOutdated(AbstractIdentifier pRcuPtr) {
+    outdatedRCU.add(pRcuPtr);
+    for (AbstractIdentifier id : rcuRelations.keySet()) {
+      if (rcuRelations.get(id).contains(pRcuPtr)) {
+        outdatedRCU.add(id);
+      }
+    }
+  }
 }

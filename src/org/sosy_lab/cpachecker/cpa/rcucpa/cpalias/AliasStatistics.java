@@ -25,11 +25,19 @@ package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
 import java.io.PrintStream;
 import javax.annotation.Nullable;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 
+@Options(prefix = "cpa.rcucpa")
 public class AliasStatistics implements Statistics {
+
+  @Option(name = "precisionFile", secure = true, description = "name of a file containing "
+      + "information on which pointers are RCU pointers")
+  private String fileName = "rcuPointers";
+
   @Override
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
 

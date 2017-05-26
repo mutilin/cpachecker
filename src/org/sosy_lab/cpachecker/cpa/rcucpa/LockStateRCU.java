@@ -44,28 +44,28 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   private HeldLock lockType;
   private int readLockCount;
 
-  public LockStateRCU() {
+  LockStateRCU() {
     readLockCount = 0;
     lockType = HeldLock.NO_LOCK;
   }
 
-  public void markRead() {
+  void markRead() {
     lockType = HeldLock.READ_LOCK;
   }
 
-  public void markWrite() {
+  void markWrite() {
     lockType = HeldLock.WRITE_LOCK;
   }
 
-  public void clearLock() {
+  void clearLock() {
     lockType = HeldLock.NO_LOCK;
   }
 
-  public void incRCURead() {
+  void incRCURead() {
     ++readLockCount;
   }
 
-  public void decRCURead() {
+  void decRCURead() {
     --readLockCount;
   }
 

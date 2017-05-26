@@ -53,18 +53,19 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
+import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 
 //TODO is it possible to use ForwardingTransferRelation?
-@Options(prefix = "cpa.alias")
+@Options(prefix = "cpa.rcucpa")
 public class AliasTransfer extends SingleEdgeTransferRelation {
 
-  @Option(secure = true, name = "rcuAssign", description = "Name of a function responsible for "
+  @Option(secure = true, name = "assign", description = "Name of a function responsible for "
       + "assignments to RCU pointers")
   private String assign = "rcu_assign_pointer";
 
-  @Option(secure = true, name = "rcuDeref", description = "Name of a function responsible for "
+  @Option(secure = true, name = "deref", description = "Name of a function responsible for "
       + "dereferences of RCU pointers")
   private String deref = "rcu_dereference";
 
@@ -116,7 +117,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       case BlankEdge:
         break;
       default:
-        throw new UnrecognizedCCodeException("Unrecognized CFA edge.", cfaEdge);
+        throw new UnrecognizedCFAEdgeException(cfaEdge);
     }
 
     return Collections.singleton(result);
