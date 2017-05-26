@@ -24,6 +24,7 @@
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -35,7 +36,8 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 
 public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
-  protected RCUCPA(Configuration config, CFA cfa, LogManager logger){
+  protected RCUCPA(Configuration config, CFA cfa, LogManager logger)
+      throws InvalidConfigurationException {
     super("SEP", "SEP", DelegateAbstractDomain.<RCUState>getInstance(),
   new RCUTransfer(config, logger));
   }
