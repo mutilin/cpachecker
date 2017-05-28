@@ -96,13 +96,13 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       case StatementEdge:
         logger.log(Level.ALL, "ALIAS: Statement");
         CStatement st = ((CStatementEdge) cfaEdge).getStatement();
-        handleStatement(result, st, ic, cfaEdge.getPredecessor().getFunctionName());
+        handleStatement(result, st, ic, cfaEdge.getPredecessor().getFunctionName(), precision);
         break;
       case FunctionCallEdge:
         logger.log(Level.ALL, "ALIAS: FunctionCall");
         CFunctionCallExpression fce = ((CFunctionCallEdge) cfaEdge).getSummaryEdge()
             .getExpression().getFunctionCallExpression();
-        handleFunctionCall(result, fce, ic, cfaEdge.getPredecessor().getFunctionName());
+        handleFunctionCall(result, fce, ic, cfaEdge.getPredecessor().getFunctionName(), precision);
         break;
       case CallToReturnEdge:
         logger.log(Level.ALL, "ALIAS: CallToRet");
@@ -123,15 +123,16 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     return Collections.singleton(result);
   }
 
-  private void handleStatement(AliasState pResult, CStatement pSt, IdentifierCreator ic, String functionName) {
-    if (pSt != null) {
+  private void handleStatement(AliasState result, CStatement st, IdentifierCreator ic, String
+      functionName, Precision precision) {
+    if (st != null) {
       logger.log(Level.ALL, "ALIAS: OK statement");
       ic.clear(functionName);
-      if (pSt instanceof CExpressionAssignmentStatement) {
-        handleAssignment(pResult, (CExpressionAssignmentStatement) pSt, ic);
-      } else if (pSt instanceof CFunctionCallAssignmentStatement) {
-        handleFunctionCallAssignment(pResult,
-            (CFunctionCallAssignmentStatement) pSt, ic, functionName);
+      if (st instanceof CExpressionAssignmentStatement) {
+        handleAssignment(result, (CExpressionAssignmentStatement) st, ic);
+      } else if (st instanceof CFunctionCallAssignmentStatement) {
+        handleFunctionCallAssignment(result,
+            (CFunctionCallAssignmentStatement) st, ic, functionName, precision);
       }
     }
   }
@@ -139,13 +140,14 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
   private void handleFunctionCallAssignment(AliasState pResult,
                                             CFunctionCallAssignmentStatement pSt,
                                             IdentifierCreator ic,
-                                            String functionName) {
+                                            String functionName,
+                                            Precision precision) {
     logger.log(Level.ALL, "ALIAS: FC assignment");
     CFunctionCallAssignmentStatement fca = pSt;
     AbstractIdentifier ail = fca.getLeftHandSide().accept(ic);
     if (ail.isPointer()) {
       logger.log(Level.ALL, "ALIAS: Pointer in statement 2");
-      handleFunctionCall(pResult, fca.getRightHandSide(), ic, functionName);
+      handleFunctionCall(pResult, fca.getRightHandSide(), ic, functionName, precision);
       ic.clearDereference();
       AbstractIdentifier fi =
           fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
@@ -157,6 +159,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       CFunctionDeclaration fd = fca.getRightHandSide().getDeclaration();
       if (fd != null && fd.getName().contains(deref)) {
         addToRCU(pResult, ail);
+        ((AliasPrecision) precision).addRcuPtrs(pResult.getPrecision());
       }
     }
   }
@@ -193,7 +196,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
 
   private void handleFunctionCall(AliasState pResult, CFunctionCallExpression pRhs,
-                                  IdentifierCreator ic, String functionName) {
+                                  IdentifierCreator ic, String functionName, Precision precision) {
     CFunctionDeclaration fd = pRhs.getDeclaration();
     List<CParameterDeclaration> formParams = fd != null ? fd.getParameters() : new ArrayList<>();
     List<CExpression> factParams = pRhs.getParameterExpressions();
@@ -227,6 +230,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
         if (fd.getName().contains(assign) || fd.getName().contains(deref)) {
           addToRCU(pResult, fact);
+          ((AliasPrecision) precision).addRcuPtrs(pResult.getPrecision());
         }
       }
     }

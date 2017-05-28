@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
@@ -37,7 +39,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   private Map<AbstractIdentifier, Set<AbstractIdentifier>> alias;
   private Set<AbstractIdentifier> rcu;
 
-  public AliasState(
+  AliasState(
       Map<AbstractIdentifier, Set<AbstractIdentifier>> palias,
       Set<AbstractIdentifier> prcu) {
     alias = palias;
@@ -46,7 +48,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
 
   //TODO implement add() (and others) in state, not use get() to add smth directly to map
 
-  public static void addToRCU(AliasState pResult, AbstractIdentifier pId, LogManager pLogger){
+  static void addToRCU(AliasState pResult, AbstractIdentifier pId, LogManager pLogger){
     Set<AbstractIdentifier> old = new HashSet<>(pResult.rcu);
     pResult.rcu.add(pId);
     if (!old.containsAll(pResult.rcu)) {
@@ -66,7 +68,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     }
   }
 
-  public void addAlias(AbstractIdentifier key, AbstractIdentifier value, LogManager logger) {
+  void addAlias(AbstractIdentifier key, AbstractIdentifier value, LogManager logger) {
     if (!this.alias.containsKey(key)) {
       this.alias.put(key, new HashSet<>());
     }
@@ -77,7 +79,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
         + "key <" + key.toString() + ">");
   }
 
-  public void clearAlias(AbstractIdentifier key) {
+  void clearAlias(AbstractIdentifier key) {
     this.alias.get(key).clear();
   }
 
@@ -175,5 +177,9 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   @Override
   public String toString() {
     return getContents();
+  }
+
+  public Precision getPrecision() {
+    return new AliasPrecision(rcu);
   }
 }

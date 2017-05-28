@@ -165,6 +165,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   private void handleFunctionCallAssignment(CFunctionCallAssignmentStatement assignment,
                                             RCUState pResult, IdentifierCreator pIc,
                                             String functionName) {
+    // This case is covered by the normal assignment expression
+    /*
     CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
     if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
       pIc.clear(functionName);
@@ -174,6 +176,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
                                 .getParameterExpressions().get(0).accept(pIc);
       pResult.addToRelations(ail, air);
     }
+    */
   }
 
   private void handleAssignment(CExpressionAssignmentStatement assignment,

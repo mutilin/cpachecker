@@ -23,26 +23,29 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import com.google.common.base.Preconditions;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
+import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
-public class RCUState implements LatticeAbstractState<RCUState> {
-  private final LockStateRCU lockState;
+public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState {
   private final Map<AbstractIdentifier, Set<AbstractIdentifier>> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
   private final Set<AbstractIdentifier> localAgain;
+  private final LockStateRCU lockState;
 
   RCUState(LockStateRCU pLockState, Map<AbstractIdentifier, Set<AbstractIdentifier>> pRcuRel,
                   Set<AbstractIdentifier> pOutdatedRCU, Set<AbstractIdentifier> pLocalAgain) {
-    lockState = pLockState;
     rcuRelations = pRcuRel;
     outdatedRCU = pOutdatedRCU;
     localAgain = pLocalAgain;
+    lockState = pLockState;
   }
 
   RCUState() {
@@ -59,7 +62,6 @@ public class RCUState implements LatticeAbstractState<RCUState> {
     if (!lockState.isLessOrEqual(other.lockState)) {
       return false;
     }
-
 
     Set<AbstractIdentifier> sub = rcuRelations.keySet();
     sub.retainAll(other.rcuRelations.keySet());
@@ -110,5 +112,28 @@ public class RCUState implements LatticeAbstractState<RCUState> {
     if (pInit != null) {
       rcuRelations.get(pAil).add(pInit);
     }
+  }
+
+  @Override
+  public boolean isCompatibleWith(CompatibleState state) {
+    Preconditions.checkArgument(state instanceof RCUState);
+    return lockState.isCompatible(((RCUState) state).lockState);
+  }
+
+  @Override
+  public CompatibleState prepareToStore() {
+    return this;
+  }
+
+  @Override
+  public UsageTreeNode getTreeNode() {
+    // TODO: implement this
+    return null;
+  }
+
+  @Override
+  public int compareTo(CompatibleState o) {
+    // TODO: implement this
+    return 0;
   }
 }

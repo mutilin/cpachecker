@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import org.sosy_lab.common.log.LogManager;
@@ -37,11 +38,15 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.MergeOperator;
+import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
+import org.sosy_lab.cpachecker.core.interfaces.Statistics;
+import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 
 //TODO extend from AbstractCPA
-public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
+public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
+                                                     StatisticsProvider {
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(AliasCPA.class);
@@ -49,6 +54,7 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
 
   private final CFA cfa;
   private final LogManager log;
+  private final AliasStatistics stats;
 
   protected AliasCPA(Configuration config, LogManager log, CFA cfa)
       throws InvalidConfigurationException {
@@ -56,6 +62,7 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
           new AliasTransfer(config, log));
     this.log = log;
     this.cfa = cfa;
+    this.stats = new AliasStatistics();
   }
 
   @Override
@@ -74,4 +81,14 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
     return new AliasState(new HashMap<>(), new HashSet<>());
   }
 
+  @Override
+  public Precision getInitialPrecision(CFANode node, StateSpacePartition partition)
+      throws InterruptedException {
+    return new AliasPrecision(new HashSet<>());
+  }
+
+  @Override
+  public void collectStatistics(Collection<Statistics> statsCollection) {
+    statsCollection.add(stats);
+  }
 }
