@@ -133,7 +133,7 @@ public class LocalVariableIdentifier extends VariableIdentifier {
     if (result != null) {
       return result;
     }
-    if (!isPointer()) {
+    if (!isDereferenced()) {
       return DataType.LOCAL;
     } else {
       return null;

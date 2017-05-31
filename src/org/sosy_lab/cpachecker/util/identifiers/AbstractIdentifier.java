@@ -47,6 +47,8 @@ public interface AbstractIdentifier extends Comparable<AbstractIdentifier> {
 
   public void setDereference(int d);
 
+  public boolean isDereferenced();
+
   public boolean isPointer();
 
   /**
