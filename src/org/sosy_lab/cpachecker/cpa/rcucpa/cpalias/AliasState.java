@@ -37,12 +37,15 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 public class AliasState implements LatticeAbstractState<AliasState> {
   private Map<AbstractIdentifier, Set<AbstractIdentifier>> alias;
+  private Map<AbstractIdentifier, Set<AbstractIdentifier>> pointsTo;
   private Set<AbstractIdentifier> rcu;
 
   AliasState(
       Map<AbstractIdentifier, Set<AbstractIdentifier>> palias,
+      Map<AbstractIdentifier, Set<AbstractIdentifier>> ppointsTo,
       Set<AbstractIdentifier> prcu) {
     alias = palias;
+    pointsTo = ppointsTo;
     rcu = prcu;
   }
 
@@ -83,25 +86,21 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     this.alias.get(key).clear();
   }
 
+  void clearPointsTo(AbstractIdentifier key) {this.pointsTo.get(key).clear();}
+
   @Override
   public AliasState join(AliasState other) {
-    Map<AbstractIdentifier, Set<AbstractIdentifier>> alias = new HashMap<>();
+    Map<AbstractIdentifier, Set<AbstractIdentifier>> alias;
+    Map<AbstractIdentifier, Set<AbstractIdentifier>> pointsTo;
     Set<AbstractIdentifier> rcu;
-    for (AbstractIdentifier id : this.alias.keySet()) {
-      alias.put(id, this.alias.get(id));
-      alias.get(id).addAll(other.alias.get(id));
-    }
 
-    for (AbstractIdentifier id : other.alias.keySet()) {
-      if (!this.alias.containsKey(id)) {
-        alias.put(id, other.alias.get(id));
-      }
-    }
+    alias = mergeMaps(this.alias, other.alias);
+    pointsTo = mergeMaps(this.pointsTo, other.pointsTo);
 
     rcu = new HashSet<>(this.rcu);
     rcu.addAll(other.rcu);
 
-    AliasState newState = new AliasState(alias, rcu);
+    AliasState newState = new AliasState(alias, pointsTo, rcu);
     if (newState.equals(this)){
       return this;
     } else {
@@ -109,11 +108,32 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     }
   }
 
+  private Map<AbstractIdentifier, Set<AbstractIdentifier>> mergeMaps(
+      Map<AbstractIdentifier, Set<AbstractIdentifier>> one,
+      Map<AbstractIdentifier, Set<AbstractIdentifier>> other) {
+
+    Map<AbstractIdentifier, Set<AbstractIdentifier>> result = new HashMap<>();
+    for (AbstractIdentifier id : one.keySet()) {
+      result.put(id, one.get(id));
+      result.get(id).addAll(other.get(id));
+    }
+
+    for (AbstractIdentifier id : other.keySet()) {
+      if (!one.containsKey(id)) {
+        result.put(id, other.get(id));
+      }
+    }
+
+    return result;
+  }
+
   @Override
   public boolean isLessOrEqual(AliasState other)
       throws CPAException, InterruptedException {
     boolean sameAlias = false;
     boolean sameRcu = false;
+
+    //TODO: add pointsTo
 
     if (this.alias.isEmpty() && other.alias.isEmpty()) {
       sameAlias = true;
