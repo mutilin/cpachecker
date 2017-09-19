@@ -151,6 +151,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       ic.clearDereference();
       AbstractIdentifier fi =
           fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
+      //TODO: add pointsTo
       if (flowSense) {
         pResult.clearAlias(ail);
       }
@@ -174,6 +175,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       logger.log(Level.ALL, "ALIAS: Pointer in statement");
       ic.clearDereference();
       AbstractIdentifier air = as.getRightHandSide().accept(ic);
+      //TODO: add pointsTo
       if (flowSense) {
         pResult.clearAlias(ail);
       }
@@ -227,6 +229,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           pResult.clearAlias(form);
         }
         addToAlias(pResult, form, fact);
+        //TODO: add pointsTO?
         // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
         if (fd.getName().contains(assign) || fd.getName().contains(deref)) {
           addToRCU(pResult, fact);
@@ -251,6 +254,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           if (init instanceof CInitializerExpression) {
             air = ((CInitializerExpression) init).getExpression().accept(ic);
             addToAlias(pResult, ail, air);
+            //TODO: add pointsTo
           }
         } else {
           System.out.println("AIL: " + ail.toString());
