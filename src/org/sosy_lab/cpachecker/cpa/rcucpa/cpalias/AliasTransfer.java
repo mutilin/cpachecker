@@ -240,6 +240,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
                                                IdentifierCreator ic, String functionName) {
     if (pCdecl != null && pCdecl instanceof CVariableDeclaration) {
       logger.log(Level.ALL, "ALIAS: OK declaration");
+      ic.clear(functionName);
       CVariableDeclaration var = (CVariableDeclaration) pCdecl;
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, functionName, 0);
       if (ail.isPointer()) {
