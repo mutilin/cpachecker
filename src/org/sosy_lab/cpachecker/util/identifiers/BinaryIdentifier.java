@@ -81,8 +81,6 @@ public class BinaryIdentifier implements AbstractIdentifier {
     return true;
   }
 
-
-
   @Override
   public String toString() {
     String info = "";

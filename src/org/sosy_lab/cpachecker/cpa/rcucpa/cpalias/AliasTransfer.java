@@ -52,7 +52,6 @@ import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
-import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
@@ -154,8 +153,9 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       //TODO: add pointsTo
       if (flowSense) {
         pResult.clearAlias(ail);
+        pResult.clearPointsTo(ail);
       }
-      pResult.addAlias(ail, fi, logger);
+      addToAlias(pResult, ail, fi);
       // p = rcu_dereference(gp);
       CFunctionDeclaration fd = fca.getRightHandSide().getDeclaration();
       if (fd != null && fd.getName().contains(deref)) {
@@ -175,20 +175,26 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       logger.log(Level.ALL, "ALIAS: Pointer in statement");
       ic.clearDereference();
       AbstractIdentifier air = as.getRightHandSide().accept(ic);
-      //TODO: add pointsTo
       if (flowSense) {
         pResult.clearAlias(ail);
+        pResult.clearPointsTo(ail);
       }
       addToAlias(pResult, ail, air);
+      addPointsTo(pResult, ail, air);
     }
   }
 
   private void addToAlias(AliasState pResult, AbstractIdentifier pAil, AbstractIdentifier pAir) {
+    logger.log(Level.ALL,  "ATA: " + pAir.toString() + ' ' + pAir.isPointer() + ' ' + pAir.getClass());
     if (pAir.isPointer()) {
       pResult.addAlias(pAil, pAir, logger);
     } else {
       pResult.addAlias(pAil, null, logger);
     }
+  }
+
+  private void addPointsTo(AliasState pResult, AbstractIdentifier pAil, AbstractIdentifier pAir) {
+    pResult.addPointsTo(pAil, pAir, logger);
   }
 
   private void addToRCU(AliasState pResult, AbstractIdentifier pId) {
@@ -254,15 +260,26 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
           if (init instanceof CInitializerExpression) {
             air = ((CInitializerExpression) init).getExpression().accept(ic);
             addToAlias(pResult, ail, air);
-            //TODO: add pointsTo
+            addPointsTo(pResult, ail, air);
           }
         } else {
           System.out.println("AIL: " + ail.toString());
           pResult.addAlias(ail, null, logger);
+          pResult.addPointsTo(ail, null, logger);
         }
         return ail;
       }
     }
     return null;
   }
+
+  /*
+    a + 1 == 1 + a == a + 2 in case of CPAlias. Those ids need to be simplified.
+
+  private class IdentifierSimplificator {
+    AbstractIdentifier simplify(AbstractIdentifier id) {
+      //TODO: recursion?
+    }
+  }
+  */
 }

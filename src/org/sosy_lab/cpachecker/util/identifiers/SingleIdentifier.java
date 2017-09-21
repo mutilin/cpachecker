@@ -26,6 +26,7 @@ package org.sosy_lab.cpachecker.util.identifiers;
 import java.util.Collection;
 import java.util.Map;
 
+import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cpa.local.LocalCPA;
@@ -70,7 +71,9 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
 
   @Override
   public boolean isPointer() {
-    return (type instanceof CPointerType) && (dereference == 0 || dereference < getRefNum());
+    // System.out.println("AAAAAA " + type + ' ' + dereference);
+    return (type instanceof CPointerType || type instanceof CArrayType)
+        && (dereference == 0 || dereference < getRefNum());
   }
 
   private int getRefNum() {

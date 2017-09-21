@@ -44,7 +44,6 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 
-//TODO extend from AbstractCPA
 public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
                                                      StatisticsProvider {
 
@@ -78,7 +77,7 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
   @Override
   public AbstractState getInitialState(
       CFANode node, StateSpacePartition partition) throws InterruptedException {
-    return new AliasState(new HashMap<>(), new HashSet<>());
+    return new AliasState(new HashMap<>(), new HashMap<>(), new HashSet<>());
   }
 
   @Override

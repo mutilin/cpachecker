@@ -49,8 +49,6 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     rcu = prcu;
   }
 
-  //TODO implement add() (and others) in state, not use get() to add smth directly to map
-
   static void addToRCU(AliasState pResult, AbstractIdentifier pId, LogManager pLogger){
     Set<AbstractIdentifier> old = new HashSet<>(pResult.rcu);
     pResult.rcu.add(pId);
@@ -75,11 +73,67 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     if (!this.alias.containsKey(key)) {
       this.alias.put(key, new HashSet<>());
     }
-    if (value != null) {
+    logger.log(Level.ALL, value != null ? value.toString() + ' ' + value.getDereference() :
+                          "Value NULL");
+    if (value != null && value.getDereference() >= 0 ) {
       this.alias.get(key).add(value);
+      logger.log(Level.ALL, "Added alias <" + (value == null? "NULL" : value.toString()) + "> for "
+          + "key <" + key.toString() + ">");
     }
-    logger.log(Level.ALL, "Added alias <" + (value == null? "NULL" : value.toString()) + "> for "
-        + "key <" + key.toString() + ">");
+  }
+
+  void addPointsTo(AbstractIdentifier key, AbstractIdentifier value, LogManager logger) {
+    if (!this.pointsTo.containsKey(key)) {
+      this.pointsTo.put(key, new HashSet<>());
+    }
+    if (value != null) {
+      if (value.isPointer()) {
+        if (this.pointsTo.containsKey(value)) {
+          // p = q
+          this.pointsTo.get(key).addAll(this.pointsTo.get(value));
+          updateAlias(key);
+        } else {
+          // p = &a
+          AbstractIdentifier buf = value;
+          buf.setDereference(buf.getDereference() + 1);
+          logger.log(Level.ALL, "Here");
+          this.pointsTo.get(key).add(buf);
+          updateAlias(key);
+        }
+
+        logger.log(Level.ALL, "Added point-to <" + (value == null? "NULL" : value.toString()) + "> "
+            + "for "
+            + "key <" + key.toString() + ">");
+      }
+    }
+  }
+
+  private void updateAlias(AbstractIdentifier key) {
+    Set<AbstractIdentifier> buf;
+    for (AbstractIdentifier other: this.pointsTo.keySet()) {
+      if (!other.equals(key)) {
+        buf = new HashSet<>(this.pointsTo.get(other));
+        buf.retainAll(this.pointsTo.get(key));
+        if (!buf.isEmpty()) {
+          this.alias.get(key).add(other);
+          this.alias.get(other).add(key);
+        }
+      }
+    }
+
+    for (AbstractIdentifier other: this.alias.keySet()) {
+      if (!other.equals(key)) {
+        buf = new HashSet<>(this.alias.get(other));
+        buf.retainAll(this.alias.get(key));
+        if (!buf.isEmpty()) {
+          this.alias.get(key).add(other);
+          this.alias.get(other).add(key);
+        }
+      }
+    }
+
+    // pp1 -> [p1], pp2 -> [p2], p1 = [a], p2 = [a] ==> pp1 = [pp2], pp2 = [pp1]
+
   }
 
   void clearAlias(AbstractIdentifier key) {
@@ -113,6 +167,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
       Map<AbstractIdentifier, Set<AbstractIdentifier>> other) {
 
     Map<AbstractIdentifier, Set<AbstractIdentifier>> result = new HashMap<>();
+
     for (AbstractIdentifier id : one.keySet()) {
       result.put(id, one.get(id));
       result.get(id).addAll(other.get(id));
@@ -131,9 +186,8 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   public boolean isLessOrEqual(AliasState other)
       throws CPAException, InterruptedException {
     boolean sameAlias = false;
+    boolean samePointsTo = false;
     boolean sameRcu = false;
-
-    //TODO: add pointsTo
 
     if (this.alias.isEmpty() && other.alias.isEmpty()) {
       sameAlias = true;
@@ -142,13 +196,20 @@ public class AliasState implements LatticeAbstractState<AliasState> {
       sameAlias = true;
     }
 
+    if (this.pointsTo.isEmpty() && other.pointsTo.isEmpty()) {
+      samePointsTo = true;
+    } else if (other.pointsTo.keySet().containsAll(this.pointsTo.keySet()) &&
+        containsAll(other.pointsTo, this.pointsTo)){
+      samePointsTo = true;
+    }
+
     if (other.rcu.isEmpty() && this.rcu.isEmpty()) {
       sameRcu = true;
     } else if (other.rcu.containsAll(this.rcu)) {
       sameRcu = true;
     }
 
-    return sameAlias && sameRcu;
+    return sameAlias && samePointsTo && sameRcu;
   }
 
   private boolean containsAll(
@@ -176,6 +237,11 @@ public class AliasState implements LatticeAbstractState<AliasState> {
     if (!alias.equals(that.alias)) {
       return false;
     }
+
+    if (!pointsTo.equals(that.pointsTo)) {
+      return false;
+    }
+
     if (!rcu.equals(that.rcu)) {
       return false;
     }
@@ -191,7 +257,9 @@ public class AliasState implements LatticeAbstractState<AliasState> {
   }
 
   public String getContents() {
-    return "\nAlias: " + alias.toString() + "\nRCU: " + rcu.toString();
+    return "\nAlias: " + alias.toString()
+        + "\nPoints-To: " + pointsTo.toString()
+        + "\nRCU: " + rcu.toString();
   }
 
   @Override
