@@ -23,10 +23,20 @@
  */
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
+import com.google.gson.Gson;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Map;
+import java.util.HashMap;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.FileOption.Type;
@@ -36,16 +46,19 @@ import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.ExplicitLocationSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetBot;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetTop;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.pointer2")
 public class PointerStatistics implements Statistics {
   @Option(name = "precisionFile", secure = true, description = "name of a file containing "
-      + "information on which pointers are RCU pointers")
+      + "information on pointer relations")
   @FileOption(Type.OUTPUT_FILE)
-  private Path path = Paths.get("rcuPointers");
+  private Path path = Paths.get("PointsToMap");
 
   @Override
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
@@ -53,8 +66,38 @@ public class PointerStatistics implements Statistics {
     PointerState ptState = AbstractStates.extractStateByType(state, PointerState.class);
     Map<MemoryLocation, LocationSet> pointsTo = ptState.getPointsToMap();
 
-    out.append(pointsTo.toString());
-    out.append('\n');
+    if (pointsTo != null) {
+      pointsTo = replaceTopsAndBots(pointsTo);
+
+      Gson builder = new Gson();
+
+      try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
+        writer.append(builder.toJson(pointsTo));
+        writer.close();
+      } catch (IOException pE) {
+        pE.printStackTrace();
+      }
+
+      out.append(pointsTo.toString());
+      out.append('\n');
+    } else {
+      out.append("Empty pointTo\n");
+    }
+  }
+
+  private Map<MemoryLocation, LocationSet> replaceTopsAndBots(Map<MemoryLocation,
+                                                              LocationSet> pPointsTo) {
+    Map<MemoryLocation, LocationSet> result = new HashMap<>(pPointsTo);
+    for (MemoryLocation key : result.keySet()) {
+      LocationSet locationSet = result.get(key);
+      if (locationSet instanceof LocationSetBot) {
+        result.put(key, ExplicitLocationSet.from(MemoryLocation.valueOf("_LOCATION_SET_BOT_")));
+      } else if (locationSet instanceof LocationSetTop) {
+        result.put(key, ExplicitLocationSet.from(MemoryLocation.valueOf("_LOCATION_SET_TOP_")));
+      }
+    }
+
+    return result;
   }
 
   @Nullable
@@ -62,4 +105,5 @@ public class PointerStatistics implements Statistics {
   public String getName() {
     return "Points-To";
   }
+
 }
