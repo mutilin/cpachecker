@@ -41,6 +41,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CEnumType.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cpa.loopinvariants.polynom.visitors.Visitor.NoException;
+import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 
 public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentifier, NoException> {
@@ -70,7 +71,8 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
     resultId1 = expression.getOperand1().accept(this);
     dereference = 0;
     resultId2 = expression.getOperand2().accept(this);
-    result = new BinaryIdentifier(resultId1, resultId2, oldDereference);
+    // to get rid of the offset in 'a + 1' and 'a[1]' expressions
+    result = getMainPart(new BinaryIdentifier(resultId1, resultId2, oldDereference));
     dereference = oldDereference;
     return result;
   }
@@ -192,5 +194,10 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
   @Override
   protected AbstractIdentifier visitDefault(CExpression pExp) {
     return new ConstantIdentifier(pExp.toASTString(), dereference);
+  }
+
+  public static MemoryLocation idToMemLoc(AbstractIdentifier id) {
+
+    return null;
   }
 }
