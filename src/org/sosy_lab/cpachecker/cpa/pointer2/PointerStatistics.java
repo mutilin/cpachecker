@@ -24,17 +24,14 @@
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
 import com.google.gson.Gson;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
+import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.HashMap;
 import javax.annotation.Nullable;
@@ -70,9 +67,9 @@ public class PointerStatistics implements Statistics {
       pointsTo = replaceTopsAndBots(pointsTo);
 
       Gson builder = new Gson();
-
       try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
-        writer.append(builder.toJson(pointsTo));
+        java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>(){}.getType();
+        builder.toJson(pointsTo, type, writer);
         writer.close();
       } catch (IOException pE) {
         pE.printStackTrace();

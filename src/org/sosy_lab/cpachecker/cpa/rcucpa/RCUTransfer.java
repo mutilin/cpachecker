@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -50,6 +51,7 @@ import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
+import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcucpa")
 public class RCUTransfer extends SingleEdgeTransferRelation{
@@ -83,9 +85,12 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   private String fictWriteUnlock = "wunlock_rcu";
 
   private final LogManager logger;
+  private final Set<MemoryLocation> rcuPointers;
 
-  public RCUTransfer(Configuration pConfig, LogManager pLogger) throws InvalidConfigurationException {
+  public RCUTransfer(Configuration pConfig, LogManager pLogger, Set<MemoryLocation> rcuAliases)
+      throws InvalidConfigurationException {
     logger = pLogger;
+    rcuPointers = rcuAliases;
     pConfig.inject(this);
   }
 

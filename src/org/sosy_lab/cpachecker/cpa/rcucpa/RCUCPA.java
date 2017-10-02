@@ -23,6 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -31,8 +33,10 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
+import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
 import org.sosy_lab.cpachecker.core.defaults.DelegateAbstractDomain;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
@@ -42,13 +46,18 @@ public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
 
   @Option(name = "precisionFile", secure = true, description = "name of a file containing "
       + "information on which pointers are RCU pointers")
-  private String fileName = "rcuPointers";
+  private Path fileName = Paths.get("PointsToMap");
+
+  public static CPAFactory factory() {
+    return AutomaticCPAFactory.forType(RCUCPA.class);
+  }
 
   protected RCUCPA(Configuration config, CFA cfa, LogManager logger)
       throws InvalidConfigurationException {
     super("SEP", "SEP",
         DelegateAbstractDomain.<RCUState>getInstance(),
-        new RCUTransfer(config, logger));
+        new RCUTransfer(config, logger,
+            PreRCUAnalysis.getRCUAndAliases(cfa, Paths.get("PointsToMap"), logger)));
     config.inject(this);
   }
 

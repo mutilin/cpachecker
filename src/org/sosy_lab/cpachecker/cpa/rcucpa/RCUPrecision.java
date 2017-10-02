@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import java.nio.file.Path;
 import java.util.Set;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -30,7 +31,7 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 public class RCUPrecision implements Precision {
   private Set<AbstractIdentifier> rcuPtrs;
 
-  public RCUPrecision(String filename) {
+  public RCUPrecision(Path filename) {
 
   }
 
