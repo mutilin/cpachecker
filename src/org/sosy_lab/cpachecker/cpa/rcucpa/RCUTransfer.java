@@ -103,27 +103,25 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
-        handleDeclaration(((CDeclarationEdge) cfaEdge).getDeclaration(), result, precision, ic,
-            cfaEdge.getPredecessor().getFunctionName());
+        handleDeclaration(((CDeclarationEdge) cfaEdge).getDeclaration(), result, ic,
+                            cfaEdge.getPredecessor().getFunctionName());
         break;
       case StatementEdge:
         CStatement statement = ((CStatementEdge) cfaEdge).getStatement();
         if (statement instanceof CExpressionAssignmentStatement) {
-          handleAssignment((CExpressionAssignmentStatement) statement, result, precision, ic,
-              cfaEdge.getPredecessor().getFunctionName());
+          handleAssignment((CExpressionAssignmentStatement) statement, result, ic,
+                            cfaEdge.getPredecessor().getFunctionName());
         } else if (statement instanceof CFunctionCallAssignmentStatement) {
           handleFunctionCallAssignment((CFunctionCallAssignmentStatement) statement, result, ic,
-              cfaEdge.getPredecessor().getFunctionName());
+                                        cfaEdge.getPredecessor().getFunctionName());
         } else {
           break;
         }
         break;
       case FunctionCallEdge:
         CFunctionCallExpression callExpression =
-            ((CFunctionCallEdge) cfaEdge).getSummaryEdge().getExpression()
-                .getFunctionCallExpression();
-        handleFunctionCall(callExpression, result, precision, ic,
-            cfaEdge.getPredecessor().getFunctionName());
+            ((CFunctionCallEdge) cfaEdge).getSummaryEdge().getExpression().getFunctionCallExpression();
+        handleFunctionCall(callExpression, result, ic, cfaEdge.getPredecessor().getFunctionName());
         break;
       case ReturnStatementEdge:
         break;
@@ -140,8 +138,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   }
 
   private void handleFunctionCall(CFunctionCallExpression pCallExpression, RCUState pResult,
-                                  Precision pPrecision, IdentifierCreator pIc,
-                                  String pFunctionName) {
+                                  IdentifierCreator pIc, String pFunctionName) {
     CFunctionDeclaration fd = pCallExpression.getDeclaration();
 
     if (fd != null) {
@@ -185,26 +182,24 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   }
 
   private void handleAssignment(CExpressionAssignmentStatement assignment,
-                                RCUState pResult, Precision pPrecision,
-                                IdentifierCreator pIc, String functionName) {
-    RCUPrecision precision = (RCUPrecision) pPrecision;
+                                RCUState pResult, IdentifierCreator pIc,
+                                String functionName) {
     pIc.clear(functionName);
     AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
     pIc.clearDereference();
     AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
 
-    if (precision.getRcuPtrs().contains(ail) || precision.getRcuPtrs().contains(air)) {
+    if (rcuPointers.contains(ail) || rcuPointers.contains(air)) {
       pResult.addToRelations(ail, air);
     }
   }
 
-  private void handleDeclaration(CDeclaration pDeclaration, RCUState pResult, Precision pPrecision,
+  private void handleDeclaration(CDeclaration pDeclaration, RCUState pResult,
                                  IdentifierCreator pIc, String pFunctionName) {
     if (pDeclaration != null && pDeclaration instanceof CVariableDeclaration) {
       CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
-      RCUPrecision precision = (RCUPrecision) pPrecision;
-      if (precision.getRcuPtrs().contains(ail)) {
+      if (rcuPointers.contains(ail)) {
         CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
         if (initializer != null && initializer instanceof CInitializerExpression) {
           pIc.clearDereference();

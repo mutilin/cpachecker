@@ -169,12 +169,11 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
                                 CExpressionAssignmentStatement pSt,
                                 IdentifierCreator ic) {
     logger.log(Level.ALL, "ALIAS: Normal assignment");
-    CExpressionAssignmentStatement as = pSt;
-    AbstractIdentifier ail = as.getLeftHandSide().accept(ic);
+    AbstractIdentifier ail = pSt.getLeftHandSide().accept(ic);
     if (ail.isPointer()) {
       logger.log(Level.ALL, "ALIAS: Pointer in statement");
       ic.clearDereference();
-      AbstractIdentifier air = as.getRightHandSide().accept(ic);
+      AbstractIdentifier air = pSt.getRightHandSide().accept(ic);
       if (flowSense) {
         pResult.clearAlias(ail);
         pResult.clearPointsTo(ail);

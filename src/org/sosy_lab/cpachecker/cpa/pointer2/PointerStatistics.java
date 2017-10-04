@@ -57,6 +57,9 @@ public class PointerStatistics implements Statistics {
   @FileOption(Type.OUTPUT_FILE)
   private Path path = Paths.get("PointsToMap");
 
+  private static final MemoryLocation replLocSetTop = MemoryLocation.valueOf("_LOCATION_SET_TOP_");
+  private static final MemoryLocation replLocSetBot = MemoryLocation.valueOf("_LOCATION_SET_BOT_");
+
   @Override
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
     AbstractState state = reached.getLastState();
@@ -88,13 +91,21 @@ public class PointerStatistics implements Statistics {
     for (MemoryLocation key : result.keySet()) {
       LocationSet locationSet = result.get(key);
       if (locationSet instanceof LocationSetBot) {
-        result.put(key, ExplicitLocationSet.from(MemoryLocation.valueOf("_LOCATION_SET_BOT_")));
+        result.put(key, ExplicitLocationSet.from(replLocSetBot));
       } else if (locationSet instanceof LocationSetTop) {
-        result.put(key, ExplicitLocationSet.from(MemoryLocation.valueOf("_LOCATION_SET_TOP_")));
+        result.put(key, ExplicitLocationSet.from(replLocSetTop));
       }
     }
 
     return result;
+  }
+
+  public static MemoryLocation getReplLocSetTop() {
+    return replLocSetTop;
+  }
+
+  public static MemoryLocation getReplLocSetBot() {
+    return replLocSetBot;
   }
 
   @Nullable

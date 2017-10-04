@@ -38,10 +38,21 @@ import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
+import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
@@ -50,7 +61,7 @@ class PreRCUAnalysis {
   static Set<MemoryLocation> getRCUAndAliases(CFA cfa, Path input, LogManager logger) {
     Map<MemoryLocation, Set<MemoryLocation>> pointsTo = parseFile(input, logger);
     Map<MemoryLocation, Set<MemoryLocation>> aliases = getAliases(pointsTo);
-    Set<MemoryLocation> rcuPointers = runPreAnalysis(cfa);
+    Set<MemoryLocation> rcuPointers = runPreAnalysis(cfa, logger);
 
     for (MemoryLocation pointer : rcuPointers) {
       if (!aliases.containsKey(pointer)) {
@@ -67,18 +78,26 @@ class PreRCUAnalysis {
 
   private static Map<MemoryLocation, Set<MemoryLocation>> getAliases(Map<MemoryLocation,
                                                                      Set<MemoryLocation>> pointsTo) {
-    //TODO: it is a bit more tricky due to LocationSetBot and LocationSetTop
     Map<MemoryLocation, Set<MemoryLocation>> aliases = new HashMap<>();
     for (MemoryLocation pointer : pointsTo.keySet()) {
       Set<MemoryLocation> pointerPointTo = pointsTo.get(pointer);
-      Set<MemoryLocation> commonElems;
-      for (MemoryLocation other : pointsTo.keySet()) {
-        if (!other.equals(pointer)) {
-          commonElems = new HashSet<>(pointsTo.get(other));
-          commonElems.retainAll(pointerPointTo);
-          if (!commonElems.isEmpty()) {
-            addAlias(aliases, pointer, other);
-            addAlias(aliases, other, pointer);
+      if (pointerPointTo.contains(PointerStatistics.getReplLocSetTop())) {
+        // pointer can point anywhere
+        aliases.put(pointer, new HashSet<>(pointsTo.keySet()));
+        for (MemoryLocation other : pointsTo.keySet()) {
+          pointsTo.putIfAbsent(other, new HashSet<>());
+          pointsTo.get(other).add(pointer);
+        }
+      } else if (!pointerPointTo.contains(PointerStatistics.getReplLocSetBot())) {
+        Set<MemoryLocation> commonElems;
+        for (MemoryLocation other : pointsTo.keySet()) {
+          if (!other.equals(pointer)) {
+            commonElems = new HashSet<>(pointsTo.get(other));
+            commonElems.retainAll(pointerPointTo);
+            if (!commonElems.isEmpty()) {
+              addAlias(aliases, pointer, other);
+              addAlias(aliases, other, pointer);
+            }
           }
         }
       }
@@ -142,21 +161,23 @@ class PreRCUAnalysis {
     return result;
   }
 
-  private static Set<MemoryLocation> runPreAnalysis(CFA pCfa) {
+  private static Set<MemoryLocation> runPreAnalysis(CFA pCfa, LogManager pLogger) {
     Set<MemoryLocation> rcuPointers = new HashSet<>();
     for (CFANode node : pCfa.getAllNodes()) {
       for (int i = 0; i < node.getNumEnteringEdges(); ++i) {
         CFAEdge edge = node.getEnteringEdge(i);
+        pLogger.log(Level.ALL, "EDGE TYPE: " + edge.getEdgeType());
+        pLogger.log(Level.ALL, "EDGE CONT: " + edge.getRawStatement());
         switch(edge.getEdgeType()) {
           case StatementEdge:
             handleStatementEdge((CStatementEdge) edge,
                                 edge.getPredecessor().getFunctionName(),
-                                rcuPointers);
+                                rcuPointers, pLogger);
             break;
           case FunctionCallEdge:
             handleFunctionCallEdge((CFunctionCallEdge) edge,
                                     edge.getPredecessor().getFunctionName(),
-                                    rcuPointers);
+                                    rcuPointers, pLogger);
           default:
             break;
         }
@@ -165,18 +186,63 @@ class PreRCUAnalysis {
     return rcuPointers;
   }
 
-  private static void handleFunctionCallEdge(
-      CFunctionCallEdge pEdge,
-      String pFunctionName,
-      Set<MemoryLocation> pRcuPointers) {
+  private static void handleFunctionCallEdge(CFunctionCallEdge pEdge,
+                                             String pFunctionName,
+                                             Set<MemoryLocation> pRcuPointers,
+                                             LogManager pLogger) {
+    // rcu_assign_pointer(gp, p)
+    CFunctionCallExpression fc = pEdge.getSummaryEdge().getExpression().getFunctionCallExpression();
+    CFunctionDeclaration fd = fc.getDeclaration();
+    if (fd.getName().contains("ldv_rcu_assign_pointer")) {
+      List<CExpression> params = fc.getParameterExpressions();
 
+      //WARNING: not-really-a-clever-hack detected
+
+      MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, params.get(0).toString());
+      pRcuPointers.add(loc);
+
+      loc = MemoryLocation.valueOf(pFunctionName, params.get(1).toString());
+      pRcuPointers.add(loc);
+    }
   }
 
-  private static void handleStatementEdge(
-      CStatementEdge pEdge,
-      String pFunctionName,
-      Set<MemoryLocation> pRcuPointers) {
+  private static void handleStatementEdge(CStatementEdge pEdge,
+                                          String pFunctionName,
+                                          Set<MemoryLocation> pRcuPointers,
+                                          LogManager pLogger) {
+    // p = rcu_dereference(gp)
+    CStatement statement = pEdge.getStatement();
+    pLogger.log(Level.ALL, "HANDLE_STATEMENT: " + statement.getClass()
+                            + ' ' + statement.toString());
+    if (statement instanceof CFunctionCallAssignmentStatement) {
+      CFunctionCallAssignmentStatement assignment = (CFunctionCallAssignmentStatement) statement;
+      CLeftHandSide leftHandSide = assignment.getLeftHandSide();
+      if (leftHandSide.getExpressionType() instanceof CPointerType) {
+        CFunctionCallExpression funcExpr = assignment.getFunctionCallExpression();
 
+        pLogger.log(Level.ALL,"FUNC NAME EXPR: " + funcExpr.getFunctionNameExpression());
+
+        if (funcExpr.getFunctionNameExpression().toString().contains("ldv_rcu_dereference")) {
+          CExpression rcuPtr = funcExpr.getParameterExpressions().get(0);
+
+          //WARNING: not-really-a-clever-hack detected
+
+          MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, rcuPtr.toString());
+
+          pLogger.log(Level.ALL, "RCU PTR: " + rcuPtr);
+          pLogger.log(Level.ALL, "MEM LOC: " + loc);
+
+          pRcuPointers.add(loc);
+
+          loc = MemoryLocation.valueOf(pFunctionName, leftHandSide.toString());
+
+          pLogger.log(Level.ALL, "LHS PTR: " + leftHandSide.toString());
+          pLogger.log(Level.ALL, "LHS MEM LOC: " + loc);
+
+          pRcuPointers.add(loc);
+        }
+      }
+    }
   }
 
 
