@@ -29,7 +29,6 @@ import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -39,21 +38,20 @@ import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
-import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
-import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 class PreRCUAnalysis {
@@ -178,12 +176,37 @@ class PreRCUAnalysis {
             handleFunctionCallEdge((CFunctionCallEdge) edge,
                                     edge.getPredecessor().getFunctionName(),
                                     rcuPointers, pLogger);
+          case FunctionReturnEdge:
+            if (edge instanceof CFunctionCallEdge) {
+              handleFunctionCallEdge((CFunctionCallEdge) edge,
+                  edge.getSuccessor().getFunctionName(),
+                  rcuPointers, pLogger);
+            } else {
+              handleFunctionReturnEdge((CFunctionReturnEdge) edge,
+                  edge.getSuccessor().getFunctionName(),
+                  rcuPointers, pLogger);
+            }
           default:
             break;
         }
       }
     }
     return rcuPointers;
+  }
+
+  private static void handleFunctionReturnEdge(CFunctionReturnEdge pEdge,
+                                               String pFunctionName,
+                                               Set<MemoryLocation> pRcuPointers,
+                                               LogManager pLogger) {
+    CFunctionCall expr = pEdge.getSummaryEdge().getExpression();
+    pLogger.log(Level.ALL, "CALL EXPR: " + expr);
+    if (expr instanceof CFunctionCallAssignmentStatement) {
+      // p = ldv_rcu_dereference(gp);
+      handleFunctionCallAssignmentStatement(pFunctionName, pRcuPointers, pLogger,
+          (CFunctionCallAssignmentStatement) expr);
+    } else {
+      pLogger.log(Level.ALL, "ORDINARY CALL: " + expr);
+    }
   }
 
   private static void handleFunctionCallEdge(CFunctionCallEdge pEdge,
@@ -215,32 +238,41 @@ class PreRCUAnalysis {
     pLogger.log(Level.ALL, "HANDLE_STATEMENT: " + statement.getClass()
                             + ' ' + statement.toString());
     if (statement instanceof CFunctionCallAssignmentStatement) {
-      CFunctionCallAssignmentStatement assignment = (CFunctionCallAssignmentStatement) statement;
-      CLeftHandSide leftHandSide = assignment.getLeftHandSide();
-      if (leftHandSide.getExpressionType() instanceof CPointerType) {
-        CFunctionCallExpression funcExpr = assignment.getFunctionCallExpression();
+      handleFunctionCallAssignmentStatement(pFunctionName, pRcuPointers, pLogger,
+          (CFunctionCallAssignmentStatement) statement);
+    }
+  }
 
-        pLogger.log(Level.ALL,"FUNC NAME EXPR: " + funcExpr.getFunctionNameExpression());
+  private static void handleFunctionCallAssignmentStatement(
+      String pFunctionName,
+      Set<MemoryLocation> pRcuPointers,
+      LogManager pLogger,
+      CFunctionCallAssignmentStatement pStatement) {
+    CFunctionCallAssignmentStatement assignment = pStatement;
+    CLeftHandSide leftHandSide = assignment.getLeftHandSide();
+    if (leftHandSide.getExpressionType() instanceof CPointerType) {
+      CFunctionCallExpression funcExpr = assignment.getFunctionCallExpression();
 
-        if (funcExpr.getFunctionNameExpression().toString().contains("ldv_rcu_dereference")) {
-          CExpression rcuPtr = funcExpr.getParameterExpressions().get(0);
+      pLogger.log(Level.ALL,"FUNC NAME EXPR: " + funcExpr.getFunctionNameExpression());
 
-          //WARNING: not-really-a-clever-hack detected
+      if (funcExpr.getFunctionNameExpression().toString().contains("ldv_rcu_dereference")) {
+        CExpression rcuPtr = funcExpr.getParameterExpressions().get(0);
 
-          MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, rcuPtr.toString());
+        //WARNING: not-really-a-clever-hack detected
 
-          pLogger.log(Level.ALL, "RCU PTR: " + rcuPtr);
-          pLogger.log(Level.ALL, "MEM LOC: " + loc);
+        MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, rcuPtr.toString());
 
-          pRcuPointers.add(loc);
+        pLogger.log(Level.ALL, "RCU PTR: " + rcuPtr);
+        pLogger.log(Level.ALL, "MEM LOC: " + loc);
 
-          loc = MemoryLocation.valueOf(pFunctionName, leftHandSide.toString());
+        pRcuPointers.add(loc);
 
-          pLogger.log(Level.ALL, "LHS PTR: " + leftHandSide.toString());
-          pLogger.log(Level.ALL, "LHS MEM LOC: " + loc);
+        loc = MemoryLocation.valueOf(pFunctionName, leftHandSide.toString());
 
-          pRcuPointers.add(loc);
-        }
+        pLogger.log(Level.ALL, "LHS PTR: " + leftHandSide.toString());
+        pLogger.log(Level.ALL, "LHS MEM LOC: " + loc);
+
+        pRcuPointers.add(loc);
       }
     }
   }

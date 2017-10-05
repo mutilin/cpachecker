@@ -63,7 +63,7 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
       return false;
     }
 
-    Set<AbstractIdentifier> sub = rcuRelations.keySet();
+    Set<AbstractIdentifier> sub = new HashSet<>(rcuRelations.keySet());
     sub.retainAll(other.rcuRelations.keySet());
     if (sub.size() < rcuRelations.keySet().size()
         && sub.size() < other.rcuRelations.keySet().size()) {
