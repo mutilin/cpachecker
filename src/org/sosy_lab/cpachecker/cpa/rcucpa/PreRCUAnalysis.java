@@ -60,18 +60,19 @@ class PreRCUAnalysis {
     Map<MemoryLocation, Set<MemoryLocation>> pointsTo = parseFile(input, logger);
     Map<MemoryLocation, Set<MemoryLocation>> aliases = getAliases(pointsTo);
     Set<MemoryLocation> rcuPointers = runPreAnalysis(cfa, logger);
+    Set<MemoryLocation> rcuAndAliases = new HashSet<>(rcuPointers);
 
     for (MemoryLocation pointer : rcuPointers) {
       if (!aliases.containsKey(pointer)) {
         logger.log(Level.WARNING, "No RCU pointer <" + pointer.toString() + "> in aliases");
       } else {
-        rcuPointers.addAll(aliases.get(pointer));
+        rcuAndAliases.addAll(aliases.get(pointer));
       }
     }
 
-    logger.log(Level.ALL, "RCU with aliases: " + rcuPointers);
+    logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
 
-    return rcuPointers;
+    return rcuAndAliases;
   }
 
   private static Map<MemoryLocation, Set<MemoryLocation>> getAliases(Map<MemoryLocation,
