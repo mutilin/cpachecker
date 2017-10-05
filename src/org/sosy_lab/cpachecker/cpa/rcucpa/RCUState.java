@@ -136,4 +136,13 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
     // TODO: implement this
     return 0;
   }
+
+  @Override
+  public String toString() {
+    String result = "\nLock state: " + lockState.toString()
+        + "\nRCU relations: " + rcuRelations
+        + "\nOutdated RCU: " + outdatedRCU
+        + "\nLocal Again: " + localAgain + '\n';
+    return result;
+  }
 }

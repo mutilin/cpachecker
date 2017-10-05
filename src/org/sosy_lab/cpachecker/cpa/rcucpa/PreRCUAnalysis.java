@@ -78,6 +78,7 @@ class PreRCUAnalysis {
   private static Map<MemoryLocation, Set<MemoryLocation>> getAliases(Map<MemoryLocation,
                                                                      Set<MemoryLocation>> pointsTo) {
     Map<MemoryLocation, Set<MemoryLocation>> aliases = new HashMap<>();
+    // TODO: maybe it's better to invert map
     for (MemoryLocation pointer : pointsTo.keySet()) {
       Set<MemoryLocation> pointerPointTo = pointsTo.get(pointer);
       if (pointerPointTo.contains(PointerStatistics.getReplLocSetTop())) {
@@ -220,7 +221,7 @@ class PreRCUAnalysis {
     if (fd.getName().contains("ldv_rcu_assign_pointer")) {
       List<CExpression> params = fc.getParameterExpressions();
 
-      //WARNING: not-really-a-clever-hack detected
+      //TODO: not-really-a-clever-hack detected
 
       MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, params.get(0).toString());
       pRcuPointers.add(loc);
@@ -259,7 +260,7 @@ class PreRCUAnalysis {
       if (funcExpr.getFunctionNameExpression().toString().contains("ldv_rcu_dereference")) {
         CExpression rcuPtr = funcExpr.getParameterExpressions().get(0);
 
-        //WARNING: not-really-a-clever-hack detected
+        //TODO: not-really-a-clever-hack detected
 
         MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, rcuPtr.toString());
 

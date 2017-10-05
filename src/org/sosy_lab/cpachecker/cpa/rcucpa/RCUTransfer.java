@@ -35,6 +35,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
@@ -56,33 +57,41 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 @Options(prefix = "cpa.rcucpa")
 public class RCUTransfer extends SingleEdgeTransferRelation{
 
-  private final String readLockName = "rcu_read_lock";
-  private final String readUnlockName = "rcu_read_unlock";
-  private final String sync = "synchronize_rcu";
+  @Option(name = "readLock", secure = true, description = "Name of a function responsible for "
+      + "acquiring the RCU read lock")
+  private final String readLockName = "ldv_rcu_read_lock";
+
+  @Option(name = "readUnlock", secure = true, description = "Name of a function responsible for "
+      + "releasing the RCU read lock")
+  private final String readUnlockName = "ldv_rcu_read_unlock";
+
+  @Option(name = "sync", secure = true, description = "Name of a function responsible for "
+      + "the handling of a grace period")
+  private final String sync = "ldv_synchronize_rcu";
 
   @Option(name = "assign", secure = true, description = "Name of a function responsible for "
       + "assignment to RCU pointers")
-  private String assign = "rcu_assign_pointer";
+  private String assign = "ldv_rcu_assign_pointer";
 
-  @Option(secure = true, name = "deref", description = "Name of a function responsible for "
+  @Option(name = "deref", secure = true, description = "Name of a function responsible for "
       + "dereferences of RCU pointers")
-  private String deref = "rcu_dereference";
+  private String deref = "ldv_rcu_dereference";
 
   @Option(name = "fictReadLock", secure = true, description = "Name of a function marking a call "
       + "to a fictional read lock of RCU pointer")
-  private String fictReadLock = "rlock_rcu";
+  private String fictReadLock = "ldv_rlock_rcu";
 
   @Option(name = "fictReadUnlock", secure = true, description = "Name of a function marking a call "
       + "to a fictional read unlock of RCU pointer")
-  private String fictReadUnlock = "runlock_rcu";
+  private String fictReadUnlock = "ldv_runlock_rcu";
 
   @Option(name = "fictWriteLock", secure = true, description = "Name of a function marking a call "
       + "to a fictional write lock of RCU pointer")
-  private String fictWriteLock = "wlock_rcu";
+  private String fictWriteLock = "ldv_wlock_rcu";
 
   @Option(name = "fictWriteUnlock", secure = true, description = "Name of a function marking a "
       + "call to a fictional write unlock of RCU pointer")
-  private String fictWriteUnlock = "wunlock_rcu";
+  private String fictWriteUnlock = "ldv_wunlock_rcu";
 
   private final LogManager logger;
   private final Set<MemoryLocation> rcuPointers;
@@ -114,8 +123,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         } else if (statement instanceof CFunctionCallAssignmentStatement) {
           handleFunctionCallAssignment((CFunctionCallAssignmentStatement) statement, result, ic,
                                         cfaEdge.getPredecessor().getFunctionName());
-        } else {
-          break;
+        } else if (statement instanceof CFunctionCallStatement){
+          handleFunctionCall(((CFunctionCallStatement) statement).getFunctionCallExpression(),
+                              result, ic, cfaEdge.getPredecessor().getFunctionName());
         }
         break;
       case FunctionCallEdge:
@@ -123,9 +133,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
             ((CFunctionCallEdge) cfaEdge).getSummaryEdge().getExpression().getFunctionCallExpression();
         handleFunctionCall(callExpression, result, ic, cfaEdge.getPredecessor().getFunctionName());
         break;
+      case FunctionReturnEdge:
       case ReturnStatementEdge:
         break;
-      case FunctionReturnEdge:
       case CallToReturnEdge:
       case AssumeEdge:
       case BlankEdge:
