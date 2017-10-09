@@ -81,7 +81,7 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
 
   @Override
   public String toString() {
-    return "\nLock Type: " + lockType.name()+
+    return "\nLock Type: " + lockType.name() +
             "\n Read Lock Count: " + readLockCount;
   }
 

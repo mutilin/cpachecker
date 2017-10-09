@@ -51,7 +51,9 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
+import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcucpa")
@@ -59,15 +61,15 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
   @Option(name = "readLock", secure = true, description = "Name of a function responsible for "
       + "acquiring the RCU read lock")
-  private final String readLockName = "ldv_rcu_read_lock";
+  private String readLockName = "ldv_rcu_read_lock";
 
   @Option(name = "readUnlock", secure = true, description = "Name of a function responsible for "
       + "releasing the RCU read lock")
-  private final String readUnlockName = "ldv_rcu_read_unlock";
+  private String readUnlockName = "ldv_rcu_read_unlock";
 
   @Option(name = "sync", secure = true, description = "Name of a function responsible for "
       + "the handling of a grace period")
-  private final String sync = "ldv_synchronize_rcu";
+  private String sync = "ldv_synchronize_rcu";
 
   @Option(name = "assign", secure = true, description = "Name of a function responsible for "
       + "assignment to RCU pointers")
@@ -170,6 +172,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         pIc.clear(pFunctionName);
         AbstractIdentifier rcuPtr = pCallExpression.getParameterExpressions().get(0).accept(pIc);
         pResult.addToOutdated(rcuPtr);
+        pIc.clearDereference();
+        AbstractIdentifier ptr = pCallExpression.getParameterExpressions().get(1).accept(pIc);
+        pResult.addToRelations(rcuPtr, ptr);
       }
     }
   }
@@ -178,7 +183,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
                                             RCUState pResult, IdentifierCreator pIc,
                                             String functionName) {
     // This case is covered by the normal assignment expression
-    /*
     CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
     if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
       pIc.clear(functionName);
@@ -188,7 +192,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
                                 .getParameterExpressions().get(0).accept(pIc);
       pResult.addToRelations(ail, air);
     }
-    */
   }
 
   private void handleAssignment(CExpressionAssignmentStatement assignment,
@@ -199,7 +202,10 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     pIc.clearDereference();
     AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
 
-    if (rcuPointers.contains(ail) || rcuPointers.contains(air)) {
+    MemoryLocation leftLoc = getLocationFromIdentifier(ail);
+    MemoryLocation rightLoc = getLocationFromIdentifier(air);
+
+    if (rcuPointers.contains(leftLoc) || rcuPointers.contains(rightLoc)) {
       pResult.addToRelations(ail, air);
     }
   }
@@ -209,7 +215,10 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     if (pDeclaration != null && pDeclaration instanceof CVariableDeclaration) {
       CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
-      if (rcuPointers.contains(ail)) {
+
+      MemoryLocation leftLoc = getLocationFromIdentifier(ail);
+
+      if (rcuPointers.contains(leftLoc)) {
         CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
         if (initializer != null && initializer instanceof CInitializerExpression) {
           pIc.clearDereference();
@@ -221,5 +230,18 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     }
   }
 
+  private MemoryLocation getLocationFromIdentifier(AbstractIdentifier id) {
+    MemoryLocation result = null;
+
+    if (id instanceof LocalVariableIdentifier) {
+      LocalVariableIdentifier lvid = (LocalVariableIdentifier) id;
+      result = MemoryLocation.valueOf(lvid.getFunction(), lvid.getName());
+     } else if (id instanceof GlobalVariableIdentifier) {
+      GlobalVariableIdentifier gvid = (GlobalVariableIdentifier) id;
+      result = MemoryLocation.valueOf(gvid.getName());
+    } // TODO: something else?
+
+    return result;
+  }
 
 }
