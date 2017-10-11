@@ -1,5 +1,3 @@
-#include <pthread.h>
-
 struct str
 {
     int a;

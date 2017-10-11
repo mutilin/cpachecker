@@ -1,5 +1,3 @@
-#include <pthread.h>
-
 void true_func()
 {
 }
