@@ -31,6 +31,8 @@ import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
 import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
+import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysisWithBAM;
+import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
@@ -39,7 +41,8 @@ import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
  * Instances of this class are configurable program analyses for analyzing a
  * program to gain information about pointer aliasing.
  */
-public class PointerCPA extends AbstractCPA implements StatisticsProvider{
+public class PointerCPA extends AbstractCPA implements StatisticsProvider,
+                                                       ConfigurableProgramAnalysisWithBAM {
 
   @Override
   public void collectStatistics(Collection<Statistics> statsCollection) {
@@ -79,6 +82,11 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider{
   @Override
   public AbstractState getInitialState(CFANode pNode, StateSpacePartition pPartition) {
     return PointerState.INITIAL_STATE;
+  }
+
+  @Override
+  public Reducer getReducer() {
+    return new PointerReducer();
   }
 
 }

@@ -78,7 +78,16 @@ public class PointerStatistics implements Statistics {
         pE.printStackTrace();
       }
 
-      out.append(pointsTo.toString());
+      int values = 0;
+
+      for (MemoryLocation key : pointsTo.keySet()) {
+        values += ((ExplicitLocationSet) pointsTo.get(key)).getSize();
+      }
+
+      String stats = "Points-To map size: " + pointsTo.size() + '\n' +
+                      "Points-To map values size: " + values + '\n';
+
+      out.append(stats);
       out.append('\n');
     } else {
       out.append("Empty pointTo\n");

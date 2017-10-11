@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
@@ -144,5 +145,9 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
         + "\nOutdated RCU: " + outdatedRCU
         + "\nLocal Again: " + localAgain + '\n';
     return result;
+  }
+
+  public static RCUState copyOf(RCUState pState) {
+    return new RCUState(pState.lockState, pState.rcuRelations, pState.outdatedRCU, pState.localAgain);
   }
 }

@@ -109,7 +109,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
-    RCUState result = (RCUState) state;
+    RCUState result = RCUState.copyOf((RCUState) state);
     IdentifierCreator ic = new IdentifierCreator();
 
     switch (cfaEdge.getEdgeType()) {
@@ -202,11 +202,13 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     pIc.clearDereference();
     AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
 
-    MemoryLocation leftLoc = getLocationFromIdentifier(ail);
-    MemoryLocation rightLoc = getLocationFromIdentifier(air);
+    if (ail.isPointer() || air.isPointer()) {
+      MemoryLocation leftLoc = getLocationFromIdentifier(ail);
+      MemoryLocation rightLoc = getLocationFromIdentifier(air);
 
-    if (rcuPointers.contains(leftLoc) || rcuPointers.contains(rightLoc)) {
-      pResult.addToRelations(ail, air);
+      if (rcuPointers.contains(leftLoc) || rcuPointers.contains(rightLoc)) {
+        pResult.addToRelations(ail, air);
+      }
     }
   }
 
@@ -216,16 +218,19 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
 
-      MemoryLocation leftLoc = getLocationFromIdentifier(ail);
+      if (ail.isPointer()) {
+        MemoryLocation leftLoc = getLocationFromIdentifier(ail);
 
-      if (rcuPointers.contains(leftLoc)) {
-        CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
-        if (initializer != null && initializer instanceof CInitializerExpression) {
-          pIc.clearDereference();
-          AbstractIdentifier init = ((CInitializerExpression) initializer).getExpression().accept(pIc);
-          pResult.addToRelations(ail, init);
+        if (rcuPointers.contains(leftLoc)) {
+          CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
+          if (initializer != null && initializer instanceof CInitializerExpression) {
+            pIc.clearDereference();
+            AbstractIdentifier init =
+                ((CInitializerExpression) initializer).getExpression().accept(pIc);
+            pResult.addToRelations(ail, init);
+          }
+          pResult.addToRelations(ail, null);
         }
-        pResult.addToRelations(ail, null);
       }
     }
   }
