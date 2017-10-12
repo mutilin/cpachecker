@@ -381,8 +381,8 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       return handleWithInitializer(pState, location, declarationType, initializer);
     } else if (declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
-      String ptrName = "##" + declaration.getName();
       FileLocation fLoc = declaration.getFileLocation();
+      String ptrName = "##" + declaration.getQualifiedName().replace(':','#');
       CVariableDeclaration varDec = new CVariableDeclaration(fLoc,true,
                                               CStorageClass.AUTO, CPointerType.POINTER_TO_VOID,
                                               ptrName, ptrName, ptrName, null);

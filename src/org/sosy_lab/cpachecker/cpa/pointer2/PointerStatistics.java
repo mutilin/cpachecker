@@ -64,33 +64,38 @@ public class PointerStatistics implements Statistics {
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
     AbstractState state = reached.getLastState();
     PointerState ptState = AbstractStates.extractStateByType(state, PointerState.class);
-    Map<MemoryLocation, LocationSet> pointsTo = ptState.getPointsToMap();
+    if (ptState != null) {
+      Map<MemoryLocation, LocationSet> pointsTo = ptState.getPointsToMap();
 
-    if (pointsTo != null) {
-      pointsTo = replaceTopsAndBots(pointsTo);
+      if (pointsTo != null) {
+        pointsTo = replaceTopsAndBots(pointsTo);
 
-      Gson builder = new Gson();
-      try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
-        java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>(){}.getType();
-        builder.toJson(pointsTo, type, writer);
-        writer.close();
-      } catch (IOException pE) {
-        pE.printStackTrace();
+        Gson builder = new Gson();
+        try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
+          java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>() {
+          }.getType();
+          builder.toJson(pointsTo, type, writer);
+          writer.close();
+        } catch (IOException pE) {
+          pE.printStackTrace();
+        }
+
+        int values = 0;
+
+        for (MemoryLocation key : pointsTo.keySet()) {
+          values += ((ExplicitLocationSet) pointsTo.get(key)).getSize();
+        }
+
+        String stats = "Points-To map size: " + pointsTo.size() + '\n' +
+            "Points-To map values size: " + values + '\n';
+
+        out.append(stats);
+        out.append('\n');
+      } else {
+        out.append("Empty pointTo\n");
       }
-
-      int values = 0;
-
-      for (MemoryLocation key : pointsTo.keySet()) {
-        values += ((ExplicitLocationSet) pointsTo.get(key)).getSize();
-      }
-
-      String stats = "Points-To map size: " + pointsTo.size() + '\n' +
-                      "Points-To map values size: " + values + '\n';
-
-      out.append(stats);
-      out.append('\n');
     } else {
-      out.append("Empty pointTo\n");
+      out.append("Last state of PointerCPA is not of PointerState class");
     }
   }
 
