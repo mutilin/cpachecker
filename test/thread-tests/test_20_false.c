@@ -1,27 +1,28 @@
-void true_func()
+#include "pthread_test.h"
+
+int res = 0;
+
+void *
+false_thread_func(void *thread_data)
 {
+    res = res + 1;
+	pthread_exit(0);
 }
 
-void err_func()
+int main()
 {
-	ERROR: goto ERROR;
-}
+	void *thread_data1 = NULL;
+	void *thread_data2 = NULL;
+	pthread_t thread1;
+	pthread_t thread2;
 
-int g(void (*fn)(void))
-{
-    fn();
-}
+	pthread_create(&thread1, NULL, false_thread_func, thread_data1);
+	pthread_create(&thread2, NULL, false_thread_func, thread_data2);
 
-int
-main(int argc, char **argv)
-{
-    int a = 1;
-    void (*func_var)(void);
-    if (a < 1) {
-		func_var = &true_func;
-	} else {
-		func_var = &err_func;
-	}
-    g(func_var);
-    return 0;
+	pthread_join(thread1, NULL);
+	pthread_join(thread2, NULL);
+
+    int out = res;
+
+	return 0;
 }

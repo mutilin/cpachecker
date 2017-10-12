@@ -44,3 +44,8 @@ int pthread_mutex_init(pthread_mutex_t *pthread,
 int pthread_mutex_lock(pthread_mutex_t *m) {}
 int pthread_mutex_unlock(pthread_mutex_t *m) {}
 
+int ldv_mutex_model_init(pthread_mutex_t *pthread,
+                         const pthread_mutexattr_t *attr) {}
+int ldv_mutex_model_lock(pthread_mutex_t *m, void *n) {}
+int ldv_mutex_model_unlock(pthread_mutex_t *m, void *n) {}
+
