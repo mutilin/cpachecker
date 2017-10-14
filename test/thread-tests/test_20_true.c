@@ -12,6 +12,13 @@ true_thread_func(void *thread_data)
 	pthread_exit(0);
 }
 
+void *
+false_thread_func(void *thread_data)
+{
+    res = res + 1;
+	pthread_exit(0);
+}
+
 int main()
 {
 	void *thread_data1 = NULL;

@@ -1,6 +1,16 @@
 #include "pthread_test.h"
 
+pthread_mutex_t m;
 int res = 0;
+
+void *
+true_thread_func(void *thread_data)
+{
+    ldv_mutex_model_lock(&m, NULL);
+    res = res + 1;
+    ldv_mutex_model_unlock(&m, NULL);
+	pthread_exit(0);
+}
 
 void *
 false_thread_func(void *thread_data)

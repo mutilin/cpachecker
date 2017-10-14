@@ -1,27 +1,51 @@
-void true_func()
+#include "pthread_test.h"
+
+pthread_mutex_t m;
+int res = 0;
+
+void
+true_func()
 {
+    ldv_mutex_model_lock(&m, NULL);
+    res = res + 1;
+    ldv_mutex_model_unlock(&m, NULL);
 }
 
-void err_func()
+void *
+false_func(void *thread_data)
 {
-	ERROR: goto ERROR;
+    res = res + 1;
 }
 
-int g(void (*fn)(void))
+void *
+thread_func(void *thread_data)
 {
-    fn();
-}
-
-int
-main(int argc, char **argv)
-{
+    void (*func)(void);
     int a = 0;
-    void (*func_var)(void);
-    if (a < 1) {
-		func_var = &true_func;
-	} else {
-		func_var = &err_func;
-	}
-    g(func_var);
-    return 0;
+    if (a < 1)
+		func = true_func;
+	else
+		func = false_func;
+
+    func();
+
+	pthread_exit(0);
+}
+
+int main()
+{
+	void *thread_data1 = NULL;
+	void *thread_data2 = NULL;
+	pthread_t thread1;
+	pthread_t thread2;
+
+	pthread_create(&thread1, NULL, thread_func, thread_data1);
+	pthread_create(&thread2, NULL, thread_func, thread_data2);
+
+	pthread_join(thread1, NULL);
+	pthread_join(thread2, NULL);
+
+    int out = res;
+
+	return 0;
 }

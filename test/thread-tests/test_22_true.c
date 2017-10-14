@@ -1,41 +1,56 @@
-struct str
+#include "pthread_test.h"
+
+pthread_mutex_t m;
+int res = 0;
+
+struct thread_data_t
 {
     int a;
-    void (*fptr)(void);
+    void (*func)(void);
 };
 
-void true_func()
+void
+true_func()
 {
+    ldv_mutex_model_lock(&m, NULL);
+    res = res + 1;
+    ldv_mutex_model_unlock(&m, NULL);
 }
 
-void err_func()
+void *
+false_func(void *thread_data)
 {
-	ERROR: goto ERROR;
+    res = res + 1;
 }
 
 void *
 thread_func(void *thread_data)
 {
-    struct str *st = thread_data;
-    st->fptr();
+    struct thread_data_t *data = thread_data;
+    data->func();
+
 	pthread_exit(0);
 }
 
 int main()
 {
-    struct str *thread_data;
     int a = 0;
-
+	struct thread_data_t *thread_data;
     if (a < 1)
-        thread_data->fptr = true_func;
-    else
-        thread_data->fptr = err_func;
+        thread_data->func = true_func;
+	else
+		thread_data->func = false_func;
 
-	pthread_t thread;
+	pthread_t thread1;
+	pthread_t thread2;
 
-	pthread_create(&thread, NULL, thread_func, (void *) thread_data);
+	pthread_create(&thread1, NULL, thread_func, (void *) thread_data);
+	pthread_create(&thread2, NULL, thread_func, (void *) thread_data);
 
-	pthread_join(thread, NULL);
+	pthread_join(thread1, NULL);
+	pthread_join(thread2, NULL);
+
+    int out = res;
 
 	return 0;
 }
