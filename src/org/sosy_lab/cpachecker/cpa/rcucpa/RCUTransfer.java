@@ -23,6 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
@@ -95,14 +97,22 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       + "call to a fictional write unlock of RCU pointer")
   private String fictWriteUnlock = "ldv_wunlock_rcu";
 
+  @Option(name = "rcuPointersFile", secure = true, description = "Name of a file containing RCU "
+      + "pointers")
+  private Path input = Paths.get("RCUPointers");
+
   private final LogManager logger;
   private final Set<MemoryLocation> rcuPointers;
 
-  public RCUTransfer(Configuration pConfig, LogManager pLogger, Set<MemoryLocation> rcuAliases)
+  RCUTransfer(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
     logger = pLogger;
-    rcuPointers = rcuAliases;
     pConfig.inject(this);
+    rcuPointers = parseFile(input);
+  }
+
+  private Set<MemoryLocation> parseFile(Path pInput) {
+    return null;
   }
 
   @Override

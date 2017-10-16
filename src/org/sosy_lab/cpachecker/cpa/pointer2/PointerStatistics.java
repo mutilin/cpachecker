@@ -70,10 +70,9 @@ public class PointerStatistics implements Statistics {
       if (pointsTo != null) {
         pointsTo = replaceTopsAndBots(pointsTo);
 
-        Gson builder = new Gson();
         try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
-          java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>() {
-          }.getType();
+          Gson builder = new Gson();
+          java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>(){}.getType();
           builder.toJson(pointsTo, type, writer);
           writer.close();
         } catch (IOException pE) {

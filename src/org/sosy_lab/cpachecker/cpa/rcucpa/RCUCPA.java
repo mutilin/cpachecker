@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -40,13 +41,17 @@ import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
+import org.sosy_lab.cpachecker.core.interfaces.WrapperCPA;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA;
 
 @Options(prefix = "cpa.rcucpa")
-public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
+public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis, WrapperCPA {
 
   @Option(name = "precisionFile", secure = true, description = "name of a file containing "
       + "information on which pointers are RCU pointers")
-  private Path fileName = Paths.get("PointsToMap");
+  private Path fileName = Paths.get("RCUPointers");
+
+  //private final PointerCPA pointer2;
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(RCUCPA.class);
@@ -56,8 +61,8 @@ public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
       throws InvalidConfigurationException {
     super("SEP", "SEP",
         DelegateAbstractDomain.<RCUState>getInstance(),
-        new RCUTransfer(config, logger,
-            PreRCUAnalysis.getRCUAndAliases(cfa, Paths.get("PointsToMap"), logger)));
+        new RCUTransfer(config, logger));
+    //pointer2 = new PointerCPA();
     config.inject(this);
   }
 
@@ -71,5 +76,16 @@ public class RCUCPA extends AbstractCPA implements ConfigurableProgramAnalysis {
   public Precision getInitialPrecision(
       CFANode node, StateSpacePartition partition) throws InterruptedException {
     return new RCUPrecision(fileName);
+  }
+
+  @Nullable
+  @Override
+  public <T extends ConfigurableProgramAnalysis> T retrieveWrappedCpa(Class<T> type) {
+    return null;
+  }
+
+  @Override
+  public Iterable<ConfigurableProgramAnalysis> getWrappedCPAs() {
+    return null;
   }
 }
