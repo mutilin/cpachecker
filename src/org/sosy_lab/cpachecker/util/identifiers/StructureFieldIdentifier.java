@@ -23,35 +23,20 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-
-
 public class StructureFieldIdentifier extends StructureIdentifier {
-  protected String fieldType;
 
-  public StructureFieldIdentifier(String pNm, /*String fTp,*/ CType pTp, int dereference, AbstractIdentifier own) {
+  public StructureFieldIdentifier(String pNm, CType pTp, int dereference, AbstractIdentifier own) {
     super(pNm, pTp, dereference, own);
-    if ( type != null ){
-      fieldType = type.toASTString("");
-    } else {
-      fieldType = "";
-    }
   }
 
   @Override
   public String toString() {
-    String info = "";
-    if (dereference > 0) {
-      for (int i = 0; i < dereference; i++) {
-        info += "*";
-      }
-    } else if (dereference == -1) {
-      info += "&";
-    } else if (dereference < -1){
-      info = "Error in string representation, dereference < -1";
-      return info;
-    }
+    String info = Identifiers.getCharsOf(dereference);
     info += "(?.";
     info += name;
     info += ")";
@@ -62,7 +47,7 @@ public class StructureFieldIdentifier extends StructureIdentifier {
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
-    result = prime * result + ((type == null) ? 0 : type.hashCode());
+    result = prime * result + Objects.hashCode(type);
     return result;
   }
 
@@ -71,33 +56,28 @@ public class StructureFieldIdentifier extends StructureIdentifier {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (!super.equals(obj) ||
+        getClass() != obj.getClass()) {
       return false;
     }
     StructureFieldIdentifier other = (StructureFieldIdentifier) obj;
-    if (type == null) {
-      if (other.type != null) {
-        return false;
-      }
-    } else if (!type.equals(other.type)) {
-      return false;
-    }
-    return true;
+    return Objects.equals(type, other.type);
   }
 
   @Override
   public StructureFieldIdentifier clone() {
-    return new StructureFieldIdentifier(name, /*fieldType,*/ type, dereference, owner);
+    return cloneWithDereference(dereference);
   }
 
   @Override
-  public SingleIdentifier clearDereference() {
-    return new StructureFieldIdentifier(name, /*fieldType,*/ type, 0, owner);
+  public StructureFieldIdentifier cloneWithDereference(int deref) {
+    return new StructureFieldIdentifier(name, type, deref, owner);
   }
 
+  @Override
+  public Collection<AbstractIdentifier> getComposedIdentifiers() {
+    return Collections.emptySet();
+  }
 
   @Override
   public String toLog() {
@@ -106,7 +86,7 @@ public class StructureFieldIdentifier extends StructureIdentifier {
 
   @Override
   public GeneralIdentifier getGeneralId() {
-    return new GeneralStructureFieldIdentifier(name, /*fieldType,*/ type, dereference, owner);
+    return new GeneralStructureFieldIdentifier(name, type, dereference, owner);
   }
 
   @Override
@@ -114,12 +94,7 @@ public class StructureFieldIdentifier extends StructureIdentifier {
     if (pO instanceof GlobalVariableIdentifier || pO instanceof LocalVariableIdentifier) {
       return -1;
     } else if (pO instanceof StructureFieldIdentifier){
-      int result = super.compareTo(pO);
-      if (result != 0) {
-        return result;
-      } else {
-        return this.fieldType.compareTo(((StructureFieldIdentifier) pO).fieldType);
-      }
+      return super.compareTo(pO);
     } else {
       return 1;
     }

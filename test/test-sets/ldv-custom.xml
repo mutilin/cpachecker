@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.0//EN" "http://www.sosy-lab.org/benchexec/benchmark-1.0.dtd">
+<benchmark tool="cpachecker" timelimit="900 s" hardtimelimit="1000 s" memlimit="15 GB" cpuCores="4">
+  <!-- This file contains regression tests from the LDV project.
+       It expects the git repository git@bitbucket.org:dbeyer/ldv-benchmarks.git
+       to be checked out at test/programs/ldv-benchmarks. -->
+
+  <option name="-noout"/>
+  <option name="-heap">13000M</option>
+  <option name="-ldv"/>
+
+  <tasks name="DeviceDrivers64">
+	  <includesfile>/Users/Anton/Documents/_CPAchecker/ISPRAS/sv-benchmarks-svcomp16/c/DeviceDriversLinux64.set</includesfile>
+    <propertyfile>${sourcefile_path}/ALL.prp</propertyfile>
+  </tasks>
+
+  <rundefinition name="Pointer-NoBnB">
+  </rundefinition>
+
+  <rundefinition name="Pointer-BnB">
+	  
+  </rundefinition>
+</benchmark>

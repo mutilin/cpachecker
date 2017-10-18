@@ -48,9 +48,11 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 public class IsRelevantLhsVisitor extends DefaultCExpressionVisitor<Boolean, RuntimeException> {
 
   private final CtoFormulaConverter conv;
+  private final boolean havocAbstraction;
 
   public IsRelevantLhsVisitor(CtoFormulaConverter pConv) {
     conv = pConv;
+    havocAbstraction = conv.options.useHavocAbstraction();
   }
 
   @Override
@@ -62,7 +64,8 @@ public class IsRelevantLhsVisitor extends DefaultCExpressionVisitor<Boolean, Run
   public Boolean visit(final CCastExpression e) {
     CType resultType = e.getExpressionType();
     CExpression operand = e.getOperand();
-    if (resultType instanceof CPointerType && operand instanceof CIntegerLiteralExpression &&
+    if (havocAbstraction &&
+        resultType instanceof CPointerType && operand instanceof CIntegerLiteralExpression &&
         ((CIntegerLiteralExpression)operand).asLong() != 0) {
       return false;
     } else {
@@ -80,6 +83,9 @@ public class IsRelevantLhsVisitor extends DefaultCExpressionVisitor<Boolean, Run
     if (!e.getFieldOwner().accept(this)) {
       return false;
     }
+    if (havocAbstraction && e.isPointerDereference()) {
+      return false;
+    }
     CType fieldOwnerType = e.getFieldOwner().getExpressionType().getCanonicalType();
     if (fieldOwnerType instanceof CPointerType) {
       fieldOwnerType = ((CPointerType) fieldOwnerType).getType();
@@ -91,7 +97,7 @@ public class IsRelevantLhsVisitor extends DefaultCExpressionVisitor<Boolean, Run
   @Override
   public Boolean visit(final CIdExpression e) {
     CSimpleDeclaration sDecl = e.getDeclaration();
-    if (sDecl instanceof CVariableDeclaration) {
+    if (havocAbstraction && sDecl instanceof CVariableDeclaration) {
       if (((CVariableDeclaration)sDecl).isGlobal()) {
         return false;
       }
@@ -101,7 +107,11 @@ public class IsRelevantLhsVisitor extends DefaultCExpressionVisitor<Boolean, Run
 
   @Override
   public Boolean visit(CPointerExpression e) {
-    return e.getOperand().accept(this);
+    if (havocAbstraction) {
+      return false;
+    }  else {
+      return e.getOperand().accept(this);
+    }
   }
 
   @Override

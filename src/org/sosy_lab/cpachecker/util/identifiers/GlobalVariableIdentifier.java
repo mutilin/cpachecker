@@ -23,10 +23,7 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
-import java.util.Map;
-
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 
 
 
@@ -38,12 +35,12 @@ public class GlobalVariableIdentifier extends VariableIdentifier {
 
   @Override
   public GlobalVariableIdentifier clone() {
-    return new GlobalVariableIdentifier(name, type, dereference);
+    return cloneWithDereference(dereference);
   }
 
   @Override
-  public SingleIdentifier clearDereference() {
-    return new GlobalVariableIdentifier(name, type, 0);
+  public GlobalVariableIdentifier cloneWithDereference(int pDereference) {
+    return new GlobalVariableIdentifier(name, type, pDereference);
   }
 
   @Override
@@ -68,14 +65,5 @@ public class GlobalVariableIdentifier extends VariableIdentifier {
     } else {
       return 1;
     }
-  }
-
-  @Override
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    DataType result = super.getType(pLocalInfo);
-    if (result != null) {
-      return result;
-    }
-    return DataType.GLOBAL;
   }
 }

@@ -23,6 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
+import static com.google.common.collect.FluentIterable.from;
+
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -31,7 +33,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedMap;
-import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -41,10 +42,10 @@ import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.time.Timer;
-import org.sosy_lab.cpachecker.cpa.usage.TemporaryUsageStorage;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageState;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.RefinementResult;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 @Options(prefix="cpa.usage")
@@ -69,7 +70,8 @@ public class UsageContainer {
   int unsafeUsages = -1;
   int totalIds = 0;
 
-  @Option(description="output only true unsafes")
+  @Option(description="output only true unsafes",
+      secure = true)
   private boolean printOnlyTrueUnsafes = false;
 
   public UsageContainer(Configuration config, LogManager l) throws InvalidConfigurationException {
@@ -93,7 +95,7 @@ public class UsageContainer {
     detector = pDetector;
   }
 
-  public void addNewUsagesIfNecessary(TemporaryUsageStorage storage) {
+  public void addNewUsagesIfNecessary(FunctionContainer storage) {
     if (unsafeUsages == -1) {
       copyUsages(storage);
       getUnsafesIfNecessary();
@@ -106,26 +108,19 @@ public class UsageContainer {
     copyUsages(storage);
   }
 
-  private void copyUsages(TemporaryUsageStorage storage) {
-    for (SingleIdentifier id : storage.keySet()) {
-      SortedSet<UsageInfo> list = storage.get(id);
-      for (UsageInfo info : list) {
-        if (info.getKeyState() == null) {
-          //Means that it is stored near the abort function
-        } else {
-          add(id, info);
-        }
-      }
-    }
+  private void copyUsages(AbstractUsageStorage storage) {
+    storage.forEach((id, list) ->
+      from(list)
+        .filter(info -> info.getKeyState() != null)
+        .forEach(info -> this.add(id, info))
+        );
   }
 
   public void add(final SingleIdentifier id, final UsageInfo usage) {
     UnrefinedUsagePointSet uset;
 
-    if (falseUnsafes.contains(id)) {
-      return;
-    }
-    if (refinedIds.containsKey(id)) {
+    if (falseUnsafes.contains(id)
+        || refinedIds.containsKey(id)) {
       return;
     }
     if (!unrefinedIds.containsKey(id)) {
@@ -134,7 +129,6 @@ public class UsageContainer {
     } else {
       uset = unrefinedIds.get(id);
     }
-    usage.setId(id);
     uset.add(usage);
   }
 
@@ -143,8 +137,8 @@ public class UsageContainer {
       processedUnsafes.clear();
       unsafeUsages = 0;
       Set<SingleIdentifier> toDelete = new HashSet<>();
-      for (SingleIdentifier id : unrefinedIds.keySet()) {
 
+      for (SingleIdentifier id : unrefinedIds.keySet()) {
         UnrefinedUsagePointSet tmpList = unrefinedIds.get(id);
         if (detector.isUnsafe(tmpList)) {
           unsafeUsages += tmpList.size();
@@ -153,13 +147,10 @@ public class UsageContainer {
           falseUnsafes.add(id);
         }
       }
-      for (SingleIdentifier id : toDelete) {
-        removeIdFromCaches(id);
-      }
-      for (SingleIdentifier id : refinedIds.keySet()) {
-        RefinedUsagePointSet tmpList = refinedIds.get(id);
-        unsafeUsages += tmpList.size();
-      }
+      toDelete.forEach(id -> removeIdFromCaches(id));
+
+      refinedIds.forEach((id, list) -> unsafeUsages += list.size());
+
       if (initialSet == null) {
         assert refinedIds.isEmpty();
         initialSet = Sets.newHashSet(unrefinedIds.keySet());
@@ -195,13 +186,16 @@ public class UsageContainer {
 
   public Iterator<SingleIdentifier> getUnrefinedUnsafeIterator() {
     //New set to avoid concurrent modification exception
-    Set<SingleIdentifier> result = new TreeSet<>(unrefinedIds.keySet());
-    return result.iterator();
+    return getKeySetIterator(unrefinedIds);
   }
 
   public Iterator<SingleIdentifier> getTrueUnsafeIterator() {
     //New set to avoid concurrent modification exception
-    Set<SingleIdentifier> result = new TreeSet<>(refinedIds.keySet());
+    return getKeySetIterator(refinedIds);
+  }
+
+  private Iterator<SingleIdentifier> getKeySetIterator(SortedMap<SingleIdentifier, ? extends AbstractUsagePointSet> map) {
+    Set<SingleIdentifier> result = new TreeSet<>(map.keySet());
     return result.iterator();
   }
 
@@ -210,16 +204,12 @@ public class UsageContainer {
     if (printOnlyTrueUnsafes) {
       return refinedIds.size();
     } else {
-      return unrefinedIds.size() + refinedIds.size() + failedIds.size();
+      return getTotalUnsafeSize();
     }
   }
 
   public int getTotalUnsafeSize() {
     return unrefinedIds.size() + refinedIds.size() + failedIds.size();
-  }
-
-  public boolean printOnlyTrueUnsafes() {
-    return printOnlyTrueUnsafes;
   }
 
   public int getProcessedUnsafeSize() {
@@ -233,17 +223,13 @@ public class UsageContainer {
   public void resetUnrefinedUnsafes() {
     resetTimer.start();
     unsafeUsages = -1;
-    for (UnrefinedUsagePointSet uset : unrefinedIds.values()) {
-      uset.reset();
-    }
+    unrefinedIds.forEach((id, s) -> s.reset());
     logger.log(Level.FINE, "Unsafes are reseted");
     resetTimer.stop();
   }
 
   public void removeState(final UsageState pUstate) {
-    for (UnrefinedUsagePointSet uset : unrefinedIds.values()) {
-      uset.remove(pUstate);
-    }
+    unrefinedIds.forEach((id, uset) -> uset.remove(pUstate));
     logger.log(Level.ALL, "All unsafes related to key state " + pUstate + " were removed from reached set");
   }
 
@@ -280,28 +266,60 @@ public class UsageContainer {
   }
 
   public void printUsagesStatistics(final PrintStream out) {
-    int allUsages = 0, maxUsage = 0;
+    int unsafeSize = getTotalUnsafeSize();
+    int topUsagePoints = 0, maxTopUsagePoints = 0;
+
     final int generalUnrefinedSize = unrefinedIds.keySet().size();
+    int unrefinedUsages = 0, maxUnrefinedUsages = 0;
     for (UnrefinedUsagePointSet uset : unrefinedIds.values()) {
-      allUsages += uset.size();
-      if (maxUsage < uset.size()) {
-        maxUsage = uset.size();
+      unrefinedUsages += uset.size();
+      if (maxUnrefinedUsages < uset.size()) {
+        maxUnrefinedUsages = uset.size();
+      }
+      topUsagePoints += uset.getNumberOfTopUsagePoints();
+      if (maxTopUsagePoints < uset.getNumberOfTopUsagePoints()) {
+        maxTopUsagePoints = uset.getNumberOfTopUsagePoints();
       }
     }
-    out.println("Total amount of unrefined variables:              " + generalUnrefinedSize);
-    out.println("Total amount of unrefined usages:                 " + allUsages + "(avg. " +
-        (generalUnrefinedSize == 0 ? "0" : (allUsages/generalUnrefinedSize)) + ", max " + maxUsage + ")");
+
     final int generalRefinedSize = refinedIds.keySet().size();
-    allUsages = 0;
+    int refinedUsages = 0;
     for (RefinedUsagePointSet uset : refinedIds.values()) {
-      allUsages += uset.size();
+      refinedUsages += uset.size();
     }
-    out.println("Total amount of refined variables:                " + generalRefinedSize);
-    out.println("Total amount of refined usages:                   " + allUsages + "(avg. " +
-        (generalRefinedSize == 0 ? "0" : (allUsages/generalRefinedSize)) + ")");
+
+    final int generalFailedSize = failedIds.keySet().size();
+    int failedUsages = 0;
+    for (RefinedUsagePointSet uset : failedIds.values()) {
+      Pair<UsageInfo, UsageInfo> pair = uset.getUnsafePair();
+      if (pair.getFirst().isLooped()) {
+        failedUsages++;
+      }
+      if (pair.getSecond().isLooped() && !pair.getFirst().equals(pair.getSecond())) {
+        failedUsages++;
+      }
+    }
+
+    out.println("Total amount of unsafes:                          " + unsafeSize);
+
     out.println("Initial amount of unsafes (before refinement):    " + initialSet.size());
     out.println("Initial amount of usages (before refinement):     " + initialUsages);
     out.println("Initial amount of refined false unsafes:          " + falseUnsafes.size());
+
+    out.println("Total amount of unrefined unsafes:                " + generalUnrefinedSize);
+    out.println("Total amount of unrefined usage points:           " + topUsagePoints + "(avg. " +
+        (generalUnrefinedSize == 0 ? "0" : (topUsagePoints/generalUnrefinedSize))
+        + ", max. " + maxTopUsagePoints + ")");
+    out.println("Total amount of unrefined usages:                 " + unrefinedUsages + "(avg. " +
+        (generalUnrefinedSize == 0 ? "0" : (unrefinedUsages/generalUnrefinedSize)) + ", max " + maxUnrefinedUsages + ")");
+
+    out.println("Total amount of refined unsafes:                  " + generalRefinedSize);
+    out.println("Total amount of refined usages:                   " + refinedUsages + "(avg. " +
+        (generalRefinedSize == 0 ? "0" : (refinedUsages/generalRefinedSize)) + ")");
+
+    out.println("Total amount of failed unsafes:                   " + generalFailedSize);
+    out.println("Total amount of failed usages:                    " + failedUsages + "(avg. " +
+        (generalFailedSize == 0 ? "0" : (failedUsages/generalFailedSize)) + ")");
   }
 
   @Override

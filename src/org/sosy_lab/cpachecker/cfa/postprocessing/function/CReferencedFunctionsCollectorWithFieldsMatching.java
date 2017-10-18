@@ -59,18 +59,16 @@ import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
  */
 class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctionsCollector {
 
-  private final CollectFunctionsVisitorWithFieldMatching collector;
-
   public CReferencedFunctionsCollectorWithFieldsMatching() {
     collector = new CollectFunctionsVisitorWithFieldMatching(collectedFunctions);
   }
 
   Multimap<String, String> getFieldMatching() {
-    return collector.functionToFieldMatching;
+    return ((CollectFunctionsVisitorWithFieldMatching)collector).functionToFieldMatching;
   }
 
   Multimap<String, String> getGlobalMatching() {
-    return collector.functionToFieldMatching;
+    return ((CollectFunctionsVisitorWithFieldMatching)collector).funcToGlobal;
   }
 
   @Override
@@ -97,14 +95,14 @@ class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctio
         for (int i = 0; i < list.size(); i++) {
           CCompositeTypeMemberDeclaration decl = list.get(i);
           CInitializer cInit = initList.get(i);
-          saveInitializerExpression(collector.functionToFieldMatching, cInit, decl.getName());
+          saveInitializerExpression(((CollectFunctionsVisitorWithFieldMatching)collector).functionToFieldMatching, cInit, decl.getName());
         }
       } else if (type instanceof CTypedefType) {
         saveDeclaration(((CTypedefType) type).getRealType(), init, name);
       }
     } else {
       //Assignement to global id
-      saveInitializerExpression(collector.funcToGlobal, init, name);
+      saveInitializerExpression(((CollectFunctionsVisitorWithFieldMatching)collector).funcToGlobal, init, name);
     }
   }
 
@@ -141,8 +139,6 @@ class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctio
     private final Multimap<String, String> funcToGlobal = HashMultimap.create();
     private String lastFunction;
 
-    private IdentifierCreator idCreator = new IdentifierCreator();
-
     public CollectFunctionsVisitorWithFieldMatching(Set<String> collectedFuncs) {
       super(collectedFuncs);
     }
@@ -168,6 +164,7 @@ class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctio
         if (left instanceof CFieldReference) {
           functionToFieldMatching.put(((CFieldReference) left).getFieldName(), lastFunction);
         } else {
+          IdentifierCreator idCreator = new IdentifierCreator("");
           AbstractIdentifier id = left.accept(idCreator);
           if (id instanceof StructureIdentifier) {
             assert false : "Structures should be handled above";

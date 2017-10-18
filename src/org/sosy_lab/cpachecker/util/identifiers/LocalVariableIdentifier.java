@@ -23,10 +23,8 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
-import java.util.Map;
-
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 
 public class LocalVariableIdentifier extends VariableIdentifier {
   protected String function;//function, where this variable was declared
@@ -40,7 +38,7 @@ public class LocalVariableIdentifier extends VariableIdentifier {
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
-    result = prime * result + ((function == null) ? 0 : function.hashCode());
+    result = prime * result + Objects.hashCode(function);
     return result;
   }
 
@@ -49,41 +47,26 @@ public class LocalVariableIdentifier extends VariableIdentifier {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (!super.equals(obj) ||
+        getClass() != obj.getClass()) {
       return false;
     }
     LocalVariableIdentifier other = (LocalVariableIdentifier) obj;
-    if (function == null) {
-      if (other.function != null) {
-        return false;
-      }
-    } else if (!function.equals(other.function)) {
-      return false;
-    }
-    return true;
+    return Objects.equals(function, other.function);
   }
 
   @Override
   public LocalVariableIdentifier clone() {
-    return new LocalVariableIdentifier(name, type, function, dereference);
+    return cloneWithDereference(dereference);
+  }
+
+  @Override
+  public LocalVariableIdentifier cloneWithDereference(int pDereference) {
+    return new LocalVariableIdentifier(name, type, function, pDereference);
   }
 
   public String getFunction() {
     return function;
-  }
-
-  //it needs to set function after creation in lockStatistics.
-  //In shared analysis function isn't used because of reducing
-  public void setFunction(String func) {
-    function = func;
-  }
-
-  @Override
-  public SingleIdentifier clearDereference() {
-    return new LocalVariableIdentifier(name, type, function, 0);
   }
 
   @Override
@@ -126,6 +109,7 @@ public class LocalVariableIdentifier extends VariableIdentifier {
       return 1;
     }
   }
+<<<<<<< HEAD
 
   @Override
   public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
@@ -139,4 +123,6 @@ public class LocalVariableIdentifier extends VariableIdentifier {
       return null;
     }
   }
+=======
+>>>>>>> CPALockator
 }

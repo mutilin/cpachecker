@@ -23,6 +23,9 @@
  */
 package org.sosy_lab.cpachecker.cpa.lock;
 
+import static com.google.common.collect.FluentIterable.from;
+
+import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -32,6 +35,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeSet;
@@ -95,6 +99,11 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
         return true;
       }
       return false;
+    }
+
+    @Override
+    public boolean hasEmptyLockSet() {
+      return isEmpty();
     }
 
   }
@@ -204,20 +213,19 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
     }
 
     public void reduceLocks(Set<LockIdentifier> usedLocks) {
-      for (LockIdentifier lock : new HashSet<>(mutableLocks.keySet())) {
-        if (usedLocks != null && !usedLocks.contains(lock)) {
-          mutableLocks.remove(lock);
-        }
+      if (usedLocks != null) {
+        Set<LockIdentifier> reducableLocks = Sets.difference(new HashSet<>(mutableLocks.keySet()), usedLocks);
+        reducableLocks.forEach(l -> mutableLocks.remove(l));
       }
     }
 
     public void reduceLockCounters(Set<LockIdentifier> exceptLocks) {
-      for (LockIdentifier lock : new HashSet<>(mutableLocks.keySet())) {
-        if (!exceptLocks.contains(lock)) {
-          mutableLocks.remove(lock);
-          add(lock);
-        }
-      }
+      Set<LockIdentifier> reducableLocks = Sets.difference(new HashSet<>(mutableLocks.keySet()), exceptLocks);
+      reducableLocks.forEach(l ->
+        {
+          mutableLocks.remove(l);
+          add(l);
+        });
     }
 
     public void expand(LockState rootState) {
@@ -225,10 +233,9 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
     }
 
     public void expandLocks(LockState pRootState,  Set<LockIdentifier> usedLocks) {
-      for (LockIdentifier lock : pRootState.locks.keySet()) {
-        if (usedLocks != null && !usedLocks.contains(lock)) {
-          mutableLocks.put(lock, pRootState.locks.get(lock));
-        }
+      if (usedLocks != null) {
+        Set<LockIdentifier> expandableLocks = Sets.difference(pRootState.locks.keySet(), usedLocks);
+        expandableLocks.forEach(l -> mutableLocks.put(l, pRootState.getCounter(l)));
       }
     }
 
@@ -290,17 +297,13 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder();
-
-    for (LockIdentifier lock : Sets.newTreeSet(locks.keySet())) {
-      sb.append(lock.toString() + "[" + locks.get(lock) + "]" + ", ");
-    }
     if (locks.size() > 0) {
-      sb.delete(sb.length() - 2, sb.length());
+      return from(locks.keySet())
+        .transform(l -> l.toString() + "[" + locks.get(l) + "]")
+        .join(Joiner.on(", "));
     } else {
-      sb.append("Without locks");
+      return "Without locks";
     }
-    return sb.toString();
   }
 
   public int getCounter(String lockName, String varName) {
@@ -309,16 +312,12 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
   }
 
   public int getCounter(LockIdentifier lock) {
-    Integer size = locks.get(lock);
-    return (size == null ? 0 : size);
+    return locks.getOrDefault(lock, 0);
   }
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((locks == null) ? 0 : locks.hashCode());
-    return result;
+    return Objects.hashCode(locks);
   }
 
   @Override
@@ -326,28 +325,15 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     LockState other = (LockState) obj;
-    if (locks == null) {
-      if (other.locks != null) {
-        return false;
-      }
-    } else if (!locks.equals(other.locks)) {
+    if (!Objects.equals(locks, other.locks)) {
       return false;
     }
-    if (toRestore == null) {
-      if (other.toRestore != null) {
-        return false;
-      }
-    } else if (!toRestore.equals(other.toRestore)) {
-      return false;
-    }
-    return true;
+    return Objects.equals(toRestore, other.toRestore);
   }
 
   /**
@@ -360,12 +346,8 @@ public class LockState implements LatticeAbstractState<LockState>, Serializable,
   public boolean isLessOrEqual(LockState other) {
     //State is less, if it has the same locks as the other and may be some more
 
-    for (LockIdentifier lock : other.locks.keySet()) {
-      if (!(this.locks.containsKey(lock))) {
-        return false;
-      }
-    }
-    return true;
+    return from(other.locks.keySet())
+            .allMatch(lock -> this.locks.containsKey(lock));
   }
 
   /**

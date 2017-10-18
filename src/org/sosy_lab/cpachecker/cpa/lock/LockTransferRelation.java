@@ -25,7 +25,9 @@ package org.sosy_lab.cpachecker.cpa.lock;
 
 import static com.google.common.collect.FluentIterable.from;
 
+import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.collect.FluentIterable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -76,7 +78,8 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
 {
 
   @Option(name="lockreset",
-      description="function to reset state")
+      description="function to reset state",
+      secure = true)
   private String lockreset;
 
   final Map<String, AnnotationInfo> annotatedfunctions;
@@ -105,9 +108,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
 
     final LockStateBuilder builder = lockStatisticsElement.builder();
 
-    for (AbstractLockEffect e : toProcess) {
-      e.effect(builder);
-    }
+    toProcess.forEach(e -> e.effect(builder));
 
     LockState successor = builder.build();
 
@@ -119,13 +120,17 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
   }
 
   public Set<LockIdentifier> getAffectedLocks(CFAEdge cfaEdge) {
+      return getLockEffects(cfaEdge)
+      .transform(LockEffect::getAffectedLock).toSet();
+  }
+
+  private FluentIterable<LockEffect> getLockEffects(CFAEdge cfaEdge) {
     try {
       return from(determineOperations(cfaEdge))
-      .filter(e -> e instanceof LockEffect)
-      .transform(e -> ((LockEffect)e).getAffectedLock()).toSet();
+      .filter(LockEffect.class);
     } catch (UnrecognizedCCodeException e) {
       logger.log(Level.WARNING, "The code " + cfaEdge + " is not recognized");
-      return Collections.emptySet();
+      return FluentIterable.of();
     }
   }
 
@@ -141,12 +146,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
 
       case StatementEdge:
         CStatement statement = ((CStatementEdge)cfaEdge).getStatement();
-        /*if (statement instanceof CFunctionCallStatement && lockreset != null &&
-          ((CFunctionCallStatement)statement).getFunctionCallExpression().getFunctionNameExpression().toASTString().equals(lockreset)) {
-          builder.resetAll();
-        } else {*/
-          return handleStatement(statement);
-        //}
+        return handleStatement(statement);
       case AssumeEdge:
         return handleAssumption((CAssumeEdge)cfaEdge);
 
@@ -193,9 +193,9 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
   private List<AbstractLockEffect> convertAnnotationToLockEffect(Map<String, String> map, LockEffect e) {
     List<AbstractLockEffect> result = new LinkedList<>();
 
-    for (String lockName : map.keySet()) {
-      result.add(e.cloneWithTarget(LockIdentifier.of(lockName, map.get(lockName))));
-    }
+    map.forEach(
+        (lockName, var) -> result.add(e.cloneWithTarget(LockIdentifier.of(lockName, var)))
+    );
     return result;
   }
 
@@ -226,7 +226,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
         if (currentAnnotation.captureLocks.size() > 0) {
           for (String lockName : currentAnnotation.captureLocks.keySet()) {
             LockIdentifier tagerId = LockIdentifier.of(lockName, currentAnnotation.captureLocks.get(lockName));
-            Optional<LockInfo> lock = findLockByName(tagerId.getName());
+            Optional<LockInfo> lock = findLockByName(lockName);
             if (lock.isPresent()) {
               result.add(AcquireLockEffect.createEffectForId(tagerId, lock.get().maxLock));
             } else {
@@ -372,20 +372,8 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
    * @return the verdict
    */
   public String doesChangeTheState(CFAEdge pEdge) {
-    return formatCaption(getAffectedLocks(pEdge));
-  }
-
-  private String formatCaption(Set<LockIdentifier> set) {
-
-    if (set.isEmpty()) {
-      return null;
-    }
-    StringBuilder sb = new StringBuilder();
-    sb.append("Change states for locks ");
-    for (LockIdentifier lInfo : set) {
-      sb.append(lInfo + ", ");
-    }
-    sb.delete(sb.length() - 2, sb.length());
-    return sb.toString();
+    return getLockEffects(pEdge)
+        .transform(e -> e.toString())
+        .join(Joiner.on(","));
   }
 }

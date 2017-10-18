@@ -81,7 +81,8 @@ public class UsageCPA extends AbstractSingleWrapperCPA implements ConfigurablePr
     return AutomaticCPAFactory.forType(UsageCPA.class);
   }
 
-  @Option(description="A path to precision", name="precision.path")
+  @Option(description="A path to precision", name="precision.path",
+      secure = true)
   @FileOption(Type.OUTPUT_FILE)
   private Path outputFileName = Paths.get("localsave");
 
@@ -102,7 +103,7 @@ public class UsageCPA extends AbstractSingleWrapperCPA implements ConfigurablePr
     if (pCpa instanceof ConfigurableProgramAnalysisWithBAM) {
       Reducer wrappedReducer = ((ConfigurableProgramAnalysisWithBAM)pCpa).getReducer();
       if (wrappedReducer != null) {
-        reducer = new UsageReducer(wrappedReducer, LockCPA.getReducer());
+        reducer = new UsageReducer(wrappedReducer);
       } else {
         reducer = null;
       }
@@ -169,7 +170,7 @@ public class UsageCPA extends AbstractSingleWrapperCPA implements ConfigurablePr
 
   @Override
   public AbstractState getInitialState(CFANode pNode, StateSpacePartition pPartition) throws InterruptedException {
-    return new UsageState(getWrappedCpa().getInitialState(pNode, pPartition), container);
+    return UsageState.createInitialState(getWrappedCpa().getInitialState(pNode, pPartition), container);
   }
 
   @Override

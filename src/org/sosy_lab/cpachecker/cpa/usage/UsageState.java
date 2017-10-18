@@ -23,57 +23,77 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage;
 
+import static com.google.common.collect.FluentIterable.from;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import org.sosy_lab.common.time.Timer;
-import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
-import org.sosy_lab.cpachecker.core.interfaces.Exitable;
-import org.sosy_lab.cpachecker.core.interfaces.Targetable;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
-import org.sosy_lab.cpachecker.cpa.lock.LockReducer;
 import org.sosy_lab.cpachecker.cpa.lock.LockState;
 import org.sosy_lab.cpachecker.cpa.lock.effects.LockEffect;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
+import org.sosy_lab.cpachecker.cpa.usage.storage.FunctionContainer;
+import org.sosy_lab.cpachecker.cpa.usage.storage.FunctionContainer.StorageStatistics;
+import org.sosy_lab.cpachecker.cpa.usage.storage.TemporaryUsageStorage;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.Identifiers;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 /**
- * Represents one abstract state of the UsageStatistics CPA.
+ * Represents one abstract state of the Usage CPA.
  */
-public class UsageState extends AbstractSingleWrapperState implements Targetable {
+public class UsageState extends AbstractSingleWrapperState {
   /* Boilerplate code to avoid serializing this class */
 
   private static final long serialVersionUID = -898577877284268426L;
   private TemporaryUsageStorage recentUsages;
   private boolean isStorageCloned;
   private final UsageContainer globalContainer;
-  private final TemporaryUsageStorage functionContainer;
+  private final FunctionContainer functionContainer;
+  private final StateStatistics stats;
+
+  private boolean isExitState;
 
   private final Map<AbstractIdentifier, AbstractIdentifier> variableBindingRelation;
 
-  public UsageState(final AbstractState pWrappedElement, final UsageContainer pContainer) {
-    //Only for getInitialState() and reduce
+  private UsageState(final AbstractState pWrappedElement
+      , final Map<AbstractIdentifier, AbstractIdentifier> pVarBind
+      , final TemporaryUsageStorage pRecentUsages
+      , final UsageContainer pContainer
+      , final boolean pCloned
+      , final FunctionContainer pFuncContainer
+      , final StateStatistics pStats
+      , boolean exit) {
     super(pWrappedElement);
-    variableBindingRelation = new HashMap<>();
-    recentUsages = new TemporaryUsageStorage();
+    variableBindingRelation = pVarBind;
+    recentUsages = pRecentUsages;
     globalContainer = pContainer;
-    isStorageCloned = true;
-    functionContainer = new TemporaryUsageStorage();
+    isStorageCloned = pCloned;
+    functionContainer = pFuncContainer;
+    stats = pStats;
+    isExitState = exit;
+  }
+
+  public static UsageState createInitialState(final AbstractState pWrappedElement
+      , final UsageContainer pContainer) {
+    FunctionContainer initialContainer = FunctionContainer.createInitialContainer();
+    return new UsageState(pWrappedElement, new HashMap<>(), new TemporaryUsageStorage(),
+        pContainer, true, initialContainer, new StateStatistics(initialContainer.getStatistics()), false);
   }
 
   private UsageState(final AbstractState pWrappedElement, final UsageState state) {
-    super(pWrappedElement);
-    variableBindingRelation = new HashMap<>(state.variableBindingRelation);
-    recentUsages = state.recentUsages;
-    globalContainer = state.globalContainer;
-    isStorageCloned = false;
-    functionContainer = state.functionContainer;
+    this(pWrappedElement, new HashMap<>(state.variableBindingRelation), state.recentUsages,
+        state.globalContainer, false, state.functionContainer, state.stats, state.isExitState);
   }
 
   public boolean containsLinks(final AbstractIdentifier id) {
@@ -81,12 +101,9 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
     *  if we have *b, map also contains **b, ***b and so on.
     *  So, if we get **b, having (*b, c), we give *c
     */
-    final AbstractIdentifier tmpId = id.clone();
-    for (int d = id.getDereference(); d >= 0; d--) {
-      tmpId.setDereference(d);
-      if (variableBindingRelation.containsKey(tmpId)) {
-        return true;
-      }
+    if (from(Identifiers.getDereferencedIdentifiers(id))
+        .anyMatch(i -> variableBindingRelation.containsKey(i))) {
+      return true;
     }
     return false;
   }
@@ -109,19 +126,21 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
     /* Special get!
      * If we get **b, having (*b, c), we give *c
      */
-    AbstractIdentifier tmpId = id.clone();
-    for (int d = id.getDereference(); d >= 0; d--) {
-      tmpId.setDereference(d);
-      if (variableBindingRelation.containsKey(tmpId)) {
-        tmpId = variableBindingRelation.get(tmpId).clone();
-        int currentD = tmpId.getDereference();
-        tmpId.setDereference(currentD + id.getDereference() - d);
-        if (this.containsLinks(tmpId)) {
-          tmpId = getLinksIfNecessary(tmpId);
-        }
-        return tmpId;
+    Optional<AbstractIdentifier> linkedId =
+        from(Identifiers.getDereferencedIdentifiers(id))
+          .firstMatch(i -> variableBindingRelation.containsKey(i));
+    if (linkedId.isPresent()) {
+      AbstractIdentifier pointsFrom = linkedId.get();
+      int delta = id.getDereference() - pointsFrom.getDereference();
+      AbstractIdentifier initialId = variableBindingRelation.get(linkedId);
+      AbstractIdentifier pointsTo =
+          initialId.cloneWithDereference(initialId.getDereference() + delta);
+      if (this.containsLinks(pointsTo)) {
+        pointsTo = getLinksIfNecessary(pointsTo);
       }
+      return pointsTo;
     }
+
     return null;
   }
 
@@ -138,7 +157,7 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((variableBindingRelation == null) ? 0 : variableBindingRelation.hashCode());
+    result = prime * result + Objects.hashCode(variableBindingRelation);
     result = prime * super.hashCode();
     return result;
   }
@@ -148,33 +167,25 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     UsageState other = (UsageState) obj;
-    if (variableBindingRelation == null) {
-      if (other.variableBindingRelation != null) {
-        return false;
-      }
-    } else if (!variableBindingRelation.equals(other.variableBindingRelation)) {
-      return false;
-    }
-    return super.equals(other);
+    return Objects.equals(variableBindingRelation, other.variableBindingRelation)
+        && super.equals(other);
   }
 
   @Override
   public String toString() {
     StringBuilder str = new StringBuilder();
+
     str.append("[");
-    for (AbstractIdentifier id : variableBindingRelation.keySet()) {
-      str.append(id.toString());
-      str.append("->");
-      str.append(variableBindingRelation.get(id).toString());
-      str.append(", ");
-    }
+    str.append(
+      from(variableBindingRelation.keySet())
+        .transform(id -> id.toString() + "->" + variableBindingRelation.get(id).toString())
+        .join(Joiner.on(", "))
+    );
     str.append("]\n");
     str.append(getWrappedState());
     return str.toString();
@@ -208,38 +219,31 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
   public void addUsage(final SingleIdentifier id, final UsageInfo usage) {
     //Clone it
     if (!isStorageCloned) {
-      recentUsages = new TemporaryUsageStorage(recentUsages);
+      recentUsages = recentUsages.clone();
       isStorageCloned = true;
     }
     recentUsages.add(id, usage);
   }
 
-  public static Timer tmpTimer1 = new Timer();
-  public static Timer tmpTimer2 = new Timer();
-  public static Timer tmpTimer3 = new Timer();
-
-  public UsageState expand(final UsageState root, final AbstractState wrappedState,
-      Block pReducedContext, LockReducer reducer) {
-    tmpTimer1.start();
-    UsageState result = root.clone(wrappedState);
-    if (this instanceof Exitable) {
-      result = result.asExitable();
-    }
-    //Now it is only join
-    LockState rootLockState = AbstractStates.extractStateByType(root, LockState.class);
-    LockState reducedLockState = (LockState) reducer.getVariableReducedState(rootLockState, pReducedContext, AbstractStates.extractLocation(root));
-    List<LockEffect> difference = reducedLockState.getDifference(rootLockState);
-
-    tmpTimer1.stop();
-    tmpTimer2.start();
-    result.functionContainer.join(functionContainer, difference);
-    tmpTimer2.stop();
-    return result;
+  public void joinContainerFrom(final UsageState reducedState) {
+    stats.joinTimer.start();
+    functionContainer.join(reducedState.functionContainer);
+    stats.joinTimer.stop();
   }
 
   public UsageState reduce(final AbstractState wrappedState) {
-    UsageState result = new UsageState(wrappedState, this.globalContainer);
-    return result;
+    LockState rootLockState = AbstractStates.extractStateByType(this, LockState.class);
+    LockState reducedLockState = AbstractStates.extractStateByType(wrappedState, LockState.class);
+    List<LockEffect> difference;
+    if (rootLockState == null && reducedLockState == null) {
+      //No LockCPA
+      difference = Collections.emptyList();
+    } else {
+      difference = reducedLockState.getDifference(rootLockState);
+    }
+
+    return new UsageState(wrappedState, new HashMap<>(), recentUsages.clone(),
+        this.globalContainer, true, functionContainer.clone(difference), this.stats, this.isExitState);
   }
 
   public UsageContainer getContainer() {
@@ -251,10 +255,9 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
     PredicateAbstractState state = AbstractStates.extractStateByType(argState, PredicateAbstractState.class);
     if (state == null || (!state.getAbstractionFormula().isFalse() && state.isAbstractionState())) {
       recentUsages.setKeyState(argState);
-      List<LockEffect> emptyList = Collections.emptyList();
-      tmpTimer3.start();
-      functionContainer.join(recentUsages, emptyList);
-      tmpTimer3.stop();
+      stats.addRecentUsagesTimer.start();
+      functionContainer.join(recentUsages);
+      stats.addRecentUsagesTimer.stop();
       recentUsages.clear();
     }
   }
@@ -263,20 +266,26 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
     globalContainer.addNewUsagesIfNecessary(functionContainer);
   }
 
-  public UsageState asExitable() {
-    return new UsageExitableState(this);
+  public void asExitable() {
+    //return new UsageExitableState(this);
+    isExitState = true;
   }
 
-  public class UsageExitableState extends UsageState implements Exitable {
+  public StateStatistics getStatistics() {
+    return stats;
+  }
+
+  @Override
+  public boolean isExitState() {
+    return isExitState;
+  }
+
+  /*public class UsageExitableState extends UsageState {
 
     private static final long serialVersionUID = 1957118246209506994L;
 
     private UsageExitableState(AbstractState pWrappedElement, UsageState state) {
       super(pWrappedElement, state);
-    }
-
-    private UsageExitableState(AbstractState pWrappedElement, UsageContainer container) {
-      super(pWrappedElement, container);
     }
 
     public UsageExitableState(UsageState state) {
@@ -290,8 +299,35 @@ public class UsageState extends AbstractSingleWrapperState implements Targetable
 
     @Override
     public UsageExitableState reduce(final AbstractState wrapped) {
-      return new UsageExitableState(wrapped, getContainer());
+      return new UsageExitableState(wrapped, this);
+    }
+
+    public boolean isExitable() {
+      return true;
+    }
+  }*/
+
+  public static class StateStatistics {
+    private Timer expandTimer = new Timer();
+    private Timer joinTimer = new Timer();
+    private Timer addRecentUsagesTimer = new Timer();
+
+    private final StorageStatistics storageStats;
+
+    public StateStatistics(StorageStatistics stats) {
+      storageStats = Objects.requireNonNull(stats);
+    }
+
+    public void printStatistics(PrintStream out) {
+      out.println("");
+      out.println("Time for lock difference calculation:" + expandTimer);
+      out.println("Time for joining:                    " + joinTimer);
+      out.println("Time for adding recent usages:       " + addRecentUsagesTimer);
+      storageStats.printStatistics(out);
     }
   }
 
+  public static UsageState get(AbstractState state) {
+    return AbstractStates.extractStateByType(state, UsageState.class);
+  }
 }

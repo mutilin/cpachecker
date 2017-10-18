@@ -23,17 +23,19 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
+import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import java.util.Collection;
 import java.util.Map;
 
 import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cpa.local.LocalCPA;
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
+import org.sosy_lab.cpachecker.cpa.local.LocalTransferRelation;
 
 
-public abstract class SingleIdentifier implements AbstractIdentifier{
+public abstract class SingleIdentifier implements AbstractIdentifier {
 
   protected String name;
   protected CType type;
@@ -60,13 +62,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
 
   @Override
   public boolean isDereferenced() {
-    if (dereference > 0) {
-      return true;
-    }/* else if (LocalTransferRelation.findDereference(type) > 0) {
-      return true;
-    } */else {
-      return false;
-    }
+    return dereference > 0;
   }
 
   @Override
@@ -92,7 +88,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
     final int prime = 31;
     int result = 1;
     result = prime * result + dereference;
-    result = prime * result + ((name == null) ? 0 : name.hashCode());
+    result = prime * result + Objects.hashCode(name);
     result = prime * result + ((type == null) ? 0 : type.toASTString("").hashCode());
     return result;
   }
@@ -102,59 +98,29 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     SingleIdentifier other = (SingleIdentifier) obj;
-    if (dereference != other.dereference) {
-      return false;
-    }
-    if (name == null) {
-      if (other.name != null) {
-        return false;
-      }
-    } else if (!name.equals(other.name)) {
-      return false;
-    }
-    if (type == null) {
-      if (other.type != null) {
-        return false;
-      }
-    } else if (!type.toASTString("").equals(other.type.toASTString(""))) {
-      return false;
-    }
-    return true;
+    return dereference == other.dereference
+        && Objects.equals(name, other.name)
+        && Objects.equals(type.toASTString(""), other.type.toASTString(""));
   }
 
   @Override
   public abstract SingleIdentifier clone();
 
   @Override
-  public abstract String toString();
-
-  public abstract SingleIdentifier clearDereference();
+  public String toString() {
+    String info = Identifiers.getCharsOf(dereference);
+    info += name;
+    return info;
+  }
 
   public abstract String toLog();
 
   public abstract GeneralIdentifier getGeneralId();
-
-  @Override
-  public void setDereference(int pD) {
-    dereference = pD;
-  }
-
-  @Override
-  public AbstractIdentifier containsIn(Collection<? extends AbstractIdentifier> set) {
-    GeneralIdentifier generalId = this.getGeneralId();
-    if (generalId != null && set.contains(generalId)) {
-      return this;
-    } else {
-      return null;
-    }
-  }
 
   @Override
   public int compareTo(AbstractIdentifier pO) {
@@ -179,22 +145,5 @@ public abstract class SingleIdentifier implements AbstractIdentifier{
       }
       return this.dereference - ((SingleIdentifier)pO).dereference;
     }
-  }
-
-  @Override
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> localInfo) {
-    if (LocalCPA.localVariables != null && LocalCPA.localVariables.contains(name)) {
-      return DataType.LOCAL;
-    }
-    AbstractIdentifier checkerId;
-    if (this instanceof LocalVariableIdentifier || this instanceof GlobalVariableIdentifier) {
-      checkerId = getGeneralId();
-    } else {
-      checkerId = this;
-    }
-    if (localInfo.containsKey(checkerId)) {
-      return localInfo.get(checkerId);
-    }
-    return null;
   }
 }

@@ -23,12 +23,18 @@
  */
 package org.sosy_lab.cpachecker.cpa.thread;
 
+import static com.google.common.collect.FluentIterable.from;
+
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
+import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadJoinStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -37,6 +43,7 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractWrapperState;
 import org.sosy_lab.cpachecker.core.interfaces.Partitionable;
 import org.sosy_lab.cpachecker.cpa.callstack.CallstackState;
 import org.sosy_lab.cpachecker.cpa.location.LocationState;
+import org.sosy_lab.cpachecker.cpa.thread.ThreadLabel.LabelStatus;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
 import org.sosy_lab.cpachecker.exceptions.HandleCodeException;
@@ -46,8 +53,6 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
     AbstractWrapperState, UsageTreeNode {
 
   public static class ThreadStateBuilder {
-    private LocationState loc;
-    private CallstackState cs;
     private List<ThreadLabel> tSet;
     private List<ThreadLabel> rSet;
 
@@ -56,18 +61,25 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
       rSet = new LinkedList<>(state.removedSet);
     }
 
-    public void setWrappedStates(LocationState l, CallstackState c) {
-      loc = l;
-      cs = c;
+    public void handleParentThread(CThreadCreateStatement tCall) throws HandleCodeException {
+      createThread(tCall, LabelStatus.PARENT_THREAD);
     }
 
-    public void addToThreadSet(ThreadLabel label) throws HandleCodeException {
-      for (ThreadLabel created : tSet) {
-        if (created.getName().equals(label.getName())) {
-          //Not supported yet
-          throw new HandleCodeException("Can not create thread " + label.getName() + ", it was already created");
-        }
+    public void handleChildThread(CThreadCreateStatement tCall) throws HandleCodeException {
+      createThread(tCall, tCall.isSelfParallel() ? LabelStatus.SELF_PARALLEL_THREAD : LabelStatus.CREATED_THREAD);
+    }
+
+    private void createThread(CThreadCreateStatement tCall, LabelStatus pParentThread) throws HandleCodeException {
+      final String pVarName = tCall.getVariableName();
+      //Just to info
+      final String pFunctionName = tCall.getFunctionCallExpression().getFunctionNameExpression().toASTString();
+
+      if (from(tSet)
+          .anyMatch(l -> l.getName().equals(pFunctionName) && l.getVarName().equals(pVarName))) {
+        throw new HandleCodeException("Can not create thread " + pFunctionName + ", it was already created");
       }
+
+      ThreadLabel label = new ThreadLabel(pFunctionName, pVarName, pParentThread);
       if (!tSet.isEmpty() && tSet.get(tSet.size() - 1).isSelfParallel()) {
         //Can add only the same status
         label = label.toSelfParallelLabel();
@@ -75,27 +87,31 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
       tSet.add(label);
     }
 
-    public boolean removeFromThreadSet(ThreadLabel label) {
-      //assert tSet.get(tSet.size() -1 ).equals(label) : "try to remove " + label + ", the last was " + tSet.get(tSet.size() -1 );
-      if (tSet.isEmpty()) {
-        return false;
+    public ThreadState build(LocationState l, CallstackState c) {
+      //May be called several times per one builder
+      return new ThreadState(l, c, tSet, rSet);
+    }
+
+    public boolean joinThread(CThreadJoinStatement jCall) {
+      String pVarName = jCall.getVariableName();
+      ThreadLabel result = null;
+      for (ThreadLabel tmpLabel : tSet) {
+        if (tmpLabel.getVarName().equals(pVarName)) {
+          assert result == null : "Found several threads with the same variable";
+          assert tmpLabel.isParentThread() : "Try to self-join";
+          result = tmpLabel;
+        }
       }
-      ThreadLabel lastLabel = tSet.get(tSet.size() - 1);
-      if (lastLabel.equals(label)) {
-        return tSet.remove(label);
-      } else if (lastLabel.getName().equals(label.getName())) {
-        //We may have force self-parallel thread here
-        assert lastLabel.isSelfParallel();
-        return tSet.remove(lastLabel);
-      } else {
-        //Try to join non-created thread
+      if (result == null) {
         return false;
+      } else {
+        return tSet.remove(result);
       }
     }
 
-    public ThreadState build() {
-      //May be called several times per one builder
-      return new ThreadState(loc, cs, tSet, rSet);
+    public int getThreadSize() {
+      //Only for statistics
+      return tSet.size();
     }
   }
 
@@ -111,14 +127,24 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
     removedSet = Rset == null ? null : ImmutableList.copyOf(Rset);
   }
 
+  public String getCurrentThreadName() {
+    //Info method, in difficult cases may be wrong
+    Optional<ThreadLabel> createdThread = from(threadSet).firstMatch(l -> l.isCreatedThread());
+    if (createdThread.isPresent()) {
+      return createdThread.get().getName();
+    } else {
+      return "";
+    }
+  }
+
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((callstack == null) ? 0 : callstack.hashCode());
-    result = prime * result + ((location == null) ? 0 : location.hashCode());
-    result = prime * result + ((removedSet == null) ? 0 : removedSet.hashCode());
-    result = prime * result + ((threadSet == null) ? 0 : threadSet.hashCode());
+    result = prime * result + Objects.hashCode(callstack);
+    result = prime * result + Objects.hashCode(location);
+    result = prime * result + Objects.hashCode(removedSet);
+    result = prime * result + Objects.hashCode(threadSet);
     return result;
   }
 
@@ -127,42 +153,15 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     ThreadState other = (ThreadState) obj;
-    if (callstack == null) {
-      if (other.callstack != null) {
-        return false;
-      }
-    } else if (!callstack.equals(other.callstack)) {
-      return false;
-    }
-    if (location == null) {
-      if (other.location != null) {
-        return false;
-      }
-    } else if (!location.equals(other.location)) {
-      return false;
-    }
-    if (removedSet == null) {
-      if (other.removedSet != null) {
-        return false;
-      }
-    } else if (!removedSet.equals(other.removedSet)) {
-      return false;
-    }
-    if (threadSet == null) {
-      if (other.threadSet != null) {
-        return false;
-      }
-    } else if (!threadSet.equals(other.threadSet)) {
-      return false;
-    }
-    return true;
+    return Objects.equals(callstack, other.callstack)
+        && Objects.equals(location, other.location)
+        && Objects.equals(removedSet, other.removedSet)
+        && Objects.equals(threadSet, other.threadSet);
   }
 
   @Override
@@ -249,10 +248,9 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
     Preconditions.checkArgument(state instanceof ThreadState);
     ThreadState other = (ThreadState) state;
     for (ThreadLabel label : threadSet) {
-      for (ThreadLabel oLabel : other.threadSet) {
-        if (label.isCompatibleWith(oLabel)) {
-          return true;
-        }
+      if (from(other.threadSet)
+            .anyMatch(l -> label.isCompatibleWith(l))) {
+        return true;
       }
     }
     return false;
@@ -274,7 +272,7 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
 
   @Override
   public String toString() {
-    return threadSet.toString();
+    return getCurrentThreadName();
   }
 
   public static class StoredThreadState extends ThreadState {
@@ -294,7 +292,7 @@ public class ThreadState implements AbstractState, AbstractStateWithLocation, Pa
   }
 
   @Override
-  public boolean isEmpty() {
+  public boolean hasEmptyLockSet() {
     return true;
   }
 }

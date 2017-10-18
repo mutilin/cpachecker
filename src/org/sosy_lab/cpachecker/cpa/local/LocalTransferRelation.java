@@ -40,13 +40,12 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CParameterDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
-import org.sosy_lab.cpachecker.cfa.ast.c.CThreadCreateStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
@@ -57,6 +56,10 @@ import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
+import org.sosy_lab.cpachecker.cfa.types.c.CComplexType;
+import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
+import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
+import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
@@ -64,37 +67,35 @@ import org.sosy_lab.cpachecker.core.defaults.ForwardingTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.exceptions.HandleCodeException;
-import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.Triple;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.GeneralLocalVariableIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.ReturnIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
 
 @Options(prefix="cpa.local")
 public class LocalTransferRelation extends ForwardingTransferRelation<LocalState, LocalState, Precision> {
 
-  @Option(name="allocatefunctions", description = "functions, which allocate new free memory")
+  @Option(name="allocatefunctions", description = "functions, which allocate new free memory",
+      secure = true)
   private Set<String> allocate;
 
   //Use it carefully: just alloc is not enough, because EMG generates ldv_random_allocationless_scenario_callback_*
-  @Option(name="allocateFunctionPattern", description = "functions, which allocate new free memory")
+  @Option(name="allocateFunctionPattern", description = "functions, which allocate new free memory",
+      secure = true)
   private Set<String> allocatePattern = Sets.newHashSet();
 
-  @Option(name="conservativefunctions", description = "functions, which allocate new free memory")
+  @Option(name="conservativefunctions", description = "functions, which do not change sharedness of parameters",
+      secure = true)
   private Set<String> conservationOfSharedness;
 
   private Map<String, Integer> allocateInfo;
 
-  private final IdentifierCreator idCreator;
-
   public LocalTransferRelation(Configuration config) throws InvalidConfigurationException {
     config.inject(this);
     parseAllocatedFunctions(config);
-    idCreator = new IdentifierCreator();
   }
 
   @SuppressWarnings("deprecation")
@@ -115,6 +116,7 @@ public class LocalTransferRelation extends ForwardingTransferRelation<LocalState
 
   @Override
   protected LocalState handleAssumption(CAssumeEdge cfaEdge, CExpression expression, boolean truthAssumption) {
+    //Do not try to remove clone() - leads to problems in BAM's cache
     return state.clone();
   }
 
@@ -122,15 +124,13 @@ public class LocalTransferRelation extends ForwardingTransferRelation<LocalState
   protected LocalState handleReturnStatementEdge(CReturnStatementEdge cfaEdge) throws HandleCodeException {
     //TODO is it necessary to clone every time?
     //Guess, it is possible to return the same state (we add only in cloned states)
-    LocalState newState = state.clone();
     Optional<CExpression> returnExpression = cfaEdge.getExpression();
+    LocalState newState = state.clone();
     if (returnExpression.isPresent()) {
-      int dereference = findDereference(returnExpression.get().getExpressionType());
-      if (dereference > 0) {
-        AbstractIdentifier returnId = createId(returnExpression.get(), dereference);
-        DataType type = newState.getType(returnId);
-        newState.set(ReturnIdentifier.getInstance(), type);
-      }
+
+      int potentialDereference = findDereference(returnExpression.get().getExpressionType());
+      ReturnIdentifier id = ReturnIdentifier.getInstance(0);
+      assign(newState, id, potentialDereference, returnExpression.get());
     }
     return newState;
   }
@@ -139,45 +139,15 @@ public class LocalTransferRelation extends ForwardingTransferRelation<LocalState
   protected LocalState handleFunctionReturnEdge(CFunctionReturnEdge cfaEdge,
       CFunctionSummaryEdge fnkCall, CFunctionCall summaryExpr, String callerFunctionName) throws HandleCodeException {
     CFunctionCall exprOnSummary     = cfaEdge.getSummaryEdge().getExpression();
-    DataType returnType             = state.getType(ReturnIdentifier.getInstance());
-    LocalState newElement           = state.getPreviousState().clone();
+    LocalState newElement           = state.getClonedPreviousState();
 
     if (exprOnSummary instanceof CFunctionCallAssignmentStatement) {
       CFunctionCallAssignmentStatement assignExp = ((CFunctionCallAssignmentStatement)exprOnSummary);
-      String funcName = assignExp.getRightHandSide().getFunctionNameExpression().toASTString();
-      boolean isConservativeFunction = (conservationOfSharedness == null ? false : conservationOfSharedness.contains(funcName));
-
-      CExpression op1 = assignExp.getLeftHandSide();
-      CType type = op1.getExpressionType();
-      //find type in old state...
-      int dereference = findDereference(type);
-      AbstractIdentifier returnId = createId(op1, dereference);
-
-      if (isAllocatedFunction(funcName)) {
-        Integer num = allocateInfo.get(funcName);
-        if (num == null) {
-          //Means that we use pattern
-          num = 0;
-        }
-        if (num == 0) {
-          //local data are returned from function
-          if (!returnId.isGlobal()) {
-            newElement.forceSetLocal(returnId);
-          }
-        } else if (num > 0) {
-          handleAllocatedFunction(newElement, assignExp.getRightHandSide());
-        }
-      } else if (isConservativeFunction){
-
-        List<CExpression> parameters = assignExp.getRightHandSide().getParameterExpressions();
-        // Usually it looks like 'priv = netdev_priv(dev)'
-        // Other cases will be handled if they appear
-        CExpression targetParam = parameters.get(0);
-        AbstractIdentifier paramId = createId(targetParam, dereference);
-        newElement.set(returnId, state.getType(paramId));
-      } else {
-        newElement.set(returnId, returnType);
-      }
+      //Need to prepare id as left id is from caller function and the right id is from called function
+      int dereference = findDereference(assignExp.getLeftHandSide().getExpressionType());
+      AbstractIdentifier leftId = createId(assignExp.getLeftHandSide(), 0, new IdentifierCreator(callerFunctionName));
+      //return id is handled internally
+      assign(newElement, leftId, dereference, assignExp.getRightHandSide());
     }
     //Update the outer parameters:
     CFunctionSummaryEdge sEdge = cfaEdge.getSummaryEdge();
@@ -188,62 +158,134 @@ public class LocalTransferRelation extends ForwardingTransferRelation<LocalState
       List<CExpression> arguments = sEdge.getExpression().getFunctionCallExpression().getParameterExpressions();
       List<CParameterDeclaration> parameterTypes = entry.getFunctionDefinition().getParameters();
 
-      List<Pair<AbstractIdentifier, LocalVariableIdentifier>> toProcess =
-          extractIdentifiers(arguments, paramNames, parameterTypes);
+      List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> toProcess =
+          extractIdentifiers(arguments, paramNames, parameterTypes, funcName, getFunctionName());
 
-      for (Pair<AbstractIdentifier, LocalVariableIdentifier> pairId : toProcess) {
-        DataType newType = state.getType(pairId.getSecond());
-        newElement.set(pairId.getFirst(), newType);
+      for (Triple<AbstractIdentifier, LocalVariableIdentifier, Integer> pairId : toProcess) {
+        completeAssign(newElement, pairId.getFirst(), pairId.getThird(), pairId.getSecond());
       }
     }
     return newElement;
-  }
-
-  private void handleAllocatedFunction(LocalState pSuccessor, CFunctionCallExpression right) {
-    String funcName = right.getFunctionNameExpression().toASTString();
-    int num = allocateInfo.get(funcName);
-    if (num > 0) {
-      //local data are transmitted, as function parameters. F.e., allocate(&pointer);
-      CExpression parameter = right.getParameterExpressions().get(num - 1);
-      int dereference = findDereference(parameter.getExpressionType());
-      AbstractIdentifier rightId = createId(parameter, dereference);
-      if (!rightId.isGlobal()) {
-        pSuccessor.forceSetLocal(rightId);
-      }
-    }
   }
 
   @Override
   protected LocalState handleFunctionCallEdge(CFunctionCallEdge cfaEdge,
       List<CExpression> arguments, List<CParameterDeclaration> parameterTypes,
       String calledFunctionName) {
-    LocalState newState = new LocalState(state);
-
+    LocalState newState = LocalState.createNextLocalState(state);
     CFunctionEntryNode functionEntryNode = cfaEdge.getSuccessor();
     List<String> paramNames = functionEntryNode.getFunctionParameterNames();
 
-    List<Pair<AbstractIdentifier, LocalVariableIdentifier>> toProcess =
-        extractIdentifiers(arguments, paramNames, parameterTypes);
-
+    List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> toProcess =
+        extractIdentifiers(arguments, paramNames, parameterTypes, getFunctionName(), calledFunctionName);
     //TODO Make it with config
     boolean isThreadCreate = cfaEdge.getSummaryEdge().getExpression() instanceof CThreadCreateStatement;
 
-    for (Pair<AbstractIdentifier, LocalVariableIdentifier> pairId : toProcess) {
-      DataType type = state.getType(pairId.getFirst());
-      if (isThreadCreate && pairId.getSecond().getDereference() > 0) {
+    for (Triple<AbstractIdentifier, LocalVariableIdentifier, Integer> pairId : toProcess) {
+      if (isThreadCreate) {
         //Data became shared after thread creation
-        type = DataType.GLOBAL;
+        completeSet(newState, pairId.getSecond(), pairId.getThird(), DataType.GLOBAL);
+      } else {
+        completeAssign(newState, pairId.getSecond(), pairId.getThird(), pairId.getFirst());
       }
-      newState.set(pairId.getSecond(), type);
+    }
+
+    return newState;
+  }
+
+  @Override
+  protected LocalState handleStatementEdge(CStatementEdge cfaEdge, CStatement statement) {
+    LocalState newState = state.clone();
+    if (statement instanceof CAssignment) {
+      // assignment like "a = b" or "a = foo()"
+      CAssignment assignment = (CAssignment)statement;
+      assign(newState, assignment.getLeftHandSide(), assignment.getRightHandSide());
     }
     return newState;
   }
 
-  private List<Pair<AbstractIdentifier, LocalVariableIdentifier>> extractIdentifiers(
-      List<CExpression> arguments,
-      List<String> paramNames, List<CParameterDeclaration> parameterTypes) {
+  @Override
+  protected LocalState handleDeclarationEdge(CDeclarationEdge declEdge, CDeclaration decl) {
+    LocalState newState = state.clone();
+    if (decl instanceof CVariableDeclaration) {
+      CInitializer init = ((CVariableDeclaration)decl).getInitializer();
 
-    List<Pair<AbstractIdentifier, LocalVariableIdentifier>> result = new LinkedList<>();
+      int deref = findDereference(decl.getType());
+      AbstractIdentifier id = IdentifierCreator.createIdentifier(decl, getFunctionName(), 0);
+      CType type = decl.getType();
+      if (type instanceof CComplexType) {
+        if (type instanceof CElaboratedType) {
+          type = ((CElaboratedType)type).getRealType();
+        }
+        if (type instanceof CCompositeType) {
+          List<CCompositeTypeMemberDeclaration> members = ((CCompositeType)type).getMembers();
+          for (CCompositeTypeMemberDeclaration m : members) {
+            int typeDereference = findDereference(m.getType());
+            if (typeDereference > 0) {
+              //set it as local
+              StructureIdentifier sId = new StructureIdentifier(m.getName(), m.getType(), 0, id);
+              completeSet(newState, sId, typeDereference, DataType.LOCAL);
+            }
+          }
+        }
+      }
+      if (init != null && init instanceof CInitializerExpression) {
+        assign(newState, id, deref, ((CInitializerExpression)init).getExpression());
+      } else if (!decl.isGlobal() && type instanceof CArrayType) {
+        //Uninitialized arrays (int a[2]) are pointed to local memory
+        completeSet(newState, id, deref, DataType.LOCAL);
+      }
+    }
+    return newState;
+  }
+
+  private boolean handleSpecialFunction(LocalState pSuccessor, AbstractIdentifier leftId, int dereference, CFunctionCallExpression right) {
+    String funcName = right.getFunctionNameExpression().toASTString();
+    boolean isConservativeFunction = (conservationOfSharedness == null ? false : conservationOfSharedness.contains(funcName));
+
+    if (isAllocatedFunction(funcName)) {
+      Integer num = allocateInfo.get(funcName);
+      if (num == null) {
+        //Means that we use pattern
+        num = 0;
+      }
+      if (num == 0) {
+        //local data are returned from function
+        pSuccessor.set(leftId, DataType.LOCAL);
+      } else if (num > 0) {
+        num = allocateInfo.get(funcName);
+        if (num > 0) {
+          //local data are transmitted, as function parameters. F.e., allocate(&pointer);
+          CExpression parameter = right.getParameterExpressions().get(num - 1);
+          //TODO How it works?
+          AbstractIdentifier rightId = createId(parameter, dereference);
+          pSuccessor.set(rightId, DataType.LOCAL);
+        }
+      }
+      return true;
+
+    } else if (isConservativeFunction){
+
+      List<CExpression> parameters = right.getParameterExpressions();
+      // Usually it looks like 'priv = netdev_priv(dev)'
+      // Other cases will be handled if they appear
+      CExpression targetParam = parameters.get(0);
+      //TODO How it works with *a = f(b) ?
+      AbstractIdentifier paramId = createId(targetParam, dereference);
+      assign(pSuccessor, leftId, paramId);
+      return true;
+
+    }
+    return false;
+  }
+
+  private List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> extractIdentifiers(
+      List<CExpression> arguments,
+      List<String> paramNames, List<CParameterDeclaration> parameterTypes,
+      String callerFunction,
+      String calledFunction) {
+
+    List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> result = new LinkedList<>();
     CExpression currentArgument;
     int dereference;
     for (int i = 0; i < arguments.size(); i++) {
@@ -254,27 +296,96 @@ public class LocalTransferRelation extends ForwardingTransferRelation<LocalState
       }
       currentArgument = arguments.get(i);
       dereference = findDereference(parameterTypes.get(i).getType());
-      AbstractIdentifier previousId;
 
-      for (int j = 1; j <= dereference; j++) {
-        LocalVariableIdentifier id = new GeneralLocalVariableIdentifier(paramNames.get(i), j);
-        previousId = createId(currentArgument, j);
-        result.add(Pair.of(previousId, id));
-      }
+      LocalVariableIdentifier innerId = new LocalVariableIdentifier(paramNames.get(i),
+          parameterTypes.get(i).getType(), calledFunction, 0);
+      AbstractIdentifier outerId = createId(currentArgument, 0, new IdentifierCreator(callerFunction));
+      result.add(Triple.of(outerId, innerId, dereference));
     }
     return result;
   }
 
-  @Override
-  protected LocalState handleStatementEdge(CStatementEdge cfaEdge, CStatement statement) {
-    LocalState newState = state.clone();
-    if (statement instanceof CAssignment) {
-      // assignment like "a = b" or "a = foo()"
-      CAssignment assignment = (CAssignment)statement;
-      CExpression left = assignment.getLeftHandSide();
-      assign(newState, left, assignment.getRightHandSide());
+
+  private AbstractIdentifier createId(CExpression expression, int dereference, IdentifierCreator idCreator) {
+    return idCreator.createIdentifier(expression, dereference);
+  }
+
+  private AbstractIdentifier createId(CExpression expression, int dereference) {
+    return createId(expression, dereference, new IdentifierCreator(getFunctionName()));
+  }
+
+  private void assign(LocalState pSuccessor, CExpression left, CRightHandSide right) {
+    /* If we assign a = b, we should set *a <-> *b and **a <-> **b
+     */
+    AbstractIdentifier leftId = createId(left, 0);
+    if (!(leftId instanceof ConstantIdentifier)) {
+      int leftDereference = findDereference(left.getExpressionType());
+      if (right instanceof CExpression) {
+        assign(pSuccessor, leftId, leftDereference, (CExpression)right);
+
+      } else if (right instanceof CFunctionCallExpression) {
+        assign(pSuccessor, leftId, leftDereference, (CFunctionCallExpression) right);
+      }
     }
-    return newState;
+  }
+
+  private void assign(LocalState pSuccessor, AbstractIdentifier leftId, int leftDereference, CFunctionCallExpression right) {
+    for (int i = 0; i <= leftDereference; i++, leftId = incrementDereference(leftId)) {
+      if (!handleSpecialFunction(pSuccessor, leftId, i, right)) {
+        AbstractIdentifier returnId = ReturnIdentifier.getInstance(i);
+        assign(pSuccessor, leftId, returnId);
+      }
+    }
+  }
+
+  private void assign(LocalState pSuccessor, AbstractIdentifier leftId, int leftDereference, CExpression right) {
+    /* Difference in leftDereference and right one appears in very specific cases, like
+     * 'int* t = 0' and 'int* t[]; void* b; b = malloc(..); t = b;'
+     * Therefore, we use left dereference as main one
+     */
+    AbstractIdentifier rightId = createId(right, 0);
+    completeAssign(pSuccessor, leftId, leftDereference, rightId);
+  }
+
+  private void completeAssign(LocalState pSuccessor, AbstractIdentifier leftId, int dereference, AbstractIdentifier rightId) {
+    for (int i = 0; i <= dereference; i++,
+        leftId = incrementDereference(leftId), rightId = incrementDereference(rightId)) {
+      assign(pSuccessor, leftId, rightId);
+    }
+  }
+
+  private void completeSet(LocalState pSuccessor, AbstractIdentifier id, int dereference, DataType type) {
+    for (int i = 0; i <= dereference; i++, id = incrementDereference(id)) {
+      pSuccessor.set(id, type);
+    }
+  }
+
+  private void assign(LocalState pSuccessor, AbstractIdentifier leftId, AbstractIdentifier rightId) {
+    if (leftId.isGlobal()) {
+      //Variable is global, not memory location!
+      //So, we should set the type of 'right' to global
+      pSuccessor.set(rightId, DataType.GLOBAL);
+    } else {
+      DataType type = getType(rightId);
+      pSuccessor.set(leftId, type);
+    }
+  }
+
+  private DataType getType(AbstractIdentifier id) {
+    DataType type = state.getType(id);
+    if (type == null && id instanceof ConstantIdentifier) {
+      // return (struct myStruct *) 0; - consider the value as local
+      return DataType.LOCAL;
+    }
+    if (type == null && !id.isDereferenced()) {
+      //a = &b -> *a = b -> *a = local
+      return DataType.LOCAL;
+    }
+    return type;
+  }
+
+  private AbstractIdentifier incrementDereference(AbstractIdentifier id) {
+    return id.cloneWithDereference(id.getDereference() + 1);
   }
 
   public static int findDereference(CType type) {
@@ -289,97 +400,6 @@ public class LocalTransferRelation extends ForwardingTransferRelation<LocalState
     } else {
       return 0;
     }
-  }
-
-  private AbstractIdentifier createId(CExpression expression, int dereference) {
-    idCreator.setDereference(dereference);
-    AbstractIdentifier id = expression.accept(idCreator);
-    if (id instanceof GlobalVariableIdentifier || id instanceof LocalVariableIdentifier) {
-      id = ((SingleIdentifier)id).getGeneralId();
-    }
-    return id;
-  }
-
-  private void assign(LocalState pSuccessor, CExpression left, CRightHandSide right) {
-
-    int leftDereference = findDereference(left.getExpressionType());
-
-    /* If we assign a = b, we should set *a <-> *b and **a <-> **b
-     */
-    while (leftDereference > 0) {
-      AbstractIdentifier leftId = createId(left, leftDereference);
-
-      if (right instanceof CExpression && !(leftId instanceof ConstantIdentifier)) {
-        /* Difference in leftDereference and right one appears in very specific cases, like
-         * 'int* t = 0' and 'int* t[]; void* b; b = malloc(..); t = b;'
-         * Therefore, we use left dereference as main one
-         */
-        AbstractIdentifier rightId = createId((CExpression)right, leftDereference);
-        if (leftId.isGlobal() && !(leftId instanceof SingleIdentifier && LocalCPA.localVariables.contains(((SingleIdentifier)leftId).getName()))) {
-          if (!(rightId instanceof ConstantIdentifier)) {
-            //Variable is global, not memory location!
-            //So, we should set the type of 'right' to global
-            pSuccessor.set(rightId, DataType.GLOBAL);
-          }
-        } else {
-          DataType type = pSuccessor.getType(rightId);
-          pSuccessor.set(leftId, type);
-        }
-      } else if (right instanceof CFunctionCallExpression) {
-        String funcName = ((CFunctionCallExpression)right).getFunctionNameExpression().toASTString();
-        boolean isAllocatedFunction = isAllocatedFunction(funcName);
-        boolean isConservativeFunction = (conservationOfSharedness == null ? false : conservationOfSharedness.contains(funcName));
-
-        if (isAllocatedFunction) {
-          Integer num = allocateInfo.get(funcName);
-          if (num == null) {
-            //Means that we use pattern
-            num = 0;
-          }
-          if (num == 0) {
-            //local data are returned from function
-            if (!leftId.isGlobal()) {
-              pSuccessor.forceSetLocal(leftId);
-            }
-          } else if (num > 0) {
-            handleAllocatedFunction(pSuccessor, (CFunctionCallExpression) right);
-          }
-        } else if (isConservativeFunction) {
-          List<CExpression> parameters = ((CFunctionCallExpression)right).getParameterExpressions();
-          // Usually it looks like 'priv = netdev_priv(dev)'
-          // Other cases will be handled if they appear
-          CExpression targetParam = parameters.get(0);
-          AbstractIdentifier paramId = createId(targetParam, leftDereference);
-          pSuccessor.set(leftId, pSuccessor.getType(paramId));
-        } else {
-          /* unknown function
-           * It is important to reset the value
-           */
-          pSuccessor.set(leftId, null);
-        }
-      }
-      leftDereference--;
-    }
-  }
-
-  @Override
-  protected LocalState handleDeclarationEdge(CDeclarationEdge declEdge, CDeclaration decl) {
-    LocalState newState = state.clone();
-
-    if (decl instanceof CVariableDeclaration) {
-      CInitializer init = ((CVariableDeclaration)decl).getInitializer();
-      if (init != null && init instanceof CInitializerExpression) {
-        assign(newState, new CIdExpression(((CVariableDeclaration)decl).getFileLocation(), decl),
-            ((CInitializerExpression)init).getExpression());
-      } else {
-        if (findDereference(decl.getType()) > 0 && !decl.isGlobal()
-            && (declEdge.getSuccessor().getFunctionName().equals("ldv_main") || decl.getType() instanceof CArrayType)) {
-          //we don't save global variables
-          newState.set(new GeneralLocalVariableIdentifier(decl.getName(), findDereference(decl.getType())), DataType.LOCAL);
-        }
-      }
-    }
-    return newState;
   }
 
   private boolean isAllocatedFunction(String funcName) {

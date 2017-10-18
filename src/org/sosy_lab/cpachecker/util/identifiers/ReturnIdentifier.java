@@ -23,15 +23,14 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import java.util.HashMap;
 import java.util.Map;
-
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 
 
 public class ReturnIdentifier extends VariableIdentifier implements GeneralIdentifier {
 
-  private static ReturnIdentifier instance;
+  private static Map<Integer, ReturnIdentifier> instances;
 
   private ReturnIdentifier(String pNm, CType pTp, int pDereference) {
     super(pNm, pTp, pDereference);
@@ -44,12 +43,7 @@ public class ReturnIdentifier extends VariableIdentifier implements GeneralIdent
 
   @Override
   public SingleIdentifier clone() {
-    return instance;
-  }
-
-  @Override
-  public SingleIdentifier clearDereference() {
-    return instance;
+    return this;
   }
 
   @Override
@@ -62,16 +56,22 @@ public class ReturnIdentifier extends VariableIdentifier implements GeneralIdent
     return null;
   }
 
-  public static ReturnIdentifier getInstance() {
-    if (instance == null) {
-      instance = new ReturnIdentifier("__returnId", null, 0);
+  public static ReturnIdentifier getInstance(int d) {
+    if (instances == null) {
+      instances = new HashMap<>();
     }
-    return instance;
+    if (instances.containsKey(d)) {
+      return instances.get(d);
+    } else {
+      ReturnIdentifier id = new ReturnIdentifier("__returnId", null, d);
+      instances.put(d, id);
+      return id;
+    }
   }
 
   @Override
   public int compareTo(AbstractIdentifier pO) {
-    if (pO == instance) {
+    if (pO == this) {
       return 0;
     } else {
       return -1;
@@ -79,8 +79,7 @@ public class ReturnIdentifier extends VariableIdentifier implements GeneralIdent
   }
 
   @Override
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    return pLocalInfo.get(instance);
+  public AbstractIdentifier cloneWithDereference(int pDereference) {
+    return getInstance(pDereference);
   }
-
 }

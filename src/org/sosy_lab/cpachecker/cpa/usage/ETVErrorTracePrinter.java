@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.charset.Charset;
@@ -30,14 +31,17 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.FileOption;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
@@ -53,24 +57,27 @@ import org.sosy_lab.cpachecker.util.identifiers.StructureFieldIdentifier;
 @Options(prefix="cpa.usage")
 public class ETVErrorTracePrinter extends ErrorTracePrinter {
 
-  @Option(name="output", description="path to write results")
+  @Option(name="output", description="path to write results",
+      secure = true)
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path outputStatFileName = Paths.get("unsafe_rawdata");
 
-  private final LockTransferRelation lTransfer;
-  private Writer writer;
+  @Option(description="use single file for output or dump every error trace to its own file",
+      secure = true)
+  private boolean singleFileOutput = false;
 
-  public ETVErrorTracePrinter(Configuration pC, BAMTransferRelation pT, LogManager pL, LockTransferRelation t) {
-    super(pC, pT, pL);
-    lTransfer = t;
+  private Writer globalWriter;
+
+  public ETVErrorTracePrinter(Configuration pC, BAMTransferRelation pT, LogManager pL, LockTransferRelation t) throws InvalidConfigurationException {
+    super(pC, pT, pL, t);
   }
 
   @Override
   protected void init() {
     try {
-      writer = Files.newBufferedWriter(Paths.get(outputStatFileName.toString()), Charset.defaultCharset());
+      globalWriter = Files.newBufferedWriter(Paths.get(outputStatFileName.toString()), Charset.defaultCharset());
       logger.log(Level.FINE, "Print statistics about unsafe cases");
-      printCountStatistics(writer, container.getUnsafeIterator());
+      printCountStatistics(globalWriter, container.getUnsafeIterator());
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Exception during init actions: " + e.getMessage());
     }
@@ -79,7 +86,7 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
   @Override
   protected void finish() {
     try {
-      writer.close();
+      globalWriter.close();
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Exception during finish actions: " + e.getMessage());
     }
@@ -87,7 +94,15 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
 
   @Override
   protected void printUnsafe(SingleIdentifier id, Pair<UsageInfo, UsageInfo> pPair) {
+    File name = new File("output/ErrorPath." + createUniqueName(id) + ".txt");
+    Writer writer;
     try {
+      if (singleFileOutput) {
+        writer = globalWriter;
+      } else {
+        writer = Files.newBufferedWriter(name.toPath(), Charset.defaultCharset());
+      }
+
       if (id instanceof StructureFieldIdentifier) {
         writer.append("###\n");
       } else if (id instanceof GlobalVariableIdentifier) {
@@ -108,6 +123,9 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
 
       createVisualization(id, pPair.getFirst(), writer);
       createVisualization(id, pPair.getSecond(), writer);
+      if (!singleFileOutput) {
+        writer.close();
+      }
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Exception while printing unsafe " + id + ": " + e.getMessage());
     }
@@ -123,17 +141,21 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
     if (usage.isLooped()) {
       writer.append("Line 0:     N0 -{/*Failure in refinement*/}-> N0\n");
     }
-    if (usage.getPath() == null && usage.getKeyState() != null) {
-      createPath(usage);
+    List<CFAEdge> path = getPath(usage);
+    if (path == null) {
+      return;
     }
     int callstackDepth = 1;
     /*
      * We must use iterator to be sure, when is the end of the list.
      * I tried to check the edge, it is the last, but it can be repeated during the sequence
      */
-    Iterator<CFAEdge> iterator = usage.getPath().iterator();
+    Iterator<CFAEdge> iterator = path.iterator();
     while (iterator.hasNext()) {
       CFAEdge edge = iterator.next();
+      if (edge instanceof CDeclarationEdge) {
+        continue;
+      }
       if (edge instanceof CFunctionCallEdge && iterator.hasNext()) {
         callstackDepth++;
       } else if (edge instanceof CFunctionReturnEdge) {
@@ -146,8 +168,8 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
         assert callstackDepth > 0;
         callstackDepth--;
       }
-      String caption = shouldBeHighlighted(edge);
-      if (caption != null && !(edge instanceof CFunctionReturnEdge)) {
+      String caption = getNoteFor(edge);
+      if (!caption.isEmpty() && !(edge instanceof CFunctionReturnEdge)) {
         writer.write("Line 0:     N0 -{/*" + caption + "*/}-> N0\n");
         writer.write("Line 0:     N0 -{highlight}-> N0\n");
       } else if (edge.getLineNumber() == usage.getLine().getLine() && edge.toString().contains(id.getName())) {
@@ -198,13 +220,5 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
     writer.append(fields + "\n");
     writer.append(fieldPointer + "\n");
     writer.append(global + globalPointer + local + localPointer + fields + fieldPointer + "\n");
-  }
-
-  private String shouldBeHighlighted(CFAEdge pEdge) {
-    if (lTransfer != null) {
-      return lTransfer.doesChangeTheState(pEdge);
-    } else {
-      return null;
-    }
   }
 }

@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.lock;
 
+import java.util.HashSet;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -35,13 +36,18 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.cpa.lock.LockState.LockStateBuilder;
 
-@Options(prefix="cpa.lockstatistics")
+@Options(prefix="cpa.lock")
 public class LockReducer implements Reducer {
 
-  @Option(description="reduce recursive locks to a single access")
+  @Option(description="reduce recursive locks to a single access",
+      secure = true)
   private boolean aggressiveReduction = false;
 
-  @Option(description="reduce unused locks")
+  //Attention! Error trace may be restored incorrectly.
+  //If two states with different locks are reduced to the one state,
+  //the path will be always restored through the first one
+  @Option(description="reduce unused locks",
+      secure = true)
   private boolean reduceUselessLocks = false;
 
   public LockReducer(Configuration config) throws InvalidConfigurationException {
@@ -56,7 +62,7 @@ public class LockReducer implements Reducer {
     if (reduceUselessLocks) {
       builder.reduceLocks(pContext.getCapturedLocks());
     } else if (aggressiveReduction) {
-      builder.reduceLockCounters(pContext.getCapturedLocks());
+      builder.reduceLockCounters(new HashSet<>());
     }
     return builder.build();
   }
@@ -72,7 +78,7 @@ public class LockReducer implements Reducer {
     if (reduceUselessLocks) {
       builder.expandLocks(rootState, pReducedContext.getCapturedLocks());
     } else if (aggressiveReduction) {
-      builder.expandLockCounters(rootState, pReducedContext.getCapturedLocks());
+      builder.expandLockCounters(rootState, new HashSet<>());
     }
     return builder.build();
   }

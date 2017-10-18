@@ -1,8 +1,11 @@
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
+import static com.google.common.collect.FluentIterable.from;
+
 import com.google.common.base.Preconditions;
-import java.util.LinkedList;
+import com.google.common.collect.FluentIterable;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
@@ -18,15 +21,14 @@ public class UsagePoint implements Comparable<UsagePoint> {
 
     private UsagePointWithEmptyLockSet(List<UsageTreeNode> nodes, Access pAccess, UsageInfo pInfo) {
       super(nodes, pAccess);
-      assert pInfo != null;
-      keyUsage = pInfo;
+      keyUsage = Objects.requireNonNull(pInfo);
     }
 
     @Override
     public int hashCode() {
       final int prime = 31;
       int result = super.hashCode();
-      result = prime * result + ((keyUsage == null) ? 0 : keyUsage.hashCode());
+      result = prime * result + Objects.hashCode(keyUsage);
       return result;
     }
 
@@ -38,14 +40,8 @@ public class UsagePoint implements Comparable<UsagePoint> {
       }
       UsagePointWithEmptyLockSet other = (UsagePointWithEmptyLockSet) obj;
       //This is for distinction usages with empty sets of locks
-      if (keyUsage == null) {
-        if (other.keyUsage != null) {
-          return false;
-        }
-      } else if (!keyUsage.equals(other.keyUsage)) {
-        return false;
-      }
-      return true;
+
+      return Objects.equals(keyUsage, other.keyUsage);
     }
 
     @Override
@@ -90,27 +86,23 @@ public class UsagePoint implements Comparable<UsagePoint> {
   private final Set<UsagePoint> coveredUsages;
 
   private UsagePoint(List<UsageTreeNode> nodes, Access pAccess) {
-    //locks = ImmutableSortedSet.copyOf(states);
     access = pAccess;
     coveredUsages = new TreeSet<>();
     compatibleNodes = nodes;
   }
 
   public static UsagePoint createUsagePoint(UsageInfo info) {
-    List<CompatibleState> states = info.getAllCompatibleStates();
-    List<UsageTreeNode> nodes = new LinkedList<>();
 
     Access accessType = info.getAccess();
-    boolean isEmpty = true;
-    for (CompatibleState state : states) {
-      UsageTreeNode constructedNode = state.getTreeNode();
-      isEmpty &= constructedNode.isEmpty();
-      nodes.add(constructedNode);
-    }
-    if (!isEmpty) {
-      return new UsagePoint(nodes, accessType);
+
+    FluentIterable<UsageTreeNode> nodes =
+        from(info.getAllCompatibleStates())
+        .transform(CompatibleState::getTreeNode);
+
+    if (nodes.allMatch(UsageTreeNode::hasEmptyLockSet)) {
+      return new UsagePointWithEmptyLockSet(nodes.toList(), accessType, info);
     } else {
-      return new UsagePointWithEmptyLockSet(nodes, accessType, info);
+      return new UsagePoint(nodes.toList(), accessType);
     }
 
   }
@@ -136,8 +128,8 @@ public class UsagePoint implements Comparable<UsagePoint> {
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((access == null) ? 0 : access.hashCode());
-    result = prime * result + ((compatibleNodes == null) ? 0 : compatibleNodes.hashCode());
+    result = prime * result + Objects.hashCode(access);
+    result = prime * result + Objects.hashCode(compatibleNodes);
     return result;
   }
 
@@ -146,24 +138,13 @@ public class UsagePoint implements Comparable<UsagePoint> {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     UsagePoint other = (UsagePoint) obj;
-    if (access != other.access) {
-      return false;
-    }
-    if (compatibleNodes == null) {
-      if (other.compatibleNodes != null) {
-        return false;
-      }
-    } else if (!compatibleNodes.equals(other.compatibleNodes)) {
-      return false;
-    }
-    return true;
+    return access == other.access
+        && Objects.equals(compatibleNodes, other.compatibleNodes);
   }
 
   @Override
@@ -219,9 +200,8 @@ public class UsagePoint implements Comparable<UsagePoint> {
     return false;
   }
 
-  /*@Override
+  @Override
   public String toString() {
-    String result = "(" + locks.toString() + ", " + access;
-    return result + ")";
-  }*/
+    return access + ":" + compatibleNodes;
+  }
 }

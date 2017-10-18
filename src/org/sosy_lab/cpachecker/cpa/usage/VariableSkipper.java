@@ -23,8 +23,9 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage;
 
-import java.util.Set;
+import static com.google.common.collect.FluentIterable.from;
 
+import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -35,21 +36,26 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
 
-@Options(prefix="cpa.usagestatistics.skippedvariables")
+@Options(prefix="cpa.usage.skippedvariables")
 public class VariableSkipper {
-  @Option(description = "variables, which will be filtered by its name")
+  @Option(description = "variables, which will be filtered by its name",
+      secure = true)
   private Set<String> byName = null;
 
-  @Option(description = "variables, which will be filtered by its name prefix")
+  @Option(description = "variables, which will be filtered by its name prefix",
+      secure = true)
   private Set<String> byNamePrefix = null;
 
-  @Option(description = "variables, which will be filtered by its type")
+  @Option(description = "variables, which will be filtered by its type",
+      secure = true)
   private Set<String> byType = null;
 
-  @Option(description = "variables, which will be filtered by function location")
+  @Option(description = "variables, which will be filtered by function location",
+      secure = true)
   private Set<String> byFunction = null;
 
-  @Option(description = "variables, which will be filtered by function prefix")
+  @Option(description = "variables, which will be filtered by function prefix",
+      secure = true)
   private Set<String> byFunctionPrefix = null;
 
   public VariableSkipper(Configuration pConfig) throws InvalidConfigurationException {
@@ -79,12 +85,10 @@ public class VariableSkipper {
       return true;
     }
 
-    if (byFunctionPrefix != null) {
-      for (String prefix : byFunctionPrefix) {
-        if (functionName.startsWith(prefix)) {
-          return true;
-        }
-      }
+    if (byFunctionPrefix != null &&
+        from(byFunctionPrefix)
+          .anyMatch(prefix -> functionName.startsWith(prefix))) {
+      return true;
     }
 
     return false;
@@ -93,17 +97,13 @@ public class VariableSkipper {
   private boolean checkId(SingleIdentifier singleId) {
     String varName = singleId.getName();
 
-    if (byName != null) {
-      if (byName.contains(varName)) {
-        return true;
-      }
+    if (byName != null && byName.contains(varName)) {
+      return true;
     }
-    if (byNamePrefix != null) {
-      for (String prefix : byNamePrefix) {
-        if (varName.startsWith(prefix)) {
-          return true;
-        }
-      }
+    if (byNamePrefix != null &&
+        from(byNamePrefix)
+          .anyMatch(prefix -> varName.startsWith(prefix))) {
+      return true;
     }
     if (byType != null) {
       CType idType = singleId.getType();

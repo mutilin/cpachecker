@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 
@@ -42,31 +43,31 @@ public class GeneralLocalVariableIdentifier extends LocalVariableIdentifier impl
     final int prime = 31;
     int result = 1;
     result = prime * result + dereference;
-    result = prime * result + ((name == null) ? 0 : name.hashCode());
+    result = prime * result + Objects.hashCode(name);
     return result;
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj)
+    if (this == obj) {
       return true;
-    if (obj == null)
+    }
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
-    if (getClass() != obj.getClass())
-      return false;
+    }
     SingleIdentifier other = (SingleIdentifier) obj;
-    if (dereference != other.dereference)
-      return false;
-    if (name == null) {
-      if (other.name != null)
-        return false;
-    } else if (!name.equals(other.name))
-      return false;
-    return true;
+    return dereference == other.dereference
+        && Objects.equals(name, other.name);
   }
 
   @Override
   public GeneralLocalVariableIdentifier clone() {
-    return new GeneralLocalVariableIdentifier(name, type, function, dereference);
+    return cloneWithDereference(dereference);
+  }
+
+  @Override
+  public GeneralLocalVariableIdentifier cloneWithDereference(int deref) {
+    return new GeneralLocalVariableIdentifier(name, type, function, deref);
   }
 }

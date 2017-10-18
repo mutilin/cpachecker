@@ -30,8 +30,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import javax.xml.parsers.ParserConfigurationException;
 import org.sosy_lab.common.Appender;
@@ -41,12 +43,17 @@ import org.sosy_lab.common.io.MoreFiles;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
+import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cpa.bam.BAMTransferRelation;
+import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.AssumeCase;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.GraphMlBuilder;
@@ -61,14 +68,57 @@ import org.w3c.dom.Element;
 
 public class KleverErrorTracePrinter extends ErrorTracePrinter {
 
-  public KleverErrorTracePrinter(Configuration c, BAMTransferRelation pT, LogManager pL) {
-    super(c, pT, pL);
+  private static class ThreadIterator implements Iterator<Integer> {
+    private Set<Integer> usedThreadIds;
+    private int currentThread;
+
+    public ThreadIterator() {
+      usedThreadIds = new HashSet<>();
+      currentThread = 0;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return true;
+    }
+
+    @Override
+    public Integer next() {
+      int nextThread = currentThread + 1;
+      while (usedThreadIds.contains(nextThread)) {
+        nextThread++;
+      }
+      currentThread = nextThread;
+      usedThreadIds.add(Integer.valueOf(nextThread));
+      return getCurrentThread();
+    }
+
+    public int getCurrentThread() {
+      return currentThread;
+    }
+
+    public void setCurrentThread(int newVal) {
+      currentThread = newVal;
+    }
+  }
+
+  public KleverErrorTracePrinter(Configuration c, BAMTransferRelation pT, LogManager pL, LockTransferRelation lT) throws InvalidConfigurationException {
+    super(c, pT, pL, lT);
   }
 
   int idCounter = 0;
-  private String getId() {
-    return "A" + idCounter++;
+  ThreadIterator threadIterator;
+
+  private String getCurrentId() {
+    return "A" + idCounter;
   }
+
+  private String getNextId() {
+    idCounter++;
+    return getCurrentId();
+  }
+
+  private Element currentNode;
 
   @Override
   protected void printUnsafe(SingleIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair) {
@@ -76,16 +126,12 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     UsageInfo secondUsage = pTmpPair.getSecond();
     List<CFAEdge> firstPath, secondPath;
 
-    if (firstUsage.getPath() == null) {
-      createPath(firstUsage);
+    firstPath = getPath(firstUsage);
+    if (firstPath == null) {
+      return;
     }
-    firstPath = firstUsage.getPath();
-    if (secondUsage.getPath() == null) {
-      createPath(secondUsage);
-    }
-    secondPath = secondUsage.getPath();
-
-    if (firstPath == null || secondPath == null) {
+    secondPath = getPath(secondUsage);
+    if (secondPath == null) {
       return;
     }
     try {
@@ -97,16 +143,60 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
           MachineModel.LINUX64, new VerificationTaskMetaData(config, java.util.Optional.empty()));
 
       idCounter = 0;
-      Element result = builder.createNodeElement("A0", NodeType.ONPATH);
+      threadIterator = new ThreadIterator();
+      Element result = builder.createNodeElement(getCurrentId(), NodeType.ONPATH);
       builder.addDataElementChild(result, NodeFlag.ISENTRY.key , "true");
-      printPath(firstUsage, 0, builder);
-      result = printPath(secondUsage, 1, builder);
 
-      builder.addDataElementChild(result, NodeFlag.ISVIOLATION.key, "true");
+      Iterator<CFAEdge> firstIterator = getIterator(firstPath);
+      Iterator<CFAEdge> secondIterator = getIterator(secondPath);
 
-      //builder.appendTo(w);
+      if (!firstIterator.hasNext()) {
+        //Empty path is strange
+        logger.log(Level.WARNING, "Path to " + firstUsage + "is empty");
+        return;
+      }
+
+      if (!secondIterator.hasNext()) {
+        //Empty path is strange
+        logger.log(Level.WARNING, "Path to " + secondUsage + "is empty");
+        return;
+      }
+
+      CFAEdge firstEdge = firstIterator.next();
+      CFAEdge secondEdge = secondIterator.next();
+      int forkThread = 0;
+
+      while (firstEdge.equals(secondEdge)) {
+        if (isThreadCreateNFunction(firstEdge)) {
+          break;
+        }
+
+        printEdge(builder, firstEdge);
+
+        if (!firstIterator.hasNext()) {
+          logger.log(Level.WARNING, "Path to " + firstUsage + "is ended before deviding");
+          return;
+        } else if (!secondIterator.hasNext()) {
+          logger.log(Level.WARNING, "Path to " + secondUsage + "is ended before deviding");
+          return;
+        }
+
+        firstEdge = firstIterator.next();
+        secondEdge = secondIterator.next();
+      }
+
+      forkThread = threadIterator.getCurrentThread();
+      printEdge(builder, firstEdge);
+      printPath(firstUsage, firstIterator, builder);
+
+      threadIterator.setCurrentThread(forkThread);
+      printEdge(builder, secondEdge);
+      printPath(secondUsage, secondIterator, builder);
+
+      builder.addDataElementChild(currentNode, NodeFlag.ISVIOLATION.key, "true");
+
       MoreFiles.writeFile(Paths.get(name.getAbsolutePath()), Charset.defaultCharset(), (Appender) a -> builder.appendTo(a));
-      //w.close();
+
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Exception during printing unsafe " + pId + ": " + e.getMessage());
     } catch (ParserConfigurationException e) {
@@ -116,21 +206,14 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     } catch (InvalidConfigurationException e1) {
       logger.log(Level.SEVERE, "Exception during printing unsafe " + pId + ": " + e1.getMessage());
     }
-
   }
 
-
-  private Element printPath(UsageInfo usage, int threadId, GraphMlBuilder builder) {
-    String currentId = getId(), nextId = currentId;
+  private void printPath(UsageInfo usage, Iterator<CFAEdge> iterator, GraphMlBuilder builder) {
     SingleIdentifier pId = usage.getId();
     List<CFAEdge> path = usage.getPath();
 
-    Iterator<CFAEdge> iterator = from(path)
-               .filter(FILTER_EMPTY_FILE_LOCATIONS)
-               .iterator();
-
     Optional<CFAEdge> warningEdge = from(path)
-      .filter(e -> e.getLineNumber() == usage.getLine().getLine() && e.toString().contains(pId.getName()))
+      .filter(e -> e.getPredecessor() == usage.getLine().getNode() && e.toString().contains(pId.getName()))
       .last();
 
     CFAEdge warning;
@@ -141,34 +224,47 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
       logger.log(Level.WARNING, "Can not determine an unsafe edge");
       warning = null;
     }
-    Element result = null;
-    Element lastWarningElement = null;
+
+    Element lastWarningEdge = null;
 
     while (iterator.hasNext()) {
-      currentId = nextId;
-      nextId = getId();
       CFAEdge pEdge = iterator.next();
 
-      result = builder.createEdgeElement(currentId, nextId);
-      dumpCommonInfoForEdge(builder, result, pEdge);
-      builder.addDataElementChild(result, KeyDef.THREADID, Integer.toString(threadId));
+      Element edge = printEdge(builder, pEdge);
 
       if (pEdge == warning) {
-        lastWarningElement = result;
+        lastWarningEdge = edge;
       }
-      result = builder.createNodeElement(nextId, NodeType.ONPATH);
-    }
-    if (lastWarningElement != null) {
-      builder.addDataElementChild(lastWarningElement, KeyDef.WARNING, usage.getWarningMessage());
     }
 
-    //Special hack to connect two traces
-    idCounter--;
+    if (lastWarningEdge != null) {
+      builder.addDataElementChild(lastWarningEdge, KeyDef.WARNING, usage.getWarningMessage());
+    }
+  }
+
+  private Element printEdge(GraphMlBuilder builder, CFAEdge edge) {
+
+    if (isThreadCreateFunction(edge)) {
+      CFunctionSummaryEdge sEdge = ((CFunctionCallEdge)edge).getSummaryEdge();
+      Element result = printEdge(builder, sEdge);
+      builder.addDataElementChild(result, KeyDef.CREATETHREAD, Integer.toString(threadIterator.next()));
+    }
+    return printEdge(builder, edge, getCurrentId(), getNextId());
+  }
+
+  private Element printEdge(GraphMlBuilder builder, CFAEdge edge, String currentId, String nextId) {
+    Element result = builder.createEdgeElement(currentId, nextId);
+    dumpCommonInfoForEdge(builder, result, edge);
+
+    String note = getNoteFor(edge);
+    if (!note.isEmpty()) {
+      builder.addDataElementChild(result, KeyDef.NOTE, note);
+    }
+    currentNode = builder.createNodeElement(nextId, NodeType.ONPATH);
     return result;
   }
 
   private void dumpCommonInfoForEdge(GraphMlBuilder builder, Element result, CFAEdge pEdge) {
-
     if (pEdge.getSuccessor() instanceof FunctionEntryNode) {
       FunctionEntryNode in = (FunctionEntryNode) pEdge.getSuccessor();
       builder.addDataElementChild(result, KeyDef.FUNCTIONENTRY, in.getFunctionName());
@@ -194,6 +290,37 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     if (!pEdge.getRawStatement().trim().isEmpty()) {
       builder.addDataElementChild(result, KeyDef.SOURCECODE, pEdge.getRawStatement());
     }
+
+    builder.addDataElementChild(result, KeyDef.THREADID, Integer.toString(threadIterator.getCurrentThread()));
   }
 
+  private Iterator<CFAEdge> getIterator(List<CFAEdge> path) {
+    return from(path)
+        .filter(FILTER_EMPTY_FILE_LOCATIONS)
+        .iterator();
+  }
+
+  private boolean isThreadCreateFunction(CFAEdge pEdge) {
+    if (pEdge instanceof CFunctionCallEdge) {
+      CFunctionSummaryEdge sEdge = ((CFunctionCallEdge)pEdge).getSummaryEdge();
+      CFunctionCall fCall = sEdge.getExpression();
+      if (fCall instanceof CThreadCreateStatement) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isThreadCreateNFunction(CFAEdge pEdge) {
+    if (pEdge instanceof CFunctionCallEdge) {
+      CFunctionSummaryEdge sEdge = ((CFunctionCallEdge)pEdge).getSummaryEdge();
+      CFunctionCall fCall = sEdge.getExpression();
+      if (fCall instanceof CThreadCreateStatement) {
+        if (((CThreadCreateStatement)fCall).isSelfParallel()) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
 }

@@ -24,10 +24,12 @@
 package org.sosy_lab.cpachecker.cpa.usage;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import javax.annotation.Nonnull;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -45,7 +47,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
     READ;
   }
 
-  private final static UsageInfo UNSUPPORTED_USAGE = new UsageInfo();
+  private final static UsageInfo IRRELEVANT_USAGE = new UsageInfo();
 
   private final LineInfo line;
   private final Access accessType;
@@ -76,17 +78,18 @@ public class UsageInfo implements Comparable<UsageInfo> {
     id = ident;
   }
 
-  public static UsageInfo createUsageInfo(@Nonnull Access atype,  int l,
+  public static UsageInfo createUsageInfo(@Nonnull Access atype, int l,
       @Nonnull UsageState state, AbstractIdentifier ident) {
     if (ident instanceof SingleIdentifier) {
       UsageInfo result = new UsageInfo(atype, new LineInfo(l, AbstractStates.extractLocation(state)), (SingleIdentifier)ident);
-      AbstractStates.asIterable(state)
-        .filter(CompatibleState.class)
-        .forEach(s -> result.compatibleStates.put(s.getClass(), s.prepareToStore()));
-      return result;
-    } else {
-      return UNSUPPORTED_USAGE;
+      FluentIterable<CompatibleState> states = AbstractStates.asIterable(state)
+        .filter(CompatibleState.class);
+      if (states.allMatch(s -> s.isRelevantFor(result.id))) {
+        states.forEach(s -> result.compatibleStates.put(s.getClass(), s.prepareToStore()));
+        return result;
+      }
     }
+    return IRRELEVANT_USAGE;
   }
 
   public CompatibleState getState(Class<? extends CompatibleState> pClass) {
@@ -118,23 +121,17 @@ public class UsageInfo implements Comparable<UsageInfo> {
     return isLooped;
   }
 
-  public boolean isSupported() {
-    return this != UNSUPPORTED_USAGE;
-  }
-
-  public @Nonnull void setId(SingleIdentifier pId) {
-    //Now it is set while creation
-    assert id == null || id.getName().equals(pId.getName()) : "Old id " + id + ", new one - " + pId;
-    //id = pId;
+  public boolean isRelevant() {
+    return this != IRRELEVANT_USAGE;
   }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
-    result = prime * result + ((accessType == null) ? 0 : accessType.hashCode());
-    result = prime * result + ((line == null) ? 0 : line.hashCode());
-    result = prime * result + ((compatibleStates == null) ? 0 : compatibleStates.hashCode());
+    result = prime * result + Objects.hashCode(accessType);
+    result = prime * result + Objects.hashCode(line);
+    result = prime * result + Objects.hashCode(compatibleStates);
     return result;
   }
 
@@ -143,31 +140,14 @@ public class UsageInfo implements Comparable<UsageInfo> {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     UsageInfo other = (UsageInfo) obj;
-    if (accessType != other.accessType) {
-      return false;
-    }
-    if (line == null) {
-      if (other.line != null) {
-        return false;
-      }
-    } else if (!line.equals(other.line)) {
-      return false;
-    }
-    if (compatibleStates == null) {
-      if (other.compatibleStates != null) {
-        return false;
-      }
-    } else if (!compatibleStates.equals(other.compatibleStates)) {
-      return false;
-    }
-    return true;
+    return accessType == other.accessType
+        && Objects.equals(line, other.line)
+        && Objects.equals(compatibleStates, other.compatibleStates);
   }
 
   @Override

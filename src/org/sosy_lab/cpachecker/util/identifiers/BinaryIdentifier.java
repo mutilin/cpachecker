@@ -23,16 +23,17 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import com.google.common.collect.Sets;
 import java.util.Collection;
-import java.util.Map;
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
+import java.util.Objects;
+import java.util.Set;
 
 
 
 public class BinaryIdentifier implements AbstractIdentifier {
-  protected AbstractIdentifier id1;
-  protected AbstractIdentifier id2;
-  protected int dereference;
+  protected final AbstractIdentifier id1;
+  protected final AbstractIdentifier id2;
+  protected final int dereference;
 
   public BinaryIdentifier(AbstractIdentifier i1, AbstractIdentifier i2, int deref) {
     id1 = i1;
@@ -45,8 +46,8 @@ public class BinaryIdentifier implements AbstractIdentifier {
     final int prime = 31;
     int result = 1;
     result = prime * result + dereference;
-    result = prime * result + ((id1 == null) ? 0 : id1.hashCode());
-    result = prime * result + ((id2 == null) ? 0 : id2.hashCode());
+    result = prime * result + Objects.hashCode(id1);
+    result = prime * result + Objects.hashCode(id2);
     return result;
   }
   @Override
@@ -54,46 +55,19 @@ public class BinaryIdentifier implements AbstractIdentifier {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     BinaryIdentifier other = (BinaryIdentifier) obj;
-    if (dereference != other.dereference) {
-      return false;
-    }
-    if (id1 == null) {
-      if (other.id1 != null) {
-        return false;
-      }
-    } else if (!id1.equals(other.id1)) {
-      return false;
-    }
-    if (id2 == null) {
-      if (other.id2 != null) {
-        return false;
-      }
-    } else if (!id2.equals(other.id2)) {
-      return false;
-    }
-    return true;
+    return dereference == other.dereference
+        && Objects.equals(id1, other.id1)
+        && Objects.equals(id2, other.id2);
   }
 
   @Override
   public String toString() {
-    String info = "";
-    if (dereference > 0) {
-      for (int i = 0; i < dereference; i++) {
-        info += "*";
-      }
-    } else if (dereference == -1) {
-      info += "&";
-    } else if (dereference < -1){
-      info = "Error in string representation, dereference < -1";
-      return info;
-    }
+    String info = Identifiers.getCharsOf(dereference);
     info += "(" + id1.toString() + " # " + id2.toString() + ")";
     return info;
   }
@@ -104,8 +78,13 @@ public class BinaryIdentifier implements AbstractIdentifier {
   }
 
   @Override
+  public BinaryIdentifier cloneWithDereference(int pDereference) {
+    return new BinaryIdentifier(id1.clone(), id2.clone(), pDereference);
+  }
+
+  @Override
   public BinaryIdentifier clone() {
-    return new BinaryIdentifier(id1.clone(), id2.clone(), dereference);
+    return cloneWithDereference(dereference);
   }
 
   public AbstractIdentifier getIdentifier1() {
@@ -122,51 +101,14 @@ public class BinaryIdentifier implements AbstractIdentifier {
   }
 
   @Override
-  public boolean isDereferenced() {
-    if (dereference != 0) {
-      return true;
-    } else
-      if ( id1.isDereferenced() && id2.isDereferenced()) {
-        return true;
-      } else if (!id1.isDereferenced() && !id2.isDereferenced()) {
-        return false;
-      } else {
-        //strange
-        return true;
-      }
-  }
-
-  @Override
   public boolean isPointer() {
     return id1.isPointer() || id2.isPointer();
   }
 
   @Override
-  public void setDereference(int pD) {
-    dereference = pD;
-  }
-
-  @Override
-  public AbstractIdentifier containsIn(Collection<? extends AbstractIdentifier> pSet) {
-    if (pSet.contains(this)) {
-      return this;
-    } else {
-      int deref = id1.getDereference();
-      AbstractIdentifier tmp1 = id1.clone();
-      AbstractIdentifier tmp2 = id2.clone();
-      tmp1.setDereference(dereference + deref);
-      deref = id2.getDereference();
-      tmp2.setDereference(dereference + deref);
-      AbstractIdentifier id1Container = tmp1.containsIn(pSet);
-      AbstractIdentifier id2Container = tmp2.containsIn(pSet);
-      if (id1Container != null) {
-        return id1Container;
-      } else if (id2Container != null) {
-        return id2Container;
-      } else {
-        return null;
-      }
-    }
+  public boolean isDereferenced() {
+    return (dereference != 0 ||
+        id1.isDereferenced() || id2.isDereferenced());
   }
 
   @Override
@@ -182,18 +124,17 @@ public class BinaryIdentifier implements AbstractIdentifier {
   }
 
   @Override
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    /*AbstractIdentifier tmp = name.containsIn(localInfo.keySet());
-    DataType result1 = (tmp == null ? null : localInfo.get(tmp));*/
+  public Collection<AbstractIdentifier> getComposedIdentifiers() {
+    //Is important to get from *(a + i) -> *a
     int deref = id1.getDereference();
     AbstractIdentifier tmp1 = id1.clone();
-    //AbstractIdentifier tmp2 = ((BinaryIdentifier) name).getIdentifier2().clone();
-    tmp1.setDereference(dereference + deref);
-    /*deref = ((BinaryIdentifier) name).getIdentifier2().getDereference();
-    tmp2.setDereference(((BinaryIdentifier) name).getDereference() + deref);*/
-    return tmp1.getType(pLocalInfo);
-    //DataType type2 = getType(localInfo, tmp2);
-    //return DataType.max(type1, type2);
-    //return result2;
+    AbstractIdentifier tmp2 = id2.clone();
+    tmp1 = tmp1.cloneWithDereference(dereference + deref);
+    deref = id2.getDereference();
+    tmp2 = tmp2.cloneWithDereference(dereference + deref);
+    Set<AbstractIdentifier> result = Sets.newHashSet(tmp1, tmp2);
+    result.addAll(tmp1.getComposedIdentifiers());
+    result.addAll(tmp2.getComposedIdentifiers());
+    return result;
   }
 }

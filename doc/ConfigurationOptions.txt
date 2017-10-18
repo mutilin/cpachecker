@@ -533,6 +533,18 @@ cfa.simplifyPointerExpressions = false
 # unimportant recursion in final functions like exit() or abort()
 cfa.skippedFunctionCalls = new HashSet<>()
 
+# A name of thread_create function
+cfa.threads.threadCreate = "pthread_create"
+
+# A name of thread_create_N function
+cfa.threads.threadJoin = "pthread_join"
+
+# A name of thread_join function
+cfa.threads.threadSelfCreate = "pthread_create_N"
+
+# A name of thread_join_N function
+cfa.threads.threadSelfJoin = "pthread_join_N"
+
 # This option causes the control flow automaton to be transformed into the
 # automaton of an equivalent program with one single loop and an artificial
 # program counter.
@@ -719,6 +731,7 @@ coverage.enabled = true
 
 # print coverage info to file
 coverage.export = true
+coverage.file = "coverage2.info"
 coverage.file = "coverage.info"
 
 # How should coverage be determined? REACHED: from the final ARG, TRANSFER:
@@ -1251,12 +1264,20 @@ cpa.liveVar.assumeGlobalVariablesAreAlwaysLive = true
 # functions, which allocate new free memory
 cpa.local.allocateFunctionPattern = Sets.newHashSet()
 cpa.local.allocatefunctions = no default value
+
+# functions, which do not change sharedness of parameters
 cpa.local.conservativefunctions = no default value
+
+# variables, which are always local
+cpa.local.localvariables = Collections.emptySet()
 
 # With this option enabled, unction calls that occur in the CFA are followed.
 # By disabling this option one can traverse a function without following
 # function calls (in this case FunctionSummaryEdges are used)
 cpa.location.followFunctionCalls = true
+
+# reduce recursive locks to a single access
+cpa.lock.aggressiveReduction = false
 
 #  annotated functions, which are known to works right
 cpa.lock.annotate = no default value
@@ -1267,11 +1288,8 @@ cpa.lock.lockinfo = no default value
 # function to reset state
 cpa.lock.lockreset = no default value
 
-# reduce recursive locks to a single access
-cpa.lockstatistics.aggressiveReduction = false
-
 # reduce unused locks
-cpa.lockstatistics.reduceUselessLocks = false
+cpa.lock.reduceUselessLocks = false
 
 # this option determines which merge operator to use
 cpa.loopinvariants.mergeType = "SEP"
@@ -1960,6 +1978,10 @@ cpa.predicate.useArraysForHeap = false
 # used in bitwise operations, and add axioms like (0 & n = 0)
 cpa.predicate.useBitwiseAxioms = false
 
+# For multithreaded programs this is an overapproximation of possible values
+# of shared variables
+cpa.predicate.useHavocAbstraction = false
+
 # Use regions for pointer analysis. So called Burstall&Bornat (BnB) memory
 # regions will be used for pointer analysis. BnB regions are based not only
 # on type, but also on structure field names. If the field is not accessed by
@@ -2259,11 +2281,23 @@ cpa.usage.binderFunctions = no default value
 
 # path to write results
 cpa.usage.falseUnsafesOutput = "FalseUnsafes"
+
+# if a file do not exist, do not include the corresponding edge
+cpa.usage.filterMissedFiles = true
+
+# The functions, which cannot be executed in parallel with themselves
+cpa.usage.notSelfParallelFunctions = new HashSet<>()
+
+# path to write results
 cpa.usage.output = "unsafe_rawdata"
 
 # all variables should be printed to the one file or to the different
 cpa.usage.outputType = KLEVER
-  enum:     [ETV, KLEVER]
+  enum:     [ETV, KLEVER, KLEVER_OLD]
+
+# The way how to identify two paths as equal
+cpa.usage.pathEquality = CFANodeId
+  enum:     [ARGStateId, CFANodeId]
 
 # The value of marked unsafes, after which the precision should be cleaned
 cpa.usage.precisionReset = Integer.MAX_VALUE
@@ -2280,35 +2314,35 @@ cpa.usage.refinablePathLimitation = Integer.MAX_VALUE
 # The order of refinement blocks
 cpa.usage.refinementChain = no default value
 
+# use single file for output or dump every error trace to its own file
+cpa.usage.singleFileOutput = false
+
+# The functions, which are executed in one thread
+cpa.usage.singleThreadFunctions = new HashSet<>()
+
 # functions, which we don't analize
 cpa.usage.skippedfunctions = no default value
+
+# variables, which will be filtered by function location
+cpa.usage.skippedvariables.byFunction = no default value
+
+# variables, which will be filtered by function prefix
+cpa.usage.skippedvariables.byFunctionPrefix = no default value
+
+# variables, which will be filtered by its name
+cpa.usage.skippedvariables.byName = no default value
+
+# variables, which will be filtered by its name prefix
+cpa.usage.skippedvariables.byNamePrefix = no default value
+
+# variables, which will be filtered by its type
+cpa.usage.skippedvariables.byType = no default value
 
 # clean all ARG or try to reuse some parts of it (memory consuming)
 cpa.usage.totalARGCleaning = false
 
 # ignore unsafes only with empty callstacks
 cpa.usage.unsafedetector.ignoreEmptyLockset = false
-
-# The functions, which cannot be executed in parallel with themselves
-cpa.usagestatistics.notSelfParallelFunctions = new HashSet<>()
-
-# The functions, which are executed in one thread
-cpa.usagestatistics.singleThreadFunctions = new HashSet<>()
-
-# variables, which will be filtered by function location
-cpa.usagestatistics.skippedvariables.byFunction = no default value
-
-# variables, which will be filtered by function prefix
-cpa.usagestatistics.skippedvariables.byFunctionPrefix = no default value
-
-# variables, which will be filtered by its name
-cpa.usagestatistics.skippedvariables.byName = no default value
-
-# variables, which will be filtered by its name prefix
-cpa.usagestatistics.skippedvariables.byNamePrefix = no default value
-
-# variables, which will be filtered by its type
-cpa.usagestatistics.skippedvariables.byType = no default value
 
 # which merge operator to use for ValidVarsCPA
 cpa.validVars.merge = "JOIN"

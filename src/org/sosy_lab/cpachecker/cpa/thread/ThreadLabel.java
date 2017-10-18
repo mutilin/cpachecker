@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.thread;
 
+import java.util.Objects;
 
 public class ThreadLabel implements Comparable<ThreadLabel> {
 
@@ -33,10 +34,12 @@ public class ThreadLabel implements Comparable<ThreadLabel> {
   }
 
   private final String threadName;
+  private final String varName;
   private final LabelStatus status;
 
-  public ThreadLabel(String name, LabelStatus flag) {
+  public ThreadLabel(String name, String vName, LabelStatus flag) {
     threadName = name;
+    varName = vName;
     status = flag;
   }
 
@@ -45,7 +48,8 @@ public class ThreadLabel implements Comparable<ThreadLabel> {
     final int prime = 31;
     int result = 1;
     result = prime * result + status.hashCode();
-    result = prime * result + ((threadName == null) ? 0 : threadName.hashCode());
+    result = prime * result + Objects.hashCode(varName);
+    result = prime * result + Objects.hashCode(threadName);
     return result;
   }
 
@@ -54,24 +58,14 @@ public class ThreadLabel implements Comparable<ThreadLabel> {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     ThreadLabel other = (ThreadLabel) obj;
-    if (status != other.status) {
-      return false;
-    }
-    if (threadName == null) {
-      if (other.threadName != null) {
-        return false;
-      }
-    } else if (!threadName.equals(other.threadName)) {
-      return false;
-    }
-    return true;
+    return status == other.status
+        && Objects.equals(threadName, other.threadName)
+        && Objects.equals(varName, other.varName);
   }
 
   @Override
@@ -79,39 +73,48 @@ public class ThreadLabel implements Comparable<ThreadLabel> {
     int result = this.threadName.compareTo(pO.threadName);
     if (result != 0) {
       return result;
-    } else {
-      return status.compareTo(pO.status);
     }
+    result = this.varName.compareTo(pO.varName);
+    if (result != 0) {
+      return result;
+    }
+    return status.compareTo(pO.status);
   }
 
   public boolean isCompatibleWith(ThreadLabel other) {
     if (status != LabelStatus.SELF_PARALLEL_THREAD && status == other.status) {
       return false;
     }
-    if (threadName == null) {
-      if (other.threadName != null) {
-        return false;
-      }
-    } else if (!threadName.equals(other.threadName)) {
-      return false;
-    }
-    return true;
+    return Objects.equals(threadName, other.threadName)
+        && Objects.equals(varName, other.varName);
   }
 
   public String getName() {
     return threadName;
   }
 
+  public String getVarName() {
+    return varName;
+  }
+
   public boolean isSelfParallel() {
     return status == LabelStatus.SELF_PARALLEL_THREAD;
   }
 
+  public boolean isParentThread() {
+    return status == LabelStatus.PARENT_THREAD;
+  }
+
+  public boolean isCreatedThread() {
+    return status == LabelStatus.CREATED_THREAD;
+  }
+
   public ThreadLabel toSelfParallelLabel() {
-    return new ThreadLabel(threadName, LabelStatus.SELF_PARALLEL_THREAD);
+    return new ThreadLabel(threadName, varName, LabelStatus.SELF_PARALLEL_THREAD);
   }
 
   @Override
   public String toString() {
-    return threadName + ":" + status;
+    return "(" + threadName + ", " + varName + ") :" + status;
   }
 }

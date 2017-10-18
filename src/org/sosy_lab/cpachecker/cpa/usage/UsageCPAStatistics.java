@@ -43,10 +43,12 @@ public class UsageCPAStatistics implements Statistics {
 
   public static enum OutputFileType {
     ETV,
-    KLEVER
+    KLEVER,
+    KLEVER_OLD
   }
 
-  @Option(name="outputType", description="all variables should be printed to the one file or to the different")
+  @Option(name="outputType", description="all variables should be printed to the one file or to the different",
+      secure = true)
   private OutputFileType outputFileType = OutputFileType.KLEVER;
 
   /* Previous container is used when internal time limit occurs
@@ -56,11 +58,6 @@ public class UsageCPAStatistics implements Statistics {
    */
 
   private final LogManager logger;
-  //What is true now?
-  //private int trueUsagesInTrueUnsafe = 0;
-  //private int trueUsagesInAllUnsafes = 0;
-  //private int maxTrueUsages = 0;
- // private final ShutdownNotifier shutdownNotifier;
 
   private BAMTransferRelation transfer;
   private final Configuration config;
@@ -69,6 +66,7 @@ public class UsageCPAStatistics implements Statistics {
 
   public final StatTimer transferRelationTimer = new StatTimer("Time for transfer relation");
   public final StatTimer printStatisticsTimer = new StatTimer("Time for printing statistics");
+  public final StatTimer printUnsafesTimer = new StatTimer("Time for unsafes printing");
 
   public UsageCPAStatistics(Configuration pConfig, LogManager pLogger,
       LockTransferRelation lTransfer) throws InvalidConfigurationException{
@@ -80,33 +78,28 @@ public class UsageCPAStatistics implements Statistics {
 
   @Override
   public void printStatistics(final PrintStream out, final Result result, final UnmodifiableReachedSet reached) {
-    printStatisticsTimer.start();
+    printUnsafesTimer.start();
     assert errPrinter != null;
     errPrinter.printErrorTraces(reached);
+    printUnsafesTimer.stop();
+
+    printStatisticsTimer.start();
     errPrinter.printStatistics(out);
-    printStatisticsTimer.stop();
+    UsageState.get(reached.getFirstState()).getStatistics().printStatistics(out);
     //out.
     StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(out);
     writer.put(transferRelationTimer);
     writer.put(printStatisticsTimer);
-    out.println("Time for expanding:                 " + UsageState.tmpTimer1);
-    out.println("Time for joining:                   " + UsageState.tmpTimer2);
-    out.println("Time for joining2:                  " + UsageState.tmpTimer3);
-    out.println("Time for effect:                    " + TemporaryUsageStorage.effectTimer);
-    out.println("Time for copy:                      " + TemporaryUsageStorage.copyTimer);
-    out.println("Number of empty joins:              " + TemporaryUsageStorage.emptyJoin);
-    out.println("Number of effect joins:             " + TemporaryUsageStorage.effectJoin);
-    out.println("Number of hit joins:                " + TemporaryUsageStorage.hitTimes);
-    out.println("Number of miss joins:               " + TemporaryUsageStorage.missTimes);
-    out.println("Number of expanding querries:       " + TemporaryUsageStorage.totalUsages);
-    out.println("Number of executed querries:        " + TemporaryUsageStorage.expandedUsages);
+    printStatisticsTimer.stop();
 
   }
 
-  public void setBAMTransfer(BAMTransferRelation t) {
+  public void setBAMTransfer(BAMTransferRelation t) throws InvalidConfigurationException {
     transfer = t;
     if (outputFileType == OutputFileType.KLEVER) {
-      errPrinter = new KleverErrorTracePrinter(config, transfer, logger);
+      errPrinter = new KleverErrorTracePrinter(config, transfer, logger, lockTransfer);
+    } else if (outputFileType == OutputFileType.KLEVER_OLD) {
+      errPrinter = new KleverErrorTracePrinterOld(config, transfer, logger, lockTransfer);
     } else if (outputFileType == OutputFileType.ETV) {
       errPrinter = new ETVErrorTracePrinter(config, transfer, logger, lockTransfer);
     }

@@ -23,14 +23,16 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import com.google.common.collect.Sets;
 import java.util.Collection;
+<<<<<<< HEAD
 import java.util.Map;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
+=======
+import java.util.Objects;
+import java.util.Set;
+>>>>>>> CPALockator
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
-import org.sosy_lab.cpachecker.cpa.local.LocalTransferRelation;
-
-
 
 public class StructureIdentifier extends SingleIdentifier{
   protected AbstractIdentifier owner;
@@ -42,25 +44,20 @@ public class StructureIdentifier extends SingleIdentifier{
 
   @Override
   public String toString() {
-    String info = "";
-    if (dereference > 0) {
-      for (int i = 0; i < dereference; i++) {
-        info += "*";
-      }
-    } else if (dereference == -1) {
-      info += "&";
-    } else if (dereference < -1){
-      info = "Error in string representation, dereference < -1";
-      return info;
-    }
-    info += "(" + owner.toString() + ").";
-    info += name;
+    String info = Identifiers.getCharsOf(dereference);
+    info += "((" + owner.toString() + ").";
+    info += name + ")";
     return info;
   }
 
   @Override
   public StructureIdentifier clone() {
-    return new StructureIdentifier(name, type, dereference, owner.clone());
+    return cloneWithDereference(dereference);
+  }
+
+  @Override
+  public StructureIdentifier cloneWithDereference(int pDereference) {
+    return new StructureIdentifier(name, type, pDereference, owner.clone());
   }
 
   public AbstractIdentifier getOwner() {
@@ -71,7 +68,7 @@ public class StructureIdentifier extends SingleIdentifier{
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
-    result = prime * result + ((owner == null) ? 0 : owner.hashCode());
+    result = prime * result + Objects.hashCode(owner);
     return result;
   }
 
@@ -80,26 +77,12 @@ public class StructureIdentifier extends SingleIdentifier{
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (!super.equals(obj) ||
+        getClass() != obj.getClass()) {
       return false;
     }
     StructureIdentifier other = (StructureIdentifier) obj;
-    if (owner == null) {
-      if (other.owner != null) {
-        return false;
-      }
-    } else if (!owner.equals(other.owner)) {
-      return false;
-    }
-    return true;
-  }
-
-  @Override
-  public SingleIdentifier clearDereference() {
-    return new StructureIdentifier(name, type, 0, owner);
+    return Objects.equals(owner, other.owner);
   }
 
   @Override
@@ -109,9 +92,13 @@ public class StructureIdentifier extends SingleIdentifier{
 
   @Override
   public boolean isDereferenced() {
+<<<<<<< HEAD
     if (LocalTransferRelation.findDereference(type) > 0) {
       return true;
     } else if (dereference > 0) {
+=======
+    if (super.isDereferenced()) {
+>>>>>>> CPALockator
       return true;
     } else {
       return owner.isDereferenced();
@@ -125,46 +112,21 @@ public class StructureIdentifier extends SingleIdentifier{
 
   @Override
   public GeneralIdentifier getGeneralId() {
-    return new GeneralStructureFieldIdentifier(name, /*type.toASTString(""),*/ type, dereference, owner);
+    return new GeneralStructureFieldIdentifier(name, type, dereference, owner);
   }
 
   public StructureFieldIdentifier toStructureFieldIdentifier() {
     if (owner instanceof SingleIdentifier) {
-      return new StructureFieldIdentifier(name, /*type.toASTString(""),*/ ((SingleIdentifier)owner).type, dereference, owner);
+      return new StructureFieldIdentifier(name, ((SingleIdentifier)owner).type, dereference, null);
     } else {
-      return new StructureFieldIdentifier(name, /*type.toASTString(""),*/ type, dereference, owner);
-    }
-  }
-
-  /**
-   * This method recursively checks owners of this structure, if any is contained in given collection
-   * @param set - some collection of identifiers
-   * @return first abstract identifier, which is found or null if no owners are found in collection
-   */
-  @Override
-  public AbstractIdentifier containsIn(Collection<? extends AbstractIdentifier> set) {
-    if (set.contains(this)) {
-      return this;
-    } else {
-      AbstractIdentifier ownerContainer = owner.containsIn(set);
-      if (ownerContainer == null) {
-        return null;
-      } else {
-        if (ownerContainer instanceof GlobalVariableIdentifier || ownerContainer instanceof LocalVariableIdentifier) {
-          return ((SingleIdentifier)ownerContainer).getGeneralId();
-        } else {
-          return ownerContainer;
-        }
-      }
+      return new StructureFieldIdentifier(name, type, dereference, null);
     }
   }
 
   @Override
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    DataType result = super.getType(pLocalInfo);
-    if (result != null) {
-      return result;
-    }
-    return owner.getType(pLocalInfo);
+  public Collection<AbstractIdentifier> getComposedIdentifiers() {
+    Set<AbstractIdentifier> result = Sets.newHashSet(owner);
+    result.addAll(owner.getComposedIdentifiers());
+    return result;
   }
 }

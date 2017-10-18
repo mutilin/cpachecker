@@ -24,11 +24,8 @@
 package org.sosy_lab.cpachecker.util.identifiers;
 
 import java.util.Collection;
-import java.util.Map;
-
-import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
-
-
+import java.util.Collections;
+import java.util.Objects;
 
 public class ConstantIdentifier implements AbstractIdentifier {
 
@@ -42,22 +39,17 @@ public class ConstantIdentifier implements AbstractIdentifier {
 
   @Override
   public ConstantIdentifier clone() {
-    return new ConstantIdentifier(name, dereference);
+    return cloneWithDereference(dereference);
+  }
+
+  @Override
+  public ConstantIdentifier cloneWithDereference(int pDereference) {
+    return new ConstantIdentifier(name, pDereference);
   }
 
   @Override
   public String toString() {
-    String info = "";
-    if (dereference > 0) {
-      for (int i = 0; i < dereference; i++) {
-        info += "*";
-      }
-    } else if (dereference == -1) {
-      info += "&";
-    } else if (dereference < -1){
-      info = "Error in string representation, dereference < -1";
-      return info;
-    }
+    String info = Identifiers.getCharsOf(dereference);
     info += name;
     return info;
   }
@@ -77,7 +69,7 @@ public class ConstantIdentifier implements AbstractIdentifier {
     final int prime = 31;
     int result = 1;
     result = prime * result + dereference;
-    result = prime * result + ((name == null) ? 0 : name.hashCode());
+    result = prime * result + Objects.hashCode(name);
     return result;
   }
 
@@ -86,27 +78,17 @@ public class ConstantIdentifier implements AbstractIdentifier {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null ||
+        getClass() != obj.getClass()) {
       return false;
     }
     ConstantIdentifier other = (ConstantIdentifier) obj;
-    if (dereference != other.dereference) {
-      return false;
-    }
-    if (name == null) {
-      if (other.name != null) {
-        return false;
-      }
-    } else if (!name.equals(other.name)) {
-      return false;
-    }
-    return true;
+    return dereference == other.dereference
+        && Objects.equals(name, other.name);
   }
 
   @Override
+<<<<<<< HEAD
   public boolean isDereferenced() {
     return (dereference > 0);
   }
@@ -120,15 +102,15 @@ public class ConstantIdentifier implements AbstractIdentifier {
   @Override
   public void setDereference(int pD) {
     dereference = pD;
+=======
+  public boolean isPointer() {
+    return isDereferenced();
+>>>>>>> CPALockator
   }
 
   @Override
-  public AbstractIdentifier containsIn(Collection<? extends AbstractIdentifier> pSet) {
-    if (pSet.contains(this)) {
-      return this;
-    } else {
-      return null;
-    }
+  public boolean isDereferenced() {
+    return (dereference > 0);
   }
 
   public String getName() {
@@ -147,12 +129,16 @@ public class ConstantIdentifier implements AbstractIdentifier {
   }
 
   @Override
+<<<<<<< HEAD
   public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
     if (isDereferenced() && !(name.equals("0"))) {
       return DataType.GLOBAL;
     } else {
       return DataType.LOCAL;
     }
+=======
+  public Collection<AbstractIdentifier> getComposedIdentifiers() {
+    return Collections.emptySet();
+>>>>>>> CPALockator
   }
-
 }

@@ -28,14 +28,12 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageState;
 
 public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
   private final TreeSet<UsagePoint> topUsages;
   private final Map<UsagePoint, UsageInfoSet> usageInfoSets;
-  //private final Map<UsagePoint, RefinedUsageInfoSet> refinedInformation;
 
   public UnrefinedUsagePointSet() {
     topUsages = new TreeSet<>();
@@ -63,7 +61,9 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
         UsagePoint point = iterator.next();
         if (newPoint.covers(point)) {
           iterator.remove();
+          newPoint.addCoveredUsage(point);
         } else if (point.covers(newPoint)) {
+          point.addCoveredUsage(newPoint);
           return;
         }
       }
@@ -112,6 +112,10 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
     return new TreeSet<>(topUsages).iterator();
   }
 
+  public Iterator<UsagePoint> getPointIteratorFrom(UsagePoint p) {
+    return new TreeSet<>(topUsages.tailSet(p)).iterator();
+  }
+
   @Override
   public int getNumberOfTopUsagePoints() {
     return topUsages.size();
@@ -120,9 +124,7 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
   public void remove(UsagePoint currentUsagePoint) {
     usageInfoSets.remove(currentUsagePoint);
     topUsages.remove(currentUsagePoint);
-    for (UsagePoint point : currentUsagePoint.getCoveredUsages()) {
-      add(point);
-    }
+    currentUsagePoint.getCoveredUsages().forEach(p -> add(p));
   }
 
   SortedSet<UsagePoint> getTopUsages() {

@@ -29,16 +29,12 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
-import org.sosy_lab.cpachecker.cpa.lock.LockReducer;
-import org.sosy_lab.cpachecker.cpa.usage.UsageState.UsageExitableState;
 
 public class UsageReducer implements Reducer {
   private final Reducer wrappedReducer;
-  private final LockReducer lockReducer;
 
-  public UsageReducer(Reducer pWrappedReducer, LockReducer lReducer) {
+  public UsageReducer(Reducer pWrappedReducer) {
     wrappedReducer = pWrappedReducer;
-    lockReducer = lReducer;
   }
 
   @Override
@@ -57,14 +53,19 @@ public class UsageReducer implements Reducer {
     UsageState funRootState = (UsageState)pRootElement;
     UsageState funReducedState = (UsageState)pReducedElement;
     AbstractState exp;
-    if (!(funReducedState instanceof UsageExitableState)) {
+    if (!funReducedState.isExitState()) {
       exp = wrappedReducer.getVariableExpandedState(funRootState.getWrappedState(), pReducedContext, outerSubtree, funReducedState.getWrappedState());
     } else {
       //Predicate analysis can not expand a random state - only abstract ones,
       // and Exitable one can occur at any moment
       exp = funReducedState.getWrappedState();
     }
-    return funReducedState.expand(funRootState, exp, pReducedContext, lockReducer);
+    UsageState result = funRootState.clone(exp);
+    result.joinContainerFrom(funReducedState);
+    if (funReducedState.isExitState()) {
+      result.asExitable();
+    }
+    return result;
   }
 
   @Override
@@ -82,7 +83,13 @@ public class UsageReducer implements Reducer {
     UsageState funRootState = (UsageState)pRootElement;
     UsageState funReducedState = (UsageState)pReducedElement;
     AbstractState exp = wrappedReducer.getVariableExpandedState(funRootState.getWrappedState(), pReducedContext, funReducedState.getWrappedState());
-    return funReducedState.expand(funRootState, exp, pReducedContext, lockReducer);
+
+    UsageState result = funRootState.clone(exp);
+    result.joinContainerFrom(funReducedState);
+    if (funReducedState.isExitState()) {
+      result.asExitable();
+    }
+    return result;
   }
 
   @Override
