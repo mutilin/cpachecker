@@ -25,13 +25,10 @@ package org.sosy_lab.cpachecker.util.identifiers;
 
 import com.google.common.collect.Sets;
 import java.util.Collection;
-<<<<<<< HEAD
 import java.util.Map;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
-=======
 import java.util.Objects;
 import java.util.Set;
->>>>>>> CPALockator
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public class StructureIdentifier extends SingleIdentifier{
@@ -92,13 +89,7 @@ public class StructureIdentifier extends SingleIdentifier{
 
   @Override
   public boolean isDereferenced() {
-<<<<<<< HEAD
-    if (LocalTransferRelation.findDereference(type) > 0) {
-      return true;
-    } else if (dereference > 0) {
-=======
     if (super.isDereferenced()) {
->>>>>>> CPALockator
       return true;
     } else {
       return owner.isDereferenced();

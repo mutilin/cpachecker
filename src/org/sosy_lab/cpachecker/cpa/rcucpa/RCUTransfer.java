@@ -120,7 +120,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
     RCUState result = RCUState.copyOf((RCUState) state);
-    IdentifierCreator ic = new IdentifierCreator();
+    IdentifierCreator ic = new IdentifierCreator(cfaEdge.getPredecessor().getFunctionName());
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
@@ -179,10 +179,10 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       } else if (fName.equals(sync)) {
         pResult.fillLocal();
       } else if (fName.equals(assign)) {
-        pIc.clear(pFunctionName);
+        //pIc.clear(pFunctionName);
         AbstractIdentifier rcuPtr = pCallExpression.getParameterExpressions().get(0).accept(pIc);
         pResult.addToOutdated(rcuPtr);
-        pIc.clearDereference();
+        //pIc.clearDereference();
         AbstractIdentifier ptr = pCallExpression.getParameterExpressions().get(1).accept(pIc);
         pResult.addToRelations(rcuPtr, ptr);
       }
@@ -195,9 +195,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     // This case is covered by the normal assignment expression
     CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
     if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
-      pIc.clear(functionName);
+      //pIc.clear(functionName);
       AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
-      pIc.clearDereference();
+      //pIc.clearDereference();
       AbstractIdentifier air = assignment.getFunctionCallExpression()
                                 .getParameterExpressions().get(0).accept(pIc);
       pResult.addToRelations(ail, air);
@@ -207,9 +207,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   private void handleAssignment(CExpressionAssignmentStatement assignment,
                                 RCUState pResult, IdentifierCreator pIc,
                                 String functionName) {
-    pIc.clear(functionName);
+    //pIc.clear(functionName);
     AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
-    pIc.clearDereference();
+    //pIc.clearDereference();
     AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
 
     if (ail.isPointer() || air.isPointer()) {
@@ -234,7 +234,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         if (rcuPointers.contains(leftLoc)) {
           CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
           if (initializer != null && initializer instanceof CInitializerExpression) {
-            pIc.clearDereference();
+            //pIc.clearDereference();
             AbstractIdentifier init =
                 ((CInitializerExpression) initializer).getExpression().accept(pIc);
             pResult.addToRelations(ail, init);

@@ -83,7 +83,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
 
-    IdentifierCreator ic = new IdentifierCreator();
+    IdentifierCreator ic = new IdentifierCreator(cfaEdge.getPredecessor().getFunctionName());
     AliasState result = (AliasState) state;
 
     switch (cfaEdge.getEdgeType()) {
@@ -126,7 +126,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       functionName, Precision precision) {
     if (st != null) {
       logger.log(Level.ALL, "ALIAS: OK statement");
-      ic.clear(functionName);
+      //ic.clear(functionName);
       if (st instanceof CExpressionAssignmentStatement) {
         handleAssignment(result, (CExpressionAssignmentStatement) st, ic);
       } else if (st instanceof CFunctionCallAssignmentStatement) {
@@ -147,7 +147,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     if (ail.isPointer()) {
       logger.log(Level.ALL, "ALIAS: Pointer in statement 2");
       handleFunctionCall(pResult, fca.getRightHandSide(), ic, functionName, precision);
-      ic.clearDereference();
+      //ic.clearDereference();
       AbstractIdentifier fi =
           fca.getFunctionCallExpression().getFunctionNameExpression().accept(ic);
       //TODO: add pointsTo
@@ -172,7 +172,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     AbstractIdentifier ail = pSt.getLeftHandSide().accept(ic);
     if (ail.isPointer()) {
       logger.log(Level.ALL, "ALIAS: Pointer in statement");
-      ic.clearDereference();
+      //ic.clearDereference();
       AbstractIdentifier air = pSt.getRightHandSide().accept(ic);
       if (flowSense) {
         pResult.clearAlias(ail);
@@ -214,7 +214,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     AbstractIdentifier fact;
 
     if (fd != null) {
-      ic.clear(fd.getName());
+      //ic.clear(fd.getName());
       logger.log(Level.ALL,
           "ALIAS: Function call for function: " + functionName + " " + fd.getName());
     } else {
@@ -223,12 +223,12 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     }
 
     for (int i = 0; i < formParams.size(); ++i) {
-      ic.clearDereference();
+      //ic.clearDereference();
       form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic, fd.getName());
       if (form != null && form.isPointer()) {
         logger.log(Level.ALL, "ALIAS: Pointer in formal parameters");
-        ic.clearDereference();
-        ic.clear(functionName);
+        //ic.clearDereference();
+        //ic.clear(functionName);
         fact = factParams.get(i).accept(ic);
         if (flowSense) {
           pResult.clearAlias(form);
@@ -248,7 +248,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
                                                IdentifierCreator ic, String functionName) {
     if (pCdecl != null && pCdecl instanceof CVariableDeclaration) {
       logger.log(Level.ALL, "ALIAS: OK declaration");
-      ic.clear(functionName);
+      //ic.clear(functionName);
       CVariableDeclaration var = (CVariableDeclaration) pCdecl;
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, functionName, 0);
       if (ail.isPointer()) {

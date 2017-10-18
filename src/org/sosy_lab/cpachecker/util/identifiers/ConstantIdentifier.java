@@ -88,24 +88,10 @@ public class ConstantIdentifier implements AbstractIdentifier {
   }
 
   @Override
-<<<<<<< HEAD
-  public boolean isDereferenced() {
-    return (dereference > 0);
-  }
-
-  @Override
   public boolean isPointer() {
     // CPAlias is not interested in constants
+    // For CPALockator isPointer() == isDereferenced()
     return false;
-  }
-
-  @Override
-  public void setDereference(int pD) {
-    dereference = pD;
-=======
-  public boolean isPointer() {
-    return isDereferenced();
->>>>>>> CPALockator
   }
 
   @Override
@@ -129,16 +115,7 @@ public class ConstantIdentifier implements AbstractIdentifier {
   }
 
   @Override
-<<<<<<< HEAD
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    if (isDereferenced() && !(name.equals("0"))) {
-      return DataType.GLOBAL;
-    } else {
-      return DataType.LOCAL;
-    }
-=======
   public Collection<AbstractIdentifier> getComposedIdentifiers() {
     return Collections.emptySet();
->>>>>>> CPALockator
   }
 }

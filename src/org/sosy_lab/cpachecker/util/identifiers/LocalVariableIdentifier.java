@@ -109,20 +109,5 @@ public class LocalVariableIdentifier extends VariableIdentifier {
       return 1;
     }
   }
-<<<<<<< HEAD
 
-  @Override
-  public DataType getType(Map<? extends AbstractIdentifier, DataType> pLocalInfo) {
-    DataType result = super.getType(pLocalInfo);
-    if (result != null) {
-      return result;
-    }
-    if (!isDereferenced()) {
-      return DataType.LOCAL;
-    } else {
-      return null;
-    }
-  }
-=======
->>>>>>> CPALockator
 }

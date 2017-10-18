@@ -95,7 +95,7 @@ public class AliasState implements LatticeAbstractState<AliasState> {
         } else {
           // p = &a
           AbstractIdentifier buf = value;
-          buf.setDereference(buf.getDereference() + 1);
+          //buf.setDereference(buf.getDereference() + 1);
           logger.log(Level.ALL, "Here");
           this.pointsTo.get(key).add(buf);
           updateAlias(key);
