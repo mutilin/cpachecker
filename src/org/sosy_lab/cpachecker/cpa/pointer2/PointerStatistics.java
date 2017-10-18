@@ -32,11 +32,10 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.FileOption;
-import org.sosy_lab.common.configuration.FileOption.Type;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
@@ -54,11 +53,19 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 public class PointerStatistics implements Statistics {
   @Option(name = "precisionFile", secure = true, description = "name of a file containing "
       + "information on pointer relations")
-  @FileOption(Type.OUTPUT_FILE)
+  @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path path = Paths.get("PointsToMap");
+
+  @Option(name = "noOutput", secure = true, description = "whether the resulting Points-To map "
+      + "needs to be printed into file")
+  private boolean noOutput = true;
 
   private static final MemoryLocation replLocSetTop = MemoryLocation.valueOf("_LOCATION_SET_TOP_");
   private static final MemoryLocation replLocSetBot = MemoryLocation.valueOf("_LOCATION_SET_BOT_");
+
+  PointerStatistics(boolean pNoOutput) {
+    noOutput = pNoOutput;
+  }
 
   @Override
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
@@ -68,15 +75,19 @@ public class PointerStatistics implements Statistics {
       Map<MemoryLocation, LocationSet> pointsTo = ptState.getPointsToMap();
 
       if (pointsTo != null) {
+
         pointsTo = replaceTopsAndBots(pointsTo);
 
-        try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
-          Gson builder = new Gson();
-          java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>(){}.getType();
-          builder.toJson(pointsTo, type, writer);
-          writer.close();
-        } catch (IOException pE) {
-          pE.printStackTrace();
+        if (!noOutput) {
+          try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
+            Gson builder = new Gson();
+            java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>() {
+            }.getType();
+            builder.toJson(pointsTo, type, writer);
+            writer.close();
+          } catch (IOException pE) {
+            pE.printStackTrace();
+          }
         }
 
         int values = 0;
@@ -86,7 +97,7 @@ public class PointerStatistics implements Statistics {
         }
 
         String stats = "Points-To map size: " + pointsTo.size() + '\n' +
-            "Points-To map values size: " + values + '\n';
+                        "Points-To map values size: " + values + '\n';
 
         out.append(stats);
         out.append('\n');

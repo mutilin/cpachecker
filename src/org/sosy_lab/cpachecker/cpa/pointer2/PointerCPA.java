@@ -61,10 +61,14 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
         description="which merge operator to use for PointerCPA")
     private String merge = "JOIN";
 
-    @Option(secure=true, name="precisionFile", description = "name of a file containing "
+    @Option(secure=true, name="precisionFile", description="name of a file containing "
       + "information on pointer relations")
     @FileOption(Type.OPTIONAL_INPUT_FILE)
     private Path path = Paths.get("TrackedPointers");
+
+    @Option(secure=true, name="noOutput", description="whether the resulting Points-To map "
+      + "needs to be printed into file")
+    private boolean noOutput = true;
 
   }
 
@@ -87,7 +91,7 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
    */
   public PointerCPA(PointerOptions options) {
     super(options.merge, "SEP", PointerDomain.INSTANCE, PointerTransferRelation.INSTANCE);
-    statistics = new PointerStatistics();
+    statistics = new PointerStatistics(options.noOutput);
     path = options.path;
   }
 

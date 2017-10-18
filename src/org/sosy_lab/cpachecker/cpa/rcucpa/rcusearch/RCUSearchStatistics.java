@@ -40,6 +40,10 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import javax.annotation.Nullable;
+import org.sosy_lab.common.configuration.FileOption;
+import org.sosy_lab.common.configuration.FileOption.Type;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -50,11 +54,19 @@ import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
+@Options(prefix = "cpa.rcusearch")
 public class RCUSearchStatistics implements Statistics {
 
-  //TODO: make input and output file names options
+  @Option(secure = true, name = "input", description = "name of a file that holds the Points-To "
+      + "information")
+  @FileOption(Type.REQUIRED_INPUT_FILE)
   private Path input = Paths.get("PointsToMap");
+
+  @Option(secure = true, name = "output", description = "name of a file to hold information about"
+      + " RCU pointers and their aliases")
+  @FileOption(Type.OUTPUT_FILE)
   private Path output = Paths.get("RCUPointers");
+
   private LogManager logger;
 
   RCUSearchStatistics(LogManager pLogger) {
@@ -83,10 +95,7 @@ public class RCUSearchStatistics implements Statistics {
 
     try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
       Gson builder = new Gson();
-      //Map<String, Set<MemoryLocation>> toWrite = new HashMap<>();
-      //toWrite.put("RCUPointers", rcuAndAliases);
-      java.lang.reflect.Type type = new TypeToken</*Map<String, */Set<MemoryLocation>>/*>*/(){}
-      .getType();
+      java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>(){}.getType();
       builder.toJson(rcuAndAliases, type, writer);
       writer.close();
     } catch (IOException pE) {

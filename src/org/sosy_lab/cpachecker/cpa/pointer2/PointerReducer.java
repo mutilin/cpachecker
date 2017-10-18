@@ -33,7 +33,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-public class PointerReducer extends GenericReducer<PointerState, SingletonPrecision> {
+public class PointerReducer extends GenericReducer<PointerState, PointerPrecision> {
 
   @Override
   protected PointerState getVariableReducedState0(
@@ -62,21 +62,21 @@ public class PointerReducer extends GenericReducer<PointerState, SingletonPrecis
 
   @Override
   protected Object getHashCodeForState0(
-      PointerState pStateKey, SingletonPrecision pPrecisionKey) {
+      PointerState pStateKey, PointerPrecision pPrecisionKey) {
     return Pair.of(pStateKey, pPrecisionKey);
   }
 
   @Override
   protected Precision getVariableReducedPrecision0(
-      SingletonPrecision pPrecision, Block pContext) {
+      PointerPrecision pPrecision, Block pContext) {
     return pPrecision;
   }
 
   @Override
-  protected SingletonPrecision getVariableExpandedPrecision0(
-      SingletonPrecision pRootPrecision,
+  protected PointerPrecision getVariableExpandedPrecision0(
+      PointerPrecision pRootPrecision,
       Block pRootContext,
-      SingletonPrecision pReducedPrecision) {
+      PointerPrecision pReducedPrecision) {
     return pRootPrecision;
   }
 
