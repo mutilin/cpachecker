@@ -11,16 +11,17 @@ true_func()
     ldv_mutex_model_unlock(&m, NULL);
 }
 
-void *
-false_func(void *thread_data)
+void
+false_func()
 {
     res = res + 1;
 }
 
+void (*func)(void);
+
 void *
 thread_func(void *thread_data)
 {
-    void (*func)(void);
     int a = 1;
     if (a < 1)
 		func = true_func;

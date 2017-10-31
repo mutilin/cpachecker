@@ -17,8 +17,8 @@ true_func()
     ldv_mutex_model_unlock(&m, NULL);
 }
 
-void *
-false_func(void *thread_data)
+void
+false_func()
 {
     res = res + 1;
 }
