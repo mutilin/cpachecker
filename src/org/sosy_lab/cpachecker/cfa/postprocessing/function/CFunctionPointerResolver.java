@@ -74,6 +74,7 @@ import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
 import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
+import org.sosy_lab.cpachecker.cfa.types.c.CFunctionTypeWithNames;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
@@ -256,7 +257,13 @@ public class CFunctionPointerResolver {
     // 2.Step: replace functionCalls with functioncall- and return-edges
     // This loop replaces function pointer calls inside the given function with regular function calls.
     for (final CStatementEdge edge : visitor.functionPointerCalls) {
-      replaceFunctionPointerCall((CFunctionCall)edge.getStatement(), edge);
+      final AStatement stmt = edge.getStatement();
+      if (!(stmt instanceof CFunctionCall && isFunctionPointerCall((CFunctionCall)stmt)) && isFunctionArgumentPointerCallWitchCheck((CFunctionCall)stmt)) {
+        replaceFunctionCallWithPointerParam((CFunctionCall)edge.getStatement(), edge);
+      }
+      else {
+        replaceFunctionPointerCall((CFunctionCall)edge.getStatement(), edge);
+      }
     }
   }
 
@@ -271,12 +278,39 @@ public class CFunctionPointerResolver {
       if (pEdge instanceof CStatementEdge) {
         final CStatementEdge edge = (CStatementEdge) pEdge;
         final AStatement stmt = edge.getStatement();
-        if (stmt instanceof CFunctionCall && isFunctionPointerCall((CFunctionCall)stmt)) {
+        if (stmt instanceof CFunctionCall && (isFunctionPointerCall((CFunctionCall)stmt) || isFunctionArgumentPointerCall((CFunctionCall)stmt))) {
           functionPointerCalls.add(edge);
         }
       }
       return CFATraversal.TraversalProcess.CONTINUE;
     }
+  }
+
+  private boolean isFunctionArgumentPointerCall(CFunctionCall call)
+  {
+    for (CExpression param : call.getFunctionCallExpression().getParameterExpressions()) {
+      if (param.getExpressionType() instanceof CPointerType && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private boolean isFunctionArgumentPointerCallWitchCheck(CFunctionCall call)
+  {
+    for (CExpression param : call.getFunctionCallExpression().getParameterExpressions()) {
+      if (param.getExpressionType() instanceof CPointerType && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames) {
+        CExpression paramDop = param;
+        if (paramDop instanceof CUnaryExpression) {
+          paramDop = ((CUnaryExpression) paramDop).getOperand();
+        }
+        if (globalsMatching.get(((CIdExpression) paramDop).getName()).isEmpty()) {
+           return false;
+        }
+        return true;
+      }
+    }
+    return false;
   }
 
   private boolean isFunctionPointerCall(CFunctionCall call) {
@@ -420,6 +454,90 @@ public class CFunctionPointerResolver {
     }
   }
 
+  private void replaceFunctionCallWithPointerParam(CFunctionCall functionCall, CStatementEdge statement) {
+    CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
+    logger.log(Level.FINEST, "Function pointer call", fExp);
+
+    CExpression nameExp = fExp.getFunctionNameExpression();
+    Collection<CFunctionEntryNode> funcs = getFunctionSet(functionCall);
+
+    Collection<CFunctionEntryNode> funcsNotCall = Collections.emptySet();
+    CExpression  paramFunc = fExp.getFunctionNameExpression();
+    for (CExpression param : functionCall.getFunctionCallExpression().getParameterExpressions()) {
+      if (param.getExpressionType() instanceof CPointerType && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames) {
+        paramFunc = param;
+        final Set<String>paramReplaceFuncs = globalsMatching.get(((CIdExpression) param).getName());
+        funcsNotCall = from(candidateFunctions)
+            .filter(CFunctionEntryNode.class)
+            .filter(f -> paramReplaceFuncs.contains(f.getFunctionName()))
+            .toSet();
+        break;
+      }
+    }
+
+    if (funcsNotCall.isEmpty() || funcs.size() != 1) {
+      return;
+    }
+
+    FileLocation fileLocation = statement.getFileLocation();
+    CFANode start = statement.getPredecessor();
+    CFANode end = statement.getSuccessor();
+    CFACreationUtils.removeEdgeFromNodes(statement);
+
+    if (nameExp instanceof CPointerExpression) {
+      CExpression operand = ((CPointerExpression)nameExp).getOperand();
+      if (CTypes.isFunctionPointer(operand.getExpressionType())) {
+        nameExp = operand;
+      }
+    }
+
+    CFANode rootNode = start;
+    for (FunctionEntryNode fNode : funcsNotCall) {
+      CFANode thenNode = newCFANode(start.getFunctionName());
+      CFANode elseNode = newCFANode(start.getFunctionName());
+      CIdExpression func = new CIdExpression(nameExp.getFileLocation(),
+                                              (CType)fNode.getFunctionDefinition().getType(),
+                                              fNode.getFunctionName(),
+                                              (CSimpleDeclaration)fNode.getFunctionDefinition());
+      CUnaryExpression amper = new CUnaryExpression(nameExp.getFileLocation(),
+          func.getExpressionType(), func, CUnaryExpression.UnaryOperator.AMPER);
+
+      final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
+      CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(
+          paramFunc, amper, BinaryOperator.EQUALS);
+
+      addConditionEdges(condition, rootNode, thenNode, elseNode, fileLocation);
+
+
+      CFANode retNode = newCFANode(start.getFunctionName());
+      String pRawStatement = "pointer call(" + nameExp + ") " + statement.getRawStatement();
+
+      for (FunctionEntryNode fNodeFunc : funcs) {
+        CFunctionCall regularCall = createRegularCallWithParameter(functionCall, fNodeFunc, paramFunc, func);
+
+        createCallEdge(fileLocation, pRawStatement,
+            thenNode, retNode, regularCall);
+        break;
+      }
+
+      BlankEdge be = new BlankEdge("skip", statement.getFileLocation(), retNode, end, "skip");
+      CFACreationUtils.addEdgeUnconditionallyToCFA(be);
+
+      rootNode = elseNode;
+    }
+
+    if (createUndefinedFunctionCall) {
+      BlankEdge be = new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");
+      rootNode.addLeavingEdge(be);
+      end.addEnteringEdge(be);
+    } else {
+      for (CFAEdge edge : CFAUtils.enteringEdges(rootNode)) {
+        CFACreationUtils.removeEdgeFromNodes(edge);
+      }
+      cfa.removeNode(rootNode);
+    }
+  }
+
   private CIdExpression createIdExpression(CExpression nameExp,
       FunctionEntryNode fNode) {
     return new CIdExpression(nameExp.getFileLocation(),
@@ -433,6 +551,32 @@ public class CFunctionPointerResolver {
     CFunctionCallExpression newCallExpr = new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
         createIdExpression(oldCallExpr.getFunctionNameExpression(), fNode),
         oldCallExpr.getParameterExpressions(), (CFunctionDeclaration)fNode.getFunctionDefinition());
+
+    if (functionCall instanceof CFunctionCallAssignmentStatement) {
+      CFunctionCallAssignmentStatement asgn = (CFunctionCallAssignmentStatement)functionCall;
+      return new CFunctionCallAssignmentStatement(functionCall.getFileLocation(),
+          asgn.getLeftHandSide(), newCallExpr);
+    } else if (functionCall instanceof CFunctionCallStatement) {
+      return new CFunctionCallStatement(functionCall.getFileLocation(), newCallExpr);
+    } else {
+      throw new AssertionError("Unknown CFunctionCall subclass.");
+    }
+  }
+
+  private CFunctionCall createRegularCallWithParameter(CFunctionCall functionCall, FunctionEntryNode fNode, CExpression oldParam, CIdExpression newParam) {
+    CFunctionCallExpression oldCallExpr = functionCall.getFunctionCallExpression();
+    List<CExpression> params = new ArrayList<>();
+    for (CExpression param : oldCallExpr.getParameterExpressions()) {
+      if (param == oldParam) {
+        params.add(newParam);
+      } else {
+        params.add(param);
+      }
+    }
+
+    CFunctionCallExpression newCallExpr = new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
+        createIdExpression(oldCallExpr.getFunctionNameExpression(), fNode),
+        params, (CFunctionDeclaration)fNode.getFunctionDefinition());
 
     if (functionCall instanceof CFunctionCallAssignmentStatement) {
       CFunctionCallAssignmentStatement asgn = (CFunctionCallAssignmentStatement)functionCall;

@@ -56,6 +56,8 @@ import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
+import org.sosy_lab.cpachecker.cfa.types.c.CFunctionTypeWithNames;
+import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 
 
 /**
@@ -172,6 +174,9 @@ class CReferencedFunctionsCollector {
       }
 
       for (CExpression param : pE.getParameterExpressions()) {
+        if (param.getExpressionType() instanceof CFunctionType || (param.getExpressionType() instanceof CPointerType && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames)) {
+          pE.getFunctionNameExpression().accept(this);
+        }
         param.accept(this);
       }
       return null;

@@ -19,6 +19,8 @@ false_thread_func(void *thread_data)
 	pthread_exit(0);
 }
 
+void *(*thread_func)(void *);
+
 int main()
 {
 	void *thread_data1 = NULL;
@@ -27,7 +29,6 @@ int main()
 	pthread_t thread2;
 
     int a = 0;
-    void *(*thread_func)(void *);
     if (a < 1)
 		thread_func = true_thread_func;
 	else
