@@ -63,6 +63,7 @@ import org.sosy_lab.cpachecker.core.reachedset.ReachedSetFactory;
 import org.sosy_lab.cpachecker.cpa.arg.ARGStatistics;
 import org.sosy_lab.cpachecker.cpa.lock.LockCPA;
 import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 import org.sosy_lab.cpachecker.cpa.usage.UsageCPA;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -203,7 +204,8 @@ public class BAMCPA extends AbstractSingleWrapperCPA implements StatisticsProvid
     BlockPartitioningBuilder blockBuilder;
     if (useExtendedPartitioningBuilder) {
       LockCPA cpa = retrieveWrappedCpa(LockCPA.class);
-      blockBuilder = new ExtendedBlockPartitioningBuilder(cpa == null ? null : (LockTransferRelation)cpa.getTransferRelation());
+      blockBuilder = new ExtendedBlockPartitioningBuilder(cpa == null ? null : (LockTransferRelation)cpa.getTransferRelation(),
+                                                          new PointerTransferRelation());
     } else {
       blockBuilder = new BlockPartitioningBuilder();
     }
