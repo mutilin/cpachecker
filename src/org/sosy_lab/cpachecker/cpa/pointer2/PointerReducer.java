@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
+import org.sosy_lab.common.time.Timer;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
@@ -32,10 +33,13 @@ import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public class PointerReducer extends GenericReducer<PointerState, PointerPrecision> {
+  final Timer reduceTime = new Timer();
+  final Timer expandTime = new Timer();
 
   @Override
   protected PointerState getVariableReducedState0(
       PointerState pExpandedState, Block pContext, CFANode pCallNode) throws InterruptedException {
+    reduceTime.start();
     PointerState clonedState = PointerState.copyOf(pExpandedState);
     for (MemoryLocation ptr : clonedState.getTrackedMemoryLocations()) {
       if (!(PointerState.isFictionalPointer(ptr) || ptr.isGlobal()) &&
@@ -44,6 +48,7 @@ public class PointerReducer extends GenericReducer<PointerState, PointerPrecisio
       }
     }
     System.out.println("RRR: " + pCallNode.describeFileLocation());
+    reduceTime.stop();
     return clonedState;
   }
 
@@ -51,6 +56,7 @@ public class PointerReducer extends GenericReducer<PointerState, PointerPrecisio
   protected PointerState getVariableExpandedState0(
       PointerState pRootState, Block pReducedContext, PointerState pReducedState)
       throws InterruptedException {
+    expandTime.start();
     PointerState clonedState = PointerState.copyOf(pReducedState);
     for (MemoryLocation ptr : pRootState.getTrackedMemoryLocations()) {
       if (!pReducedContext.getMemoryLocations().contains(ptr)) {
@@ -58,6 +64,7 @@ public class PointerReducer extends GenericReducer<PointerState, PointerPrecisio
       }
     }
     System.out.println("EEE: " + pReducedContext.getCallNode().describeFileLocation());
+    expandTime.stop();
     return clonedState;
   }
 

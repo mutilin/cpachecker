@@ -73,6 +73,7 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
   }
 
   private final Statistics statistics;
+  private final Reducer reducer;
   private final Path path;
 
   /**
@@ -90,8 +91,11 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
    * @param options the configured options.
    */
   public PointerCPA(PointerOptions options) {
+    // add wrappers for merge and stop operators to measure time
     super(options.merge, "SEP", PointerDomain.INSTANCE, PointerTransferRelation.INSTANCE);
-    statistics = new PointerStatistics(options.noOutput, options.path);
+    reducer = new PointerReducer();
+    statistics = new PointerStatistics(options.noOutput, options.path,
+                                        PointerTransferRelation.INSTANCE, reducer);
     path = options.path;
   }
 
@@ -107,7 +111,7 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
 
   @Override
   public Reducer getReducer() {
-    return new PointerReducer();
+    return reducer;
   }
 
 }

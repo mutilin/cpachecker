@@ -33,6 +33,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -97,7 +98,7 @@ public class UsageTransferRelation implements TransferRelation {
 
   @Option(name="abortfunctions", description="functions, which stops analysis",
       secure = true)
-  private Set<String> abortfunctions;
+  private Set<String> abortfunctions = null;
 
   private final CallstackTransferRelation callstackTransfer;
   private final VariableSkipper varSkipper;
@@ -129,6 +130,7 @@ public class UsageTransferRelation implements TransferRelation {
     }
 
     varSkipper = new VariableSkipper(config);
+    abortfunctions = new HashSet<>();
   }
 
   @Override

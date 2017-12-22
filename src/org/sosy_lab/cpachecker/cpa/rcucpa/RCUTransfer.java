@@ -23,11 +23,19 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.io.IOException;
+import java.io.Reader;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
+import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -112,7 +120,17 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   }
 
   private Set<MemoryLocation> parseFile(Path pInput) {
-    return null;
+    Set<MemoryLocation> result = new HashSet<>();
+    try (Reader reader = Files.newBufferedReader(pInput, Charset.defaultCharset())) {
+      Gson builder = new Gson();
+      java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {}.getType();
+      result.addAll(builder.fromJson(reader, type));
+      logger.log(Level.INFO, "Finished reading from file " + input);
+    } catch (IOException pE) {
+      logger.log(Level.WARNING, pE.getMessage());
+    }
+    logger.log(Level.WARNING, "result contents: " + result);
+    return result;
   }
 
   @Override
@@ -247,6 +265,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
   private MemoryLocation getLocationFromIdentifier(AbstractIdentifier id) {
     MemoryLocation result = null;
+
+    // TODO: this is wrong, although works for easy cases
 
     if (id instanceof LocalVariableIdentifier) {
       LocalVariableIdentifier lvid = (LocalVariableIdentifier) id;
