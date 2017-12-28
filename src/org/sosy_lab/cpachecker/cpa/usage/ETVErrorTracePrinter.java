@@ -169,7 +169,7 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
         callstackDepth--;
       }
       String caption = getNoteFor(edge);
-      if (!caption.isEmpty() && !(edge instanceof CFunctionReturnEdge)) {
+      if (caption != null && !caption.isEmpty() && !(edge instanceof CFunctionReturnEdge)) {
         writer.write("Line 0:     N0 -{/*" + caption + "*/}-> N0\n");
         writer.write("Line 0:     N0 -{highlight}-> N0\n");
       } else if (edge.getLineNumber() == usage.getLine().getLine() && edge.toString().contains(id.getName())) {

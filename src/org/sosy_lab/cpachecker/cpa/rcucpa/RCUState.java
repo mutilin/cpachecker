@@ -35,7 +35,7 @@ import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
-public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState {
+public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, UsageTreeNode {
   private final Map<AbstractIdentifier, Set<AbstractIdentifier>> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
   private final Set<AbstractIdentifier> localAgain;
@@ -128,14 +128,24 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
   @Override
   public UsageTreeNode getTreeNode() {
-    // TODO: implement this
-    return null;
+    return this;
   }
 
   @Override
   public int compareTo(CompatibleState o) {
     // TODO: implement this
-    return 0;
+    try {
+      if (this.isLessOrEqual((RCUState) o)) {
+        return 0;
+      } else {
+        return 1;
+      }
+    } catch (CPAException pE) {
+      pE.printStackTrace();
+    } catch (InterruptedException pE) {
+      pE.printStackTrace();
+    }
+    return -1;
   }
 
   @Override
@@ -143,11 +153,17 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
     String result = "\nLock state: " + lockState.toString()
         + "\nRCU relations: " + rcuRelations
         + "\nOutdated RCU: " + outdatedRCU
-        + "\nLocal Again: " + localAgain + '\n';
+        + "\nLocal Again: " + localAgain;
     return result;
   }
 
   public static RCUState copyOf(RCUState pState) {
     return new RCUState(pState.lockState, pState.rcuRelations, pState.outdatedRCU, pState.localAgain);
+  }
+
+  @Override
+  public boolean cover(UsageTreeNode node) {
+    // TODO: possible optimization
+    return false;
   }
 }

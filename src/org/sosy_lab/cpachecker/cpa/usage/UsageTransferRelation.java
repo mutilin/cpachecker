@@ -130,7 +130,9 @@ public class UsageTransferRelation implements TransferRelation {
     }
 
     varSkipper = new VariableSkipper(config);
-    abortfunctions = new HashSet<>();
+    if (abortfunctions == null) {
+      abortfunctions = new HashSet<>();
+    }
   }
 
   @Override

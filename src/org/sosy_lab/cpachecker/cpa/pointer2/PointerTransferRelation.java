@@ -382,10 +382,11 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private PointerState handleAssignment(PointerState pState, MemoryLocation pLhsLocation, CRightHandSide pRightHandSide) throws UnrecognizedCCodeException {
-    return pState.addPointsToInformation(pLhsLocation, asLocations(pRightHandSide, pState, 1));
+    return handleAssignment(pState, pLhsLocation, asLocations(pRightHandSide, pState, 1));
   }
 
   private PointerState handleAssignment(PointerState pState, MemoryLocation pLeftHandSide, LocationSet pRightHandSide) {
+    //if (pRightHandSide.isBot() && pState.getKnownLocations().)
     return pState.addPointsToInformation(pLeftHandSide, pRightHandSide);
   }
 
