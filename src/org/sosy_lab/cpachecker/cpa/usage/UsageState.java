@@ -132,7 +132,8 @@ public class UsageState extends AbstractSingleWrapperState {
     if (linkedId.isPresent()) {
       AbstractIdentifier pointsFrom = linkedId.get();
       int delta = id.getDereference() - pointsFrom.getDereference();
-      AbstractIdentifier initialId = variableBindingRelation.get(linkedId);
+      AbstractIdentifier initialId = variableBindingRelation.get(pointsFrom);
+      System.out.println("LID: " + linkedId + " ID: " + id);
       AbstractIdentifier pointsTo =
           initialId.cloneWithDereference(initialId.getDereference() + delta);
       if (this.containsLinks(pointsTo)) {

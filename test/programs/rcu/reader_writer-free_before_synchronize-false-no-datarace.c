@@ -22,6 +22,7 @@ void *reader(void * arg) {
 void *writer(void * arg) {
   char * pWriter = calloc(3,sizeof(int));
   char * ptr = gp;
+  ptr = link(gp);
                       
   pWriter[0] = 'r';
   pWriter[1] = 'c';

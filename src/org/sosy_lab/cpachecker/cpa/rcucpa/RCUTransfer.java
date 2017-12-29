@@ -147,6 +147,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     RCUState result = RCUState.copyOf((RCUState) state);
     IdentifierCreator ic = new IdentifierCreator(cfaEdge.getPredecessor().getFunctionName());
 
+    logger.log(Level.ALL, "EDGE: " + cfaEdge + " " + cfaEdge.getEdgeType());
+
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
         handleDeclaration(((CDeclarationEdge) cfaEdge).getDeclaration(), result, ic,
@@ -182,6 +184,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         throw new UnrecognizedCFAEdgeException(cfaEdge);
     }
 
+    logger.log(Level.ALL, "RESULT: " + result);
     return Collections.singleton(result);
   }
 
@@ -233,6 +236,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         //pIc.clearDereference();
         AbstractIdentifier ptr = pCallExpression.getParameterExpressions().get(1).accept(pIc);
         pResult.addToRelations(rcuPtr, ptr);
+        logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
+        logger.log(Level.ALL, "State: " + pResult);
       } else if ( ! fName.equals(free) && ! fName.equals(deref)){
         logger.log(Level.ALL, "1 PUSHING STATE. FUNC: " + fName);
         RCUState toPush = RCUState.copyOf(pResult);

@@ -117,7 +117,10 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
   void addToRelations(AbstractIdentifier pAil, AbstractIdentifier pInit) {
     if (pInit != null) {
+      System.out.println("BEFORE: " + rcuRelations);
       rcuRelations.put(pAil, pInit);
+      System.out.println("PAIR: " + pAil + " " + pInit);
+      System.out.println("AFTER: " + rcuRelations);
     }
   }
 
