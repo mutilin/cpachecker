@@ -24,6 +24,7 @@
 package org.sosy_lab.cpachecker.cpa.usage;
 
 import static com.google.common.collect.FluentIterable.from;
+import static com.google.common.base.Predicates.instanceOf;
 import static org.sosy_lab.cpachecker.util.AbstractStates.extractLocation;
 
 import com.google.common.base.Preconditions;
@@ -70,6 +71,7 @@ import org.sosy_lab.cpachecker.cpa.callstack.CallstackTransferRelation;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.cpa.usage.BinderFunctionInfo.LinkerInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
+import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.HandleCodeException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
@@ -427,9 +429,15 @@ public class UsageTransferRelation implements TransferRelation {
     CFANode node = AbstractStates.extractLocation(newState);
     Map<GeneralIdentifier, DataType> localInfo = precision.get(node);
 
+    Iterable<AbstractState> itStates = AbstractStates.asIterable(newState).filter(instanceOf(LocalInfoProvider.class));
+
     if (localInfo != null) {
       GeneralIdentifier gId = singleId.getGeneralId();
-      if (localInfo.get(gId) == DataType.LOCAL) {
+      boolean genLocal = localInfo.get(gId) == DataType.LOCAL;
+      for (AbstractState state : itStates) {
+        genLocal |= ((LocalInfoProvider)state).isLocal(gId);
+      }
+      if (genLocal) {
         logger.log(Level.FINER, singleId + " is considered to be local, so it wasn't add to statistics");
         return;
       } else {
@@ -438,8 +446,12 @@ public class UsageTransferRelation implements TransferRelation {
             .filter(SingleIdentifier.class)
             .transform(SingleIdentifier::getGeneralId);
         boolean isLocal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.LOCAL);
-        boolean isGlobal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.GLOBAL);
-        if (isLocal && !isGlobal) {
+        //boolean isGlobal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.GLOBAL);
+        for (AbstractState state : itStates) {
+          isLocal |= composedIds.anyMatch(i -> ((LocalInfoProvider)state).isLocal(i));
+          //isGlobal |= composedIds.anyMatch(i -> !((LocalInfoProvider) state).isLocal(i));
+        }
+        if (isLocal /* && !isGlobal*/) {
           logger.log(Level.FINER, singleId + " is supposed to be local, so it wasn't add to statistics");
           return;
         }
