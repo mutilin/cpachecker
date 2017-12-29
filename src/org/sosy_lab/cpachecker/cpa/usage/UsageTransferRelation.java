@@ -429,33 +429,33 @@ public class UsageTransferRelation implements TransferRelation {
     CFANode node = AbstractStates.extractLocation(newState);
     Map<GeneralIdentifier, DataType> localInfo = precision.get(node);
 
-    Iterable<AbstractState> itStates = AbstractStates.asIterable(newState).filter(instanceOf(LocalInfoProvider.class));
-
-    if (localInfo != null) {
-      GeneralIdentifier gId = singleId.getGeneralId();
-      boolean genLocal = localInfo.get(gId) == DataType.LOCAL;
-      for (AbstractState state : itStates) {
-        genLocal |= ((LocalInfoProvider)state).isLocal(gId);
-      }
-      if (genLocal) {
-        logger.log(Level.FINER, singleId + " is considered to be local, so it wasn't add to statistics");
-        return;
-      } else {
-        FluentIterable<GeneralIdentifier> composedIds =
+    Iterable<AbstractState> itStates = AbstractStates.asIterable(newState).filter(instanceOf
+        (LocalInfoProvider.class));
+    boolean isLocal = false;
+    boolean isGlobal = false;
+    GeneralIdentifier gId = singleId.getGeneralId();
+    FluentIterable<GeneralIdentifier> composedIds =
             from(singleId.getComposedIdentifiers())
             .filter(SingleIdentifier.class)
             .transform(SingleIdentifier::getGeneralId);
-        boolean isLocal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.LOCAL);
-        //boolean isGlobal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.GLOBAL);
-        for (AbstractState state : itStates) {
-          isLocal |= composedIds.anyMatch(i -> ((LocalInfoProvider)state).isLocal(i));
-          //isGlobal |= composedIds.anyMatch(i -> !((LocalInfoProvider) state).isLocal(i));
-        }
-        if (isLocal /* && !isGlobal*/) {
-          logger.log(Level.FINER, singleId + " is supposed to be local, so it wasn't add to statistics");
-          return;
-        }
+
+    if (localInfo != null) {
+      if (localInfo.get(gId) == DataType.LOCAL) {
+        isLocal = true;
+      } else {
+        isLocal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.LOCAL);
+        isGlobal = composedIds.anyMatch(i -> localInfo.get(i) == DataType.GLOBAL);
       }
+    }
+
+    for (AbstractState state : itStates) {
+      isLocal |= ((LocalInfoProvider) state).isLocal(gId);
+      isLocal |= composedIds.anyMatch(i -> ((LocalInfoProvider) state).isLocal(i));
+    }
+
+    if (isLocal && !isGlobal) {
+      logger.log(Level.FINER, singleId + " is considered to be local, so it wasn't add to statistics");
+      return;
     }
 
     if (varSkipper.shouldBeSkipped(singleId, usage)) {
