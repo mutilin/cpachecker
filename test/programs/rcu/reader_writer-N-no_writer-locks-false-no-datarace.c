@@ -57,7 +57,7 @@ void *writer2(void * arg) {
   return 0;
 }
 
-int main() {
+int main(void) {
 
   gp = calloc(3,sizeof(int));
 

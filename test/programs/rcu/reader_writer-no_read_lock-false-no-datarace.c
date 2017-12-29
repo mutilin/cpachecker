@@ -1,48 +1,8 @@
-int pthread_create(int * thread, int * attr, void*(*start)(void*), void *);
-
-void ldv_rcu_read_lock(void) {
-
-}
-
-void ldv_rcu_read_unlock(void) {
-
-}
-
-void ldv_rlock_rcu(void) {
-
-}
-
-void ldv_runlock_rcu(void) {
-
-}
-
-void * ldv_rcu_dereference(void * pp) {
-
-}
-
-void ldv_wlock_rcu(void) {
-
-}
-
-void ldv_wunlock_rcu(void) {
-
-}
-
-void ldv_free(void *) {
-
-}
-
-void ldv_synchronize_rcu(void) {
-
-}
-
-void ldv_rcu_assign_pointer(void * p1, void * p2) {
-
-}
+#include "rcu.h"
 
 char * gp;
 
-int reader(void * arg) {
+void *reader(void * arg) {
     char *a;
     char b;
     char * p = &b;
@@ -59,15 +19,17 @@ int reader(void * arg) {
     return 0;
 }
 
-int writer(void * arg) {
-  char * p = calloc(3 * sizeof(int));
-  char * ptr;
+void *writer(void * arg) {
+  char * pWriter = calloc(3,sizeof(int));
+  char * ptr = gp;
                       
-  p[1] = 'd';
+  pWriter[0] = 'r';
+  pWriter[1] = 'c';
+  pWriter[2] = 'u';
 
   do {
     ldv_wlock_rcu();
-    ldv_rcu_assign_pointer(gp, p);
+    ldv_rcu_assign_pointer(gp, pWriter);
     ldv_wunlock_rcu();
   } while(0);
   ldv_synchronize_rcu();
@@ -76,13 +38,13 @@ int writer(void * arg) {
   return 0;
 }
 
-int main() {
+int main(void) {
 
-  gp = calloc(3 * sizeof(int));
+  gp = calloc(3,sizeof(int));
 
-  int rd, wd;
+  pthread_t rd, wr;
   pthread_create(&rd, 0, reader, 0);
-  pthread_create(&wd, 0, writer, 0);
+  pthread_create(&wr, 0, writer, 0);
 
-  return rd + wd;
+  return 0;
 }
