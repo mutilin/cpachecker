@@ -199,7 +199,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
     if (!rcuRelevant) {
       logger.log(Level.ALL, "POPPING STATE. FUNC: " + pFunctionName);
-      return stateStack.pop();
+      RCUState result = stateStack.pop();
+      logger.log(Level.ALL, "State: " + result);
+      return result;
     } else {
       return pState;
     }
@@ -233,7 +235,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         pResult.addToRelations(rcuPtr, ptr);
       } else if ( ! fName.equals(free) && ! fName.equals(deref)){
         logger.log(Level.ALL, "1 PUSHING STATE. FUNC: " + fName);
-        stateStack.push(pResult);
+        RCUState toPush = RCUState.copyOf(pResult);
+        logger.log(Level.ALL, "State: " + toPush);
+        stateStack.push(toPush);
       }
     }
   }

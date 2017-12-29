@@ -26,11 +26,16 @@ package org.sosy_lab.cpachecker.cpa.rcucpa;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import static com.google.common.collect.FluentIterable.from;
+
+import com.google.common.collect.LinkedListMultimap;
+import com.google.common.collect.Multimap;
 import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
@@ -40,12 +45,12 @@ import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 
 public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, UsageTreeNode,
                                  LocalInfoProvider {
-  private final Map<AbstractIdentifier, Set<AbstractIdentifier>> rcuRelations;
+  private final Multimap<AbstractIdentifier, AbstractIdentifier> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
   private final Set<AbstractIdentifier> localAgain;
   private final LockStateRCU lockState;
 
-  RCUState(LockStateRCU pLockState, Map<AbstractIdentifier, Set<AbstractIdentifier>> pRcuRel,
+  RCUState(LockStateRCU pLockState, Multimap<AbstractIdentifier, AbstractIdentifier> pRcuRel,
                   Set<AbstractIdentifier> pOutdatedRCU, Set<AbstractIdentifier> pLocalAgain) {
     rcuRelations = pRcuRel;
     outdatedRCU = pOutdatedRCU;
@@ -54,7 +59,7 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   }
 
   RCUState() {
-    this(new LockStateRCU(), new HashMap<>(), new HashSet<>(), new HashSet<>());
+    this(new LockStateRCU(), LinkedListMultimap.create(), new HashSet<>(), new HashSet<>());
   }
 
   @Override
@@ -111,11 +116,8 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   }
 
   void addToRelations(AbstractIdentifier pAil, AbstractIdentifier pInit) {
-    if (!rcuRelations.containsKey(pAil)) {
-      rcuRelations.put(pAil, new HashSet<>());
-    }
     if (pInit != null) {
-      rcuRelations.get(pAil).add(pInit);
+      rcuRelations.put(pAil, pInit);
     }
   }
 
@@ -169,7 +171,10 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   }
 
   public static RCUState copyOf(RCUState pState) {
-    return new RCUState(pState.lockState, pState.rcuRelations, pState.outdatedRCU, pState.localAgain);
+    return new RCUState(LockStateRCU.copyOf(pState.lockState),
+                        LinkedListMultimap.create(pState.rcuRelations),
+                        new HashSet<>(pState.outdatedRCU),
+                        new HashSet<>(pState.localAgain));
   }
 
   @Override

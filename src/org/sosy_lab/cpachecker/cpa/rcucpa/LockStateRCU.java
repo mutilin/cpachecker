@@ -32,6 +32,11 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     return null;
   }
 
+  private LockStateRCU(HeldLock lock, int readCount) {
+    lockType = lock;
+    readLockCount = readCount;
+  }
+
   @Override
   public boolean isLessOrEqual(LockStateRCU other) throws CPAException, InterruptedException {
     return readLockCount <= other.readLockCount;
@@ -111,6 +116,10 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   public String toString() {
     return "\n Lock Type: " + lockType.name() +
             "\n Read Lock Count: " + readLockCount;
+  }
+
+  public static LockStateRCU copyOf(LockStateRCU other) {
+    return new LockStateRCU(other.lockType, other.readLockCount);
   }
 
 }
