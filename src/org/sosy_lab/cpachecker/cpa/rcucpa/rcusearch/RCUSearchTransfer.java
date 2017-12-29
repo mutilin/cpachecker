@@ -34,6 +34,7 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
@@ -42,6 +43,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
@@ -49,6 +51,9 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerPrecision;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
@@ -64,9 +69,13 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   private String deref = "ldv_rcu_dereference";
 
   private LogManager logger;
+  private PointerTransferRelation pTransfer;
+  private Set<MemoryLocation> declarations;
 
   RCUSearchTransfer(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = pLogger;
+    pTransfer = (PointerTransferRelation) PointerTransferRelation.INSTANCE;
+    declarations = new HashSet<>();
     config.inject(this);
   }
 
@@ -78,6 +87,10 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     logger.log(Level.ALL, "EDGE TYPE: " + cfaEdge.getEdgeType());
     logger.log(Level.ALL, "EDGE CONT: " + cfaEdge.getRawStatement());
     switch(cfaEdge.getEdgeType()) {
+      case DeclarationEdge:
+        handleDeclarationEdge((CDeclarationEdge) cfaEdge, cfaEdge.getPredecessor()
+            .getFunctionName(), (RCUSearchState) state, logger);
+        break;
       case StatementEdge:
         result = handleStatementEdge((CStatementEdge) cfaEdge,
                             cfaEdge.getPredecessor().getFunctionName(),
@@ -103,6 +116,19 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     }
     return Collections.singleton(result);
   }
+
+  private void handleDeclarationEdge(CDeclarationEdge pCfaEdge,
+                                               String pFunctionName,
+                                               RCUSearchState pState,
+                                               LogManager pLogger)
+      throws CPATransferException, InterruptedException {
+    for(AbstractState state : pTransfer.getAbstractSuccessorsForEdge(PointerState.INITIAL_STATE,
+                                                              new PointerPrecision(), pCfaEdge)) {
+      declarations.addAll(((PointerState)state).getTrackedMemoryLocations());
+      logger.log(Level.ALL, "DECLARATIONS:\n" + declarations);
+    }
+  }
+
   private RCUSearchState handleFunctionReturnEdge(CFunctionReturnEdge pEdge,
                                                String pFunctionName,
                                                RCUSearchState state,
@@ -129,18 +155,29 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     CFunctionDeclaration fd = fc.getDeclaration();
     Set<MemoryLocation> pRcuPointers = new HashSet<>(state.getRcuPointers());
     if (fd.getName().contains(assign)) {
+      logger.log(Level.ALL, "Handling rcu_assign_pointer");
       List<CExpression> params = fc.getParameterExpressions();
 
       //TODO: not-really-a-clever-hack detected
 
-      MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, params.get(0).toString());
-      pRcuPointers.add(loc);
-
-      loc = MemoryLocation.valueOf(pFunctionName, params.get(1).toString());
-      pRcuPointers.add(loc);
+      addMemoryLocation(pFunctionName, pRcuPointers, params.get(0).toString());
+      addMemoryLocation(pFunctionName, pRcuPointers, params.get(1).toString());
     }
 
     return new RCUSearchState(pRcuPointers);
+  }
+
+  private void addMemoryLocation(String pFunctionName, Set<MemoryLocation> pPRcuPointers,
+                                 String proposedName) {
+    MemoryLocation loc = MemoryLocation.valueOf(pFunctionName, proposedName);
+    if (declarations.contains(loc)) {
+      logger.log(Level.ALL, "LOCAL: " + loc);
+      pPRcuPointers.add(loc);
+    } else {
+      loc = MemoryLocation.valueOf(proposedName);
+      logger.log(Level.ALL, "GLOBAL?: " + loc);
+      pPRcuPointers.add(loc);
+    }
   }
 
   private RCUSearchState handleStatementEdge(CStatementEdge pEdge,
@@ -181,14 +218,14 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
         pLogger.log(Level.ALL, "RCU PTR: " + rcuPtr);
         pLogger.log(Level.ALL, "MEM LOC: " + loc);
 
-        pRcuPointers.add(loc);
+        addMemoryLocation(pFunctionName, pRcuPointers, rcuPtr.toString());
 
         loc = MemoryLocation.valueOf(pFunctionName, leftHandSide.toString());
 
         pLogger.log(Level.ALL, "LHS PTR: " + leftHandSide.toString());
         pLogger.log(Level.ALL, "LHS MEM LOC: " + loc);
 
-        pRcuPointers.add(loc);
+        addMemoryLocation(pFunctionName, pRcuPointers, leftHandSide.toString());
       }
     }
     if (!pRcuPointers.equals(state.getRcuPointers())) {

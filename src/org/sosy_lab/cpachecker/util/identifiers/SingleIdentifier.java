@@ -112,6 +112,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier {
 
   public abstract String toLog();
 
+  @Override
   public abstract GeneralIdentifier getGeneralId();
 
   @Override

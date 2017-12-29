@@ -35,6 +35,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.Stack;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -54,6 +55,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -105,18 +107,23 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       + "call to a fictional write unlock of RCU pointer")
   private String fictWriteUnlock = "ldv_wunlock_rcu";
 
+  @Option(name = "free", secure = true, description = "Name of a free function")
+  private String free = "ldv_free";
+
   @Option(name = "rcuPointersFile", secure = true, description = "Name of a file containing RCU "
       + "pointers")
   private Path input = Paths.get("RCUPointers");
 
   private final LogManager logger;
   private final Set<MemoryLocation> rcuPointers;
+  private final Stack<RCUState> stateStack;
 
   RCUTransfer(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
     logger = pLogger;
     pConfig.inject(this);
     rcuPointers = parseFile(input);
+    stateStack = new Stack<>();
   }
 
   private Set<MemoryLocation> parseFile(Path pInput) {
@@ -164,6 +171,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         handleFunctionCall(callExpression, result, ic, cfaEdge.getPredecessor().getFunctionName());
         break;
       case FunctionReturnEdge:
+        result = handleFunctionReturn(((CFunctionReturnEdge) cfaEdge).getPredecessor().getFunctionName(), result);
       case ReturnStatementEdge:
         break;
       case CallToReturnEdge:
@@ -175,6 +183,26 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     }
 
     return Collections.singleton(result);
+  }
+
+  private RCUState handleFunctionReturn(String pFunctionName, RCUState pState) {
+    boolean rcuRelevant = pFunctionName.equals(readLockName);
+    rcuRelevant |= pFunctionName.equals(readUnlockName);
+    rcuRelevant |= pFunctionName.equals(fictReadLock);
+    rcuRelevant |= pFunctionName.equals(fictReadUnlock);
+    rcuRelevant |= pFunctionName.equals(fictWriteLock);
+    rcuRelevant |= pFunctionName.equals(fictWriteUnlock);
+    rcuRelevant |= pFunctionName.equals(sync);
+    rcuRelevant |= pFunctionName.equals(assign);
+    rcuRelevant |= pFunctionName.equals(deref);
+    rcuRelevant |= pFunctionName.equals(free);
+
+    if (!rcuRelevant) {
+      logger.log(Level.ALL, "POPPING STATE. FUNC: " + pFunctionName);
+      return stateStack.pop();
+    } else {
+      return pState;
+    }
   }
 
   private void handleFunctionCall(CFunctionCallExpression pCallExpression, RCUState pResult,
@@ -203,6 +231,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         //pIc.clearDereference();
         AbstractIdentifier ptr = pCallExpression.getParameterExpressions().get(1).accept(pIc);
         pResult.addToRelations(rcuPtr, ptr);
+      } else if ( ! fName.equals(free) && ! fName.equals(deref)){
+        logger.log(Level.ALL, "1 PUSHING STATE. FUNC: " + fName);
+        stateStack.push(pResult);
       }
     }
   }

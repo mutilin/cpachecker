@@ -109,7 +109,7 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
-  static final TransferRelation INSTANCE = new PointerTransferRelation();
+  public static final TransferRelation INSTANCE = new PointerTransferRelation();
   final Timer handlingTime = new Timer();
   final Timer equalityTime = new Timer();
   static final Timer pointsToTime = new Timer();
@@ -362,6 +362,15 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
   private PointerState handleAssignment(PointerState pState, CExpression pLeftHandSide, CRightHandSide pRightHandSide) throws UnrecognizedCCodeException {
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
+    if (asLocations(pRightHandSide, pState, 1).isBot() &&
+        !pState.getKnownLocations().contains(locations) && locations instanceof ExplicitLocationSet) {
+      MemoryLocation loc = ((ExplicitLocationSet) locations).iterator().next();
+      CVariableDeclaration decl =
+          new CVariableDeclaration(FileLocation.DUMMY, true, CStorageClass.AUTO,
+                                  pLeftHandSide.getExpressionType(), loc.getIdentifier(),
+              loc.getIdentifier(), loc.getIdentifier(), null);
+      pState = handleDeclaration(pState, decl);
+    }
     return handleAssignment(pState, locations, pRightHandSide);
   }
 
@@ -386,7 +395,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private PointerState handleAssignment(PointerState pState, MemoryLocation pLeftHandSide, LocationSet pRightHandSide) {
-    //if (pRightHandSide.isBot() && pState.getKnownLocations().)
     return pState.addPointsToInformation(pLeftHandSide, pRightHandSide);
   }
 
@@ -395,27 +403,36 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       return pState;
     }
     CVariableDeclaration declaration = (CVariableDeclaration) pCfaEdge.getDeclaration();
-    CInitializer initializer = declaration.getInitializer();
-    MemoryLocation location = toLocation(declaration);
-    CType declarationType = declaration.getType();
+    return handleDeclaration(pState, declaration);
+  }
+
+  private PointerState handleDeclaration(PointerState pState, CVariableDeclaration pDeclaration)
+      throws UnrecognizedCCodeException {
+    CInitializer initializer = pDeclaration.getInitializer();
+    MemoryLocation location = toLocation(pDeclaration);
+    CType declarationType = pDeclaration.getType();
     if (initializer != null) {
       return handleWithInitializer(pState, location, declarationType, initializer);
     } else if (declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
-      FileLocation fLoc = declaration.getFileLocation();
-      String ptrName = "##" + declaration.getQualifiedName().replace(':','#');
-      CVariableDeclaration varDec = new CVariableDeclaration(fLoc,true,
-                                              CStorageClass.AUTO, CPointerType.POINTER_TO_VOID,
-                                              ptrName, ptrName, ptrName, null);
-      CIdExpression idExpression = new CIdExpression(fLoc, CPointerType.POINTER_TO_VOID,
-                                              declaration.getName(), varDec);
-      CUnaryExpression uExpr = new CUnaryExpression(fLoc, declarationType,
-                                              idExpression, UnaryOperator.AMPER);
-      initializer = new CInitializerExpression(declaration.getFileLocation(), uExpr);
-
+      initializer = getFakeInitializer(pDeclaration);
       return handleWithInitializer(pState, location, declarationType, initializer);
     }
     return pState;
+  }
+
+  private CInitializer getFakeInitializer(CVariableDeclaration pDeclaration) {
+    CType pDeclarationType = pDeclaration.getType();
+    FileLocation fLoc = pDeclaration.getFileLocation();
+    String ptrName = "##" + pDeclaration.getQualifiedName().replace(':','#');
+    CVariableDeclaration varDec = new CVariableDeclaration(fLoc,true,
+                                            CStorageClass.AUTO, CPointerType.POINTER_TO_VOID,
+                                            ptrName, ptrName, ptrName, null);
+    CIdExpression idExpression = new CIdExpression(fLoc, CPointerType.POINTER_TO_VOID,
+                                            pDeclaration.getName(), varDec);
+    CUnaryExpression uExpr = new CUnaryExpression(fLoc, pDeclarationType,
+                                            idExpression, UnaryOperator.AMPER);
+    return new CInitializerExpression(pDeclaration.getFileLocation(), uExpr);
   }
 
   private PointerState handleWithInitializer(

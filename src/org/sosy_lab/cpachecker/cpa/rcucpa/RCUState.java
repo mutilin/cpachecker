@@ -24,18 +24,22 @@
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
+import static com.google.common.collect.FluentIterable.from;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
+import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 
-public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, UsageTreeNode {
+public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, UsageTreeNode,
+                                 LocalInfoProvider {
   private final Map<AbstractIdentifier, Set<AbstractIdentifier>> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
   private final Set<AbstractIdentifier> localAgain;
@@ -118,6 +122,13 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   @Override
   public boolean isCompatibleWith(CompatibleState state) {
     Preconditions.checkArgument(state instanceof RCUState);
+    System.out.println("TOP_COMP");
+    System.out.println("This state:");
+    System.out.println(this);
+    System.out.println();
+    System.out.println("Other state:");
+    System.out.println((RCUState) state);
+    System.out.println();
     return lockState.isCompatible(((RCUState) state).lockState);
   }
 
@@ -150,7 +161,7 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
   @Override
   public String toString() {
-    String result = "\nLock state: " + lockState.toString()
+    String result = "Lock state: " + lockState.toString()
         + "\nRCU relations: " + rcuRelations
         + "\nOutdated RCU: " + outdatedRCU
         + "\nLocal Again: " + localAgain;
@@ -165,5 +176,53 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   public boolean cover(UsageTreeNode node) {
     // TODO: possible optimization
     return false;
+  }
+
+  @Override
+  public boolean isLocal(GeneralIdentifier id) {
+    if (!localAgain.isEmpty()) {
+      FluentIterable<GeneralIdentifier> genIds = from(localAgain).transform
+          (AbstractIdentifier::getGeneralId);
+      if (genIds.anyMatch(i -> i.equals(id))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @Override
+  public boolean equals(Object pO) {
+    if (this == pO) {
+      return true;
+    }
+    if (pO == null || getClass() != pO.getClass()) {
+      return false;
+    }
+
+    RCUState rcuState = (RCUState) pO;
+
+    if (!rcuRelations.equals(rcuState.rcuRelations)) {
+      return false;
+    }
+    if (!outdatedRCU.equals(rcuState.outdatedRCU)) {
+      return false;
+    }
+    if (!localAgain.equals(rcuState.localAgain)) {
+      return false;
+    }
+    if (!lockState.equals(rcuState.lockState)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = rcuRelations.hashCode();
+    result = 31 * result + outdatedRCU.hashCode();
+    result = 31 * result + localAgain.hashCode();
+    result = 31 * result + lockState.hashCode();
+    return result;
   }
 }

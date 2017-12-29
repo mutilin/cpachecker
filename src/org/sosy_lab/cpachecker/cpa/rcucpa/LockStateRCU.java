@@ -47,6 +47,34 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     return !first && !second;
   }
 
+  @Override
+  public boolean equals(Object pO) {
+    if (this == pO) {
+      return true;
+    }
+    if (pO == null || getClass() != pO.getClass()) {
+      return false;
+    }
+
+    LockStateRCU that = (LockStateRCU) pO;
+
+    if (readLockCount != that.readLockCount) {
+      return false;
+    }
+    if (lockType != that.lockType) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = lockType.hashCode();
+    result = 31 * result + readLockCount;
+    return result;
+  }
+
   public enum HeldLock {
     NO_LOCK, READ_LOCK, WRITE_LOCK
   }
