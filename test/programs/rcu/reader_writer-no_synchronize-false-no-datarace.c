@@ -40,41 +40,43 @@ void ldv_rcu_assign_pointer(void * p1, void * p2) {
 
 }
 
+char * gp;
+
 int reader(void * arg) {
     char *a;
     char b;
-    char * p = &b;
+    char * pReader = &b;
 
-    //ldv_rcu_read_lock();
-    char * p__1;
+    ldv_rcu_read_lock();
+    char * p;
     ldv_rlock_rcu();
-    p__1 = ldv_rcu_dereference(gp);
+    p = ldv_rcu_dereference(gp);
     ldv_runlock_rcu();
-    a = p__1;
+    a = p;
     b = *a;
-    //ldv_rcu_read_unlock();
+    ldv_rcu_read_unlock();
     
     return 0;
 }
 
 int writer(void * arg) {
-  char * p = calloc(3 * sizeof(int));
-  char * ptr;
+  char * pWriter = calloc(3 * sizeof(int));
+  char * ptr = gp;
                       
-  p[1] = 'd';
+  pWriter[0] = 'r';
+  pWriter[1] = 'c';
+  pWriter[2] = 'u';
 
   do {
     ldv_wlock_rcu();
-    ldv_rcu_assign_pointer(gp, p);
+    ldv_rcu_assign_pointer(gp, pWriter);
     ldv_wunlock_rcu();
   } while(0);
-  ldv_synchronize_rcu();
+  //ldv_synchronize_rcu(); BUG is here! No synchronize.
   ldv_free(ptr);
 
   return 0;
 }
-
-char * gp;
 
 int main() {
 
@@ -84,5 +86,5 @@ int main() {
   pthread_create(&rd, 0, reader, 0);
   pthread_create(&wd, 0, writer, 0);
 
-  return rd + wd;
+  return 0;
 }
