@@ -1,48 +1,8 @@
-int pthread_create(int * thread, int * attr, void*(*start)(void*), void *);
-
-void ldv_rcu_read_lock(void) {
-
-}
-
-void ldv_rcu_read_unlock(void) {
-
-}
-
-void ldv_rlock_rcu(void) {
-
-}
-
-void ldv_runlock_rcu(void) {
-
-}
-
-void * ldv_rcu_dereference(void * pp) {
-
-}
-
-void ldv_wlock_rcu(void) {
-
-}
-
-void ldv_wunlock_rcu(void) {
-
-}
-
-void ldv_free(void *) {
-
-}
-
-void ldv_synchronize_rcu(void) {
-
-}
-
-void ldv_rcu_assign_pointer(void * p1, void * p2) {
-
-}
+#include "rcu.h"
 
 char * gp;
 
-int reader(void * arg) {
+void *reader(void * arg) {
     char *a;
     char b;
     char * pReader = &b;
@@ -59,8 +19,8 @@ int reader(void * arg) {
     return 0;
 }
 
-int writer1(void * arg) {
-  char * pWriter = calloc(3 * sizeof(int));
+void *writer1(void * arg) {
+  char * pWriter = calloc(3,sizeof(int));
   char * ptr = gp;
                       
   pWriter[0] = 'r';
@@ -78,8 +38,8 @@ int writer1(void * arg) {
   return 0;
 }
 
-int writer2(void * arg) {
-  char * pWriter = calloc(3 * sizeof(int));
+void *writer2(void * arg) {
+  char * pWriter = calloc(3,sizeof(int));
   char * ptr = gp;
                       
   pWriter[0] = 'r';
@@ -99,12 +59,12 @@ int writer2(void * arg) {
 
 int main() {
 
-  gp = calloc(3 * sizeof(int));
+  gp = calloc(3,sizeof(int));
 
-  int rd, wd;
+  pthread_t rd, wr1,wr2;
   pthread_create(&rd, 0, reader, 0);
-  pthread_create(&wd, 0, writer1, 0);
-  pthread_create(&wd, 0, writer2, 0);
+  pthread_create(&wr1, 0, writer1, 0);
+  pthread_create(&wr2, 0, writer2, 0);
 
   return 0;
 }
