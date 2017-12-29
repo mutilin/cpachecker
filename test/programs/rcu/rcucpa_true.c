@@ -46,7 +46,7 @@ int reader(void * arg) {
     char * pReader = &b;
 
     ldv_rcu_read_lock();
-    void * p;
+    char * p;
     ldv_rlock_rcu();
     p = ldv_rcu_dereference(gp);
     ldv_runlock_rcu();
