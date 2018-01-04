@@ -17,19 +17,12 @@ false_func()
     res = res + 1;
 }
 
-void (*func)(void);
+void (*func)();
 
 void *
 thread_func(void *thread_data)
 {
-    int a = 0;
-    if (a < 1)
-		func = true_func;
-	else
-		func = false_func;
-
     func();
-
 	pthread_exit(0);
 }
 
@@ -39,6 +32,12 @@ int main()
 	void *thread_data2 = NULL;
 	pthread_t thread1;
 	pthread_t thread2;
+
+    int a = 0;
+    if (a < 1)
+		func = true_func;
+	else
+		func = false_func;
 
 	pthread_create(&thread1, NULL, thread_func, thread_data1);
 	pthread_create(&thread2, NULL, thread_func, thread_data2);

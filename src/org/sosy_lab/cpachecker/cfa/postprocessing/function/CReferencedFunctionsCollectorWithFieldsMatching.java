@@ -43,7 +43,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
-import org.sosy_lab.cpachecker.cfa.types.c.CFunctionTypeWithNames;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
@@ -146,7 +145,7 @@ class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctio
 
     @Override
     public Void visit(CIdExpression pE) {
-      if (pE.getExpressionType() instanceof CFunctionType || (pE.getExpressionType() instanceof CPointerType && ((CPointerType) pE.getExpressionType()).getType() instanceof CFunctionTypeWithNames)) {
+      if (pE.getExpressionType() instanceof CFunctionType) {
         this.collectedFunctions.add(pE.getName());
         lastFunction = pE.getName();
       }

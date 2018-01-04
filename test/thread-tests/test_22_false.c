@@ -6,7 +6,7 @@ int res = 0;
 struct thread_data_t
 {
     int a;
-    void (*func)(void);
+    void (*func)();
 };
 
 void
