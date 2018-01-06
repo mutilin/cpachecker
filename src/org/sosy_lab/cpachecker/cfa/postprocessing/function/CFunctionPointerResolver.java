@@ -339,8 +339,8 @@ public class CFunctionPointerResolver {
     for (CExpression param : call.getFunctionCallExpression().getParameterExpressions()) {
       if (param.getExpressionType() instanceof CPointerType
           && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames
-          && param instanceof CIdExpression
-          && ((CIdExpression) param).getDeclaration().getType() instanceof CPointerType) {
+          && ((param instanceof CIdExpression && ((CIdExpression) param).getDeclaration().getType() instanceof CPointerType)
+          || (param instanceof CFieldReference))) {
         return param;
       }
     }
@@ -434,7 +434,7 @@ public class CFunctionPointerResolver {
     CIdExpression func;
     CUnaryExpression amper;
 
-    protected void firstStep(CStatementEdge statement, Collection<CFunctionEntryNode> funcs) {
+    protected void statementPrepareStep(CStatementEdge statement, Collection<CFunctionEntryNode> funcs) {
       functionCall = (CFunctionCall)statement.getStatement();
       fExp = functionCall.getFunctionCallExpression();
       nameExp = fExp.getFunctionNameExpression();
@@ -454,7 +454,7 @@ public class CFunctionPointerResolver {
       rootNode = start;
     }
 
-    protected void secondStep(FunctionEntryNode fNode) {
+    protected void fNodePrepareStep(FunctionEntryNode fNode) {
       thenNode = newCFANode(start.getFunctionName());
       elseNode = newCFANode(start.getFunctionName());
       func = new CIdExpression(nameExp.getFileLocation(),
@@ -465,13 +465,13 @@ public class CFunctionPointerResolver {
                                    func, CUnaryExpression.UnaryOperator.AMPER);
     }
 
-    protected void thirdStep(CFANode retNode) {
+    protected void blankEdgeStep(CFANode retNode) {
       BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
       rootNode = elseNode;
     }
 
-    protected void fourthStep(CStatementEdge statement, int type) {
+    protected void livingEdgeStep(CStatementEdge statement, int type) {
       if (createUndefinedFunctionCall) {
         if (type == 0) {
           CStatementEdge summaryStatementEdge = new CStatementEdge(statement.getRawStatement(), statement.getStatement(),
@@ -495,10 +495,10 @@ public class CFunctionPointerResolver {
   private class InstrumentorPointer extends Instrumentor {
     public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs) {
 
-      firstStep(statement, funcs);
+      statementPrepareStep(statement, funcs);
 
       for (FunctionEntryNode fNode : funcs) {
-        secondStep(fNode);
+        fNodePrepareStep(fNode);
 
         final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
         CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
@@ -509,21 +509,21 @@ public class CFunctionPointerResolver {
         CFunctionCall regularCall = createRegularCall(functionCall, fNode);
         createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
 
-        thirdStep(retNode);
+        blankEdgeStep(retNode);
       }
 
-      fourthStep(statement, 0);
+      livingEdgeStep(statement, 0);
     }
   }
 
   private class InstrumentorParametrPointer extends Instrumentor {
     public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs) {
 
-      firstStep(statement, funcs);
+      statementPrepareStep(statement, funcs);
 
       CExpression param = functionArgumentPointerCall(functionCall);
       for (FunctionEntryNode fNode : funcs) {
-        secondStep(fNode);
+        fNodePrepareStep(fNode);
 
         final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
         CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(param, amper, BinaryOperator.EQUALS);
@@ -534,10 +534,10 @@ public class CFunctionPointerResolver {
         CFunctionCall regularCall = createRegularCallWithParameter(functionCall, fNode, param, func);
         createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
 
-        thirdStep(retNode);
+        blankEdgeStep(retNode);
       }
 
-      fourthStep(statement, 1);
+      livingEdgeStep(statement, 1);
     }
   }
 
