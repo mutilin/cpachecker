@@ -3,13 +3,17 @@
 pthread_mutex_t m;
 int res = 0;
 
+struct data0_t
+{
+    int b;
+    void (*func)();
+};
+
 struct data_t
 {
     int a;
-    void (*func)();
+    struct data0_t dt;
 } data;
-
-struct data_t *d = &data;
 
 int thread_data1 = 1;
 int thread_data2 = 2;
@@ -34,14 +38,14 @@ false_func()
 void *
 thread_func(void *thread_data)
 {
-    d->func();
+    data.dt.func();
 
 	pthread_exit(0);
 }
 
 int main()
 {
-    d->func = true_func;
+    data.dt.func = true_func;
 
 	pthread_create(&thread1, NULL, thread_func, (void *) &thread_data1);
 	pthread_create(&thread2, NULL, thread_func, (void *) &thread_data2);

@@ -9,8 +9,6 @@ struct data_t
     void (*func)();
 } data;
 
-struct data_t *d = &data;
-
 int thread_data1 = 1;
 int thread_data2 = 2;
 
@@ -34,14 +32,14 @@ false_func()
 void *
 thread_func(void *thread_data)
 {
-    d->func();
+    data.func();
 
 	pthread_exit(0);
 }
 
 int main()
 {
-    d->func = true_func;
+    data.func = false_func;
 
 	pthread_create(&thread1, NULL, thread_func, (void *) &thread_data1);
 	pthread_create(&thread2, NULL, thread_func, (void *) &thread_data2);
