@@ -32,9 +32,12 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFACreationUtils;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpressionBuilder;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
@@ -52,7 +55,7 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 
 
 @Options
-public class EdgeReplacer {
+public abstract class EdgeReplacer {
 
   @Option(secure=true, name="analysis.functionPointerEdgesForUnknownPointer",
       description="Create edge for skipping a function pointer call if its value is unknown.")
@@ -103,13 +106,23 @@ public class EdgeReplacer {
     CFACreationUtils.addEdgeUnconditionallyToCFA(callEdge);
   }
 
-  protected void createEdge(CStatementEdge statement, CFunctionCall functionCall, MutableCFA cfa, LogManager logger,
-      CExpression nameExp, CUnaryExpression amper, FunctionEntryNode fNode, CFANode rootNode, CFANode thenNode,
-      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func)
-  {
+  protected CFunctionCall createRegularCallCommon(CFunctionCall functionCall, CFunctionCallExpression newCallExpr) {
+    if (functionCall instanceof CFunctionCallAssignmentStatement) {
+      CFunctionCallAssignmentStatement asgn = (CFunctionCallAssignmentStatement)functionCall;
+      return new CFunctionCallAssignmentStatement(functionCall.getFileLocation(),
+          asgn.getLeftHandSide(), newCallExpr);
+    } else if (functionCall instanceof CFunctionCallStatement) {
+      return new CFunctionCallStatement(functionCall.getFileLocation(), newCallExpr);
+    } else {
+      throw new AssertionError("Unknown CFunctionCall subclass.");
+    }
   }
 
-  public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CreateEdgeFlags type) {
+  protected abstract void createEdge(CStatementEdge statement, CFunctionCall functionCall,
+      CExpression nameExp, CUnaryExpression amper, FunctionEntryNode fNode, CFANode rootNode, CFANode thenNode,
+      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder, CExpression param);
+
+  public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression param, CreateEdgeFlags type) {
     CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
     CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
     CExpression nameExp = fExp.getFunctionNameExpression();
@@ -137,7 +150,8 @@ public class EdgeReplacer {
       CUnaryExpression amper = new CUnaryExpression(nameExp.getFileLocation(), func.getExpressionType(),
                                    func, CUnaryExpression.UnaryOperator.AMPER);
       CFANode retNode = newCFANode(start.getFunctionName());
-      createEdge(statement, functionCall, cfa, logger, nameExp, amper, fNode, rootNode, thenNode, elseNode, retNode, fileLocation, func);
+      final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
+      createEdge(statement, functionCall, nameExp, amper, fNode, rootNode, thenNode, elseNode, retNode, fileLocation, func, binExprBuilder, param);
       BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
       rootNode = elseNode;

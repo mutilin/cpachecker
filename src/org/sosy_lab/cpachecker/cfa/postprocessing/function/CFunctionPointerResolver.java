@@ -220,6 +220,8 @@ public class CFunctionPointerResolver {
 
   private BiPredicate<CFunctionCall, CFunctionType> getFunctionSetPredicate(
       Collection<FunctionSet> pFunctionSets) {
+    List<BiPredicate<CFunctionCall, CFunctionType>> predicates = new ArrayList<>();
+
     // note that this set is sorted according to the declaration order of the enum
     EnumSet<FunctionSet> functionSets = EnumSet.copyOf(pFunctionSets);
 
@@ -228,7 +230,6 @@ public class CFunctionPointerResolver {
       functionSets.add(FunctionSet.EQ_PARAM_COUNT); // TYPES and SIZES need COUNT checked first
     }
 
-    List<BiPredicate<CFunctionCall, CFunctionType>> predicates = new ArrayList<>();
     for (FunctionSet functionSet : functionSets) {
       switch (functionSet) {
       case ALL:
@@ -259,6 +260,8 @@ public class CFunctionPointerResolver {
 
   private BiPredicate<CExpression, CFunctionType> getFunctionSetParametersPredicate(
       Collection<FunctionSet> pFunctionSets) {
+    List<BiPredicate<CExpression, CFunctionType>> predicates = new ArrayList<>();
+
     // note that this set is sorted according to the declaration order of the enum
     EnumSet<FunctionSet> functionSets = EnumSet.copyOf(pFunctionSets);
 
@@ -267,7 +270,6 @@ public class CFunctionPointerResolver {
       functionSets.add(FunctionSet.EQ_PARAM_COUNT); // TYPES and SIZES need COUNT checked first
     }
 
-    List<BiPredicate<CExpression, CFunctionType>> predicates = new ArrayList<>();
     for (FunctionSet functionSet : functionSets) {
       switch (functionSet) {
       case ALL:
@@ -314,7 +316,7 @@ public class CFunctionPointerResolver {
     final EdgeReplacerFunctionPointer edgeReplacerFunctionPointer = new EdgeReplacerFunctionPointer(cfa, pConfig, logger);
     for (final CStatementEdge edge : visitor.functionPointerCalls) {
       Collection<CFunctionEntryNode> funcs = getTargets((CFunctionCall) edge.getStatement(), edge, targetFunctions);
-      edgeReplacerFunctionPointer.instrument(edge, funcs, CreateEdgeFlags.CREATE_SUMMARY_EDGE);
+      edgeReplacerFunctionPointer.instrument(edge, funcs, null, CreateEdgeFlags.CREATE_SUMMARY_EDGE);
     }
 
     if (replaseFunctionWithParametrPointer) {
@@ -327,23 +329,25 @@ public class CFunctionPointerResolver {
       for (final CStatementEdge edge : visitorParams.functionPointerCalls) {
         CExpression param = functionArgumentPointerCall((CFunctionCall) edge.getStatement());
         Collection<CFunctionEntryNode> funcs = getTargetsParameter(param, edge, targetParamFunctions);
-        edgeReplacerParameterFunctionPointer.instrument(edge, funcs, CreateEdgeFlags.DONT_CREATE_SUMMARY_EDGE);
+        edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param, CreateEdgeFlags.DONT_CREATE_SUMMARY_EDGE);
       }
     }
   }
+
 
   /** This Visitor collects all functioncalls for functionPointers.
    *  It should visit the CFA of each functions before creating super-edges (functioncall- and return-edges). */
-  private class FunctionPointerCallCollector extends CFATraversal.DefaultCFAVisitor {
-
+  private static abstract class FunctionPointerCallCollectorCommon extends CFATraversal.DefaultCFAVisitor {
     final List<CStatementEdge> functionPointerCalls = new ArrayList<>();
+
+    protected abstract boolean checkEdge(AStatement stmt);
 
     @Override
     public CFATraversal.TraversalProcess visitEdge(final CFAEdge pEdge) {
       if (pEdge instanceof CStatementEdge) {
         final CStatementEdge edge = (CStatementEdge) pEdge;
         final AStatement stmt = edge.getStatement();
-        if (stmt instanceof CFunctionCall && isFunctionPointerCall((CFunctionCall)stmt)) {
+        if (checkEdge(stmt)) {
           functionPointerCalls.add(edge);
         }
       }
@@ -351,26 +355,28 @@ public class CFunctionPointerResolver {
     }
   }
 
-  private class FunctionWithParamPointerCallCollector extends CFATraversal.DefaultCFAVisitor {
-
-    final List<CStatementEdge> functionPointerCalls = new ArrayList<>();
-
+  private class FunctionPointerCallCollector extends FunctionPointerCallCollectorCommon {
     @Override
-    public CFATraversal.TraversalProcess visitEdge(final CFAEdge pEdge) {
-      if (pEdge instanceof CStatementEdge) {
-        final CStatementEdge edge = (CStatementEdge) pEdge;
-        final AStatement stmt = edge.getStatement();
-        if (stmt instanceof CFunctionCall && !isFunctionPointerCall((CFunctionCall)stmt)
-            && functionArgumentPointerCall((CFunctionCall)stmt) != null) {
-          functionPointerCalls.add(edge);
-        }
+    protected boolean checkEdge(AStatement stmt) {
+      if (stmt instanceof CFunctionCall && isFunctionPointerCall((CFunctionCall)stmt)) {
+        return true;
       }
-      return CFATraversal.TraversalProcess.CONTINUE;
+      return false;
     }
   }
 
-  private CExpression functionArgumentPointerCall(CFunctionCall call)
-  {
+  private class FunctionWithParamPointerCallCollector extends FunctionPointerCallCollectorCommon {
+    @Override
+    protected boolean checkEdge(AStatement stmt) {
+      if (stmt instanceof CFunctionCall && !isFunctionPointerCall((CFunctionCall)stmt)
+          && functionArgumentPointerCall((CFunctionCall)stmt) != null) {
+        return true;
+      }
+      return false;
+    }
+  }
+
+  private CExpression functionArgumentPointerCall(CFunctionCall call) {
     for (CExpression param : call.getFunctionCallExpression().getParameterExpressions()) {
       if (param.getExpressionType() instanceof CPointerType
           && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames
@@ -403,8 +409,7 @@ public class CFunctionPointerResolver {
   }
 
   private Collection<CFunctionEntryNode> getTargetsCommon(CExpression nameExp, CStatementEdge statement,
-      TargetFunctions targetFunctions, Collection<CFunctionEntryNode> funcs)
-  {
+      TargetFunctions targetFunctions, Collection<CFunctionEntryNode> funcs) {
     if (matchAssignedFunctionPointers) {
       CExpression expression = nameExp;
       if (expression instanceof CPointerExpression) {
@@ -455,8 +460,7 @@ public class CFunctionPointerResolver {
     return funcs;
   }
 
-  private Collection<CFunctionEntryNode> getTargets(CFunctionCall functionCall, CStatementEdge statement, TargetFunctions targetFunctions)
-  {
+  private Collection<CFunctionEntryNode> getTargets(CFunctionCall functionCall, CStatementEdge statement, TargetFunctions targetFunctions) {
     CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
     logger.log(Level.FINEST, "Function pointer call", fExp);
     Collection<CFunctionEntryNode> funcs = getFunctionSet(functionCall, targetFunctions);
@@ -464,8 +468,7 @@ public class CFunctionPointerResolver {
     return getTargetsCommon(nameExp, statement, targetFunctions, funcs);
   }
 
-  private Collection<CFunctionEntryNode> getTargetsParameter(CExpression param, CStatementEdge statement, TargetFunctions targetFunctions)
-  {
+  private Collection<CFunctionEntryNode> getTargetsParameter(CExpression param, CStatementEdge statement, TargetFunctions targetFunctions) {
     logger.log(Level.FINEST, "Param", param);
     Collection<CFunctionEntryNode> funcs = getFunctionSetParameter(param, targetFunctions);
     return getTargetsCommon(param, statement, targetFunctions, funcs);
@@ -485,9 +488,9 @@ public class CFunctionPointerResolver {
         .toList();
   }
 
-  private boolean checkReturnAndParamSizesCommon(CType declRet, CType actRet, String name,
-      CFunctionType functionType, List<CExpression> exprParams)
-  {
+  private boolean checkReturnAndParamSizesCommon(CType actRet, String name,
+      CFunctionType functionType, List<CExpression> exprParams) {
+    CType declRet = functionType.getReturnType();
     final MachineModel machine = cfa.getMachineModel();
     if (machine.getSizeof(declRet) != machine.getSizeof(actRet)) {
       logger.log(Level.FINEST, "Function call", name, "with type", actRet,
@@ -515,10 +518,8 @@ public class CFunctionPointerResolver {
   private boolean checkReturnAndParamSizes(CFunctionCall functionCall, CFunctionType functionType) {
     final CFunctionCallExpression functionCallExpression = functionCall.getFunctionCallExpression();
     List<CExpression> exprParams = functionCallExpression.getParameterExpressions();
-    CType declRet = functionType.getReturnType();
     CType actRet = functionCallExpression.getExpressionType();
-
-    return checkReturnAndParamSizesCommon(declRet, actRet, functionCallExpression.toASTString(), functionType, exprParams);
+    return checkReturnAndParamSizesCommon(actRet, functionCallExpression.toASTString(), functionType, exprParams);
   }
 
   private boolean checkReturnAndParamSizesParameter(CExpression param, CFunctionType functionType) {
@@ -528,16 +529,13 @@ public class CFunctionPointerResolver {
       CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
       params2.add(pp2);
     }
-
-    CType declRet = functionType.getReturnType();
     CType actRet = param.getExpressionType();
-
-    return checkReturnAndParamSizesCommon(declRet, actRet, param.toASTString(), functionType, params2);
+    return checkReturnAndParamSizesCommon(actRet, param.toASTString(), functionType, params2);
   }
 
-  private boolean checkReturnAndParamTypesCommon(CType declRet, CType actRet, String name,
-      CFunctionType functionType, List<CExpression> exprParams)
-  {
+  private boolean checkReturnAndParamTypesCommon(CType actRet, String name,
+      CFunctionType functionType, List<CExpression> exprParams) {
+    CType declRet = functionType.getReturnType();
     if (!isCompatibleType(declRet, actRet)) {
       logger.log(Level.FINEST, "Function call", name, "with type", actRet,
           "does not match function", functionType, "with return type", declRet);
@@ -560,12 +558,9 @@ public class CFunctionPointerResolver {
 
   private boolean checkReturnAndParamTypes(CFunctionCall functionCall, CFunctionType functionType) {
     final CFunctionCallExpression functionCallExpression = functionCall.getFunctionCallExpression();
-
-    CType declRet = functionType.getReturnType();
     CType actRet = functionCallExpression.getExpressionType();
     List<CExpression> exprParams = functionCallExpression.getParameterExpressions();
-
-    return checkReturnAndParamTypesCommon(declRet, actRet, functionCallExpression.toASTString(), functionType, exprParams);
+    return checkReturnAndParamTypesCommon(actRet, functionCallExpression.toASTString(), functionType, exprParams);
   }
 
   private boolean checkReturnAndParamTypesParameter(CExpression param, CFunctionType functionType) {
@@ -575,11 +570,8 @@ public class CFunctionPointerResolver {
       CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
       params2.add(pp2);
     }
-
-    CType declRet = functionType.getReturnType();
     CType actRet = param.getExpressionType();
-
-    return checkReturnAndParamTypesCommon(declRet, actRet, param.toASTString(), functionType, params2);
+    return checkReturnAndParamTypesCommon(actRet, param.toASTString(), functionType, params2);
   }
 
   /**
@@ -604,7 +596,6 @@ public class CFunctionPointerResolver {
     }
     CFunctionCallExpression cexpr = new CFunctionCallExpression(param.getFileLocation(), param.getExpressionType(), param, ImmutableList.copyOf(params2), null);
     CFunctionCall functionCall = new CFunctionCallStatement(cexpr.getFileLocation(), cexpr);
-
     return checkReturnValue(functionCall, functionType);
   }
 
@@ -704,10 +695,8 @@ public class CFunctionPointerResolver {
 
   private boolean checkParamCount(CFunctionCall functionCall, CFunctionType functionType) {
     final CFunctionCallExpression functionCallExpression = functionCall.getFunctionCallExpression();
-
     //get the parameter expression
     List<CExpression> parameters = functionCallExpression.getParameterExpressions();
-
     return checkParamCommon(parameters, functionType, functionCallExpression.toASTString());
   }
 
@@ -718,7 +707,6 @@ public class CFunctionPointerResolver {
       CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
       parameters.add(pp2);
     }
-
     return checkParamCommon(parameters, functionType, param.toASTString());
   }
 }
