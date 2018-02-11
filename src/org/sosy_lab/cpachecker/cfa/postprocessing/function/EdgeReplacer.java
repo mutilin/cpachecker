@@ -120,7 +120,7 @@ public abstract class EdgeReplacer {
 
   protected abstract void createEdge(CStatementEdge statement, CFunctionCall functionCall,
       CExpression nameExp, CUnaryExpression amper, FunctionEntryNode fNode, CFANode rootNode, CFANode thenNode,
-      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder, CExpression param);
+      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder);
 
   public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression param, CreateEdgeFlags type) {
     CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
@@ -151,7 +151,10 @@ public abstract class EdgeReplacer {
                                    func, CUnaryExpression.UnaryOperator.AMPER);
       CFANode retNode = newCFANode(start.getFunctionName());
       final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
-      createEdge(statement, functionCall, nameExp, amper, fNode, rootNode, thenNode, elseNode, retNode, fileLocation, func, binExprBuilder, param);
+      if (param != null) {
+        nameExp = param;
+      }
+      createEdge(statement, functionCall, nameExp, amper, fNode, rootNode, thenNode, elseNode, retNode, fileLocation, func, binExprBuilder);
       BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
       rootNode = elseNode;

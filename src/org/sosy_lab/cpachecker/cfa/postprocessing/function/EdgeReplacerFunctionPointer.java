@@ -69,7 +69,7 @@ public class EdgeReplacerFunctionPointer extends EdgeReplacer {
   @Override
   protected void createEdge(CStatementEdge statement, CFunctionCall functionCall,
       CExpression nameExp, CUnaryExpression amper, FunctionEntryNode fNode, CFANode rootNode, CFANode thenNode,
-      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder, CExpression param) {
+      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder) {
     CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
     addConditionEdges(condition, rootNode, thenNode, elseNode, fileLocation);
     String pRawStatement = "pointer call(" + fNode.getFunctionName() + ") " + statement.getRawStatement();

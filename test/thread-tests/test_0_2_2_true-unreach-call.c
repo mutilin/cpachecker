@@ -20,9 +20,9 @@ false_func()
 void (*func)();
 
 void *
-thread_func(void (*func)(void))
+thread_func(void (*func1)(void))
 {
-    func();
+    func1();
 	pthread_exit(0);
 }
 
