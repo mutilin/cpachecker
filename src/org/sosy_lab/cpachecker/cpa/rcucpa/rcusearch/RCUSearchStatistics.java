@@ -99,7 +99,7 @@ public class RCUSearchStatistics implements Statistics {
           rcuAndAliases.addAll(aliases.get(pointer));
         }
       }
-
+      /*
       try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
         Gson builder = new Gson();
         java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {
@@ -109,6 +109,7 @@ public class RCUSearchStatistics implements Statistics {
       } catch (IOException pE) {
         logger.log(Level.WARNING, pE.getMessage());
       }
+      */
       logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
     }
 
@@ -161,12 +162,12 @@ public class RCUSearchStatistics implements Statistics {
 
   private Map<MemoryLocation, Set<MemoryLocation>> parseFile(Path input, LogManager logger) {
     Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
+    /*
+    Map<String, Map<String, List<Map<String, String>>>> ex = new HashMap<>();
 
     try (Reader reader = Files.newBufferedReader(input, Charset.defaultCharset())) {
       Gson builder = new Gson();
-      Map<String, Map<String, List<Map<String, String>>>> map = (Map<String, Map<String,
-          List<Map<String, String>>>>) builder.fromJson(reader, Map
-          .class);
+      Map<String, Map<String, List<Map<String, String>>>> map = builder.fromJson(reader, ex.getClass());
       for (String key : map.keySet()) {
         Map<String, List<Map<String, String>>> newMap = map.get(key);
         Set<MemoryLocation> set = new HashSet<>();
@@ -206,8 +207,7 @@ public class RCUSearchStatistics implements Statistics {
     } catch (IOException pE) {
       logger.log(Level.WARNING, pE.getMessage());
     }
+    */
     return result;
-
-
   }
 }

@@ -280,7 +280,6 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
       lastAffectedStates.clear();
       pAffectedStates.forEach(lastAffectedStates::add);
     }
-
   }
 
 }

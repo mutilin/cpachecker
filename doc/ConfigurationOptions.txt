@@ -1279,14 +1279,15 @@ cpa.location.followFunctionCalls = true
 # reduce recursive locks to a single access
 cpa.lock.aggressiveReduction = false
 
+# What are we searching for: race or deadlock
+cpa.lock.analysisMode = RACE
+  enum:     [RACE, DEADLOCK]
+
 #  annotated functions, which are known to works right
 cpa.lock.annotate = no default value
 
 # contains all lock names
 cpa.lock.lockinfo = no default value
-
-# function to reset state
-cpa.lock.lockreset = no default value
 
 # reduce unused locks
 cpa.lock.reduceUselessLocks = false
@@ -1414,6 +1415,12 @@ cpa.octagon.refiner.timeForOctagonFeasibilityCheck = 0ns
 # which merge operator to use for PointerCPA
 cpa.pointer2.merge = "JOIN"
   allowed values: [JOIN, SEP]
+
+# whether the resulting Points-To map needs to be printed into file
+cpa.pointer2.noOutput = true
+
+# name of a file containing information on pointer relations
+cpa.pointer2.precisionFile = "TrackedPointers"
 
 # which merge operator to use for PointerACPA
 cpa.pointerA.merge = "JOIN"
@@ -2020,6 +2027,59 @@ cpa.propertychecker.className = org.sosy_lab.cpachecker.pcc.propertychecker.Defa
 # empty string represents an empty parameter list.
 cpa.propertychecker.parameters = ""
 
+# Name of a function responsible for assignment to RCU pointers
+# Name of a function responsible for assignments to RCU pointers
+# Name of a function responsible for assignment to RCU pointers
+cpa.rcucpa.assign = "ldv_rcu_assign_pointer"
+cpa.rcucpa.assign = "rcu_assign_pointer"
+cpa.rcucpa.assign = "ldv_rcu_assign_pointer"
+
+# Name of a function responsible for dereferences of RCU pointers
+cpa.rcucpa.deref = "ldv_rcu_dereference"
+cpa.rcucpa.deref = "rcu_dereference"
+cpa.rcucpa.deref = "ldv_rcu_dereference"
+
+# Name of a function marking a call to a fictional read lock of RCU pointer
+cpa.rcucpa.fictReadLock = "ldv_rlock_rcu"
+
+# Name of a function marking a call to a fictional read unlock of RCU pointer
+cpa.rcucpa.fictReadUnlock = "ldv_runlock_rcu"
+
+# Name of a function marking a call to a fictional write lock of RCU pointer
+cpa.rcucpa.fictWriteLock = "ldv_wlock_rcu"
+
+# Name of a function marking a call to a fictional write unlock of RCU
+# pointer
+cpa.rcucpa.fictWriteUnlock = "ldv_wunlock_rcu"
+
+# enable analysis flow sensitivity
+cpa.rcucpa.flowSense = false
+
+# Name of a free function
+cpa.rcucpa.free = "ldv_free"
+
+# name of a file containing information on which pointers are RCU pointers
+cpa.rcucpa.precisionFile = "RCUPointers"
+cpa.rcucpa.precisionFile = "rcuPointers"
+
+# Name of a file containing RCU pointers
+cpa.rcucpa.rcuPointersFile = "RCUPointers"
+
+# Name of a function responsible for acquiring the RCU read lock
+cpa.rcucpa.readLock = "ldv_rcu_read_lock"
+
+# Name of a function responsible for releasing the RCU read lock
+cpa.rcucpa.readUnlock = "ldv_rcu_read_unlock"
+
+# Name of a function responsible for the handling of a grace period
+cpa.rcucpa.sync = "ldv_synchronize_rcu"
+
+# name of a file that holds the Points-To information
+cpa.rcusearch.input = "PointsToMap"
+
+# name of a file to hold information about RCU pointers and their aliases
+cpa.rcusearch.output = "RCUPointers"
+
 # which merge operator to use for ReachingDefCPA
 cpa.reachdef.merge = "JOIN"
   allowed values: [SEP, JOIN, IGNORECALLSTACK]
@@ -2308,9 +2368,6 @@ cpa.usage.printFalseUnsafes = false
 # output only true unsafes
 cpa.usage.printOnlyTrueUnsafes = false
 
-# a limit for paths for one usage, which could be refined
-cpa.usage.refinablePathLimitation = Integer.MAX_VALUE
-
 # The order of refinement blocks
 cpa.usage.refinementChain = no default value
 
@@ -2343,6 +2400,13 @@ cpa.usage.totalARGCleaning = false
 
 # ignore unsafes only with empty callstacks
 cpa.usage.unsafedetector.ignoreEmptyLockset = false
+
+# A name of interrupt lock for checking deadlock free
+cpa.usage.unsafedetector.intLock = no default value
+
+# defines what is unsafe
+cpa.usage.unsafedetector.unsafeMode = RACE
+  enum:     [RACE, DEADLOCKCIRCULAR, DEADLOCKDISPATCH]
 
 # which merge operator to use for ValidVarsCPA
 cpa.validVars.merge = "JOIN"

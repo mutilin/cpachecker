@@ -75,6 +75,7 @@ public class LocalStatistics implements Statistics {
     try {
       Map<CFANode, LocalState> reachedStatistics = new TreeMap<>();
       //Path p = Paths.get(outputFileName);
+      logger.log(Level.ALL, "TRY: " + Paths.get(outputFileName.toString()));
       try (Writer writer = Files.newBufferedWriter(Paths.get(outputFileName.toString()), Charset.defaultCharset())) {
         logger.log(Level.FINE, "Write precision to " + outputFileName);
         for (AbstractState state : pReached.asCollection()) {

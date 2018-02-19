@@ -30,20 +30,16 @@ import static com.google.common.collect.FluentIterable.from;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.HashSet;
-import java.util.Hashtable;
-import java.util.Map;
 import java.util.Set;
-import java.util.HashMap;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
-import org.sosy_lab.cpachecker.cpa.usage.UsageTreeNode;
+import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 
-public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, UsageTreeNode,
+public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, CompatibleNode,
                                  LocalInfoProvider {
   private final Multimap<AbstractIdentifier, AbstractIdentifier> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
@@ -143,7 +139,7 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   }
 
   @Override
-  public UsageTreeNode getTreeNode() {
+  public CompatibleNode getTreeNode() {
     return this;
   }
 
@@ -181,7 +177,7 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   }
 
   @Override
-  public boolean cover(UsageTreeNode node) {
+  public boolean cover(CompatibleNode node) {
     // TODO: possible optimization
     return false;
   }
