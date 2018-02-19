@@ -25,7 +25,6 @@ package org.sosy_lab.cpachecker.cpa.usage;
 
 import static com.google.common.collect.FluentIterable.from;
 
-import com.google.common.base.Optional;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -52,7 +51,7 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
-import org.sosy_lab.cpachecker.cpa.bam.BAMTransferRelation;
+import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
 import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.AssumeCase;
@@ -102,7 +101,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     }
   }
 
-  public KleverErrorTracePrinter(Configuration c, BAMTransferRelation pT, LogManager pL, LockTransferRelation lT) throws InvalidConfigurationException {
+  public KleverErrorTracePrinter(Configuration c, BAMMultipleCEXSubgraphComputer pT, LogManager pL, LockTransferRelation lT) throws InvalidConfigurationException {
     super(c, pT, pL, lT);
   }
 
@@ -211,18 +210,26 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   private void printPath(UsageInfo usage, Iterator<CFAEdge> iterator, GraphMlBuilder builder) {
     SingleIdentifier pId = usage.getId();
     List<CFAEdge> path = usage.getPath();
+    CFAEdge warning = null;
 
-    Optional<CFAEdge> warningEdge = from(path)
-      .filter(e -> e.getPredecessor() == usage.getLine().getNode() && e.toString().contains(pId.getName()))
-      .last();
+    for (CFAEdge edge : path) {
+      if (edge.getPredecessor() == usage.getLine().getNode()) {
+        if (edge.toString().contains(pId.getName())) {
+          warning = edge;
+          break;
+        } else if (edge instanceof CFunctionCallEdge) {
+          //if the whole line is 'a = f(b)' the edge contains only 'f(b)'
+          if (((CFunctionCallEdge)edge).getSummaryEdge().getRawStatement().contains(pId.getName())) {
+            warning = edge;
+            break;
+          }
+        }
+      }
+    }
 
-    CFAEdge warning;
 
-    if (warningEdge.isPresent()) {
-      warning = warningEdge.get();
-    } else {
+    if (warning == null) {
       logger.log(Level.WARNING, "Can not determine an unsafe edge");
-      warning = null;
     }
 
     Element lastWarningEdge = null;
@@ -301,26 +308,22 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   }
 
   private boolean isThreadCreateFunction(CFAEdge pEdge) {
-    if (pEdge instanceof CFunctionCallEdge) {
-      CFunctionSummaryEdge sEdge = ((CFunctionCallEdge)pEdge).getSummaryEdge();
-      CFunctionCall fCall = sEdge.getExpression();
-      if (fCall instanceof CThreadCreateStatement) {
-        return true;
-      }
-    }
-    return false;
+    return getThreadCreateStatementIfExists(pEdge) != null;
   }
 
   private boolean isThreadCreateNFunction(CFAEdge pEdge) {
+    CThreadCreateStatement stmnt = getThreadCreateStatementIfExists(pEdge);
+    return stmnt == null ? false : stmnt.isSelfParallel();
+  }
+
+  private CThreadCreateStatement getThreadCreateStatementIfExists(CFAEdge pEdge) {
     if (pEdge instanceof CFunctionCallEdge) {
       CFunctionSummaryEdge sEdge = ((CFunctionCallEdge)pEdge).getSummaryEdge();
       CFunctionCall fCall = sEdge.getExpression();
       if (fCall instanceof CThreadCreateStatement) {
-        if (((CThreadCreateStatement)fCall).isSelfParallel()) {
-          return true;
-        }
+        return (CThreadCreateStatement) fCall;
       }
     }
-    return false;
+    return null;
   }
 }

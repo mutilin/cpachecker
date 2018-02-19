@@ -71,8 +71,6 @@ public class ThreadTransferRelation extends SingleEdgeTransferRelation {
     LocationState oldLocationState = tState.getLocationState();
     CallstackState oldCallstackState = tState.getCallstackState();
 
-    boolean resetCallstacksFlag = false;
-
     ThreadStateBuilder builder = tState.getBuilder();
     try {
       threadStatistics.tSetTimer.start();
@@ -86,8 +84,6 @@ public class ThreadTransferRelation extends SingleEdgeTransferRelation {
           CFunctionCall functionCall = ((CFunctionSummaryStatementEdge)pCfaEdge).getFunctionCall();
           if (isThreadCreateFunction(functionCall)) {
             builder.handleParentThread((CThreadCreateStatement)functionCall);
-            resetCallstacksFlag = true;
-            callstackTransfer.enableRecursiveContext();
           }
         } else if (pCfaEdge.getEdgeType() == CFAEdgeType.FunctionReturnEdge) {
           CFunctionCall functionCall = ((CFunctionReturnEdge)pCfaEdge).getSummaryEdge().getExpression();
@@ -119,9 +115,6 @@ public class ThreadTransferRelation extends SingleEdgeTransferRelation {
           resultStates.add(builder.build((LocationState)lState, (CallstackState)cState));
         }
       }
-      if (resetCallstacksFlag) {
-        callstackTransfer.disableRecursiveContext();
-      }
       return resultStates;
     } finally {
       threadStatistics.transfer.stop();
@@ -135,6 +128,7 @@ public class ThreadTransferRelation extends SingleEdgeTransferRelation {
     CFunctionCall fCall = pCfaEdge.getSummaryEdge().getExpression();
     if (isThreadCreateFunction(fCall)) {
       threadStatistics.threadCreates.inc();
+      threadStatistics.createdThreads.add(pCfaEdge.getSuccessor().getFunctionName());
       builder.handleChildThread((CThreadCreateStatement)fCall);
       //Just to statistics
       threadStatistics.maxNumberOfThreads.setNextValue(builder.getThreadSize());

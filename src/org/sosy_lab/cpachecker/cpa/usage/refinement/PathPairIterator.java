@@ -29,7 +29,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -40,7 +39,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.common.time.Timer;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
@@ -53,6 +51,9 @@ import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.RefinementBlockFactory.PathEquation;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatTimer;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 
 public class PathPairIterator extends
@@ -64,11 +65,11 @@ public class PathPairIterator extends
   private BAMMultipleCEXSubgraphComputer subgraphComputer;
 
   //Statistics
-  private Timer computingPath = new Timer();
-  private Timer additionTimerCheck = new Timer();
-  private int numberOfPathCalculated = 0;
-  private int numberOfPathFinished = 0;
-  private int numberOfRepeatedConstructedPaths = 0;
+  private StatTimer computingPath = new StatTimer("Time for path computing");
+  private StatTimer additionTimerCheck = new StatTimer("Time for addition checks");
+  private StatCounter numberOfPathCalculated = new StatCounter("Number of path calculated");
+  private StatCounter numberOfPathFinished = new StatCounter("Number of new path calculated");
+  private StatCounter numberOfRepeatedConstructedPaths = new StatCounter("Number of repeated path computed");
   //private int numberOfrepeatedPaths = 0;
 
   private Map<AbstractState, Iterator<ARGState>> toCallerStatesIterator = new HashMap<>();
@@ -90,7 +91,7 @@ public class PathPairIterator extends
 
     switch (type) {
       case ARGStateId:
-        idExtractor = s -> s.getStateId();
+        idExtractor = ARGState::getStateId;
         break;
 
       case CFANodeId:
@@ -197,13 +198,13 @@ public class PathPairIterator extends
   }
 
   @Override
-  public void printDetailedStatistics(PrintStream pOut) {
-    pOut.println("--PathPairIterator--");
-    pOut.println("--Timer for path computing:          " + computingPath);
-    pOut.println("--Timer for addition checks:         " + additionTimerCheck);
-    pOut.println("Number of path calculated:           " + numberOfPathCalculated);
-    pOut.println("Number of new path calculated:       " + numberOfPathFinished);
-    pOut.println("Number of repeated path computed:    " + numberOfRepeatedConstructedPaths);
+  public void printDetailedStatistics(StatisticsWriter pOut) {
+    pOut.spacer()
+      .put(computingPath)
+      .put(additionTimerCheck)
+      .put(numberOfPathCalculated)
+      .put(numberOfPathFinished)
+      .put(numberOfRepeatedConstructedPaths);
   }
 
   @Override
@@ -362,9 +363,10 @@ public class PathPairIterator extends
     ARGState forkState = forkChildInARG.getParents().iterator().next();
     //Clone is necessary, make tree set for determinism
     Set<ARGState> callerStates = Sets.newTreeSet();
-    for (AbstractState state : fromReducedToExpand.get(forkState)) {
-      callerStates.add((ARGState)state);
-    }
+
+    from(fromReducedToExpand.get(forkState))
+      .transform(s -> (ARGState) s)
+      .forEach(callerStates::add);
 
     Iterator<ARGState> iterator;
     //It is important to put a backward state in map, because we can find the same real state during exploration
@@ -464,9 +466,9 @@ public class PathPairIterator extends
         return null;
       }
       ARGPath result = ARGUtils.getRandomPath(rootOfSubgraph);
-      numberOfPathCalculated++;
+      numberOfPathCalculated.inc();
       if (result != null) {
-        numberOfPathFinished++;
+        numberOfPathFinished.inc();
       }
       if (checkThePathHasRepeatedStates(result)) {
         return null;
@@ -493,18 +495,20 @@ public class PathPairIterator extends
 
   private boolean checkThePathHasRepeatedStates(ARGPath path) {
     additionTimerCheck.start();
-    List<Integer> ids = from(path.asStatesList())
-    .transform(idExtractor).toList();
+    List<Integer> ids =
+        from(path.asStatesList())
+        .transform(idExtractor)
+        .toList();
 
-    for (List<Integer> states : refinedStates) {
-      if (ids.containsAll(states)) {
-        numberOfRepeatedConstructedPaths++;
-        additionTimerCheck.stop();
-        return true;
-      }
+    boolean repeated =
+        from(refinedStates)
+        .anyMatch(l -> ids.containsAll(l));
+
+    if (repeated) {
+      numberOfRepeatedConstructedPaths.inc();
     }
     additionTimerCheck.stop();
-    return false;
+    return repeated;
   }
 
 }

@@ -33,7 +33,6 @@ import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -79,7 +78,7 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
+import org.sosy_lab.cpachecker.util.identifiers.Identifiers;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
@@ -120,13 +119,10 @@ public class UsageTransferRelation implements TransferRelation {
     statistics = s;
 
     logger = pLogger;
-    binderFunctionInfo = new HashMap<>();
     if (binderFunctions != null) {
-      BinderFunctionInfo tmpInfo;
-      for (String name : binderFunctions) {
-        tmpInfo = new BinderFunctionInfo(name, config, logger);
-        binderFunctionInfo.put(name, tmpInfo);
-      }
+      binderFunctionInfo =
+          from(binderFunctions)
+          .toMap(name -> new BinderFunctionInfo(name, config, logger));
       //BindedFunctions should not be analysed
       skippedfunctions = skippedfunctions == null ? binderFunctions : Sets.union(skippedfunctions, binderFunctions);
     }
@@ -186,6 +182,8 @@ public class UsageTransferRelation implements TransferRelation {
 
     Collection<? extends AbstractState> newWrappedStates = wrappedTransfer.getAbstractSuccessorsForEdge(oldWrappedState,
         precision.getWrappedPrecision(), currentEdge);
+
+    //Do not know why, but replacing the loop into lambda greatly decreases the speed
     for (AbstractState newWrappedState : newWrappedStates) {
       UsageState resultState = newState.clone(newWrappedState);
       if (resultState != null) {
@@ -256,17 +254,12 @@ public class UsageTransferRelation implements TransferRelation {
       /*
        * a = f(b)
        */
-      CRightHandSide right = ((CFunctionCallAssignmentStatement)statement).getRightHandSide();
+      CFunctionCallExpression right = ((CFunctionCallAssignmentStatement)statement).getRightHandSide();
       CExpression variable = ((CFunctionCallAssignmentStatement)statement).getLeftHandSide();
 
       visitStatement(variable, Access.WRITE);
       // expression - only name of function
-      if (right instanceof CFunctionCallExpression) {
-        handleFunctionCallExpression(variable, (CFunctionCallExpression)right);
-      } else {
-        //where is function?
-        throw new HandleCodeException("Can't find function call here: " + right.toASTString());
-      }
+      handleFunctionCallExpression(variable, right);
 
     } else if (statement instanceof CFunctionCallStatement) {
       handleFunctionCallExpression(null, ((CFunctionCallStatement)statement).getFunctionCallExpression());
@@ -317,10 +310,9 @@ public class UsageTransferRelation implements TransferRelation {
       linkVariables(left, params, currentInfo.linkInfo);
 
       AbstractIdentifier id;
-      IdentifierCreator creator = new IdentifierCreator(getCurrentFunction());
 
       for (int i = 0; i < params.size(); i++) {
-        id = creator.createIdentifier(params.get(i), currentInfo.pInfo.get(i).dereference);
+        id = Identifiers.createIdentifier(params.get(i), currentInfo.pInfo.get(i).dereference, getCurrentFunction());
         id = newState.getLinksIfNecessary(id);
         UsageInfo usage = UsageInfo.createUsageInfo(currentInfo.pInfo.get(i).access,
             fcExpression.getFileLocation().getStartingLineNumber(), newState, id);
@@ -381,18 +373,18 @@ public class UsageTransferRelation implements TransferRelation {
 
   private AbstractIdentifier getLinkedIdentifier(final LinkerInfo info, final CExpression left
       , final List<CExpression> params) {
-    IdentifierCreator creator = new IdentifierCreator(getCurrentFunction());
-    AbstractIdentifier result = null;
+    CExpression expr;
     if (info.num == 0 && left != null) {
-      result = creator.createIdentifier(left, info.dereference);
+      expr = left;
     } else if (info.num > 0) {
-      result = creator.createIdentifier(params.get(info.num - 1), info.dereference);
+      expr = params.get(info.num - 1);
     } else {
       /* f.e. sdlGetFirst(), which is used for deleting element
        * we don't link, but it isn't an error
        */
+      return null;
     }
-    return result;
+    return Identifiers.createIdentifier(expr, info.dereference, getCurrentFunction());
   }
 
   private void linkId(final AbstractIdentifier idIn, AbstractIdentifier idFrom) {
