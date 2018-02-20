@@ -30,17 +30,19 @@ import static com.google.common.collect.FluentIterable.from;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.HashSet;
+import java.util.Map.Entry;
 import java.util.Set;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
+import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 
 public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, CompatibleNode,
-                                 LocalInfoProvider {
+                                 LocalInfoProvider, AliasInfoProvider {
   private final Multimap<AbstractIdentifier, AbstractIdentifier> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
   private final Set<AbstractIdentifier> localAgain;
@@ -228,5 +230,26 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
     result = 31 * result + localAgain.hashCode();
     result = 31 * result + lockState.hashCode();
     return result;
+  }
+
+  @Override
+  public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
+    Set<AbstractIdentifier> result = new HashSet<>();
+    if (rcuRelations.containsKey(id)) {
+      result.addAll(rcuRelations.get(id));
+    }
+    if (rcuRelations.containsValue(id)) {
+      for (Entry<AbstractIdentifier, AbstractIdentifier> entry : rcuRelations.entries()) {
+        if (entry.getValue().equals(id)) {
+          result.add(entry.getKey());
+        }
+      }
+    }
+    return result;
+  }
+
+  @Override
+  public void removeUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
+    return;
   }
 }

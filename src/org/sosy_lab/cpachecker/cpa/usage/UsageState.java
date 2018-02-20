@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperState;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -41,6 +42,7 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.lock.LockState;
 import org.sosy_lab.cpachecker.cpa.lock.effects.LockEffect;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
+import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
 import org.sosy_lab.cpachecker.cpa.usage.storage.FunctionContainer;
 import org.sosy_lab.cpachecker.cpa.usage.storage.FunctionContainer.StorageStatistics;
 import org.sosy_lab.cpachecker.cpa.usage.storage.TemporaryUsageStorage;
@@ -54,7 +56,9 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 /**
  * Represents one abstract state of the Usage CPA.
  */
-public class UsageState extends AbstractSingleWrapperState implements LatticeAbstractState<UsageState> {
+public class UsageState extends AbstractSingleWrapperState implements
+                                                           LatticeAbstractState<UsageState>,
+                                                           AliasInfoProvider {
   /* Boilerplate code to avoid serializing this class */
 
   private static final long serialVersionUID = -898577877284268426L;
@@ -267,6 +271,16 @@ public class UsageState extends AbstractSingleWrapperState implements LatticeAbs
   @Override
   public boolean isExitState() {
     return isExitState;
+  }
+
+  @Override
+  public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
+    return Collections.singleton(getLinksIfNecessary(id));
+  }
+
+  @Override
+  public void removeUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
+    pSet.remove(pIdentifier);
   }
 
   /*public class UsageExitableState extends UsageState {
