@@ -28,5 +28,5 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 public interface AliasInfoProvider {
   Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id);
-  void removeUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet);
+  Set<AbstractIdentifier> getUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet);
 }

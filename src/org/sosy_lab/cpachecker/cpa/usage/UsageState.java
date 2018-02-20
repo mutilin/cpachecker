@@ -275,12 +275,20 @@ public class UsageState extends AbstractSingleWrapperState implements
 
   @Override
   public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
-    return Collections.singleton(getLinksIfNecessary(id));
+    if (containsLinks(id)) {
+      return Collections.singleton(getLinksIfNecessary(id));
+    } else {
+      return Collections.emptySet();
+    }
   }
 
   @Override
-  public void removeUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
-    pSet.remove(pIdentifier);
+  public Set<AbstractIdentifier> getUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
+    if (containsLinks(pIdentifier)) {
+      return Collections.singleton(pIdentifier);
+    } else {
+      return Collections.emptySet();
+    }
   }
 
   /*public class UsageExitableState extends UsageState {

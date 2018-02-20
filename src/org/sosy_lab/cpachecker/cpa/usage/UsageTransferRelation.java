@@ -422,6 +422,7 @@ public class UsageTransferRelation implements TransferRelation {
     Iterable<AbstractState> providers = AbstractStates.asIterable(newState).
         filter(instanceOf(AliasInfoProvider.class));
     Set<AbstractIdentifier> aliases = new HashSet<>();
+    Set<AbstractIdentifier> unnecessary = new HashSet<>();
 
     aliases.add(singleId);
     for (AbstractState provider : providers) {
@@ -429,8 +430,10 @@ public class UsageTransferRelation implements TransferRelation {
     }
 
     for (AbstractState provider : providers) {
-      ((AliasInfoProvider) provider).removeUnnecessaryIds(, aliases);
+      unnecessary.addAll(((AliasInfoProvider) provider).getUnnecessaryIds(singleId, aliases));
     }
+
+    aliases.removeAll(unnecessary);
 
     for (AbstractIdentifier aliasId : aliases) {
 

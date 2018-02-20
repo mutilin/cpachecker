@@ -29,6 +29,7 @@ import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -249,7 +250,7 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   }
 
   @Override
-  public void removeUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
-    return;
+  public Set<AbstractIdentifier> getUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
+    return Collections.emptySet();
   }
 }
