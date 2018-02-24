@@ -28,7 +28,6 @@ import static org.sosy_lab.cpachecker.util.CFAUtils.leavingEdges;
 
 import com.google.common.base.Functions;
 import com.google.common.base.Joiner;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Sets;
@@ -52,11 +51,8 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CParameterDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
@@ -72,6 +68,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CFunctionTypeWithNames;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
+import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CVoidType;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -134,7 +131,7 @@ public class CFunctionPointerResolver {
 
   private static class TargetFunctions {
     private Collection<FunctionEntryNode> candidateFunctions;
-    private BiPredicate<Object, CFunctionType> matchingFunctionCall;
+    private BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
     private ImmutableSetMultimap<String, String> candidateFunctionsForField;
     private ImmutableSetMultimap<String, String> globalsMatching;
   }
@@ -216,9 +213,9 @@ public class CFunctionPointerResolver {
     targetParamFunctions = createMatchingFunctions(pCfa, pGlobalVars, functionParameterSets);
   }
 
-  private BiPredicate<Object, CFunctionType> getFunctionSetPredicate(
+  private BiPredicate<CFunctionType, CFunctionType> getFunctionSetPredicate(
       Collection<FunctionSet> pFunctionSets) {
-    List<BiPredicate<Object, CFunctionType>> predicates = new ArrayList<>();
+    List<BiPredicate<CFunctionType, CFunctionType>> predicates = new ArrayList<>();
 
     // note that this set is sorted according to the declaration order of the enum
     EnumSet<FunctionSet> functionSets = EnumSet.copyOf(pFunctionSets);
@@ -230,8 +227,11 @@ public class CFunctionPointerResolver {
 
     for (FunctionSet functionSet : functionSets) {
       switch (functionSet) {
-      case ALL:
-        // do nothing
+        case ALL:
+          predicates.add(this::checkParamCount);
+          predicates.add(this::checkReturnAndParamSizes);
+          predicates.add(this::checkReturnAndParamTypes);
+          predicates.add(this::checkReturnValue);
         break;
         case EQ_PARAM_COUNT:
           predicates.add(this::checkParamCount);
@@ -273,8 +273,20 @@ public class CFunctionPointerResolver {
 
     final EdgeReplacerFunctionPointer edgeReplacerFunctionPointer = new EdgeReplacerFunctionPointer(cfa, pConfig, logger);
     for (final CStatementEdge edge : visitor.functionPointerCalls) {
-      Collection<CFunctionEntryNode> funcs = getTargets(edge.getStatement(), edge, targetFunctions);
-      edgeReplacerFunctionPointer.instrument(edge, funcs, null, CreateEdgeFlags.CREATE_SUMMARY_EDGE);
+      CFunctionCall functionCall = (CFunctionCall) edge.getStatement();
+      CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
+      CFunctionType func = (CFunctionType) fExp.getFunctionNameExpression().getExpressionType();
+      logger.log(Level.FINEST, "Function pointer call", fExp);
+      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, targetFunctions);
+
+      CExpression nameExp = fExp.getFunctionNameExpression();
+      if (nameExp instanceof CPointerExpression) {
+        CExpression operand = ((CPointerExpression)nameExp).getOperand();
+        if (CTypes.isFunctionPointer(operand.getExpressionType())) {
+          nameExp = operand;
+        }
+      }
+      edgeReplacerFunctionPointer.instrument(edge, funcs, nameExp, CreateEdgeFlags.CREATE_SUMMARY_EDGE);
     }
 
     if (replaseFunctionWithParametrPointer) {
@@ -286,7 +298,9 @@ public class CFunctionPointerResolver {
       EdgeReplacerParameterFunctionPointer edgeReplacerParameterFunctionPointer = new EdgeReplacerParameterFunctionPointer(cfa, pConfig, logger);
       for (final CStatementEdge edge : visitorParams.functionPointerCalls) {
         CExpression param = functionArgumentPointerCall((CFunctionCall) edge.getStatement());
-        Collection<CFunctionEntryNode> funcs = getTargets(param, edge, targetParamFunctions);
+        CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType();
+        logger.log(Level.FINEST, "Param", param);
+        Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParamFunctions);
         edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param, CreateEdgeFlags.DONT_CREATE_SUMMARY_EDGE);
       }
     }
@@ -324,23 +338,8 @@ public class CFunctionPointerResolver {
     return true;
   }
 
-  private Collection<CFunctionEntryNode> getTargets(Object o, CStatementEdge statement, TargetFunctions targetFunctions) {
-    CExpression nameExp = null;
-    Collection<CFunctionEntryNode> funcs = null;
-
-    if (o instanceof CFunctionCall) {
-      CFunctionCall functionCall = (CFunctionCall) o;
-      CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
-      logger.log(Level.FINEST, "Function pointer call", fExp);
-      nameExp = fExp.getFunctionNameExpression();
-      funcs = getFunctionSet(functionCall, targetFunctions);
-    } else if (o instanceof CExpression) {
-      nameExp = (CExpression) o;
-      logger.log(Level.FINEST, "Param", nameExp);
-      funcs = getFunctionSet(nameExp, targetFunctions);
-    } else {
-      throw new AssertionError("Unknown parameter");
-    }
+  private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, CStatementEdge statement, TargetFunctions targetFunctions) {
+    Collection<CFunctionEntryNode> funcs = getFunctionSet(func, targetFunctions);
 
     if (matchAssignedFunctionPointers) {
       CExpression expression = nameExp;
@@ -359,7 +358,10 @@ public class CFunctionPointerResolver {
         matchedFuncs = Collections.emptySet();
       }
       if (matchedFuncs.isEmpty()) {
-        CSimpleDeclaration decl = ((CIdExpression) expression).getDeclaration();
+        CSimpleDeclaration decl = null;
+        if (expression instanceof CIdExpression) {
+          decl = ((CIdExpression) expression).getDeclaration();
+        }
         if (decl == null) {
           funcs = Collections.emptySet();
         } else if (decl instanceof CDeclaration && ((CDeclaration) decl).isGlobal()) {
@@ -392,41 +394,18 @@ public class CFunctionPointerResolver {
     return funcs;
   }
 
-  private List<CFunctionEntryNode> getFunctionSet(Object o, TargetFunctions targetFunctions) {
+  private List<CFunctionEntryNode> getFunctionSet(CFunctionType func, TargetFunctions targetFunctions) {
     return from(targetFunctions.candidateFunctions)
         .filter(CFunctionEntryNode.class)
-        .filter(f -> targetFunctions.matchingFunctionCall.test(o, f.getFunctionDefinition().getType()))
+        .filter(f -> targetFunctions.matchingFunctionCall.test(func, f.getFunctionDefinition().getType()))
         .toList();
   }
 
-  private boolean checkReturnAndParamSizes(Object o, CFunctionType functionType) {
-    CType actRet = null;
-    String name = null;
-    List<CExpression> exprParams = null;
-
-    if (o instanceof CFunctionCall) {
-      final CFunctionCallExpression functionCallExpression = ((CFunctionCall) o).getFunctionCallExpression();
-      exprParams = functionCallExpression.getParameterExpressions();
-      actRet = functionCallExpression.getExpressionType();
-      name = functionCallExpression.toASTString();
-    } else if (o instanceof CExpression) {
-      CExpression param = (CExpression) o;
-      List<CParameterDeclaration> p = ((CFunctionTypeWithNames) (((CPointerType) param.getExpressionType()).getType())).getParameterDeclarations();
-      exprParams = new ArrayList<CExpression>();
-      for (CParameterDeclaration pp : p) {
-        CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
-        exprParams.add(pp2);
-      }
-      actRet = param.getExpressionType();
-      name = param.toASTString();
-    } else {
-      throw new AssertionError("Unknown parameter");
-    }
-
+  private boolean checkReturnAndParamSizes(CFunctionType func, CFunctionType functionType) {
     CType declRet = functionType.getReturnType();
     final MachineModel machine = cfa.getMachineModel();
-    if (machine.getSizeof(declRet) != machine.getSizeof(actRet)) {
-      logger.log(Level.FINEST, "Function call", name, "with type", actRet,
+    if (machine.getSizeof(declRet) != machine.getSizeof(func.getReturnType())) {
+      logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
           "does not match function", functionType, "with return type", declRet,
           "because of return types with different sizes.");
       return false;
@@ -435,9 +414,9 @@ public class CFunctionPointerResolver {
     List<CType> declParams = functionType.getParameters();
     for (int i=0; i<declParams.size(); i++) {
       CType dt = declParams.get(i);
-      CType et = exprParams.get(i).getExpressionType();
+      CType et = func.getParameters().get(i);
       if (machine.getSizeof(dt) != machine.getSizeof(et)) {
-        logger.log(Level.FINEST, "Function call", name,
+        logger.log(Level.FINEST, "Function call", func.getName(),
             "does not match function", functionType,
             "because actual parameter", i, "has type", et, "instead of", dt,
             "(differing sizes).");
@@ -448,33 +427,10 @@ public class CFunctionPointerResolver {
     return true;
   }
 
-  private boolean checkReturnAndParamTypes(Object o, CFunctionType functionType) {
-    CType actRet = null;
-    String name = null;
-    List<CExpression> exprParams = null;
-
-    if (o instanceof CFunctionCall) {
-      final CFunctionCallExpression functionCallExpression = ((CFunctionCall) o).getFunctionCallExpression();
-      actRet = functionCallExpression.getExpressionType();
-      exprParams = functionCallExpression.getParameterExpressions();
-      name = functionCallExpression.toASTString();
-    } else if (o instanceof CExpression) {
-      CExpression param = (CExpression) o;
-      List<CParameterDeclaration> p = ((CFunctionTypeWithNames) (((CPointerType) param.getExpressionType()).getType())).getParameterDeclarations();
-      exprParams = new ArrayList<CExpression>();
-      for (CParameterDeclaration pp : p) {
-        CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
-        exprParams.add(pp2);
-      }
-      actRet = param.getExpressionType();
-      name = param.toASTString();
-    } else {
-      throw new AssertionError("Unknown parameter");
-    }
-
+  private boolean checkReturnAndParamTypes(CFunctionType func, CFunctionType functionType) {
     CType declRet = functionType.getReturnType();
-    if (!isCompatibleType(declRet, actRet)) {
-      logger.log(Level.FINEST, "Function call", name, "with type", actRet,
+    if (!isCompatibleType(declRet, func.getReturnType())) {
+      logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
           "does not match function", functionType, "with return type", declRet);
       return false;
     }
@@ -482,9 +438,9 @@ public class CFunctionPointerResolver {
     List<CType> declParams = functionType.getParameters();
     for (int i=0; i<declParams.size(); i++) {
       CType dt = declParams.get(i);
-      CType et = exprParams.get(i).getExpressionType();
+      CType et = func.getParameters().get(i);
       if (!isCompatibleType(dt, et)) {
-        logger.log(Level.FINEST, "Function call", name,
+        logger.log(Level.FINEST, "Function call", func.getName(),
             "does not match function", functionType,
             "because actual parameter", i, "has type", et, "instead of", dt);
         return false;
@@ -496,30 +452,12 @@ public class CFunctionPointerResolver {
   /**
    * Exclude void functions if the return value of the function is used in an assignment.
    */
-  private boolean checkReturnValue(Object o, CFunctionType functionType) {
-    CFunctionCall functionCall = null;
-
-    if (o instanceof CFunctionCall) {
-      functionCall = (CFunctionCall) o;
-    } else if (o instanceof CExpression) {
-      CExpression param = (CExpression) o;
-      List<CParameterDeclaration> p = ((CFunctionTypeWithNames) (((CPointerType) param.getExpressionType()).getType())).getParameterDeclarations();
-      List<CExpression> params2 = new ArrayList<CExpression>();
-      for (CParameterDeclaration pp : p) {
-        CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
-        params2.add(pp2);
-      }
-      CFunctionCallExpression cexpr = new CFunctionCallExpression(param.getFileLocation(), param.getExpressionType(), param, ImmutableList.copyOf(params2), null);
-      functionCall = new CFunctionCallStatement(cexpr.getFileLocation(), cexpr);
-    } else {
-      throw new AssertionError("Unknown parameter");
-    }
-
-    if (functionCall instanceof CFunctionCallAssignmentStatement) {
-      CType returnType = functionType.getReturnType().getCanonicalType();
-      if (returnType instanceof CVoidType) {
-        return false;
-      }
+  private boolean checkReturnValue(CFunctionType func, CFunctionType functionType) {
+    CType declRet = functionType.getReturnType();
+    if (!isCompatibleType(declRet, func.getReturnType())) {
+      logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
+          "does not match function", functionType, "with return type", declRet);
+      return false;
     }
     return true;
   }
@@ -590,36 +528,15 @@ public class CFunctionPointerResolver {
     return false;
   }
 
-  private boolean checkParamCount(Object o, CFunctionType functionType) {
-    List<CExpression> parameters = null;
-    String name = null;
-    if (o instanceof CFunctionCall) {
-      CFunctionCall functionCall = (CFunctionCall) o;
-      final CFunctionCallExpression functionCallExpression = functionCall.getFunctionCallExpression();
-      //get the parameter expression
-      parameters = functionCallExpression.getParameterExpressions();
-      name = functionCallExpression.toASTString();
-    } else if (o instanceof CExpression) {
-      CExpression param = (CExpression) o;
-      List<CParameterDeclaration> p = ((CFunctionTypeWithNames) (((CPointerType) param.getExpressionType()).getType())).getParameterDeclarations();
-      parameters = new ArrayList<CExpression>();
-      for (CParameterDeclaration pp : p) {
-        CIdExpression pp2 = new CIdExpression(param.getFileLocation(), pp.getType(), pp.getName(), null);
-        parameters.add(pp2);
-      }
-      name = param.toASTString();
-    } else {
-      throw new AssertionError("Unknown parameter");
-    }
-
+  private boolean checkParamCount(CFunctionType func, CFunctionType functionType) {
     int declaredParameters = functionType.getParameters().size();
-    int actualParameters = parameters.size();
+    int actualParameters = func.getParameters().size();
 
     if (actualParameters < declaredParameters) {
       logger.log(
           Level.FINEST,
           "Function call",
-          name,
+          func.getName(),
           "does not match function",
           functionType,
           "because there are not enough actual parameters.");
@@ -630,7 +547,7 @@ public class CFunctionPointerResolver {
       logger.log(
           Level.FINEST,
           "Function call",
-          name,
+          func.getName(),
           "does not match function",
           functionType,
           "because there are too many actual parameters.");

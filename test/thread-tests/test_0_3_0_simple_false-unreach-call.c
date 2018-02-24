@@ -26,7 +26,8 @@ false_func()
 void *
 thread_func(void *thread_data)
 {
-    struct thread_data_t data = *thread_data;
+    struct thread_data_t *d0 = (struct thread_data_t *) thread_data; 
+    struct thread_data_t data = *d0;
     data.func();
 
 	pthread_exit(0);

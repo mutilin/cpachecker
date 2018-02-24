@@ -31,18 +31,12 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpressionBuilder;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
-import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 
 @Options
 public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
@@ -63,19 +57,15 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
 
     CFunctionCallExpression newCallExpr = new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
         oldCallExpr.getFunctionNameExpression(),
-        params, (CFunctionDeclaration)fNode.getFunctionDefinition());
+        params, oldCallExpr.getDeclaration());
 
     return createRegularCallCommon(functionCall, newCallExpr);
   }
 
   @Override
-  protected void createEdge(CStatementEdge statement, CFunctionCall functionCall,
-      CExpression nameExp, CUnaryExpression amper, FunctionEntryNode fNode, CFANode rootNode, CFANode thenNode,
-      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder) {
+  protected void createEdge(CFunctionCall functionCall, CExpression nameExp, FunctionEntryNode fNode, CFANode thenNode,
+      CFANode retNode, FileLocation fileLocation, CIdExpression func, String pRawStatement) {
     CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
-    CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
-    addConditionEdges(condition, rootNode, thenNode, elseNode, fileLocation);
-    String pRawStatement = "pointer call(" + fExp.getFunctionNameExpression() + ") " + statement.getRawStatement();
     CFunctionCall regularCall = createRegularCallWithParameter(functionCall, fNode, nameExp, func);
     createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
   }

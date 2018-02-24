@@ -32,6 +32,8 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFACreationUtils;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpressionBuilder;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
@@ -39,7 +41,6 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
@@ -50,7 +51,6 @@ import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 
 
@@ -118,26 +118,17 @@ public abstract class EdgeReplacer {
     }
   }
 
-  protected abstract void createEdge(CStatementEdge statement, CFunctionCall functionCall,
-      CExpression nameExp, CUnaryExpression amper, FunctionEntryNode fNode, CFANode rootNode, CFANode thenNode,
-      CFANode elseNode, CFANode retNode, FileLocation fileLocation, CIdExpression func, CBinaryExpressionBuilder binExprBuilder);
+  protected abstract void createEdge(CFunctionCall functionCall, CExpression nameExp, FunctionEntryNode fNode, CFANode thenNode,
+      CFANode retNode, FileLocation fileLocation, CIdExpression func, String pRawStatement);
 
-  public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression param, CreateEdgeFlags type) {
+  public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression nameExp, CreateEdgeFlags type) {
     CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
     CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
-    CExpression nameExp = fExp.getFunctionNameExpression();
     FileLocation fileLocation = statement.getFileLocation();
     CFANode start = statement.getPredecessor();
     CFANode end = statement.getSuccessor();
 
     CFACreationUtils.removeEdgeFromNodes(statement);
-
-    if (nameExp instanceof CPointerExpression) {
-      CExpression operand = ((CPointerExpression)nameExp).getOperand();
-      if (CTypes.isFunctionPointer(operand.getExpressionType())) {
-        nameExp = operand;
-      }
-    }
 
     CFANode rootNode = start;
     for (FunctionEntryNode fNode : funcs) {
@@ -151,10 +142,10 @@ public abstract class EdgeReplacer {
                                    func, CUnaryExpression.UnaryOperator.AMPER);
       CFANode retNode = newCFANode(start.getFunctionName());
       final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
-      if (param != null) {
-        nameExp = param;
-      }
-      createEdge(statement, functionCall, nameExp, amper, fNode, rootNode, thenNode, elseNode, retNode, fileLocation, func, binExprBuilder);
+      CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
+      addConditionEdges(condition, rootNode, thenNode, elseNode, fileLocation);
+      String pRawStatement = "pointer call(" + fNode.getFunctionName() + ") " + statement.getRawStatement();
+      createEdge(functionCall, nameExp, fNode, thenNode, retNode, fileLocation, func, pRawStatement);
       BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
       rootNode = elseNode;
