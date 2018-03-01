@@ -26,7 +26,6 @@ package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 import com.jsoniter.DecodingMode;
 import com.jsoniter.JsonIterator;
 import com.jsoniter.any.Any;
-import com.sun.javafx.scene.control.behavior.TwoLevelFocusListBehavior;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.charset.Charset;
@@ -165,8 +164,6 @@ public class RCUSearchStatistics implements Statistics {
 
     JsonIterator.setMode(DecodingMode.REFLECTION_MODE);
 
-    Map<String, Map<String, List<Map<String, String>>>> ex = new HashMap<>();
-
     try {
       byte[] encoded = Files.readAllBytes(input);
       String str = new String(encoded, Charset.defaultCharset());
@@ -209,12 +206,6 @@ public class RCUSearchStatistics implements Statistics {
 
         MemoryLocation locKey = MemoryLocation.valueOf(key);
         result.put(locKey, set);
-      }
-
-
-      logger.log(Level.ALL, "KEY num: ", ex.keySet().size());
-      for (String key : ex.keySet()) {
-        logger.log(Level.ALL, "Parsed KEY: " + key);
       }
 
     } catch (IOException pE) {
