@@ -23,12 +23,12 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
-import com.google.common.reflect.TypeToken;
-import com.google.gson.Gson;
+import com.jsoniter.DecodingMode;
+import com.jsoniter.JsonIterator;
+import com.jsoniter.any.Any;
+import com.sun.javafx.scene.control.behavior.TwoLevelFocusListBehavior;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.Reader;
-import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -162,52 +162,64 @@ public class RCUSearchStatistics implements Statistics {
 
   private Map<MemoryLocation, Set<MemoryLocation>> parseFile(Path input, LogManager logger) {
     Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
-    /*
+
+    JsonIterator.setMode(DecodingMode.REFLECTION_MODE);
+
     Map<String, Map<String, List<Map<String, String>>>> ex = new HashMap<>();
 
-    try (Reader reader = Files.newBufferedReader(input, Charset.defaultCharset())) {
-      Gson builder = new Gson();
-      Map<String, Map<String, List<Map<String, String>>>> map = builder.fromJson(reader, ex.getClass());
-      for (String key : map.keySet()) {
-        Map<String, List<Map<String, String>>> newMap = map.get(key);
-        Set<MemoryLocation> set = new HashSet<>();
-        for (String key2 : newMap.keySet()) {
-          for (Map<String, String> elem :  newMap.get(key2)) {
-            String fname = null;
-            String id = null;
-            Long offset = null;
-            MemoryLocation loc;
-            if (elem.containsKey("functionName")) {
-              fname = elem.get("functionName");
-            }
-            if (elem.containsKey("identifier")) {
-              id = elem.get("identifier");
-            }
-            if (elem.containsKey("offset")) {
-              offset = new Long(elem.get("offset"));
-            }
+    try {
+      byte[] encoded = Files.readAllBytes(input);
+      String str = new String(encoded, Charset.defaultCharset());
 
-            if (fname != null && offset != null) {
-              loc = MemoryLocation.valueOf(fname, id, offset);
-            } else if (offset != null) {
-              loc = MemoryLocation.valueOf(id, offset);
-            } else if (fname != null){
-              loc = MemoryLocation.valueOf(fname, id);
-            } else {
-              loc = MemoryLocation.valueOf(id);
-            }
-            set.add(loc);
+      logger.log(Level.ALL, "KEY: ", str);
+      JsonIterator iter = JsonIterator.parse(str);
+      Map<String, Any> contents = iter.readAny().asMap();
+
+      for (String key : contents.keySet()) {
+        List<Any> idList = contents.get(key).asList();
+        MemoryLocation loc;
+        String fname = null, id = null;
+        Long offset = null;
+        Set<MemoryLocation> set = new HashSet<>();
+
+        for (Any elem : idList) {
+          Map<String, Any> mapElem = elem.asMap();
+          if (mapElem.containsKey("functionname")) {
+            fname = mapElem.get("functionname").toString();
           }
+          if (mapElem.containsKey("identifier")) {
+            id = mapElem.get("identifier").toString();
+          }
+          if (mapElem.containsKey("offset")) {
+            offset = mapElem.get("offset").toLong();
+          }
+
+          if (fname != null && offset != null) {
+            loc = MemoryLocation.valueOf(fname, id, offset);
+          } else if (offset != null) {
+            loc = MemoryLocation.valueOf(id, offset);
+          } else if (fname != null){
+            loc = MemoryLocation.valueOf(fname, id);
+          } else {
+            loc = MemoryLocation.valueOf(id);
+          }
+
+          set.add(loc);
         }
+
         MemoryLocation locKey = MemoryLocation.valueOf(key);
         result.put(locKey, set);
       }
-      //logger.log(Level.ALL, "GSON read: " + map);
-      //logger.log(Level.ALL, "Parsed: " + result);
+
+
+      logger.log(Level.ALL, "KEY num: ", ex.keySet().size());
+      for (String key : ex.keySet()) {
+        logger.log(Level.ALL, "Parsed KEY: " + key);
+      }
+
     } catch (IOException pE) {
       logger.log(Level.WARNING, pE.getMessage());
     }
-    */
     return result;
   }
 }

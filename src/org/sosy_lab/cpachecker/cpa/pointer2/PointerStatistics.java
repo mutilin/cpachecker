@@ -25,6 +25,8 @@ package org.sosy_lab.cpachecker.cpa.pointer2;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.jsoniter.DecodingMode;
+import com.jsoniter.JsonIterator;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Writer;
@@ -32,12 +34,14 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
-import org.sosy_lab.cpachecker.core.counterexample.Memory;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
@@ -71,25 +75,27 @@ public class PointerStatistics implements Statistics {
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
     AbstractState state = reached.getLastState();
     PointerState ptState = AbstractStates.extractStateByType(state, PointerState.class);
+    System.err.println("LAST: " + ptState);
     String stats = "Common part" + '\n';
 
     if (ptState != null) {
-      Map<MemoryLocation, LocationSet> pointsTo = ptState.getPointsToMap();
+      Map<MemoryLocation, LocationSet> locationSetMap = ptState.getPointsToMap();
 
-      if (pointsTo != null) {
+      if (locationSetMap != null) {
 
-        pointsTo = replaceTopsAndBots(pointsTo);
+        System.err.println("LAST: " + locationSetMap);
+        Map<MemoryLocation, Set<MemoryLocation>> pointsTo = replaceTopsAndBots(locationSetMap);
+        System.err.println("LAST: " + pointsTo);
 
         int values = 0;
         int fictionalKeys = 0;
         int fictionalValues = 0;
 
         for (MemoryLocation key : pointsTo.keySet()) {
-          ExplicitLocationSet buf = (ExplicitLocationSet) pointsTo.get(key);
-          values += buf.getSize();
-          Iterator<MemoryLocation> value = buf.iterator();
-          while (value.hasNext()) {
-            if (PointerState.isFictionalPointer(value.next())) {
+          Set<MemoryLocation> buf = pointsTo.get(key);
+          values += buf.size();
+          for (MemoryLocation location : buf) {
+            if (PointerState.isFictionalPointer(location)) {
               ++fictionalValues;
             }
           }
@@ -106,7 +112,8 @@ public class PointerStatistics implements Statistics {
         if (!noOutput) {
           try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
             Gson builder = new Gson();
-            java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, LocationSet>>(){}.getType();
+            java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, Set<MemoryLocation>>>(){}
+            .getType();
             builder.toJson(pointsTo, type, writer);
           } catch (IOException pE) {
             stats += "  IOError: " + pE.getMessage() + '\n';
@@ -135,15 +142,22 @@ public class PointerStatistics implements Statistics {
     out.append('\n');
   }
 
-  private Map<MemoryLocation, LocationSet> replaceTopsAndBots(Map<MemoryLocation,
+  private Map<MemoryLocation, Set<MemoryLocation>> replaceTopsAndBots(Map<MemoryLocation,
                                                               LocationSet> pPointsTo) {
-    Map<MemoryLocation, LocationSet> result = new HashMap<>(pPointsTo);
-    for (MemoryLocation key : result.keySet()) {
-      LocationSet locationSet = result.get(key);
+    Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
+    for (MemoryLocation key : pPointsTo.keySet()) {
+      LocationSet locationSet = pPointsTo.get(key);
       if (locationSet instanceof LocationSetBot) {
-        result.put(key, ExplicitLocationSet.from(replLocSetBot));
+        result.put(key, Collections.singleton(replLocSetBot));
       } else if (locationSet instanceof LocationSetTop) {
-        result.put(key, ExplicitLocationSet.from(replLocSetTop));
+        result.put(key, Collections.singleton(replLocSetTop));
+      } else {
+        Set<MemoryLocation> buf = new HashSet<>();
+        Iterator<MemoryLocation> iter = ((ExplicitLocationSet) locationSet).iterator();
+        while (iter.hasNext()) {
+          buf.add(iter.next());
+        }
+        result.put(key, buf);
       }
     }
 
