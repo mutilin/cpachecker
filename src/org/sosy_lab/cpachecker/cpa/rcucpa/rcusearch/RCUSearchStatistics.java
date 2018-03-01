@@ -168,7 +168,6 @@ public class RCUSearchStatistics implements Statistics {
       byte[] encoded = Files.readAllBytes(input);
       String str = new String(encoded, Charset.defaultCharset());
 
-      logger.log(Level.ALL, "KEY: ", str);
       JsonIterator iter = JsonIterator.parse(str);
       Map<String, Any> contents = iter.readAny().asMap();
 

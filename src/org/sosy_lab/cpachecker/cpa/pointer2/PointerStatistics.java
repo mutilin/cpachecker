@@ -75,7 +75,6 @@ public class PointerStatistics implements Statistics {
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
     AbstractState state = reached.getLastState();
     PointerState ptState = AbstractStates.extractStateByType(state, PointerState.class);
-    System.err.println("LAST: " + ptState);
     String stats = "Common part" + '\n';
 
     if (ptState != null) {
@@ -83,9 +82,7 @@ public class PointerStatistics implements Statistics {
 
       if (locationSetMap != null) {
 
-        System.err.println("LAST: " + locationSetMap);
         Map<MemoryLocation, Set<MemoryLocation>> pointsTo = replaceTopsAndBots(locationSetMap);
-        System.err.println("LAST: " + pointsTo);
 
         int values = 0;
         int fictionalKeys = 0;
