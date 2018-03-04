@@ -1,6 +1,7 @@
 #include "pthread_test.h"
 
 pthread_mutex_t m;
+pthread_mutex_t m2;
 int res = 0;
 
 struct data_t
@@ -32,9 +33,11 @@ false_func()
 void *
 thread_func(void *thread_data)
 {
+    ldv_mutex_model_lock(&m2, NULL);
     struct thread_data_t *d0 = (struct thread_data_t *) thread_data; 
     struct thread_data_t data0 = *d0;
     data0.data.func();
+    ldv_mutex_model_unlock(&m2, NULL);
 
 	pthread_exit(0);
 }

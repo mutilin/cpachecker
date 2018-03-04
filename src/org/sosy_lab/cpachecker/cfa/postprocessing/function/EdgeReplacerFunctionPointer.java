@@ -28,14 +28,11 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
-import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
-import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 
 @Options
@@ -44,27 +41,12 @@ public class EdgeReplacerFunctionPointer extends EdgeReplacer {
     super(pCfa, config, pLogger);
   }
 
-  private CIdExpression createIdExpression(CExpression nameExp,
-      FunctionEntryNode fNode) {
-    return new CIdExpression(nameExp.getFileLocation(),
-        nameExp.getExpressionType(),
-        fNode.getFunctionName(),
-        (CSimpleDeclaration)fNode.getFunctionDefinition());
-  }
-
-  private CFunctionCall createRegularCall(CFunctionCall functionCall, FunctionEntryNode fNode) {
-    CFunctionCallExpression oldCallExpr = functionCall.getFunctionCallExpression();
-    CFunctionCallExpression newCallExpr = new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
-        createIdExpression(oldCallExpr.getFunctionNameExpression(), fNode),
-        oldCallExpr.getParameterExpressions(), (CFunctionDeclaration)fNode.getFunctionDefinition());
-
-    return createRegularCallCommon(functionCall, newCallExpr);
-  }
-
   @Override
-  protected void createEdge(CFunctionCall functionCall, CExpression nameExp, FunctionEntryNode fNode, CFANode thenNode,
-      CFANode retNode, FileLocation fileLocation, CIdExpression func, String pRawStatement) {
-    CFunctionCall regularCall = createRegularCall(functionCall, fNode);
-    createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
+  protected CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func) {
+    CIdExpression funcName = new CIdExpression(oldCallExpr.getFunctionNameExpression().getFileLocation(),
+        oldCallExpr.getFunctionNameExpression().getExpressionType(), fNode.getFunctionName(),
+        (CSimpleDeclaration)fNode.getFunctionDefinition());
+    return new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(), funcName,
+        oldCallExpr.getParameterExpressions(), (CFunctionDeclaration)fNode.getFunctionDefinition());
   }
 }

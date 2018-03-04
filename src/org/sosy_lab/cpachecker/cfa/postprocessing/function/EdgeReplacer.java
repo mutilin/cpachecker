@@ -106,7 +106,7 @@ public abstract class EdgeReplacer {
     CFACreationUtils.addEdgeUnconditionallyToCFA(callEdge);
   }
 
-  protected CFunctionCall createRegularCallCommon(CFunctionCall functionCall, CFunctionCallExpression newCallExpr) {
+  protected CFunctionCall createRegularCall(CFunctionCall functionCall, CFunctionCallExpression newCallExpr) {
     if (functionCall instanceof CFunctionCallAssignmentStatement) {
       CFunctionCallAssignmentStatement asgn = (CFunctionCallAssignmentStatement)functionCall;
       return new CFunctionCallAssignmentStatement(functionCall.getFileLocation(),
@@ -118,12 +118,15 @@ public abstract class EdgeReplacer {
     }
   }
 
-  protected abstract void createEdge(CFunctionCall functionCall, CExpression nameExp, FunctionEntryNode fNode, CFANode thenNode,
-      CFANode retNode, FileLocation fileLocation, CIdExpression func, String pRawStatement);
+  protected abstract CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func);
 
   public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression nameExp, CreateEdgeFlags type) {
+    if (funcs.size() <= 0)
+    {
+      return;
+    }
     CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
-    CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
+    CFunctionCallExpression oldCallExpr = functionCall.getFunctionCallExpression();
     FileLocation fileLocation = statement.getFileLocation();
     CFANode start = statement.getPredecessor();
     CFANode end = statement.getSuccessor();
@@ -145,7 +148,9 @@ public abstract class EdgeReplacer {
       CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
       addConditionEdges(condition, rootNode, thenNode, elseNode, fileLocation);
       String pRawStatement = "pointer call(" + fNode.getFunctionName() + ") " + statement.getRawStatement();
-      createEdge(functionCall, nameExp, fNode, thenNode, retNode, fileLocation, func, pRawStatement);
+      CFunctionCallExpression newCallExpr = createNewCallExpression(oldCallExpr, nameExp, fNode, func);
+      CFunctionCall regularCall = createRegularCall(functionCall, newCallExpr);
+      createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
       BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
       rootNode = elseNode;

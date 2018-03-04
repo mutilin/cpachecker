@@ -143,7 +143,7 @@ public class CFunctionPointerResolver {
   private final LogManager logger;
   private Configuration pConfig;
 
-  private TargetFunctions createMatchingFunctions(MutableCFA pCfa, List<Pair<ADeclaration, String>> pGlobalVars,
+  private TargetFunctions createMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars,
       Collection<FunctionSet> functionSets) {
 
     TargetFunctions targetFunctions = new TargetFunctions();
@@ -209,8 +209,8 @@ public class CFunctionPointerResolver {
 
     config.inject(this);
 
-    targetFunctions = createMatchingFunctions(pCfa, pGlobalVars, functionSets);
-    targetParamFunctions = createMatchingFunctions(pCfa, pGlobalVars, functionParameterSets);
+    targetFunctions = createMatchingFunctions(pGlobalVars, functionSets);
+    targetParamFunctions = createMatchingFunctions(pGlobalVars, functionParameterSets);
   }
 
   private BiPredicate<CFunctionType, CFunctionType> getFunctionSetPredicate(
@@ -227,11 +227,8 @@ public class CFunctionPointerResolver {
 
     for (FunctionSet functionSet : functionSets) {
       switch (functionSet) {
-        case ALL:
-          predicates.add(this::checkParamCount);
-          predicates.add(this::checkReturnAndParamSizes);
-          predicates.add(this::checkReturnAndParamTypes);
-          predicates.add(this::checkReturnValue);
+      case ALL:
+        // do nothing
         break;
         case EQ_PARAM_COUNT:
           predicates.add(this::checkParamCount);
@@ -264,8 +261,12 @@ public class CFunctionPointerResolver {
 
     // 1.Step: get all function calls
     final FunctionPointerCallCollector visitor = new FunctionPointerCallCollector();
+    final FunctionWithParamPointerCallCollector visitorParams = new FunctionWithParamPointerCallCollector();
     for (FunctionEntryNode functionStartNode : cfa.getAllFunctionHeads()) {
       CFATraversal.dfs().traverseOnce(functionStartNode, visitor);
+      if (replaseFunctionWithParametrPointer) {
+        CFATraversal.dfs().traverseOnce(functionStartNode, visitorParams);
+      }
     }
 
     // 2.Step: replace functionCalls with functioncall- and return-edges
@@ -290,23 +291,18 @@ public class CFunctionPointerResolver {
     }
 
     if (replaseFunctionWithParametrPointer) {
-      final FunctionWithParamPointerCallCollector visitorParams = new FunctionWithParamPointerCallCollector();
-      for (FunctionEntryNode functionStartNode : cfa.getAllFunctionHeads()) {
-        CFATraversal.dfs().traverseOnce(functionStartNode, visitorParams);
-      }
-
       EdgeReplacerParameterFunctionPointer edgeReplacerParameterFunctionPointer = new EdgeReplacerParameterFunctionPointer(cfa, pConfig, logger);
       for (final CStatementEdge edge : visitorParams.functionPointerCalls) {
-        CExpression param = functionArgumentPointerCall((CFunctionCall) edge.getStatement());
+        CExpression param = getParameter((CFunctionCall) edge.getStatement());
         CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType();
-        logger.log(Level.FINEST, "Param", param);
+        logger.log(Level.FINEST, "Function pointer param", param);
         Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParamFunctions);
         edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param, CreateEdgeFlags.DONT_CREATE_SUMMARY_EDGE);
       }
     }
   }
 
-  private CExpression functionArgumentPointerCall(CFunctionCall call) {
+  private CExpression getParameter(CFunctionCall call) {
     for (CExpression param : call.getFunctionCallExpression().getParameterExpressions()) {
       if (param.getExpressionType() instanceof CPointerType
           && ((CPointerType) param.getExpressionType()).getType() instanceof CFunctionTypeWithNames
@@ -590,7 +586,7 @@ public class CFunctionPointerResolver {
     @Override
     protected boolean checkEdge(AStatement stmt) {
       if (stmt instanceof CFunctionCall && !isFunctionPointerCall((CFunctionCall)stmt)
-          && functionArgumentPointerCall((CFunctionCall)stmt) != null) {
+          && getParameter((CFunctionCall)stmt) != null) {
         return true;
       }
       return false;

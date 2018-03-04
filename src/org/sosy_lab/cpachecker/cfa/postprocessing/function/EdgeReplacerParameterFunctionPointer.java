@@ -30,12 +30,9 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
-import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
-import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 
 @Options
@@ -44,29 +41,18 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
     super(pCfa, config, pLogger);
   }
 
-  private CFunctionCall createRegularCallWithParameter(CFunctionCall functionCall, FunctionEntryNode fNode, CExpression oldParam, CIdExpression newParam) {
-    CFunctionCallExpression oldCallExpr = functionCall.getFunctionCallExpression();
+  @Override
+  protected CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func) {
     List<CExpression> params = new ArrayList<>();
     for (CExpression param : oldCallExpr.getParameterExpressions()) {
-      if (param == oldParam) {
-        params.add(newParam);
+      if (param == nameExp) {
+        params.add(func);
       } else {
         params.add(param);
       }
     }
-
-    CFunctionCallExpression newCallExpr = new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
+    return new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
         oldCallExpr.getFunctionNameExpression(),
         params, oldCallExpr.getDeclaration());
-
-    return createRegularCallCommon(functionCall, newCallExpr);
-  }
-
-  @Override
-  protected void createEdge(CFunctionCall functionCall, CExpression nameExp, FunctionEntryNode fNode, CFANode thenNode,
-      CFANode retNode, FileLocation fileLocation, CIdExpression func, String pRawStatement) {
-    CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
-    CFunctionCall regularCall = createRegularCallWithParameter(functionCall, fNode, nameExp, func);
-    createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
   }
 }
