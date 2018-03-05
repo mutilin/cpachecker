@@ -1055,8 +1055,8 @@ void *reader(void * arg) {
     return 0;
 }
 void *writer1(void * arg) {
-  char * pWriter = calloc(3,sizeof(int));
   char * ptr = gp;
+  char * pWriter = calloc(3, 4);
   pWriter[0] = 'r';
   pWriter[1] = 'c';
   pWriter[2] = 'u';
@@ -1070,14 +1070,14 @@ void *writer1(void * arg) {
   return 0;
 }
 void *writer2(void * arg) {
-  char * pWriter = calloc(3,sizeof(int));
   char * ptr = gp;
-  pWriter[0] = 'r';
-  pWriter[1] = 'c';
-  pWriter[2] = 'u';
+  char * pWriter2 = calloc(3, 4);
+  pWriter2[0] = 'r';
+  pWriter2[1] = 'c';
+  pWriter2[2] = 'u';
   do {
     ldv_wlock_rcu();
-    ldv_rcu_assign_pointer(gp, pWriter);
+    ldv_rcu_assign_pointer(gp, pWriter2);
     ldv_wunlock_rcu();
   } while(0);
   ldv_synchronize_rcu();

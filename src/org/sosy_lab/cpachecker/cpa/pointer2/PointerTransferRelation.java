@@ -362,8 +362,9 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
   private PointerState handleAssignment(PointerState pState, CExpression pLeftHandSide, CRightHandSide pRightHandSide) throws UnrecognizedCCodeException {
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
-    if (asLocations(pRightHandSide, pState, 1).isBot() &&
-        !pState.getKnownLocations().contains(locations) && locations instanceof ExplicitLocationSet) {
+    if (asLocations(pRightHandSide, pState, 1).isBot() && locations instanceof
+        ExplicitLocationSet && !pState.getKnownLocations().contains(locations)) {
+      System.out.println("FAKE: Creating fake location");
       MemoryLocation loc = ((ExplicitLocationSet) locations).iterator().next();
       CVariableDeclaration decl =
           new CVariableDeclaration(FileLocation.DUMMY, true, CStorageClass.AUTO,
@@ -387,6 +388,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     for (MemoryLocation location : locations) {
       result = handleAssignment(result, location, pRightHandSide);
     }
+    System.out.println("ASSIGN: " + locations + " " + pRightHandSide);
     return result;
   }
 
@@ -423,7 +425,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
   private CInitializer getFakeInitializer(CVariableDeclaration pDeclaration) {
     CType pDeclarationType = pDeclaration.getType();
-    FileLocation fLoc = pDeclaration.getFileLocation();
+    FileLocation fLoc = FileLocation.DUMMY;
     String ptrName = "##" + pDeclaration.getQualifiedName().replace(':','#');
     CVariableDeclaration varDec = new CVariableDeclaration(fLoc,true,
                                             CStorageClass.AUTO, CPointerType.POINTER_TO_VOID,

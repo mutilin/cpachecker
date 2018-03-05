@@ -65,4 +65,9 @@ public class RCUSearchState implements AbstractState {
   public int hashCode() {
     return rcuPointers != null ? rcuPointers.hashCode() : 0;
   }
+
+  @Override
+  public String toString() {
+    return rcuPointers.toString();
+  }
 }

@@ -425,15 +425,18 @@ public class UsageTransferRelation implements TransferRelation {
     Set<AbstractIdentifier> unnecessary = new HashSet<>();
 
     aliases.add(singleId);
+    logger.log(Level.ALL, "ALIAS: ", aliases);
     for (AbstractState provider : providers) {
       aliases.addAll(((AliasInfoProvider) provider).getAllPossibleIds(singleId));
     }
+    logger.log(Level.ALL, "ALIAS: ", aliases);
 
     for (AbstractState provider : providers) {
       unnecessary.addAll(((AliasInfoProvider) provider).getUnnecessaryIds(singleId, aliases));
     }
 
     aliases.removeAll(unnecessary);
+    logger.log(Level.ALL, "ALIAS: ", aliases);
 
     for (AbstractIdentifier aliasId : aliases) {
 

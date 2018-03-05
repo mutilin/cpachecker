@@ -66,6 +66,7 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.StructureFieldIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcucpa")
@@ -236,6 +237,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         //pIc.clearDereference();
         AbstractIdentifier ptr = pCallExpression.getParameterExpressions().get(1).accept(pIc);
         pResult.addToRelations(rcuPtr, ptr);
+        pResult.addToRelations(ptr, rcuPtr);
         logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
         logger.log(Level.ALL, "State: " + pResult);
       } else if ( ! fName.equals(free) && ! fName.equals(deref)){
@@ -271,8 +273,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
 
     if (ail.isPointer() || air.isPointer()) {
-      MemoryLocation leftLoc = getLocationFromIdentifier(ail);
-      MemoryLocation rightLoc = getLocationFromIdentifier(air);
+      MemoryLocation leftLoc = LocationIdentifierConverter.toLocation(ail);
+      MemoryLocation rightLoc = LocationIdentifierConverter.toLocation(air);
 
       if (rcuPointers.contains(leftLoc) || rcuPointers.contains(rightLoc)) {
         pResult.addToRelations(ail, air);
@@ -287,7 +289,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
 
       if (ail != null && ail.isPointer()) {
-        MemoryLocation leftLoc = getLocationFromIdentifier(ail);
+        MemoryLocation leftLoc = LocationIdentifierConverter.toLocation(ail);
 
         if (rcuPointers.contains(leftLoc)) {
           CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
@@ -301,22 +303,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         }
       }
     }
-  }
-
-  private MemoryLocation getLocationFromIdentifier(AbstractIdentifier id) {
-    MemoryLocation result = null;
-
-    // TODO: this is wrong, although works for easy cases
-
-    if (id instanceof LocalVariableIdentifier) {
-      LocalVariableIdentifier lvid = (LocalVariableIdentifier) id;
-      result = MemoryLocation.valueOf(lvid.getFunction(), lvid.getName());
-     } else if (id instanceof GlobalVariableIdentifier) {
-      GlobalVariableIdentifier gvid = (GlobalVariableIdentifier) id;
-      result = MemoryLocation.valueOf(gvid.getName());
-    } // TODO: something else?
-
-    return result;
   }
 
 }

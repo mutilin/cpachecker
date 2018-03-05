@@ -1039,62 +1039,29 @@ void ldv_wunlock_rcu(void);
 void ldv_free(void *);
 void ldv_synchronize_rcu(void);
 void ldv_rcu_assign_pointer(void * p1, void * p2);
-char * gp;
-void *reader(void * arg) {
-    char *a;
-    char b;
-    char * pReader = &b;
-    ldv_rcu_read_lock();
-    char * p;
-    ldv_rlock_rcu();
-    p = ldv_rcu_dereference(gp);
-    ldv_runlock_rcu();
-    a = p;
-    b = *a;
-    ldv_rcu_read_unlock();
-    return 0;
-}
-pthread_mutex_t mutex;
-void *writer1(void * arg) {
-  char * pWriter = calloc(3, sizeof(int));
-  pthread_mutex_lock(&mutex);
-  char * ptr = gp;
-  pWriter[0] = 'r';
-  pWriter[1] = 'c';
-  pWriter[2] = 'u';
-  do {
-    ldv_wlock_rcu();
-    ldv_rcu_assign_pointer(gp, pWriter);
-    ldv_wunlock_rcu();
-  } while(0);
-  pthread_mutex_unlock(&mutex);
+
+struct foo {
+  void * gp;
+} * pStruct;
+
+int main() {
+  pStruct = calloc(1, sizeof(struct foo));
+  pStruct -> gp = calloc(2, sizeof(int));
+  int * mem = calloc(3, sizeof(int));
+
+  mem[0] = 'r';
+  mem[1] = 'c';
+  mem[2] = 'u';
+
+  int * ptr = pStruct -> gp;
+
+  ldv_wlock_rcu();
+  ldv_rcu_assign_pointer(pStruct -> gp, mem);
+  ldv_wunlock_rcu();
+
   ldv_synchronize_rcu();
+
   ldv_free(ptr);
-  return 0;
-}
-void *writer2(void * arg) {
-  char * pWriter = calloc(3, sizeof(int));
-  pthread_mutex_lock(&mutex);
-  char * ptr = gp;
-  pWriter[0] = 'r';
-  pWriter[1] = 'c';
-  pWriter[2] = 'u';
-  do {
-    ldv_wlock_rcu();
-    ldv_rcu_assign_pointer(gp, pWriter);
-    ldv_wunlock_rcu();
-  } while(0);
-  pthread_mutex_unlock(&mutex);
-  ldv_synchronize_rcu();
-  ldv_free(ptr);
-  return 0;
-}
-int main(void) {
-  pthread_t rd, wr1, wr2;
-  gp = calloc(3, sizeof(int));
-  pthread_mutex_init(&mutex, ((void *)0));
-  pthread_create(&rd, 0, reader, 0);
-  pthread_create(&wr1, 0, writer1, 0);
-  pthread_create(&wr2, 0, writer2, 0);
+
   return 0;
 }

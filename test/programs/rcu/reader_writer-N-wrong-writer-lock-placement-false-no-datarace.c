@@ -23,13 +23,13 @@ pthread_mutex_t mutex;
 
 void *writer1(void * arg) {
   char * pWriter = calloc(3, sizeof(int));
-  pthread_mutex_lock(&mutex);
   char * ptr = gp;
                       
   pWriter[0] = 'r';
   pWriter[1] = 'c';
   pWriter[2] = 'u';
 
+  pthread_mutex_lock(&mutex);
   do {
     ldv_wlock_rcu();
     ldv_rcu_assign_pointer(gp, pWriter);
@@ -44,13 +44,13 @@ void *writer1(void * arg) {
 
 void *writer2(void * arg) {
   char * pWriter = calloc(3, sizeof(int));
-  pthread_mutex_lock(&mutex);
   char * ptr = gp;
                       
   pWriter[0] = 'r';
   pWriter[1] = 'c';
   pWriter[2] = 'u';
 
+  pthread_mutex_lock(&mutex);
   do {
     ldv_wlock_rcu();
     ldv_rcu_assign_pointer(gp, pWriter);

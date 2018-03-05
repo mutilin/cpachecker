@@ -23,11 +23,14 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
 import com.jsoniter.DecodingMode;
 import com.jsoniter.JsonIterator;
 import com.jsoniter.any.Any;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -75,6 +78,7 @@ public class RCUSearchStatistics implements Statistics {
   }
 
   @Override
+  @SuppressWarnings("serial")
   public void printStatistics(
       PrintStream out, Result result, UnmodifiableReachedSet reached) {
     Map<MemoryLocation, Set<MemoryLocation>> pointsTo = parseFile(input, logger);
@@ -98,17 +102,15 @@ public class RCUSearchStatistics implements Statistics {
           rcuAndAliases.addAll(aliases.get(pointer));
         }
       }
-      /*
       try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
         Gson builder = new Gson();
-        java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {
+        java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>(){
         }.getType();
         builder.toJson(rcuAndAliases, type, writer);
         logger.log(Level.INFO, "Ended dump of RCU-aliases in file " + output);
       } catch (IOException pE) {
         logger.log(Level.WARNING, pE.getMessage());
       }
-      */
       logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
     }
 

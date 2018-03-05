@@ -123,6 +123,9 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
 
       createVisualization(id, pPair.getFirst(), writer);
       createVisualization(id, pPair.getSecond(), writer);
+
+
+
       if (!singleFileOutput) {
         writer.close();
       }
@@ -141,6 +144,9 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
     if (usage.isLooped()) {
       writer.append("Line 0:     N0 -{/*Failure in refinement*/}-> N0\n");
     }
+
+    logger.log(Level.ALL, "STATE: ", usage.getKeyState());
+
     List<CFAEdge> path = getPath(usage);
     if (path == null) {
       return;
@@ -153,7 +159,8 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
     Iterator<CFAEdge> iterator = path.iterator();
     while (iterator.hasNext()) {
       CFAEdge edge = iterator.next();
-      if (edge instanceof CDeclarationEdge) {
+      if (edge instanceof CDeclarationEdge &&
+          ((CDeclarationEdge) edge).getDeclaration().isGlobal()) {
         continue;
       }
       if (edge instanceof CFunctionCallEdge && iterator.hasNext()) {
@@ -181,6 +188,8 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
       writer.append("Line 0:     N0 -{return;}-> N0\n");
     }
     writer.write("\n");
+
+    logger.log(Level.ALL, "USAGE: ", usage);
   }
 
   private void printCountStatistics(final Writer writer, final Iterator<SingleIdentifier> idIterator) throws IOException {
