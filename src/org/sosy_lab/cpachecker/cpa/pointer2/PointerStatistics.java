@@ -139,7 +139,7 @@ public class PointerStatistics implements Statistics {
     out.append('\n');
   }
 
-  private Map<MemoryLocation, Set<MemoryLocation>> replaceTopsAndBots(Map<MemoryLocation,
+  public static Map<MemoryLocation, Set<MemoryLocation>> replaceTopsAndBots(Map<MemoryLocation,
                                                               LocationSet> pPointsTo) {
     Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
     for (MemoryLocation key : pPointsTo.keySet()) {

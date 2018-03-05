@@ -414,6 +414,10 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     MemoryLocation location = toLocation(pDeclaration);
     CType declarationType = pDeclaration.getType();
     if (initializer != null) {
+      /*
+       * TODO: int * ptr = existing_ptr; produces weird results. The locationSet of existing_ptr
+       * for some reason is not taken into account in such cases
+       */
       return handleWithInitializer(pState, location, declarationType, initializer);
     } else if (declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
@@ -471,6 +475,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               @Override
               public LocationSet visit(CInitializerExpression pInitializerExpression)
                   throws UnrecognizedCCodeException {
+                System.out.println("VISIT_INIT: " + pInitializerExpression);
                 return asLocations(pInitializerExpression.getExpression(), pState, 1);
               }
 
@@ -487,6 +492,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               }
             });
 
+    System.out.println("VISIT_INIT: " + rhs);
     return handleAssignment(pState, pLeftHandSide, rhs);
   }
 

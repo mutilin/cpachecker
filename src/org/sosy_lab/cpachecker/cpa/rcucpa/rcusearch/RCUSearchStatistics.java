@@ -62,7 +62,7 @@ public class RCUSearchStatistics implements Statistics {
 
   @Option(secure = true, name = "input", description = "name of a file that holds the Points-To "
       + "information")
-  @FileOption(Type.REQUIRED_INPUT_FILE)
+  @FileOption(Type.OPTIONAL_INPUT_FILE)
   private Path input = Paths.get("PointsToMap");
 
   @Option(secure = true, name = "output", description = "name of a file to hold information about"
@@ -70,10 +70,13 @@ public class RCUSearchStatistics implements Statistics {
   @FileOption(Type.OUTPUT_FILE)
   private Path output = Paths.get("RCUPointers");
 
-  private LogManager logger;
+  private final LogManager logger;
+  private final RCUSearchTransfer transfer;
 
-  RCUSearchStatistics(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
+  RCUSearchStatistics(Configuration config, LogManager pLogger, RCUSearchTransfer pTransfer) throws
+                                                                 InvalidConfigurationException {
     logger = pLogger;
+    transfer = pTransfer;
     config.inject(this);
   }
 
@@ -81,7 +84,7 @@ public class RCUSearchStatistics implements Statistics {
   @SuppressWarnings("serial")
   public void printStatistics(
       PrintStream out, Result result, UnmodifiableReachedSet reached) {
-    Map<MemoryLocation, Set<MemoryLocation>> pointsTo = parseFile(input, logger);
+    Map<MemoryLocation, Set<MemoryLocation>> pointsTo = transfer.getPointsTo();
     Map<MemoryLocation, Set<MemoryLocation>> aliases = getAliases(pointsTo);
 
     System.out.println("PTS-TO: " + pointsTo);
@@ -131,9 +134,11 @@ public class RCUSearchStatistics implements Statistics {
       if (pointerPointTo.contains(PointerStatistics.getReplLocSetTop())) {
         // pointer can point anywhere
         aliases.put(pointer, new HashSet<>(pointsTo.keySet()));
+        aliases.get(pointer).remove(pointer);
         for (MemoryLocation other : pointsTo.keySet()) {
-          pointsTo.putIfAbsent(other, new HashSet<>());
-          pointsTo.get(other).add(pointer);
+          aliases.putIfAbsent(other, new HashSet<>());
+          logger.log(Level.ALL, "Adding ", pointer, " to ", other, " as an alias");
+          aliases.get(other).add(pointer);
         }
       } else if (!pointerPointTo.contains(PointerStatistics.getReplLocSetBot())) {
         Set<MemoryLocation> commonElems;
@@ -161,6 +166,7 @@ public class RCUSearchStatistics implements Statistics {
     aliases.get(one).add(other);
   }
 
+  /*
   private Map<MemoryLocation, Set<MemoryLocation>> parseFile(Path input, LogManager logger) {
     Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
 
@@ -214,4 +220,5 @@ public class RCUSearchStatistics implements Statistics {
     }
     return result;
   }
+  */
 }

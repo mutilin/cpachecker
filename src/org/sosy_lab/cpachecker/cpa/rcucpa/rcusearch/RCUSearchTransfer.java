@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
@@ -52,8 +53,9 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
-import org.sosy_lab.cpachecker.cpa.pointer2.PointerPrecision;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 import org.sosy_lab.cpachecker.cpa.rcucpa.LocationIdentifierConverter;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -73,13 +75,12 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   private String deref = "ldv_rcu_dereference";
 
   private LogManager logger;
-  private PointerTransferRelation pTransfer;
-  private PointerState pointerState = PointerState.INITIAL_STATE;
   private Set<MemoryLocation> knownLocations;
+  private PointerState pointerState;
+  private PointerTransferRelation pointerTransfer;
 
   RCUSearchTransfer(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = pLogger;
-    pTransfer = (PointerTransferRelation) PointerTransferRelation.INSTANCE;
     knownLocations = new HashSet<>();
     config.inject(this);
   }
@@ -88,6 +89,9 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
+
+    pointerState = getPointerAbstractSuccesor(PointerState.copyOf(pointerState), precision, cfaEdge);
+
     RCUSearchState result = (RCUSearchState) state;
     logger.log(Level.ALL, "EDGE TYPE: " + cfaEdge.getEdgeType());
     logger.log(Level.ALL, "EDGE CONT: " + cfaEdge.getRawStatement());
@@ -120,6 +124,18 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
         break;
     }
     return Collections.singleton(result);
+  }
+
+  private PointerState getPointerAbstractSuccesor(
+      AbstractState pState,
+      Precision pPrecision,
+      CFAEdge pCfaEdge) throws CPATransferException, InterruptedException {
+    PointerState result = (PointerState) pState;
+    for (AbstractState state : pointerTransfer.getAbstractSuccessorsForEdge(pState, pPrecision,
+        pCfaEdge)) {
+      result = (PointerState) state;
+    }
+    return PointerState.copyOf(result);
   }
 
   private void handleDeclarationEdge(CDeclarationEdge pCfaEdge,
@@ -221,11 +237,6 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   private void addKnownLocations(CFAEdge pEdge)
       throws CPATransferException, InterruptedException {
     Set<MemoryLocation> old = pointerState.getKnownLocations();
-    for (AbstractState state : pTransfer.getAbstractSuccessorsForEdge(pointerState,
-        new PointerPrecision(), pEdge)) {
-      // result of getSuccessor - only one state
-      pointerState = (PointerState) state;
-    }
     knownLocations.addAll(pointerState.getKnownLocations());
     Set<MemoryLocation> new_locs = new HashSet<>(knownLocations);
     new_locs.removeAll(old);
@@ -262,5 +273,17 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     } else {
       return state;
     }
+  }
+
+  void setPointerTransfer(TransferRelation pPointerTransfer) {
+    pointerTransfer = (PointerTransferRelation) pPointerTransfer;
+    pointerState = PointerState.INITIAL_STATE;
+  }
+
+  Map<MemoryLocation, Set<MemoryLocation>> getPointsTo() {
+    Map<MemoryLocation, Set<MemoryLocation>> result =
+        PointerStatistics.replaceTopsAndBots(pointerState.getPointsToMap());
+    logger.log(Level.ALL, "Requested Points-To map contains:\n", result);
+    return result;
   }
 }
