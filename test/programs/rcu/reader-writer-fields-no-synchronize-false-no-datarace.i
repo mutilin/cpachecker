@@ -1044,24 +1044,54 @@ struct foo {
   void * gp;
 } * pStruct;
 
-int main() {
-  pStruct = calloc(1, sizeof(struct foo));
-  pStruct -> gp = calloc(2, sizeof(int));
-  int * mem = calloc(3, sizeof(int));
+void *reader(void * arg) {
+    char *a;
+    char b;
+    char * pReader = &b;
 
-  mem[0] = 'r';
-  mem[1] = 'c';
-  mem[2] = 'u';
+    ldv_rcu_read_lock();
+    char * p;
+    ldv_rlock_rcu();
+    p = ldv_rcu_dereference(pStruct -> gp);
+    ldv_runlock_rcu();
+    a = p;
+    b = *a;
+    ldv_rcu_read_unlock();
 
-  int * ptr = pStruct -> gp;
+    return 0;
+}
 
-  ldv_wlock_rcu();
-  ldv_rcu_assign_pointer(pStruct -> gp, mem);
-  ldv_wunlock_rcu();
+pthread_mutex_t mutex;
 
-  ldv_synchronize_rcu();
+void *writer(void * arg) {
+  char * pWriter = calloc(3, sizeof(int));
+  pthread_mutex_lock(&mutex);
+  char * ptr = pStruct -> gp;
+
+  pWriter[0] = 'r';
+  pWriter[1] = 'c';
+  pWriter[2] = 'u';
+
+  do {
+    ldv_wlock_rcu();
+    ldv_rcu_assign_pointer(pStruct -> gp, pWriter);
+    ldv_wunlock_rcu();
+  } while(0);
+  pthread_mutex_unlock(&mutex);
 
   ldv_free(ptr);
+
+  return 0;
+}
+
+int main(void) {
+  pthread_t rd, wr;
+  pStruct = calloc(1, sizeof(struct foo));
+  pStruct -> gp = calloc(3, sizeof(int));
+
+  pthread_mutex_init(&mutex, ((void *)0));
+  pthread_create(&rd, 0, reader, 0);
+  pthread_create(&wr, 0, writer, 0);
 
   return 0;
 }

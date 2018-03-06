@@ -23,6 +23,7 @@ pthread_mutex_t mutex;
 
 void *writer1(void * arg) {
   char * pWriter = calloc(3, sizeof(int));
+  // BUG: mutex_lock should be here
   char * ptr = gp;
                       
   pWriter[0] = 'r';
@@ -44,6 +45,7 @@ void *writer1(void * arg) {
 
 void *writer2(void * arg) {
   char * pWriter = calloc(3, sizeof(int));
+  // BUG: mutex_lock should be here
   char * ptr = gp;
                       
   pWriter[0] = 'r';
