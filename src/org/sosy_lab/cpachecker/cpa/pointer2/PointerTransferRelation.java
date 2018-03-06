@@ -492,7 +492,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               }
             });
 
-    System.out.println("VISIT_INIT: " + rhs);
+    System.out.println("VISIT_INIT_RES: " + rhs);
     return handleAssignment(pState, pLeftHandSide, rhs);
   }
 
@@ -587,6 +587,16 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
                 fieldReferenceToMemoryLocation(pIastFieldReference);
             if (!memoryLocation.isPresent()) {
               return LocationSetTop.INSTANCE;
+            }
+            if (pIastFieldReference.isPointerDereference()) {
+              System.out.println("SEARCHING map: " + pState.getPointsToMap() + " for " +
+                  memoryLocation.get());
+              if (pState.getPointsToMap().containsKey(memoryLocation.get())) {
+                System.out.println("FOUND");
+                return pState.getPointsToMap().get(memoryLocation.get());
+              } else {
+                System.out.println("NOT FOUND");
+              }
             }
             return toLocationSet(Collections.singleton(memoryLocation.get()));
           }
