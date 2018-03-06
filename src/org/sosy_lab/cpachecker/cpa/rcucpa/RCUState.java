@@ -41,6 +41,8 @@ import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
+import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, CompatibleNode,
                                  LocalInfoProvider, AliasInfoProvider {
@@ -236,16 +238,30 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
   @Override
   public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
     Set<AbstractIdentifier> result = new HashSet<>();
-    if (rcuRelations.containsKey(id)) {
-      result.addAll(rcuRelations.get(id));
-    }
-    if (rcuRelations.containsValue(id)) {
-      for (Entry<AbstractIdentifier, AbstractIdentifier> entry : rcuRelations.entries()) {
-        if (entry.getValue().equals(id)) {
-          result.add(entry.getKey());
+
+    if (id instanceof SingleIdentifier) {
+      SingleIdentifier sid = (SingleIdentifier) id;
+      System.out.println("IDS: Single, deref: " + sid.getDereference());
+      if (sid.getDereference() > 0) {
+        for (int i = 0; i <= sid.getDereference(); ++i) {
+          AbstractIdentifier clone = sid.cloneWithDereference(i);
+          if (rcuRelations.containsKey(clone)) {
+            result.addAll(rcuRelations.get(clone));
+          }
+          if (rcuRelations.containsValue(clone)) {
+            for (Entry<AbstractIdentifier, AbstractIdentifier> entry : rcuRelations.entries()) {
+              if (entry.getValue().equals(clone)) {
+                result.add(entry.getKey());
+              }
+            }
+          }
         }
       }
+    } else {
+      System.out.println("IDS: Not single");
     }
+
+    System.out.println("IDS: " + result);
     return result;
   }
 

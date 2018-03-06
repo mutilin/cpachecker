@@ -43,11 +43,11 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   }
 
   boolean isCompatible(LockStateRCU other) {
-    boolean first = //this.lockType == HeldLock.READ_LOCK &&
+    boolean first = this.lockType == HeldLock.READ_LOCK &&
                     this.readLockCount > 0
                     && other.lockType == HeldLock.WRITE_LOCK;
     boolean second = this.lockType == HeldLock.WRITE_LOCK
-                      //&& other.lockType == HeldLock.READ_LOCK
+                      && other.lockType == HeldLock.READ_LOCK
                       && other.readLockCount > 0;
     return !first && !second;
   }

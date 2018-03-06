@@ -35,6 +35,8 @@ import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
+import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysisWithBAM;
+import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
@@ -42,7 +44,7 @@ import org.sosy_lab.cpachecker.core.interfaces.WrapperCPA;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA.PointerOptions;
 
-public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
+public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnalysisWithBAM,
                                                          StatisticsProvider, WrapperCPA {
 
   private final LogManager logger;
@@ -84,5 +86,10 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   @Override
   public Iterable<ConfigurableProgramAnalysis> getWrappedCPAs() {
     return Collections.singleton(pointerCPA);
+  }
+
+  @Override
+  public Reducer getReducer() {
+    return null;
   }
 }

@@ -187,7 +187,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       addMemoryLocation(pFunctionName, pRcuPointers, params.get(1));
     }
 
-    return new RCUSearchState(pRcuPointers);
+    return new RCUSearchState(pRcuPointers, PointerState.copyOf(pointerState));
   }
 
   private void addMemoryLocation(String pFunctionName, Set<MemoryLocation> pRcuPointers,
@@ -269,7 +269,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       }
     }
     if (!pRcuPointers.equals(state.getRcuPointers())) {
-      return new RCUSearchState(pRcuPointers);
+      return new RCUSearchState(pRcuPointers, PointerState.copyOf(pointerState));
     } else {
       return state;
     }
