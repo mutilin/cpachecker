@@ -131,13 +131,15 @@ public class CFunctionPointerResolver {
 
   private static class TargetFunctions {
     private Collection<FunctionEntryNode> candidateFunctions;
-    private BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
     private ImmutableSetMultimap<String, String> candidateFunctionsForField;
     private ImmutableSetMultimap<String, String> globalsMatching;
   }
 
+  private BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
+  private BiPredicate<CFunctionType, CFunctionType> matchingFunctionParameterCall;
+
   TargetFunctions targetFunctions;
-  TargetFunctions targetParamFunctions;
+  TargetFunctions targetParameterFunctions;
 
   private final MutableCFA cfa;
   private final LogManager logger;
@@ -196,8 +198,6 @@ public class CFunctionPointerResolver {
       targetFunctions.globalsMatching = null;
     }
 
-    targetFunctions.matchingFunctionCall = getFunctionSetPredicate(functionSets);
-
     return targetFunctions;
   }
 
@@ -210,7 +210,14 @@ public class CFunctionPointerResolver {
     config.inject(this);
 
     targetFunctions = createMatchingFunctions(pGlobalVars, functionSets);
-    targetParamFunctions = createMatchingFunctions(pGlobalVars, functionParameterSets);
+    if (functionSets.contains(FunctionSet.USED_IN_CODE) != functionParameterSets.contains(FunctionSet.USED_IN_CODE)) {
+      targetParameterFunctions = createMatchingFunctions(pGlobalVars, functionParameterSets);
+    } else {
+      targetParameterFunctions = targetFunctions;
+    }
+
+    matchingFunctionCall = getFunctionSetPredicate(functionSets);
+    matchingFunctionParameterCall = getFunctionSetPredicate(functionParameterSets);
   }
 
   private BiPredicate<CFunctionType, CFunctionType> getFunctionSetPredicate(
@@ -261,12 +268,8 @@ public class CFunctionPointerResolver {
 
     // 1.Step: get all function calls
     final FunctionPointerCallCollector visitor = new FunctionPointerCallCollector();
-    final FunctionWithParamPointerCallCollector visitorParams = new FunctionWithParamPointerCallCollector();
     for (FunctionEntryNode functionStartNode : cfa.getAllFunctionHeads()) {
       CFATraversal.dfs().traverseOnce(functionStartNode, visitor);
-      if (replaseFunctionWithParametrPointer) {
-        CFATraversal.dfs().traverseOnce(functionStartNode, visitorParams);
-      }
     }
 
     // 2.Step: replace functionCalls with functioncall- and return-edges
@@ -276,9 +279,10 @@ public class CFunctionPointerResolver {
     for (final CStatementEdge edge : visitor.functionPointerCalls) {
       CFunctionCall functionCall = (CFunctionCall) edge.getStatement();
       CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
-      CFunctionType func = (CFunctionType) fExp.getFunctionNameExpression().getExpressionType();
+      CFunctionType func = (CFunctionType) fExp.getFunctionNameExpression().getExpressionType().getCanonicalType();
       logger.log(Level.FINEST, "Function pointer call", fExp);
-      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, targetFunctions);
+      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, targetFunctions,
+            matchingFunctionCall);
 
       CExpression nameExp = fExp.getFunctionNameExpression();
       if (nameExp instanceof CPointerExpression) {
@@ -292,11 +296,12 @@ public class CFunctionPointerResolver {
 
     if (replaseFunctionWithParametrPointer) {
       EdgeReplacerParameterFunctionPointer edgeReplacerParameterFunctionPointer = new EdgeReplacerParameterFunctionPointer(cfa, pConfig, logger);
-      for (final CStatementEdge edge : visitorParams.functionPointerCalls) {
+      for (final CStatementEdge edge : visitor.functionParamPointerCalls) {
         CExpression param = getParameter((CFunctionCall) edge.getStatement());
-        CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType();
+        CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType().getCanonicalType();
         logger.log(Level.FINEST, "Function pointer param", param);
-        Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParamFunctions);
+        Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParameterFunctions,
+              matchingFunctionParameterCall);
         edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param, CreateEdgeFlags.DONT_CREATE_SUMMARY_EDGE);
       }
     }
@@ -334,8 +339,9 @@ public class CFunctionPointerResolver {
     return true;
   }
 
-  private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, CStatementEdge statement, TargetFunctions targetFunctions) {
-    Collection<CFunctionEntryNode> funcs = getFunctionSet(func, targetFunctions);
+  private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, CStatementEdge statement,
+      TargetFunctions targetFunctions, BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall) {
+    Collection<CFunctionEntryNode> funcs = getFunctionSet(func, targetFunctions, matchingFunctionCall);
 
     if (matchAssignedFunctionPointers) {
       CExpression expression = nameExp;
@@ -390,10 +396,11 @@ public class CFunctionPointerResolver {
     return funcs;
   }
 
-  private List<CFunctionEntryNode> getFunctionSet(CFunctionType func, TargetFunctions targetFunctions) {
+  private List<CFunctionEntryNode> getFunctionSet(CFunctionType func, TargetFunctions targetFunctions, BiPredicate<CFunctionType,
+        CFunctionType> matchingFunctionCall) {
     return from(targetFunctions.candidateFunctions)
         .filter(CFunctionEntryNode.class)
-        .filter(f -> targetFunctions.matchingFunctionCall.test(func, f.getFunctionDefinition().getType()))
+        .filter(f -> matchingFunctionCall.test(func, f.getFunctionDefinition().getType()))
         .toList();
   }
 
@@ -554,10 +561,9 @@ public class CFunctionPointerResolver {
 
   /** This Visitor collects all functioncalls for functionPointers.
    *  It should visit the CFA of each functions before creating super-edges (functioncall- and return-edges). */
-  private static abstract class FunctionPointerCallCollectorCommon extends CFATraversal.DefaultCFAVisitor {
+  private class FunctionPointerCallCollector extends CFATraversal.DefaultCFAVisitor {
     final List<CStatementEdge> functionPointerCalls = new ArrayList<>();
-
-    protected abstract boolean checkEdge(AStatement stmt);
+    final List<CStatementEdge> functionParamPointerCalls = new ArrayList<>();
 
     @Override
     public CFATraversal.TraversalProcess visitEdge(final CFAEdge pEdge) {
@@ -567,24 +573,21 @@ public class CFunctionPointerResolver {
         if (checkEdge(stmt)) {
           functionPointerCalls.add(edge);
         }
+        if (replaseFunctionWithParametrPointer && checkParameterEdge(stmt)) {
+          functionParamPointerCalls.add(edge);
+        }
       }
       return CFATraversal.TraversalProcess.CONTINUE;
     }
-  }
 
-  private class FunctionPointerCallCollector extends FunctionPointerCallCollectorCommon {
-    @Override
-    protected boolean checkEdge(AStatement stmt) {
+    private boolean checkEdge(AStatement stmt) {
       if (stmt instanceof CFunctionCall && isFunctionPointerCall((CFunctionCall)stmt)) {
         return true;
       }
       return false;
     }
-  }
 
-  private class FunctionWithParamPointerCallCollector extends FunctionPointerCallCollectorCommon {
-    @Override
-    protected boolean checkEdge(AStatement stmt) {
+    private boolean checkParameterEdge(AStatement stmt) {
       if (stmt instanceof CFunctionCall && !isFunctionPointerCall((CFunctionCall)stmt)
           && getParameter((CFunctionCall)stmt) != null) {
         return true;

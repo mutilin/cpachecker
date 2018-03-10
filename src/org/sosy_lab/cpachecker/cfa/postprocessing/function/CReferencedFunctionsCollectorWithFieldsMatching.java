@@ -167,7 +167,7 @@ class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctio
           IdentifierCreator idCreator = new IdentifierCreator("");
           AbstractIdentifier id = left.accept(idCreator);
           if (id instanceof StructureIdentifier) {
-            assert false : "Structures should be handled above";
+            //assert false : "Structures should be handled above";
           } else if (id instanceof GlobalVariableIdentifier) {
             funcToGlobal.put(((SingleIdentifier) id).getName(), lastFunction);
           }

@@ -43,6 +43,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
+import org.sosy_lab.cpachecker.cfa.model.AbstractCFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -85,8 +86,12 @@ public abstract class EdgeReplacer {
    * 2. falseEdge from rootNode to elseNode.
    * @category conditions
    */
-  protected void addConditionEdges(CExpression condition, CFANode rootNode,
+  protected void addConditionEdges(CExpression nameExp, CUnaryExpression amper, CFANode rootNode,
       CFANode thenNode, CFANode elseNode, FileLocation fileLocation) {
+
+    final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
+    CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
+
     // edge connecting condition with thenNode
     final CAssumeEdge trueEdge = new CAssumeEdge(condition.toASTString(),
         fileLocation, rootNode, thenNode, condition, true);
@@ -121,8 +126,7 @@ public abstract class EdgeReplacer {
   protected abstract CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func);
 
   public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression nameExp, CreateEdgeFlags type) {
-    if (funcs.size() <= 0)
-    {
+    if (funcs.size() <= 0) {
       return;
     }
     CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
@@ -137,6 +141,7 @@ public abstract class EdgeReplacer {
     for (FunctionEntryNode fNode : funcs) {
       CFANode thenNode = newCFANode(start.getFunctionName());
       CFANode elseNode = newCFANode(start.getFunctionName());
+
       CIdExpression func = new CIdExpression(nameExp.getFileLocation(),
                                (CType)fNode.getFunctionDefinition().getType(),
                                fNode.getFunctionName(),
@@ -144,29 +149,30 @@ public abstract class EdgeReplacer {
       CUnaryExpression amper = new CUnaryExpression(nameExp.getFileLocation(), func.getExpressionType(),
                                    func, CUnaryExpression.UnaryOperator.AMPER);
       CFANode retNode = newCFANode(start.getFunctionName());
-      final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
-      CBinaryExpression condition = binExprBuilder.buildBinaryExpressionUnchecked(nameExp, amper, BinaryOperator.EQUALS);
-      addConditionEdges(condition, rootNode, thenNode, elseNode, fileLocation);
+
+      addConditionEdges(nameExp, amper, rootNode, thenNode, elseNode, fileLocation);
+
       String pRawStatement = "pointer call(" + fNode.getFunctionName() + ") " + statement.getRawStatement();
       CFunctionCallExpression newCallExpr = createNewCallExpression(oldCallExpr, nameExp, fNode, func);
       CFunctionCall regularCall = createRegularCall(functionCall, newCallExpr);
       createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
+
       BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
+
       rootNode = elseNode;
     }
 
     if (createUndefinedFunctionCall) {
+      AbstractCFAEdge ae;
       if (type == CreateEdgeFlags.CREATE_SUMMARY_EDGE) {
-        CStatementEdge summaryStatementEdge = new CStatementEdge(statement.getRawStatement(), statement.getStatement(),
+        ae = new CStatementEdge(statement.getRawStatement(), statement.getStatement(),
                                                                  statement.getFileLocation(), rootNode, end);
-        rootNode.addLeavingEdge(summaryStatementEdge);
-        end.addEnteringEdge(summaryStatementEdge);
       } else {
-        BlankEdge be = new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");
-        rootNode.addLeavingEdge(be);
-        end.addEnteringEdge(be);
+        ae = new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");
       }
+      rootNode.addLeavingEdge(ae);
+      end.addEnteringEdge(ae);
     } else {
       for (CFAEdge edge : CFAUtils.enteringEdges(rootNode)) {
         CFACreationUtils.removeEdgeFromNodes(edge);
