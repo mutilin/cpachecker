@@ -41,7 +41,6 @@ import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, CompatibleNode,

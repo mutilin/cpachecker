@@ -43,13 +43,17 @@ import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -63,10 +67,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
-import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.StructureFieldIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcucpa")
@@ -146,32 +147,31 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
     RCUState result = RCUState.copyOf((RCUState) state);
-    IdentifierCreator ic = new IdentifierCreator(cfaEdge.getPredecessor().getFunctionName());
 
     logger.log(Level.ALL, "EDGE: " + cfaEdge + " " + cfaEdge.getEdgeType());
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
-        handleDeclaration(((CDeclarationEdge) cfaEdge).getDeclaration(), result, ic,
+        handleDeclaration(((CDeclarationEdge) cfaEdge).getDeclaration(), result,
                             cfaEdge.getPredecessor().getFunctionName());
         break;
       case StatementEdge:
         CStatement statement = ((CStatementEdge) cfaEdge).getStatement();
         if (statement instanceof CExpressionAssignmentStatement) {
-          handleAssignment((CExpressionAssignmentStatement) statement, result, ic,
+          handleAssignmentStatement((CExpressionAssignmentStatement) statement, result,
                             cfaEdge.getPredecessor().getFunctionName());
         } else if (statement instanceof CFunctionCallAssignmentStatement) {
-          handleFunctionCallAssignment((CFunctionCallAssignmentStatement) statement, result, ic,
+          handleFunctionCallAssignmentStatement((CFunctionCallAssignmentStatement) statement, result,
                                         cfaEdge.getPredecessor().getFunctionName());
         } else if (statement instanceof CFunctionCallStatement){
-          handleFunctionCall(((CFunctionCallStatement) statement).getFunctionCallExpression(),
-                              result, ic, cfaEdge.getPredecessor().getFunctionName());
+          handleFunctionCallStatement(((CFunctionCallStatement) statement).getFunctionCallExpression(),
+                              result, cfaEdge.getPredecessor().getFunctionName());
         }
         break;
       case FunctionCallEdge:
         CFunctionCallExpression callExpression =
             ((CFunctionCallEdge) cfaEdge).getSummaryEdge().getExpression().getFunctionCallExpression();
-        handleFunctionCall(callExpression, result, ic, cfaEdge.getPredecessor().getFunctionName());
+        handleFunctionCallStatement(callExpression, result, cfaEdge.getPredecessor().getFunctionName());
         break;
       case FunctionReturnEdge:
         result = handleFunctionReturn(((CFunctionReturnEdge) cfaEdge).getPredecessor().getFunctionName(), result);
@@ -211,8 +211,34 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     }
   }
 
-  private void handleFunctionCall(CFunctionCallExpression pCallExpression, RCUState pResult,
-                                  IdentifierCreator pIc, String pFunctionName) {
+  private void handleAssignment(CExpression left, CExpression right, String functionName,
+                                RCUState pResult, boolean twoSided, boolean invalidates) {
+    IdentifierCreator localIc = new IdentifierCreator(functionName);
+    AbstractIdentifier rcuPtr, ptr;
+
+    rcuPtr = left.accept(localIc);
+
+    ptr = right.accept(localIc);
+
+    if (rcuPointers.contains(LocationIdentifierConverter.toLocation(rcuPtr)) ||
+        rcuPointers.contains(LocationIdentifierConverter.toLocation(ptr))) {
+
+      logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
+      logger.log(Level.ALL, "State: " + pResult);
+
+      pResult.addToRelations(rcuPtr, ptr);
+      if (twoSided) {
+        pResult.addToRelations(ptr, rcuPtr);
+      }
+
+      if (invalidates) {
+        pResult.addToOutdated(rcuPtr);
+      }
+    }
+  }
+
+  private void handleFunctionCallStatement(CFunctionCallExpression pCallExpression, RCUState pResult,
+                                           String pFunctionName) {
     CFunctionDeclaration fd = pCallExpression.getDeclaration();
 
     if (fd != null) {
@@ -231,15 +257,11 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       } else if (fName.equals(sync)) {
         pResult.fillLocal();
       } else if (fName.equals(assign)) {
-        //pIc.clear(pFunctionName);
-        AbstractIdentifier rcuPtr = pCallExpression.getParameterExpressions().get(0).accept(pIc);
-        pResult.addToOutdated(rcuPtr);
-        //pIc.clearDereference();
-        AbstractIdentifier ptr = pCallExpression.getParameterExpressions().get(1).accept(pIc);
-        pResult.addToRelations(rcuPtr, ptr);
-        pResult.addToRelations(ptr, rcuPtr);
-        logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
-        logger.log(Level.ALL, "State: " + pResult);
+        CExpression rcuPtr = pCallExpression.getParameterExpressions().get(0);
+        CExpression ptr = pCallExpression.getParameterExpressions().get(1);
+
+        handleAssignment(rcuPtr, ptr, pFunctionName, pResult, true, true);
+
       } else if ( ! fName.equals(free) && ! fName.equals(deref)){
         logger.log(Level.ALL, "1 PUSHING STATE. FUNC: " + fName);
         RCUState toPush = RCUState.copyOf(pResult);
@@ -249,57 +271,47 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     }
   }
 
-  private void handleFunctionCallAssignment(CFunctionCallAssignmentStatement assignment,
-                                            RCUState pResult, IdentifierCreator pIc,
-                                            String functionName) {
+  private void handleFunctionCallAssignmentStatement(CFunctionCallAssignmentStatement assignment,
+                                                     RCUState pResult,
+                                                     String functionName) {
     // This case is covered by the normal assignment expression
     CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
     if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
-      //pIc.clear(functionName);
-      AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
-      //pIc.clearDereference();
-      AbstractIdentifier air = assignment.getFunctionCallExpression()
-                                .getParameterExpressions().get(0).accept(pIc);
-      pResult.addToRelations(ail, air);
+      handleAssignment(assignment.getLeftHandSide(), assignment.getFunctionCallExpression()
+          .getParameterExpressions().get(0), functionName, pResult, false, false);
     }
   }
 
-  private void handleAssignment(CExpressionAssignmentStatement assignment,
-                                RCUState pResult, IdentifierCreator pIc,
-                                String functionName) {
-    //pIc.clear(functionName);
-    AbstractIdentifier ail = assignment.getLeftHandSide().accept(pIc);
-    //pIc.clearDereference();
-    AbstractIdentifier air = assignment.getRightHandSide().accept(pIc);
-
-    if (ail.isPointer() || air.isPointer()) {
-      MemoryLocation leftLoc = LocationIdentifierConverter.toLocation(ail);
-      MemoryLocation rightLoc = LocationIdentifierConverter.toLocation(air);
-
-      if (rcuPointers.contains(leftLoc) || rcuPointers.contains(rightLoc)) {
-        pResult.addToRelations(ail, air);
-      }
+  private void handleAssignmentStatement(CExpressionAssignmentStatement assignment,
+                                         RCUState pResult,
+                                         String functionName) {
+    CLeftHandSide leftHandSide = assignment.getLeftHandSide();
+    CExpression rightHandSide = assignment.getRightHandSide();
+    if (leftHandSide instanceof CPointerExpression || leftHandSide instanceof CFieldReference ||
+        rightHandSide instanceof CPointerExpression || rightHandSide instanceof CFieldReference) {
+      handleAssignment(leftHandSide, rightHandSide, functionName,
+          pResult, false, false);
     }
   }
 
   private void handleDeclaration(CDeclaration pDeclaration, RCUState pResult,
-                                 IdentifierCreator pIc, String pFunctionName) {
+                                 String pFunctionName) {
+    IdentifierCreator localIc = new IdentifierCreator(pFunctionName);
+
     if (pDeclaration != null && pDeclaration instanceof CVariableDeclaration) {
       CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
       AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
 
       if (ail != null && ail.isPointer()) {
-        MemoryLocation leftLoc = LocationIdentifierConverter.toLocation(ail);
-
-        if (rcuPointers.contains(leftLoc)) {
+        if (rcuPointers.contains(LocationIdentifierConverter.toLocation(ail))) {
           CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
           if (initializer != null && initializer instanceof CInitializerExpression) {
-            //pIc.clearDereference();
             AbstractIdentifier init =
-                ((CInitializerExpression) initializer).getExpression().accept(pIc);
+                ((CInitializerExpression) initializer).getExpression().accept(localIc);
             pResult.addToRelations(ail, init);
+          } else {
+            pResult.addToRelations(ail, null);
           }
-          pResult.addToRelations(ail, null);
         }
       }
     }
