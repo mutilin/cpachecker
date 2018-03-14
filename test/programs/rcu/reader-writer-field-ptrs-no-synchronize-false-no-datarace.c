@@ -12,13 +12,13 @@ void *reader(void * arg) {
     char *a;
     char b;
     char * pReader = &b;
-    struct bar p;
+    struct bar * p1 = calloc(1, sizeof(struct bar));
 
     ldv_rcu_read_lock();
     ldv_rlock_rcu();
-    p.ptr = ldv_rcu_dereference(pStruct -> gp);
+    p1 -> ptr = ldv_rcu_dereference(pStruct -> gp);
     ldv_runlock_rcu();
-    a = p;
+    a = p1;
     b = *a;
     ldv_rcu_read_unlock();
 
@@ -29,8 +29,8 @@ pthread_mutex_t mutex;
 
 void *writer(void * arg) {
   char * pWriter = calloc(3, sizeof(int));
-  struct bar p;
-  p.ptr = pStruct -> gp;
+  struct bar * p = calloc(1, sizeof(struct bar));
+  p -> ptr = pStruct -> gp;
 
   pWriter[0] = 'r';
   pWriter[1] = 'c';
@@ -42,7 +42,7 @@ void *writer(void * arg) {
     ldv_wunlock_rcu();
   } while(0);
   //ldv_synchronize_rcu(); //BUG is here
-  ldv_free(p.ptr);
+  ldv_free(p -> ptr);
 
   return 0;
 }
