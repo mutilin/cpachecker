@@ -29,16 +29,25 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
+import org.sosy_lab.cpachecker.cfa.model.AbstractCFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 
 @Options
 public class EdgeReplacerFunctionPointer extends EdgeReplacer {
   public EdgeReplacerFunctionPointer(MutableCFA pCfa, Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super(pCfa, config, pLogger);
+  }
+
+  @Override
+  protected boolean checkFunction(CFunctionCall functionCall) {
+    return true;
   }
 
   @Override
@@ -48,5 +57,10 @@ public class EdgeReplacerFunctionPointer extends EdgeReplacer {
         (CSimpleDeclaration)fNode.getFunctionDefinition());
     return new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(), funcName,
         oldCallExpr.getParameterExpressions(), (CFunctionDeclaration)fNode.getFunctionDefinition());
+  }
+
+  @Override
+  protected AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
+    return new CStatementEdge(statement.getRawStatement(), statement.getStatement(), statement.getFileLocation(), rootNode, end);
   }
 }

@@ -123,13 +123,19 @@ public abstract class EdgeReplacer {
     }
   }
 
+  protected abstract boolean checkFunction(CFunctionCall functionCall);
+
   protected abstract CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func);
 
-  public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression nameExp, CreateEdgeFlags type) {
-    if (funcs.size() <= 0) {
+  protected abstract AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end);
+
+  public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression nameExp) {
+    CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
+
+    if (funcs.size() <= 0 || checkFunction(functionCall) == false) {
       return;
     }
-    CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
+
     CFunctionCallExpression oldCallExpr = functionCall.getFunctionCallExpression();
     FileLocation fileLocation = statement.getFileLocation();
     CFANode start = statement.getPredecessor();
@@ -164,13 +170,7 @@ public abstract class EdgeReplacer {
     }
 
     if (createUndefinedFunctionCall) {
-      AbstractCFAEdge ae;
-      if (type == CreateEdgeFlags.CREATE_SUMMARY_EDGE) {
-        ae = new CStatementEdge(statement.getRawStatement(), statement.getStatement(),
-                                                                 statement.getFileLocation(), rootNode, end);
-      } else {
-        ae = new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");
-      }
+      AbstractCFAEdge ae = CreateSummaryEdge(statement, rootNode, end);
       rootNode.addLeavingEdge(ae);
       end.addEnteringEdge(ae);
     } else {

@@ -145,60 +145,67 @@ public class CFunctionPointerResolver {
   private final LogManager logger;
   private Configuration pConfig;
 
-  private TargetFunctions createMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars,
-      Collection<FunctionSet> functionSets) {
-
+  private TargetFunctions createFillMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars) {
     TargetFunctions targetFunctions = new TargetFunctions();
+    CReferencedFunctionsCollector varCollector;
 
-    if (functionSets.contains(FunctionSet.USED_IN_CODE)) {
-      CReferencedFunctionsCollector varCollector;
-      if (matchAssignedFunctionPointers) {
-        varCollector = new CReferencedFunctionsCollectorWithFieldsMatching();
-      } else {
-        varCollector = new CReferencedFunctionsCollector();
-      }
-      for (CFANode node : cfa.getAllNodes()) {
-        for (CFAEdge edge : leavingEdges(node)) {
-          varCollector.visitEdge(edge);
-        }
-      }
-      for (Pair<ADeclaration, String> decl : pGlobalVars) {
-        if (decl.getFirst() instanceof CVariableDeclaration) {
-          CVariableDeclaration varDecl = (CVariableDeclaration)decl.getFirst();
-          varCollector.visitDeclaration(varDecl);
-        }
-      }
-      Set<String> addressedFunctions = varCollector.getCollectedFunctions();
-      targetFunctions.candidateFunctions =
-          from(Sets.intersection(addressedFunctions, cfa.getAllFunctionNames()))
-              .transform(Functions.forMap(cfa.getAllFunctions()))
-              .toList();
-
-      if (matchAssignedFunctionPointers) {
-        targetFunctions.candidateFunctionsForField =
-            ImmutableSetMultimap.copyOf(
-                ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector)
-                    .getFieldMatching());
-
-        targetFunctions.globalsMatching = ImmutableSetMultimap.copyOf(
-            ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
-      } else {
-        targetFunctions.candidateFunctionsForField = null;
-        targetFunctions.globalsMatching = null;
-      }
-
-      if (logger.wouldBeLogged(Level.ALL)) {
-        logger.log(Level.ALL, "Possible target functions of function pointers:\n",
-            Joiner.on('\n').join(targetFunctions.candidateFunctions));
-      }
-
+    if (matchAssignedFunctionPointers) {
+      varCollector = new CReferencedFunctionsCollectorWithFieldsMatching();
     } else {
-      targetFunctions.candidateFunctions = cfa.getAllFunctionHeads();
+      varCollector = new CReferencedFunctionsCollector();
+    }
+    for (CFANode node : cfa.getAllNodes()) {
+      for (CFAEdge edge : leavingEdges(node)) {
+        varCollector.visitEdge(edge);
+      }
+    }
+    for (Pair<ADeclaration, String> decl : pGlobalVars) {
+      if (decl.getFirst() instanceof CVariableDeclaration) {
+        CVariableDeclaration varDecl = (CVariableDeclaration)decl.getFirst();
+        varCollector.visitDeclaration(varDecl);
+      }
+    }
+    Set<String> addressedFunctions = varCollector.getCollectedFunctions();
+    targetFunctions.candidateFunctions =
+        from(Sets.intersection(addressedFunctions, cfa.getAllFunctionNames()))
+            .transform(Functions.forMap(cfa.getAllFunctions()))
+            .toList();
+
+    if (matchAssignedFunctionPointers) {
+      targetFunctions.candidateFunctionsForField =
+          ImmutableSetMultimap.copyOf(
+              ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector)
+                  .getFieldMatching());
+
+      targetFunctions.globalsMatching = ImmutableSetMultimap.copyOf(
+          ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
+    } else {
       targetFunctions.candidateFunctionsForField = null;
       targetFunctions.globalsMatching = null;
     }
 
+    if (logger.wouldBeLogged(Level.ALL)) {
+      logger.log(Level.ALL, "Possible target functions of function pointers:\n",
+          Joiner.on('\n').join(targetFunctions.candidateFunctions));
+    }
+
     return targetFunctions;
+  }
+
+  private TargetFunctions createMatchingFunctions(TargetFunctions targetFunctions, Collection<FunctionSet> functionSets) {
+
+    TargetFunctions targetFunc;
+
+    if (functionSets.contains(FunctionSet.USED_IN_CODE)) {
+      targetFunc = targetFunctions;
+    } else {
+      targetFunc = new TargetFunctions();
+      targetFunc.candidateFunctions = cfa.getAllFunctionHeads();
+      targetFunc.candidateFunctionsForField = null;
+      targetFunc.globalsMatching = null;
+    }
+
+    return targetFunc;
   }
 
   public CFunctionPointerResolver(MutableCFA pCfa, List<Pair<ADeclaration, String>> pGlobalVars,
@@ -209,14 +216,11 @@ public class CFunctionPointerResolver {
 
     config.inject(this);
 
-    targetFunctions = createMatchingFunctions(pGlobalVars, functionSets);
-    if (functionSets.contains(FunctionSet.USED_IN_CODE) != functionParameterSets.contains(FunctionSet.USED_IN_CODE)) {
-      targetParameterFunctions = createMatchingFunctions(pGlobalVars, functionParameterSets);
-    } else {
-      targetParameterFunctions = targetFunctions;
-    }
+    TargetFunctions targetFunctionsTmp = createFillMatchingFunctions(pGlobalVars);
 
+    targetFunctions = createMatchingFunctions(targetFunctionsTmp, functionSets);
     matchingFunctionCall = getFunctionSetPredicate(functionSets);
+    targetParameterFunctions = createMatchingFunctions(targetFunctionsTmp, functionSets);
     matchingFunctionParameterCall = getFunctionSetPredicate(functionParameterSets);
   }
 
@@ -291,19 +295,17 @@ public class CFunctionPointerResolver {
           nameExp = operand;
         }
       }
-      edgeReplacerFunctionPointer.instrument(edge, funcs, nameExp, CreateEdgeFlags.CREATE_SUMMARY_EDGE);
+      edgeReplacerFunctionPointer.instrument(edge, funcs, nameExp);
     }
 
-    if (replaseFunctionWithParametrPointer) {
-      EdgeReplacerParameterFunctionPointer edgeReplacerParameterFunctionPointer = new EdgeReplacerParameterFunctionPointer(cfa, pConfig, logger);
-      for (final CStatementEdge edge : visitor.functionParamPointerCalls) {
-        CExpression param = getParameter((CFunctionCall) edge.getStatement());
-        CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType().getCanonicalType();
-        logger.log(Level.FINEST, "Function pointer param", param);
-        Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParameterFunctions,
-              matchingFunctionParameterCall);
-        edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param, CreateEdgeFlags.DONT_CREATE_SUMMARY_EDGE);
-      }
+    EdgeReplacerParameterFunctionPointer edgeReplacerParameterFunctionPointer = new EdgeReplacerParameterFunctionPointer(cfa, pConfig, logger);
+    for (final CStatementEdge edge : visitor.functionParamPointerCalls) {
+      CExpression param = getParameter((CFunctionCall) edge.getStatement());
+      CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType().getCanonicalType();
+      logger.log(Level.FINEST, "Function pointer param", param);
+      Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParameterFunctions,
+            matchingFunctionParameterCall);
+      edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param);
     }
   }
 

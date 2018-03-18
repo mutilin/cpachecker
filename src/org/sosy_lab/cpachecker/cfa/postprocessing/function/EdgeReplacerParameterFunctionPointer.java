@@ -31,14 +31,28 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
+import org.sosy_lab.cpachecker.cfa.model.AbstractCFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 
 @Options
 public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
   public EdgeReplacerParameterFunctionPointer(MutableCFA pCfa, Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super(pCfa, config, pLogger);
+  }
+
+  @Override
+  protected boolean checkFunction(CFunctionCall functionCall) {
+    String name = functionCall.getFunctionCallExpression().getFunctionNameExpression().toString();
+    if (name == "pthread_create" || name == "pthread_create_N") {
+      return true;
+    }
+    return false;
   }
 
   @Override
@@ -54,5 +68,10 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
     return new CFunctionCallExpression(oldCallExpr.getFileLocation(), oldCallExpr.getExpressionType(),
         oldCallExpr.getFunctionNameExpression(),
         params, oldCallExpr.getDeclaration());
+  }
+
+  @Override
+  protected AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
+    return new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");
   }
 }
