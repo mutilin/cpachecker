@@ -7,11 +7,10 @@
 
   <option name="-noout"/>
   <option name="-heap">5000M</option>
-  <option name="-ldv"/>
 
   <tasks name="RCU-tests">
     <includesfile>../programs/rcu/rcu-test.set</includesfile>
-    <propertyfile>${sourcefile_path}/ALL.prp</propertyfile>
+    <option name="config">./config/rcurelated/full_stack.properties</option>
   </tasks> 
 
   <rundefinition>
