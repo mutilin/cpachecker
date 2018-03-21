@@ -25,8 +25,8 @@ package org.sosy_lab.cpachecker.cpa.pointer2;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.jsoniter.DecodingMode;
-import com.jsoniter.JsonIterator;
+//import com.jsoniter.DecodingMode;
+//import com.jsoniter.JsonIterator;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Writer;

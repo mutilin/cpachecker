@@ -25,9 +25,6 @@ package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
-import com.jsoniter.DecodingMode;
-import com.jsoniter.JsonIterator;
-import com.jsoniter.any.Any;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Writer;
