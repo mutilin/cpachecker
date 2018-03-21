@@ -5,12 +5,12 @@
        It expects the git repository git@bitbucket.org:dbeyer/ldv-benchmarks.git
        to be checked out at test/programs/ldv-benchmarks. -->
 
-  <option name="-noout"/>
   <option name="-heap">5000M</option>
 
   <tasks name="RCU-tests">
     <includesfile>../programs/rcu/rcu-test.set</includesfile>
-    <option name="config">./config/rcurelated/full_stack.properties</option>
+    <option name="-config">./config/rcurelated/full_stack.properties</option>
+    <option name="-skipRecursion">
   </tasks> 
 
   <rundefinition>

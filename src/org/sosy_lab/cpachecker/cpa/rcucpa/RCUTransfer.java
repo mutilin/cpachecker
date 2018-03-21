@@ -38,6 +38,8 @@ import java.util.Set;
 import java.util.Stack;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.FileOption;
+import org.sosy_lab.common.configuration.FileOption.Type;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
@@ -114,6 +116,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
   @Option(name = "rcuPointersFile", secure = true, description = "Name of a file containing RCU "
       + "pointers")
+  @FileOption(Type.OUTPUT_FILE)
   private Path input = Paths.get("RCUPointers");
 
   private final LogManager logger;
