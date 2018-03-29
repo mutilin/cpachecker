@@ -413,6 +413,10 @@ public class UsageTransferRelation implements TransferRelation {
   private void addUsageIfNecessary(AbstractIdentifier id, UsageBuilder builder) {
 
     //Precise information, using results of shared analysis
+    if (!(id instanceof SingleIdentifier)) {
+      // Basically the same as returning irrelevant usage before the change
+      return;
+    }
 
     SingleIdentifier singleId = (SingleIdentifier) id;
 
