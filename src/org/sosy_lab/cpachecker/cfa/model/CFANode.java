@@ -143,6 +143,13 @@ public class CFANode implements Comparable<CFANode> {
     return false;
   }
 
+  public boolean hasLeavingSummaryEdge(CFAEdge edge) {
+    if (edge == leavingSummaryEdge) {
+      return true;
+    }
+    return false;
+  }
+
   public void setLoopStart() {
     isLoopStart = true;
   }

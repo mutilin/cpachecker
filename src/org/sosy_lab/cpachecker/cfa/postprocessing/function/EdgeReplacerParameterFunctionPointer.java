@@ -25,8 +25,10 @@ package org.sosy_lab.cpachecker.cfa.postprocessing.function;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
@@ -42,14 +44,21 @@ import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 
 @Options
 public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
+  @Option(secure = true,
+      name = "analysis.replasedFunctions",
+      description = "functions with function pointer parameter which must be instrumented"
+  )
+  protected Set<String> replasedFunctions = null;
+
   public EdgeReplacerParameterFunctionPointer(MutableCFA pCfa, Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super(pCfa, config, pLogger);
+    config.inject(this);
   }
 
   @Override
   protected boolean checkFunction(CFunctionCall functionCall) {
     String name = functionCall.getFunctionCallExpression().getFunctionNameExpression().toString();
-    if (name == "pthread_create" || name == "pthread_create_N") {
+    if (replasedFunctions.contains(name)) {
       return true;
     }
     return false;
@@ -70,6 +79,7 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
         params, oldCallExpr.getDeclaration());
   }
 
+  //class ThreadCreateTransformer does not support SummaryEdge with a pointer parameter or a structure field
   @Override
   protected AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
     return new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");

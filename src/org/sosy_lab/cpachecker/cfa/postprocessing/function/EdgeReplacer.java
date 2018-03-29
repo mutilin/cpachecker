@@ -62,8 +62,8 @@ public abstract class EdgeReplacer {
       description="Create edge for skipping a function pointer call if its value is unknown.")
   protected boolean createUndefinedFunctionCall = true;
 
-  protected final MutableCFA cfa;
-  protected final LogManager logger;
+  private final MutableCFA cfa;
+  private final LogManager logger;
 
   public EdgeReplacer(MutableCFA pCfa, Configuration config, LogManager pLogger)  throws InvalidConfigurationException {
     cfa = pCfa;

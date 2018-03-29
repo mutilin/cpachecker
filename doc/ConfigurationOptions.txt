@@ -242,8 +242,11 @@ analysis.programNames = no default value
 analysis.reachedSet = PARTITIONED
   enum:     [NORMAL, LOCATIONMAPPED, PARTITIONED, PSEUDOPARTITIONED, USAGESTATISTICS]
 
-# Use if you are going to change function with function pionter parametr
-analysis.replaseFunctionWithParametrPointer = false
+# Use if you are going to change function with function pionter parameter
+analysis.replaseFunctionWithParameterPointer = false
+
+# functions with function pointer parameter which must be instrumented
+analysis.replasedFunctions = no default value
 
 # restart the analysis using a different configuration after unknown result
 analysis.restartAfterUnknown = false
