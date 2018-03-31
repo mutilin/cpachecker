@@ -279,18 +279,6 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
       lastAffectedStates.clear();
       lastAffectedStates.addAll(pAffectedStates);
     }
-
-    @Override
-    protected PredicatePrecision addPredicatesToPrecision(PredicatePrecision basePrecision) {
-      PredicatePrecision newPrecision = super.addPredicatesToPrecision(basePrecision);
-      lastAddedPrecision = (PredicatePrecision) newPrecision.subtract(basePrecision);
-      return newPrecision;
-    }
-
-    @Override
-    protected void updateARG(PredicatePrecision pNewPrecision, ARGState pRefinementRoot, ARGReachedSet pReached) throws InterruptedException {
-      //Do not update ARG for race analysis
-    }
   }
 
 }

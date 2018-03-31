@@ -140,6 +140,22 @@ public class CFANode implements Comparable<CFANode>, Serializable {
     return hasEdge;
   }
 
+  public boolean hasLeavingEdge(CFAEdge edge) {
+    for (CFAEdge e : leavingEdges) {
+      if (edge == e) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public boolean hasLeavingSummaryEdge(CFAEdge edge) {
+    if (edge == leavingSummaryEdge) {
+      return true;
+    }
+    return false;
+  }
+
   public void setLoopStart() {
     isLoopStart = true;
   }
