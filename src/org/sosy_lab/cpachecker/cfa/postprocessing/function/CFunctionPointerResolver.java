@@ -119,61 +119,51 @@ public class CFunctionPointerResolver {
   private final LogManager logger;
   private Configuration pConfig;
 
-  private TargetFunctionsProvider createFillMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars,
-      Collection<FunctionSet> functionSets) {
-    CReferencedFunctionsCollector varCollector;
-    Collection<FunctionEntryNode> candidateFunctions;
-    ImmutableSetMultimap<String, String> candidateFunctionsForField;
-    ImmutableSetMultimap<String, String> globalsMatching;
-
-    if (matchAssignedFunctionPointers) {
-      varCollector = new CReferencedFunctionsCollectorWithFieldsMatching();
-    } else {
-      varCollector = new CReferencedFunctionsCollector();
-    }
-    for (CFANode node : cfa.getAllNodes()) {
-      for (CFAEdge edge : leavingEdges(node)) {
-        varCollector.visitEdge(edge);
-      }
-    }
-    for (Pair<ADeclaration, String> decl : pGlobalVars) {
-      if (decl.getFirst() instanceof CVariableDeclaration) {
-        CVariableDeclaration varDecl = (CVariableDeclaration)decl.getFirst();
-        varCollector.visitDeclaration(varDecl);
-      }
-    }
-    Set<String> addressedFunctions = varCollector.getCollectedFunctions();
-    candidateFunctions =
-        from(Sets.intersection(addressedFunctions, cfa.getAllFunctionNames()))
-            .transform(Functions.forMap(cfa.getAllFunctions()))
-            .toList();
-
-    if (matchAssignedFunctionPointers) {
-      candidateFunctionsForField =
-          ImmutableSetMultimap.copyOf(
-              ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector)
-                  .getFieldMatching());
-
-      globalsMatching = ImmutableSetMultimap.copyOf(
-          ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
-    } else {
-      candidateFunctionsForField = null;
-      globalsMatching = null;
-    }
-
-    if (logger.wouldBeLogged(Level.ALL)) {
-      logger.log(Level.ALL, "Possible target functions of function pointers:\n",
-          Joiner.on('\n').join(candidateFunctions));
-    }
-
-    return new TargetFunctionsProvider(cfa, logger, functionSets, candidateFunctions, candidateFunctionsForField, globalsMatching);
-  }
-
   private TargetFunctionsProvider createMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars, Collection<FunctionSet> functionSets) {
     if (functionSets.contains(FunctionSet.USED_IN_CODE)) {
-      return createFillMatchingFunctions(pGlobalVars, functionSets);
+      CReferencedFunctionsCollector varCollector;
+      Collection<FunctionEntryNode> candidateFunctions;
+      ImmutableSetMultimap<String, String> candidateFunctionsForField;
+      ImmutableSetMultimap<String, String> globalsMatching;
+
+      if (matchAssignedFunctionPointers) {
+        varCollector = new CReferencedFunctionsCollectorWithFieldsMatching();
+      } else {
+        varCollector = new CReferencedFunctionsCollector();
+      }
+      for (CFANode node : cfa.getAllNodes()) {
+        for (CFAEdge edge : leavingEdges(node)) {
+          varCollector.visitEdge(edge);
+        }
+      }
+      for (Pair<ADeclaration, String> decl : pGlobalVars) {
+        if (decl.getFirst() instanceof CVariableDeclaration) {
+          CVariableDeclaration varDecl = (CVariableDeclaration)decl.getFirst();
+          varCollector.visitDeclaration(varDecl);
+        }
+      }
+      Set<String> addressedFunctions = varCollector.getCollectedFunctions();
+      candidateFunctions =
+          from(Sets.intersection(addressedFunctions, cfa.getAllFunctionNames()))
+              .transform(Functions.forMap(cfa.getAllFunctions()))
+              .toList();
+
+      if (logger.wouldBeLogged(Level.ALL)) {
+        logger.log(Level.ALL, "Possible target functions of function pointers:\n",
+            Joiner.on('\n').join(candidateFunctions));
+      }
+
+      if (matchAssignedFunctionPointers) {
+        candidateFunctionsForField = ImmutableSetMultimap.copyOf(((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getFieldMatching());
+        globalsMatching = ImmutableSetMultimap.copyOf(((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
+
+        return new TargetFunctionsProvider(cfa.getMachineModel(), logger, functionSets, candidateFunctions,
+            candidateFunctionsForField, globalsMatching);
+      } else {
+        return new TargetFunctionsProvider(cfa.getMachineModel(), logger, functionSets, candidateFunctions);
+      }
     } else {
-      return new TargetFunctionsProvider(cfa, logger, functionSets, cfa.getAllFunctionHeads());
+      return new TargetFunctionsProvider(cfa.getMachineModel(), logger, functionSets, cfa.getAllFunctionHeads());
     }
   }
 
@@ -208,11 +198,12 @@ public class CFunctionPointerResolver {
     for (final CStatementEdge edge : visitor.functionPointerCalls) {
       CFunctionCall functionCall = (CFunctionCall) edge.getStatement();
       CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
-      CFunctionType func = (CFunctionType) fExp.getFunctionNameExpression().getExpressionType().getCanonicalType();
-      logger.log(Level.FINEST, "Function pointer call", fExp);
-      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, targetFunctionsProvider);
-
       CExpression nameExp = fExp.getFunctionNameExpression();
+      CFunctionType func = (CFunctionType) nameExp.getExpressionType().getCanonicalType();
+      logger.log(Level.FINEST, "Function pointer call", fExp);
+      Collection<CFunctionEntryNode> funcs = getTargets(nameExp, func, targetFunctionsProvider);
+
+      //need only to remove the symbol "*"
       if (nameExp instanceof CPointerExpression) {
         CExpression operand = ((CPointerExpression)nameExp).getOperand();
         if (CTypes.isFunctionPointer(operand.getExpressionType())) {
@@ -227,7 +218,7 @@ public class CFunctionPointerResolver {
       CExpression param = getParameter((CFunctionCall) edge.getStatement());
       CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType().getCanonicalType();
       logger.log(Level.FINEST, "Function pointer param", param);
-      Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParameterFunctionsProvider);
+      Collection<CFunctionEntryNode> funcs = getTargets(param, func, targetParameterFunctionsProvider);
       edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param);
     }
   }
@@ -264,8 +255,7 @@ public class CFunctionPointerResolver {
     return true;
   }
 
-  private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, CStatementEdge statement,
-      TargetFunctionsProvider targetFunctions) {
+  private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, TargetFunctionsProvider targetFunctions) {
     Collection<CFunctionEntryNode> funcs = targetFunctions.getFunctionSet(func);
 
     if (matchAssignedFunctionPointers) {
@@ -273,17 +263,8 @@ public class CFunctionPointerResolver {
       if (expression instanceof CPointerExpression) {
         expression = ((CPointerExpression) expression).getOperand();
       }
-      final Set<String> matchedFuncs;
-      if( expression instanceof CFieldReference) {
-        String fieldName = ((CFieldReference)expression).getFieldName();
-        matchedFuncs = targetFunctions.getCandidateFunctionsForField().get(fieldName);
 
-      } else if (expression instanceof CIdExpression) {
-        String variableName = ((CIdExpression)expression).getName();
-        matchedFuncs = targetFunctions.getGlobalsMatching().get(variableName);
-      } else {
-        matchedFuncs = Collections.emptySet();
-      }
+      final Set<String> matchedFuncs = targetFunctions.getMatchedFunc(expression);
       if (matchedFuncs.isEmpty()) {
         CSimpleDeclaration decl = null;
         if (expression instanceof CIdExpression) {
@@ -306,7 +287,7 @@ public class CFunctionPointerResolver {
       // no possible targets, we leave the CFA unchanged and print a warning
       logger.logf(Level.WARNING, "%s: Function pointer %s with type %s is called,"
           + " but no possible target functions were found.",
-          statement.getFileLocation(), nameExp.toASTString(), nameExp.getExpressionType().toASTString("*"));
+          nameExp.getFileLocation(), nameExp.toASTString(), nameExp.getExpressionType().toASTString("*"));
     } else {
       logger.log(
           Level.FINEST,

@@ -28,12 +28,16 @@ import static com.google.common.collect.FluentIterable.from;
 import com.google.common.collect.ImmutableSetMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.cpachecker.cfa.MutableCFA;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
+import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
@@ -45,40 +49,42 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CVoidType;
 
 public class TargetFunctionsProvider {
-  private final MutableCFA cfa;
+  private final MachineModel machine;
   private final LogManager logger;
   private final Collection<FunctionEntryNode> candidateFunctions;
   private final ImmutableSetMultimap<String, String> candidateFunctionsForField;
   private final ImmutableSetMultimap<String, String> globalsMatching;
   private final BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
 
-  public TargetFunctionsProvider(MutableCFA pCfa, LogManager pLogger, Collection<FunctionSet> functionSets,
+  public TargetFunctionsProvider(MachineModel pMachine, LogManager pLogger, Collection<FunctionSet> functionSets,
       Collection<FunctionEntryNode> candidateFunctions) {
-    this.logger = pLogger;
-    this.cfa = pCfa;
-    this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
-    this.candidateFunctions = candidateFunctions;
-    this.candidateFunctionsForField = null;
-    this.globalsMatching = null;
+    this(pMachine, pLogger, functionSets, candidateFunctions, ImmutableSetMultimap.of(), ImmutableSetMultimap.of());
   }
 
-  public TargetFunctionsProvider(MutableCFA pCfa, LogManager pLogger, Collection<FunctionSet> functionSets,
+  public TargetFunctionsProvider(MachineModel pMachine, LogManager pLogger, Collection<FunctionSet> functionSets,
       Collection<FunctionEntryNode> candidateFunctions, ImmutableSetMultimap<String, String> candidateFunctionsForField,
       ImmutableSetMultimap<String, String> globalsMatching) {
+    this.machine = pMachine;
     this.logger = pLogger;
-    this.cfa = pCfa;
     this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
     this.candidateFunctions = candidateFunctions;
     this.candidateFunctionsForField = candidateFunctionsForField;
     this.globalsMatching = globalsMatching;
   }
 
-  public ImmutableSetMultimap<String, String> getCandidateFunctionsForField() {
-    return candidateFunctionsForField;
-  }
+  public Set<String> getMatchedFunc(CExpression expression) {
+    Set<String> matchedFuncs;
+    if( expression instanceof CFieldReference) {
+      String fieldName = ((CFieldReference)expression).getFieldName();
+      matchedFuncs = candidateFunctionsForField.get(fieldName);
 
-  public ImmutableSetMultimap<String, String> getGlobalsMatching() {
-    return globalsMatching;
+    } else if (expression instanceof CIdExpression) {
+      String variableName = ((CIdExpression)expression).getName();
+      matchedFuncs = globalsMatching.get(variableName);
+    } else {
+      matchedFuncs = Collections.emptySet();
+    }
+    return matchedFuncs;
   }
 
   public List<CFunctionEntryNode> getFunctionSet(CFunctionType func) {
@@ -158,7 +164,6 @@ public class TargetFunctionsProvider {
 
   private boolean checkReturnAndParamSizes(CFunctionType func, CFunctionType functionType) {
     CType declRet = functionType.getReturnType();
-    final MachineModel machine = cfa.getMachineModel();
     if (machine.getSizeof(declRet) != machine.getSizeof(func.getReturnType())) {
       logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
           "does not match function", functionType, "with return type", declRet,
