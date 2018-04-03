@@ -45,10 +45,10 @@ import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 @Options
 public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
   @Option(secure = true,
-      name = "analysis.replasedFunctions",
+      name = "analysis.replacedFunctions",
       description = "functions with function pointer parameter which must be instrumented"
   )
-  protected Set<String> replasedFunctions = null;
+  protected Set<String> replacedFunctions = null;
 
   public EdgeReplacerParameterFunctionPointer(MutableCFA pCfa, Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super(pCfa, config, pLogger);
@@ -58,7 +58,7 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
   @Override
   protected boolean checkFunction(CFunctionCall functionCall) {
     String name = functionCall.getFunctionCallExpression().getFunctionNameExpression().toString();
-    if (replasedFunctions.contains(name)) {
+    if (replacedFunctions.contains(name)) {
       return true;
     }
     return false;

@@ -129,20 +129,27 @@ public class CFunctionPointerResolver {
         ImmutableSet.of(
             FunctionSet.USED_IN_CODE, FunctionSet.RETURN_VALUE, FunctionSet.EQ_PARAM_TYPES);
 
-  private static class ReplaceFunctions {
-    private Collection<FunctionEntryNode> candidateFunctions;
-    private ImmutableSetMultimap<String, String> candidateFunctionsForField;
-    private ImmutableSetMultimap<String, String> globalsMatching;
+  private class ReplaceFunctions {
+    private final Collection<FunctionEntryNode> candidateFunctions;
+    private final ImmutableSetMultimap<String, String> candidateFunctionsForField;
+    private final ImmutableSetMultimap<String, String> globalsMatching;
+    private final BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
 
-    public ReplaceFunctions(MutableCFA cfa) {
-      candidateFunctions = cfa.getAllFunctionHeads();
-      candidateFunctionsForField = null;
-      globalsMatching = null;
+    public ReplaceFunctions(Collection<FunctionSet> functionSets, Collection<FunctionEntryNode> candidateFunctions) {
+      this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
+      this.candidateFunctions = candidateFunctions;
+      this.candidateFunctionsForField = null;
+      this.globalsMatching = null;
+    }
+
+    public ReplaceFunctions(Collection<FunctionSet> functionSets, Collection<FunctionEntryNode> candidateFunctions,
+        ImmutableSetMultimap<String, String> candidateFunctionsForField, ImmutableSetMultimap<String, String> globalsMatching) {
+      this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
+      this.candidateFunctions = candidateFunctions;
+      this.candidateFunctionsForField = candidateFunctionsForField;
+      this.globalsMatching = globalsMatching;
     }
   }
-
-  private BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
-  private BiPredicate<CFunctionType, CFunctionType> matchingFunctionParameterCall;
 
   ReplaceFunctions replaceFunctions;
   ReplaceFunctions replaceParameterFunctions;
@@ -151,9 +158,12 @@ public class CFunctionPointerResolver {
   private final LogManager logger;
   private Configuration pConfig;
 
-  private ReplaceFunctions createFillMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars) {
-    ReplaceFunctions replaceFunctions = new ReplaceFunctions(cfa);
+  private ReplaceFunctions createFillMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars,
+      Collection<FunctionSet> functionSets) {
     CReferencedFunctionsCollector varCollector;
+    Collection<FunctionEntryNode> candidateFunctions;
+    ImmutableSetMultimap<String, String> candidateFunctionsForField;
+    ImmutableSetMultimap<String, String> globalsMatching;
 
     if (matchAssignedFunctionPointers) {
       varCollector = new CReferencedFunctionsCollectorWithFieldsMatching();
@@ -172,22 +182,22 @@ public class CFunctionPointerResolver {
       }
     }
     Set<String> addressedFunctions = varCollector.getCollectedFunctions();
-    replaceFunctions.candidateFunctions =
+    candidateFunctions =
         from(Sets.intersection(addressedFunctions, cfa.getAllFunctionNames()))
             .transform(Functions.forMap(cfa.getAllFunctions()))
             .toList();
 
     if (matchAssignedFunctionPointers) {
-      replaceFunctions.candidateFunctionsForField =
+      candidateFunctionsForField =
           ImmutableSetMultimap.copyOf(
               ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector)
                   .getFieldMatching());
 
-      replaceFunctions.globalsMatching = ImmutableSetMultimap.copyOf(
+      globalsMatching = ImmutableSetMultimap.copyOf(
           ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
     } else {
-      replaceFunctions.candidateFunctionsForField = null;
-      replaceFunctions.globalsMatching = null;
+      candidateFunctionsForField = null;
+      globalsMatching = null;
     }
 
     if (logger.wouldBeLogged(Level.ALL)) {
@@ -195,20 +205,15 @@ public class CFunctionPointerResolver {
           Joiner.on('\n').join(replaceFunctions.candidateFunctions));
     }
 
-    return replaceFunctions;
+    return new ReplaceFunctions(functionSets, candidateFunctions, candidateFunctionsForField, globalsMatching);
   }
 
-  private ReplaceFunctions createMatchingFunctions(ReplaceFunctions replaceFunctions, Collection<FunctionSet> functionSets) {
-
-    ReplaceFunctions replaceFunc;
-
+  private ReplaceFunctions createMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars, Collection<FunctionSet> functionSets) {
     if (functionSets.contains(FunctionSet.USED_IN_CODE)) {
-      replaceFunc = replaceFunctions;
+      return createFillMatchingFunctions(pGlobalVars, functionSets);
     } else {
-      replaceFunc = new ReplaceFunctions(cfa);
+      return new ReplaceFunctions(functionSets, cfa.getAllFunctionHeads());
     }
-
-    return replaceFunc;
   }
 
   public CFunctionPointerResolver(MutableCFA pCfa, List<Pair<ADeclaration, String>> pGlobalVars,
@@ -219,12 +224,8 @@ public class CFunctionPointerResolver {
 
     config.inject(this);
 
-    ReplaceFunctions replaceFunctionsTmp = createFillMatchingFunctions(pGlobalVars);
-
-    replaceFunctions = createMatchingFunctions(replaceFunctionsTmp, functionSets);
-    matchingFunctionCall = getFunctionSetPredicate(functionSets);
-    replaceParameterFunctions = createMatchingFunctions(replaceFunctionsTmp, functionSets);
-    matchingFunctionParameterCall = getFunctionSetPredicate(functionParameterSets);
+    replaceFunctions = createMatchingFunctions(pGlobalVars, functionSets);
+    replaceParameterFunctions = createMatchingFunctions(pGlobalVars, functionParameterSets);
   }
 
   private BiPredicate<CFunctionType, CFunctionType> getFunctionSetPredicate(
@@ -288,8 +289,7 @@ public class CFunctionPointerResolver {
       CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
       CFunctionType func = (CFunctionType) fExp.getFunctionNameExpression().getExpressionType().getCanonicalType();
       logger.log(Level.FINEST, "Function pointer call", fExp);
-      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, replaceFunctions,
-            matchingFunctionCall);
+      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, replaceFunctions);
 
       CExpression nameExp = fExp.getFunctionNameExpression();
       if (nameExp instanceof CPointerExpression) {
@@ -306,8 +306,7 @@ public class CFunctionPointerResolver {
       CExpression param = getParameter((CFunctionCall) edge.getStatement());
       CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType().getCanonicalType();
       logger.log(Level.FINEST, "Function pointer param", param);
-      Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, replaceParameterFunctions,
-            matchingFunctionParameterCall);
+      Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, replaceParameterFunctions);
       edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param);
     }
   }
@@ -345,8 +344,8 @@ public class CFunctionPointerResolver {
   }
 
   private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, CStatementEdge statement,
-      ReplaceFunctions targetFunctions, BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall) {
-    Collection<CFunctionEntryNode> funcs = getFunctionSet(func, targetFunctions, matchingFunctionCall);
+      ReplaceFunctions targetFunctions) {
+    Collection<CFunctionEntryNode> funcs = getFunctionSet(func, targetFunctions);
 
     if (matchAssignedFunctionPointers) {
       CExpression expression = nameExp;
@@ -401,11 +400,10 @@ public class CFunctionPointerResolver {
     return funcs;
   }
 
-  private List<CFunctionEntryNode> getFunctionSet(CFunctionType func, ReplaceFunctions targetFunctions, BiPredicate<CFunctionType,
-        CFunctionType> matchingFunctionCall) {
+  private List<CFunctionEntryNode> getFunctionSet(CFunctionType func, ReplaceFunctions targetFunctions) {
     return from(targetFunctions.candidateFunctions)
         .filter(CFunctionEntryNode.class)
-        .filter(f -> matchingFunctionCall.test(func, f.getFunctionDefinition().getType()))
+        .filter(f -> targetFunctions.matchingFunctionCall.test(func, f.getFunctionDefinition().getType()))
         .toList();
   }
 
