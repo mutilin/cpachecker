@@ -34,10 +34,8 @@ import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.BiPredicate;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -61,15 +59,10 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
-import org.sosy_lab.cpachecker.cfa.types.MachineModel;
-import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
 import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
 import org.sosy_lab.cpachecker.cfa.types.c.CFunctionTypeWithNames;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
-import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
-import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
-import org.sosy_lab.cpachecker.cfa.types.c.CVoidType;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.Pair;
 
@@ -101,16 +94,6 @@ public class CFunctionPointerResolver {
       description="Use if you are going to change function with function pionter parameter")
   private boolean replaseFunctionWithParameterPointer = false;
 
-  private enum FunctionSet {
-    // The items here need to be declared in the order they should be used when checking function.
-    ALL, //all defined functions considered (Warning: some CPAs require at least EQ_PARAM_SIZES)
-    USED_IN_CODE, //includes only functions which address is taken in the code
-    EQ_PARAM_COUNT, //all functions with matching number of parameters considered
-    EQ_PARAM_SIZES, //all functions with parameters with matching sizes
-    EQ_PARAM_TYPES, //all functions with matching number and types of parameters considered
-    RETURN_VALUE,   //void functions are not considered for assignments
-  }
-
   @Option(
     secure = true,
     name = "analysis.functionPointerTargets",
@@ -129,36 +112,14 @@ public class CFunctionPointerResolver {
         ImmutableSet.of(
             FunctionSet.USED_IN_CODE, FunctionSet.RETURN_VALUE, FunctionSet.EQ_PARAM_TYPES);
 
-  private class ReplaceFunctions {
-    private final Collection<FunctionEntryNode> candidateFunctions;
-    private final ImmutableSetMultimap<String, String> candidateFunctionsForField;
-    private final ImmutableSetMultimap<String, String> globalsMatching;
-    private final BiPredicate<CFunctionType, CFunctionType> matchingFunctionCall;
-
-    public ReplaceFunctions(Collection<FunctionSet> functionSets, Collection<FunctionEntryNode> candidateFunctions) {
-      this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
-      this.candidateFunctions = candidateFunctions;
-      this.candidateFunctionsForField = null;
-      this.globalsMatching = null;
-    }
-
-    public ReplaceFunctions(Collection<FunctionSet> functionSets, Collection<FunctionEntryNode> candidateFunctions,
-        ImmutableSetMultimap<String, String> candidateFunctionsForField, ImmutableSetMultimap<String, String> globalsMatching) {
-      this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
-      this.candidateFunctions = candidateFunctions;
-      this.candidateFunctionsForField = candidateFunctionsForField;
-      this.globalsMatching = globalsMatching;
-    }
-  }
-
-  ReplaceFunctions replaceFunctions;
-  ReplaceFunctions replaceParameterFunctions;
+  private TargetFunctionsProvider targetFunctionsProvider;
+  private TargetFunctionsProvider targetParameterFunctionsProvider;
 
   private final MutableCFA cfa;
   private final LogManager logger;
   private Configuration pConfig;
 
-  private ReplaceFunctions createFillMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars,
+  private TargetFunctionsProvider createFillMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars,
       Collection<FunctionSet> functionSets) {
     CReferencedFunctionsCollector varCollector;
     Collection<FunctionEntryNode> candidateFunctions;
@@ -202,17 +163,17 @@ public class CFunctionPointerResolver {
 
     if (logger.wouldBeLogged(Level.ALL)) {
       logger.log(Level.ALL, "Possible target functions of function pointers:\n",
-          Joiner.on('\n').join(replaceFunctions.candidateFunctions));
+          Joiner.on('\n').join(candidateFunctions));
     }
 
-    return new ReplaceFunctions(functionSets, candidateFunctions, candidateFunctionsForField, globalsMatching);
+    return new TargetFunctionsProvider(cfa, logger, functionSets, candidateFunctions, candidateFunctionsForField, globalsMatching);
   }
 
-  private ReplaceFunctions createMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars, Collection<FunctionSet> functionSets) {
+  private TargetFunctionsProvider createMatchingFunctions(List<Pair<ADeclaration, String>> pGlobalVars, Collection<FunctionSet> functionSets) {
     if (functionSets.contains(FunctionSet.USED_IN_CODE)) {
       return createFillMatchingFunctions(pGlobalVars, functionSets);
     } else {
-      return new ReplaceFunctions(functionSets, cfa.getAllFunctionHeads());
+      return new TargetFunctionsProvider(cfa, logger, functionSets, cfa.getAllFunctionHeads());
     }
   }
 
@@ -224,48 +185,8 @@ public class CFunctionPointerResolver {
 
     config.inject(this);
 
-    replaceFunctions = createMatchingFunctions(pGlobalVars, functionSets);
-    replaceParameterFunctions = createMatchingFunctions(pGlobalVars, functionParameterSets);
-  }
-
-  private BiPredicate<CFunctionType, CFunctionType> getFunctionSetPredicate(
-      Collection<FunctionSet> pFunctionSets) {
-    List<BiPredicate<CFunctionType, CFunctionType>> predicates = new ArrayList<>();
-
-    // note that this set is sorted according to the declaration order of the enum
-    EnumSet<FunctionSet> functionSets = EnumSet.copyOf(pFunctionSets);
-
-    if (functionSets.contains(FunctionSet.EQ_PARAM_TYPES)
-        || functionSets.contains(FunctionSet.EQ_PARAM_SIZES)) {
-      functionSets.add(FunctionSet.EQ_PARAM_COUNT); // TYPES and SIZES need COUNT checked first
-    }
-
-    for (FunctionSet functionSet : functionSets) {
-      switch (functionSet) {
-      case ALL:
-        // do nothing
-        break;
-        case EQ_PARAM_COUNT:
-          predicates.add(this::checkParamCount);
-          break;
-        case EQ_PARAM_SIZES:
-          predicates.add(this::checkReturnAndParamSizes);
-          break;
-        case EQ_PARAM_TYPES:
-          predicates.add(this::checkReturnAndParamTypes);
-          break;
-        case RETURN_VALUE:
-          predicates.add(this::checkReturnValue);
-          break;
-      case USED_IN_CODE:
-        // Not necessary, only matching functions are in the
-        // candidateFunctions set
-        break;
-      default:
-        throw new AssertionError();
-      }
-    }
-    return predicates.stream().reduce((a, b) -> true, BiPredicate::and);
+    targetFunctionsProvider = createMatchingFunctions(pGlobalVars, functionSets);
+    targetParameterFunctionsProvider = createMatchingFunctions(pGlobalVars, functionParameterSets);
   }
 
   /**
@@ -289,7 +210,7 @@ public class CFunctionPointerResolver {
       CFunctionCallExpression fExp = functionCall.getFunctionCallExpression();
       CFunctionType func = (CFunctionType) fExp.getFunctionNameExpression().getExpressionType().getCanonicalType();
       logger.log(Level.FINEST, "Function pointer call", fExp);
-      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, replaceFunctions);
+      Collection<CFunctionEntryNode> funcs = getTargets(fExp.getFunctionNameExpression(), func, edge, targetFunctionsProvider);
 
       CExpression nameExp = fExp.getFunctionNameExpression();
       if (nameExp instanceof CPointerExpression) {
@@ -306,7 +227,7 @@ public class CFunctionPointerResolver {
       CExpression param = getParameter((CFunctionCall) edge.getStatement());
       CFunctionType func = (CFunctionType) ((CPointerType) param.getExpressionType()).getType().getCanonicalType();
       logger.log(Level.FINEST, "Function pointer param", param);
-      Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, replaceParameterFunctions);
+      Collection<CFunctionEntryNode> funcs = getTargets(param, func, edge, targetParameterFunctionsProvider);
       edgeReplacerParameterFunctionPointer.instrument(edge, funcs, param);
     }
   }
@@ -344,8 +265,8 @@ public class CFunctionPointerResolver {
   }
 
   private Collection<CFunctionEntryNode> getTargets(CExpression nameExp, CFunctionType func, CStatementEdge statement,
-      ReplaceFunctions targetFunctions) {
-    Collection<CFunctionEntryNode> funcs = getFunctionSet(func, targetFunctions);
+      TargetFunctionsProvider targetFunctions) {
+    Collection<CFunctionEntryNode> funcs = targetFunctions.getFunctionSet(func);
 
     if (matchAssignedFunctionPointers) {
       CExpression expression = nameExp;
@@ -355,11 +276,11 @@ public class CFunctionPointerResolver {
       final Set<String> matchedFuncs;
       if( expression instanceof CFieldReference) {
         String fieldName = ((CFieldReference)expression).getFieldName();
-        matchedFuncs = targetFunctions.candidateFunctionsForField.get(fieldName);
+        matchedFuncs = targetFunctions.getCandidateFunctionsForField().get(fieldName);
 
       } else if (expression instanceof CIdExpression) {
         String variableName = ((CIdExpression)expression).getName();
-         matchedFuncs = targetFunctions.globalsMatching.get(variableName);
+        matchedFuncs = targetFunctions.getGlobalsMatching().get(variableName);
       } else {
         matchedFuncs = Collections.emptySet();
       }
@@ -398,168 +319,6 @@ public class CFunctionPointerResolver {
     }
 
     return funcs;
-  }
-
-  private List<CFunctionEntryNode> getFunctionSet(CFunctionType func, ReplaceFunctions targetFunctions) {
-    return from(targetFunctions.candidateFunctions)
-        .filter(CFunctionEntryNode.class)
-        .filter(f -> targetFunctions.matchingFunctionCall.test(func, f.getFunctionDefinition().getType()))
-        .toList();
-  }
-
-  private boolean checkReturnAndParamSizes(CFunctionType func, CFunctionType functionType) {
-    CType declRet = functionType.getReturnType();
-    final MachineModel machine = cfa.getMachineModel();
-    if (machine.getSizeof(declRet) != machine.getSizeof(func.getReturnType())) {
-      logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
-          "does not match function", functionType, "with return type", declRet,
-          "because of return types with different sizes.");
-      return false;
-    }
-
-    List<CType> declParams = functionType.getParameters();
-    for (int i=0; i<declParams.size(); i++) {
-      CType dt = declParams.get(i);
-      CType et = func.getParameters().get(i);
-      if (machine.getSizeof(dt) != machine.getSizeof(et)) {
-        logger.log(Level.FINEST, "Function call", func.getName(),
-            "does not match function", functionType,
-            "because actual parameter", i, "has type", et, "instead of", dt,
-            "(differing sizes).");
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private boolean checkReturnAndParamTypes(CFunctionType func, CFunctionType functionType) {
-    CType declRet = functionType.getReturnType();
-    if (!isCompatibleType(declRet, func.getReturnType())) {
-      logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
-          "does not match function", functionType, "with return type", declRet);
-      return false;
-    }
-
-    List<CType> declParams = functionType.getParameters();
-    for (int i=0; i<declParams.size(); i++) {
-      CType dt = declParams.get(i);
-      CType et = func.getParameters().get(i);
-      if (!isCompatibleType(dt, et)) {
-        logger.log(Level.FINEST, "Function call", func.getName(),
-            "does not match function", functionType,
-            "because actual parameter", i, "has type", et, "instead of", dt);
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * Exclude void functions if the return value of the function is used in an assignment.
-   */
-  private boolean checkReturnValue(CFunctionType func, CFunctionType functionType) {
-    CType declRet = functionType.getReturnType();
-    if (!isCompatibleType(declRet, func.getReturnType())) {
-      logger.log(Level.FINEST, "Function call", func.getName(), "with type", func.getReturnType(),
-          "does not match function", functionType, "with return type", declRet);
-      return false;
-    }
-    return true;
-  }
-
-  /**
-   * Check whether two types are assignment compatible.
-   *
-   * @param pDeclaredType The type that is declared (e.g., as variable type).
-   * @param pActualType The type that is actually used (e.g., as type of an expression).
-   * @return {@code true} if a value of actualType may be assigned to a variable of declaredType.
-   */
-  private boolean isCompatibleType(CType pDeclaredType, CType pActualType) {
-    // Check canonical types
-    CType declaredType = pDeclaredType.getCanonicalType();
-    CType actualType = pActualType.getCanonicalType();
-
-    // If types are equal, they are trivially compatible
-    if (declaredType.equals(actualType)) {
-      return true;
-    }
-
-    // Implicit conversions among basic types
-    if (declaredType instanceof CSimpleType && actualType instanceof CSimpleType) {
-      return true;
-    }
-
-    // Void pointer can be converted to any other pointer or integer
-    if (declaredType instanceof CPointerType) {
-      CPointerType declaredPointerType = (CPointerType) declaredType;
-      if (declaredPointerType.getType() == CVoidType.VOID) {
-        if (actualType instanceof CSimpleType) {
-          CSimpleType actualSimpleType = (CSimpleType) actualType;
-          CBasicType actualBasicType = actualSimpleType.getType();
-          if (actualBasicType.isIntegerType()) {
-            return true;
-          }
-        } else if (actualType instanceof CPointerType) {
-          return true;
-        }
-      }
-    }
-
-    // Any pointer or integer can be converted to a void pointer
-    if (actualType instanceof CPointerType) {
-      CPointerType actualPointerType = (CPointerType) actualType;
-      if (actualPointerType.getType() == CVoidType.VOID) {
-        if (declaredType instanceof CSimpleType) {
-          CSimpleType declaredSimpleType = (CSimpleType) declaredType;
-          CBasicType declaredBasicType = declaredSimpleType.getType();
-          if (declaredBasicType.isIntegerType()) {
-            return true;
-          }
-        } else if (declaredType instanceof CPointerType) {
-          return true;
-        }
-      }
-    }
-
-    // If both types are pointers, check if the inner types are compatible
-    if (declaredType instanceof CPointerType && actualType instanceof CPointerType) {
-      CPointerType declaredPointerType = (CPointerType) declaredType;
-      CPointerType actualPointerType = (CPointerType) actualType;
-      if (isCompatibleType(declaredPointerType.getType(), actualPointerType.getType())) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  private boolean checkParamCount(CFunctionType func, CFunctionType functionType) {
-    int declaredParameters = functionType.getParameters().size();
-    int actualParameters = func.getParameters().size();
-
-    if (actualParameters < declaredParameters) {
-      logger.log(
-          Level.FINEST,
-          "Function call",
-          func.getName(),
-          "does not match function",
-          functionType,
-          "because there are not enough actual parameters.");
-      return false;
-    }
-
-    if (!functionType.takesVarArgs() && actualParameters > declaredParameters) {
-      logger.log(
-          Level.FINEST,
-          "Function call",
-          func.getName(),
-          "does not match function",
-          functionType,
-          "because there are too many actual parameters.");
-      return false;
-    }
-    return true;
   }
 
   /** This Visitor collects all functioncalls for functionPointers.
