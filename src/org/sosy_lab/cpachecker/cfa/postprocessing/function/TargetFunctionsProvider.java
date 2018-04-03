@@ -26,6 +26,7 @@ package org.sosy_lab.cpachecker.cfa.postprocessing.function;
 import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.collect.ImmutableSetMultimap;
+import com.google.common.collect.Multimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -62,29 +63,26 @@ public class TargetFunctionsProvider {
   }
 
   public TargetFunctionsProvider(MachineModel pMachine, LogManager pLogger, Collection<FunctionSet> functionSets,
-      Collection<FunctionEntryNode> candidateFunctions, ImmutableSetMultimap<String, String> candidateFunctionsForField,
-      ImmutableSetMultimap<String, String> globalsMatching) {
+      Collection<FunctionEntryNode> candidateFunctions, Multimap<String, String> candidateFunctionsForField,
+      Multimap<String, String> globalsMatching) {
     this.machine = pMachine;
     this.logger = pLogger;
     this.matchingFunctionCall = getFunctionSetPredicate(functionSets);
     this.candidateFunctions = candidateFunctions;
-    this.candidateFunctionsForField = candidateFunctionsForField;
-    this.globalsMatching = globalsMatching;
+    this.candidateFunctionsForField = ImmutableSetMultimap.copyOf(candidateFunctionsForField);
+    this.globalsMatching = ImmutableSetMultimap.copyOf(globalsMatching);
   }
 
   public Set<String> getMatchedFunc(CExpression expression) {
-    Set<String> matchedFuncs;
-    if( expression instanceof CFieldReference) {
+    if (expression instanceof CFieldReference) {
       String fieldName = ((CFieldReference)expression).getFieldName();
-      matchedFuncs = candidateFunctionsForField.get(fieldName);
-
+      return candidateFunctionsForField.get(fieldName);
     } else if (expression instanceof CIdExpression) {
       String variableName = ((CIdExpression)expression).getName();
-      matchedFuncs = globalsMatching.get(variableName);
+      return globalsMatching.get(variableName);
     } else {
-      matchedFuncs = Collections.emptySet();
+      return Collections.emptySet();
     }
-    return matchedFuncs;
   }
 
   public List<CFunctionEntryNode> getFunctionSet(CFunctionType func) {

@@ -56,12 +56,8 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
   }
 
   @Override
-  protected boolean checkFunction(CFunctionCall functionCall) {
-    String name = functionCall.getFunctionCallExpression().getFunctionNameExpression().toString();
-    if (replacedFunctions.contains(name)) {
-      return true;
-    }
-    return false;
+  protected boolean shouldBeInstrumented(CFunctionCall functionCall) {
+    return replacedFunctions.contains(functionCall.getFunctionCallExpression().getFunctionNameExpression().toString());
   }
 
   @Override
@@ -81,7 +77,7 @@ public class EdgeReplacerParameterFunctionPointer extends EdgeReplacer {
 
   //class ThreadCreateTransformer does not support SummaryEdge with a pointer parameter or a structure field
   @Override
-  protected AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
-    return new BlankEdge("skip", statement.getFileLocation(), rootNode, end, "skip");
+  protected AbstractCFAEdge createSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
+    return new BlankEdge("skip " + statement, statement.getFileLocation(), rootNode, end, "skip");
   }
 }

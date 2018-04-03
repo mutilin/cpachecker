@@ -29,7 +29,6 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
@@ -46,11 +45,6 @@ public class EdgeReplacerFunctionPointer extends EdgeReplacer {
   }
 
   @Override
-  protected boolean checkFunction(CFunctionCall functionCall) {
-    return true;
-  }
-
-  @Override
   protected CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func) {
     CIdExpression funcName = new CIdExpression(oldCallExpr.getFunctionNameExpression().getFileLocation(),
         oldCallExpr.getFunctionNameExpression().getExpressionType(), fNode.getFunctionName(),
@@ -60,7 +54,7 @@ public class EdgeReplacerFunctionPointer extends EdgeReplacer {
   }
 
   @Override
-  protected AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
+  protected AbstractCFAEdge createSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end) {
     return new CStatementEdge(statement.getRawStatement(), statement.getStatement(), statement.getFileLocation(), rootNode, end);
   }
 }

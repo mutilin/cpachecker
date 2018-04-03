@@ -86,7 +86,7 @@ public abstract class EdgeReplacer {
    * 2. falseEdge from rootNode to elseNode.
    * @category conditions
    */
-  protected void addConditionEdges(CExpression nameExp, CUnaryExpression amper, CFANode rootNode,
+  private void addConditionEdges(CExpression nameExp, CUnaryExpression amper, CFANode rootNode,
       CFANode thenNode, CFANode elseNode, FileLocation fileLocation) {
 
     final CBinaryExpressionBuilder binExprBuilder = new CBinaryExpressionBuilder(cfa.getMachineModel(), logger);
@@ -103,15 +103,7 @@ public abstract class EdgeReplacer {
     CFACreationUtils.addEdgeToCFA(falseEdge, logger);
   }
 
-  protected void createCallEdge(FileLocation fileLocation, String pRawStatement,
-      CFANode predecessorNode, CFANode successorNode, CFunctionCall functionCall) {
-    CStatementEdge callEdge = new CStatementEdge(pRawStatement,
-        functionCall, fileLocation,
-        predecessorNode, successorNode);
-    CFACreationUtils.addEdgeUnconditionallyToCFA(callEdge);
-  }
-
-  protected CFunctionCall createRegularCall(CFunctionCall functionCall, CFunctionCallExpression newCallExpr) {
+  private CFunctionCall createRegularCall(CFunctionCall functionCall, CFunctionCallExpression newCallExpr) {
     if (functionCall instanceof CFunctionCallAssignmentStatement) {
       CFunctionCallAssignmentStatement asgn = (CFunctionCallAssignmentStatement)functionCall;
       return new CFunctionCallAssignmentStatement(functionCall.getFileLocation(),
@@ -123,16 +115,18 @@ public abstract class EdgeReplacer {
     }
   }
 
-  protected abstract boolean checkFunction(CFunctionCall functionCall);
+  protected boolean shouldBeInstrumented(CFunctionCall functionCall) {
+    return true;
+  }
 
   protected abstract CFunctionCallExpression createNewCallExpression(CFunctionCallExpression oldCallExpr, CExpression nameExp, FunctionEntryNode fNode, CIdExpression func);
 
-  protected abstract AbstractCFAEdge CreateSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end);
+  protected abstract AbstractCFAEdge createSummaryEdge(CStatementEdge statement, CFANode rootNode, CFANode end);
 
   public void instrument(CStatementEdge statement, Collection<CFunctionEntryNode> funcs, CExpression nameExp) {
     CFunctionCall functionCall = (CFunctionCall)statement.getStatement();
 
-    if (funcs.size() <= 0 || checkFunction(functionCall) == false) {
+    if (funcs.size() <= 0 || !shouldBeInstrumented(functionCall)) {
       return;
     }
 
@@ -161,16 +155,18 @@ public abstract class EdgeReplacer {
       String pRawStatement = "pointer call(" + fNode.getFunctionName() + ") " + statement.getRawStatement();
       CFunctionCallExpression newCallExpr = createNewCallExpression(oldCallExpr, nameExp, fNode, func);
       CFunctionCall regularCall = createRegularCall(functionCall, newCallExpr);
-      createCallEdge(fileLocation, pRawStatement, thenNode, retNode, regularCall);
 
-      BlankEdge be = new BlankEdge("skip", fileLocation, retNode, end, "skip");
+      CStatementEdge callEdge = new CStatementEdge(pRawStatement, regularCall, fileLocation, thenNode, retNode);
+      CFACreationUtils.addEdgeUnconditionallyToCFA(callEdge);
+
+      BlankEdge be = new BlankEdge("skip " + statement, fileLocation, retNode, end, "skip");
       CFACreationUtils.addEdgeUnconditionallyToCFA(be);
 
       rootNode = elseNode;
     }
 
     if (createUndefinedFunctionCall) {
-      AbstractCFAEdge ae = CreateSummaryEdge(statement, rootNode, end);
+      CFAEdge ae = createSummaryEdge(statement, rootNode, end);
       rootNode.addLeavingEdge(ae);
       end.addEnteringEdge(ae);
     } else {

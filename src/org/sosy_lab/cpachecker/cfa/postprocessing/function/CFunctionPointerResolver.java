@@ -29,7 +29,6 @@ import static org.sosy_lab.cpachecker.util.CFAUtils.leavingEdges;
 import com.google.common.base.Functions;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.ImmutableSetMultimap;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -90,9 +89,9 @@ public class CFunctionPointerResolver {
       description="Use as targets for call edges only those shich are assigned to the particular expression (structure field).")
   private boolean matchAssignedFunctionPointers = false;
 
-  @Option(secure=true, name="analysis.replaseFunctionWithParameterPointer",
+  @Option(secure=true, name="analysis.replaceFunctionWithParameterPointer",
       description="Use if you are going to change function with function pionter parameter")
-  private boolean replaseFunctionWithParameterPointer = false;
+  private boolean replaceFunctionWithParameterPointer = false;
 
   @Option(
     secure = true,
@@ -123,8 +122,6 @@ public class CFunctionPointerResolver {
     if (functionSets.contains(FunctionSet.USED_IN_CODE)) {
       CReferencedFunctionsCollector varCollector;
       Collection<FunctionEntryNode> candidateFunctions;
-      ImmutableSetMultimap<String, String> candidateFunctionsForField;
-      ImmutableSetMultimap<String, String> globalsMatching;
 
       if (matchAssignedFunctionPointers) {
         varCollector = new CReferencedFunctionsCollectorWithFieldsMatching();
@@ -154,11 +151,9 @@ public class CFunctionPointerResolver {
       }
 
       if (matchAssignedFunctionPointers) {
-        candidateFunctionsForField = ImmutableSetMultimap.copyOf(((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getFieldMatching());
-        globalsMatching = ImmutableSetMultimap.copyOf(((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
-
         return new TargetFunctionsProvider(cfa.getMachineModel(), logger, functionSets, candidateFunctions,
-            candidateFunctionsForField, globalsMatching);
+            ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getFieldMatching(),
+            ((CReferencedFunctionsCollectorWithFieldsMatching) varCollector).getGlobalMatching());
       } else {
         return new TargetFunctionsProvider(cfa.getMachineModel(), logger, functionSets, candidateFunctions);
       }
@@ -316,7 +311,7 @@ public class CFunctionPointerResolver {
         if (checkEdge(stmt)) {
           functionPointerCalls.add(edge);
         }
-        if (replaseFunctionWithParameterPointer && checkParameterEdge(stmt)) {
+        if (replaceFunctionWithParameterPointer && checkParameterEdge(stmt)) {
           functionParameterPointerCalls.add(edge);
         }
       }
