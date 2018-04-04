@@ -599,7 +599,7 @@ public class BAMTransferRelation implements TransferRelation {
 
   public BAMMultipleCEXSubgraphComputer createBAMMultipleSubgraphComputer(Function<ARGState, Integer> idExtractor) {
     final BAMMultipleCEXSubgraphComputer cexSubgraphComputer = new BAMMultipleCEXSubgraphComputer(bamCPA,
-        reducedToExpand, idExtractor);
+        multiReducedToExpand, idExtractor);
 
         return cexSubgraphComputer;
   }
@@ -676,10 +676,6 @@ public class BAMTransferRelation implements TransferRelation {
     Preconditions.checkNotNull(multipleARGRemover);
 
     return multipleARGRemover;
-  }
-
-  public Multimap<AbstractState, AbstractState> getMapFromReducedToExpand() {
-    return multiReducedToExpand;
   }
 
   private boolean updateExitState(AbstractState state) {
