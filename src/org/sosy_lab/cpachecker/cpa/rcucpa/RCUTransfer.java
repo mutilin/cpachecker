@@ -193,8 +193,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   }
 
   private RCUState handleFunctionReturn(String pFunctionName, RCUState pState) {
-    boolean rcuRelevant = pFunctionName.equals(readLockName);
-    rcuRelevant |= pFunctionName.equals(readUnlockName);
+    boolean rcuRelevant = pFunctionName.contains(readLockName);
+    rcuRelevant |= pFunctionName.contains(readUnlockName);
     rcuRelevant |= pFunctionName.equals(fictReadLock);
     rcuRelevant |= pFunctionName.equals(fictReadUnlock);
     rcuRelevant |= pFunctionName.equals(fictWriteLock);
@@ -247,9 +247,9 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     if (fd != null) {
       String fName = fd.getName();
 
-      if (fName.equals(readLockName)) {
+      if (fName.contains(readLockName)) {
         pResult.getLockState().incRCURead();
-      } else if (fName.equals(readUnlockName)) {
+      } else if (fName.contains(readUnlockName)) {
         pResult.getLockState().decRCURead();
       } else if (fName.equals(fictReadLock)) {
         pResult.getLockState().markRead();
