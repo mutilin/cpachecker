@@ -84,8 +84,8 @@ public class RCUSearchStatistics implements Statistics {
     Map<MemoryLocation, Set<MemoryLocation>> pointsTo = transfer.getPointsTo();
     Map<MemoryLocation, Set<MemoryLocation>> aliases = getAliases(pointsTo);
 
-    System.out.println("PTS-TO: " + pointsTo);
-    System.out.println("ALIAS: " + aliases);
+    /* System.out.println("PTS-TO: " + pointsTo);
+    System.out.println("ALIAS: " + aliases); */
 
     AbstractState state = reached.getLastState();
     RCUSearchState rcuSearchState = AbstractStates.extractStateByType(state, RCUSearchState.class);

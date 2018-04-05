@@ -364,7 +364,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
     if (asLocations(pRightHandSide, pState, 1).isBot() && locations instanceof
         ExplicitLocationSet && !pState.getKnownLocations().contains(locations)) {
-      System.out.println("FAKE: Creating fake location");
       MemoryLocation loc = ((ExplicitLocationSet) locations).iterator().next();
       CVariableDeclaration decl =
           new CVariableDeclaration(FileLocation.DUMMY, true, CStorageClass.AUTO,
@@ -388,7 +387,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     for (MemoryLocation location : locations) {
       result = handleAssignment(result, location, pRightHandSide);
     }
-    System.out.println("ASSIGN: " + locations + " " + pRightHandSide);
     return result;
   }
 
@@ -414,10 +412,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     MemoryLocation location = toLocation(pDeclaration);
     CType declarationType = pDeclaration.getType();
     if (initializer != null) {
-      /*
-       * TODO: int * ptr = existing_ptr; produces weird results. The locationSet of existing_ptr
-       * for some reason is not taken into account in such cases
-       */
       return handleWithInitializer(pState, location, declarationType, initializer);
     } else if (declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
@@ -475,7 +469,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               @Override
               public LocationSet visit(CInitializerExpression pInitializerExpression)
                   throws UnrecognizedCCodeException {
-                System.out.println("VISIT_INIT: " + pInitializerExpression);
                 return asLocations(pInitializerExpression.getExpression(), pState, 1);
               }
 
@@ -492,7 +485,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               }
             });
 
-    System.out.println("VISIT_INIT_RES: " + rhs);
     return handleAssignment(pState, pLeftHandSide, rhs);
   }
 
@@ -589,13 +581,8 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               return LocationSetTop.INSTANCE;
             }
             if (pIastFieldReference.isPointerDereference()) {
-              System.out.println("SEARCHING map: " + pState.getPointsToMap() + " for " +
-                  memoryLocation.get());
               if (pState.getPointsToMap().containsKey(memoryLocation.get())) {
-                System.out.println("FOUND");
                 return pState.getPointsToMap().get(memoryLocation.get());
-              } else {
-                System.out.println("NOT FOUND");
               }
             }
             return toLocationSet(Collections.singleton(memoryLocation.get()));

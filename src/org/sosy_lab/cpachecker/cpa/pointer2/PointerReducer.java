@@ -49,7 +49,7 @@ public class PointerReducer implements Reducer {
         clonedState.forget(ptr);
       }
     }
-    System.out.println("RRR: " + callNode.describeFileLocation());
+    // System.out.println("RRR: " + callNode.describeFileLocation());
     reduceTime.stop();
     return clonedState;
   }
@@ -66,7 +66,7 @@ public class PointerReducer implements Reducer {
             .getPointsToMap().get(ptr));
       }
     }
-    System.out.println("EEE: " + reducedContext.getCallNode().describeFileLocation());
+    // System.out.println("EEE: " + reducedContext.getCallNode().describeFileLocation());
     expandTime.stop();
     return clonedState;
   }

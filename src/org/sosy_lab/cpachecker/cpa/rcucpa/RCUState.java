@@ -117,23 +117,23 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
   void addToRelations(AbstractIdentifier pAil, AbstractIdentifier pInit) {
     if (pInit != null) {
-      System.out.println("BEFORE: " + rcuRelations);
+      //System.out.println("BEFORE: " + rcuRelations);
       rcuRelations.put(pAil, pInit);
-      System.out.println("PAIR: " + pAil + " " + pInit);
-      System.out.println("AFTER: " + rcuRelations);
+      //System.out.println("PAIR: " + pAil + " " + pInit);
+      //System.out.println("AFTER: " + rcuRelations);
     }
   }
 
   @Override
   public boolean isCompatibleWith(CompatibleState state) {
     Preconditions.checkArgument(state instanceof RCUState);
-    System.out.println("TOP_COMP");
+    /* System.out.println("TOP_COMP");
     System.out.println("This state:");
     System.out.println(this);
     System.out.println();
     System.out.println("Other state:");
     System.out.println((RCUState) state);
-    System.out.println();
+    System.out.println(); */
     return lockState.isCompatible(((RCUState) state).lockState);
   }
 
@@ -240,7 +240,6 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
     if (id instanceof SingleIdentifier) {
       SingleIdentifier sid = (SingleIdentifier) id;
-      System.out.println("IDS: Single, deref: " + sid.getDereference());
       if (sid.getDereference() > 0) {
         for (int i = 0; i <= sid.getDereference(); ++i) {
           AbstractIdentifier clone = sid.cloneWithDereference(i);
@@ -256,11 +255,8 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
           }
         }
       }
-    } else {
-      System.out.println("IDS: Not single");
     }
 
-    System.out.println("IDS: " + result);
     return result;
   }
 
