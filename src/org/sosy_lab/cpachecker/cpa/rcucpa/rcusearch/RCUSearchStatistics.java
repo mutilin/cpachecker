@@ -34,7 +34,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
@@ -50,6 +49,7 @@ import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
@@ -111,6 +111,11 @@ public class RCUSearchStatistics implements Statistics {
       } catch (IOException pE) {
         logger.log(Level.WARNING, pE.getMessage());
       }
+      String info = "";
+      info += "Number of RCU pointers:        " + rcuPointers.size() + "\n";
+      info += "Number of RCU aliases:         " + (rcuAndAliases.size() - rcuPointers.size()) + "\n";
+      info += "Number of fictional pointers:  " + getFictionalPointersNumber(rcuAndAliases) + "\n";
+      out.append(info);
       logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
     }
 
@@ -163,6 +168,15 @@ public class RCUSearchStatistics implements Statistics {
     aliases.get(one).add(other);
   }
 
+  private int getFictionalPointersNumber(Set<MemoryLocation> ptrs) {
+    int result = 0;
+    for (MemoryLocation iter : ptrs) {
+      if (PointerState.isFictionalPointer(iter)) {
+        ++result;
+      }
+    }
+    return result;
+  }
   /*
   private Map<MemoryLocation, Set<MemoryLocation>> parseFile(Path input, LogManager logger) {
     Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
