@@ -114,6 +114,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   final Timer equalityTime = new Timer();
   static final Timer pointsToTime = new Timer();
   static final Timer strengthenTime = new Timer();
+  private boolean useFakeLocs = false;
 
   @Override
   public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
@@ -122,6 +123,10 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     PointerState pointerState = (PointerState) pState;
     PointerState resultState = getAbstractSuccessor(pointerState, pCfaEdge);
     return resultState == null ? Collections.<AbstractState>emptySet() : Collections.<AbstractState>singleton(resultState);
+  }
+
+  public void setUseFakeLocs(boolean pUseFakeLocs) {
+    useFakeLocs = pUseFakeLocs;
   }
 
   private PointerState getAbstractSuccessor(PointerState pState, CFAEdge pCfaEdge)
@@ -362,7 +367,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
   private PointerState handleAssignment(PointerState pState, CExpression pLeftHandSide, CRightHandSide pRightHandSide) throws UnrecognizedCCodeException {
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
-    if (asLocations(pRightHandSide, pState, 1).isBot() && locations instanceof
+    if (useFakeLocs && asLocations(pRightHandSide, pState, 1).isBot() && locations instanceof
         ExplicitLocationSet && !pState.getKnownLocations().contains(locations)) {
       MemoryLocation loc = ((ExplicitLocationSet) locations).iterator().next();
       CVariableDeclaration decl =
@@ -413,7 +418,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     CType declarationType = pDeclaration.getType();
     if (initializer != null) {
       return handleWithInitializer(pState, location, declarationType, initializer);
-    } else if (declarationType instanceof CPointerType) {
+    } else if (useFakeLocs && declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
       initializer = getFakeInitializer(pDeclaration);
       return handleWithInitializer(pState, location, declarationType, initializer);

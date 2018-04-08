@@ -41,6 +41,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 /**
  * Instances of this class are configurable program analyses for analyzing a
@@ -70,6 +71,10 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
       + "needs to be printed into file")
     private boolean noOutput = true;
 
+    @Option(secure=true, name="useFakeLocs", description="whether to use the fake locations "
+        + "during analysis (more precise, but also slower)")
+    private boolean useFakeLocs = false;
+
   }
 
   private final Statistics statistics;
@@ -96,6 +101,8 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
     reducer = new PointerReducer();
     statistics = new PointerStatistics(options.noOutput, options.path,
                                         PointerTransferRelation.INSTANCE, reducer);
+    TransferRelation tr = PointerTransferRelation.INSTANCE;
+    ((PointerTransferRelation)tr).setUseFakeLocs(options.useFakeLocs);
     path = options.path;
   }
 
