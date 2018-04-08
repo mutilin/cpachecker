@@ -90,16 +90,11 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
 
-    pointerState = getPointerAbstractSuccesor(PointerState.copyOf(pointerState), precision, cfaEdge);
-
-    RCUSearchState result = (RCUSearchState) state;
+    Set<MemoryLocation> result = ((RCUSearchState) state).getRcuPointers();
+    Set<MemoryLocation> old_res = new HashSet<>(result);
     logger.log(Level.ALL, "EDGE TYPE: " + cfaEdge.getEdgeType());
     logger.log(Level.ALL, "EDGE CONT: " + cfaEdge.getRawStatement());
     switch(cfaEdge.getEdgeType()) {
-      case DeclarationEdge:
-        handleDeclarationEdge((CDeclarationEdge) cfaEdge, cfaEdge.getPredecessor()
-            .getFunctionName(), (RCUSearchState) state, logger);
-        break;
       case StatementEdge:
         result = handleStatementEdge((CStatementEdge) cfaEdge,
                             cfaEdge.getPredecessor().getFunctionName(),
@@ -123,7 +118,15 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       default:
         break;
     }
-    return Collections.singleton(result);
+
+    Set<MemoryLocation> new_res = new HashSet<>(result);
+    new_res.removeAll(old_res);
+    pointerTransfer.setUseFakeLocs(!new_res.isEmpty());
+
+    pointerState = getPointerAbstractSuccesor(PointerState.copyOf(pointerState), precision, cfaEdge);
+    addKnownLocations(cfaEdge);
+
+    return Collections.singleton(new RCUSearchState(result, PointerState.copyOf(pointerState)));
   }
 
   private PointerState getPointerAbstractSuccesor(
@@ -138,15 +141,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     return PointerState.copyOf(result);
   }
 
-  private void handleDeclarationEdge(CDeclarationEdge pCfaEdge,
-                                               String pFunctionName,
-                                               RCUSearchState pState,
-                                               LogManager pLogger)
-      throws CPATransferException, InterruptedException {
-    addKnownLocations(pCfaEdge);
-  }
-
-  private RCUSearchState handleFunctionReturnEdge(CFunctionReturnEdge pEdge,
+  private Set<MemoryLocation> handleFunctionReturnEdge(CFunctionReturnEdge pEdge,
                                                String pFunctionName,
                                                RCUSearchState state,
                                                LogManager pLogger)
@@ -160,11 +155,11 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
           (CFunctionCallAssignmentStatement) expr, pEdge);
     } else {
       pLogger.log(Level.ALL, "ORDINARY CALL: " + expr);
-      return state;
+      return state.getRcuPointers();
     }
   }
 
-  private RCUSearchState handleFunctionCallEdge(CFunctionCallEdge pEdge,
+  private Set<MemoryLocation> handleFunctionCallEdge(CFunctionCallEdge pEdge,
                                              String pFunctionName,
                                              RCUSearchState state,
                                              LogManager pLogger) {
@@ -173,7 +168,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     return handleFunctionCallExpression(pFunctionName, state, fc);
   }
 
-  private RCUSearchState handleFunctionCallExpression(
+  private Set<MemoryLocation> handleFunctionCallExpression(
       String pFunctionName,
       RCUSearchState state,
       CFunctionCallExpression pFc) {
@@ -187,7 +182,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       addMemoryLocation(pFunctionName, pRcuPointers, params.get(1));
     }
 
-    return new RCUSearchState(pRcuPointers, PointerState.copyOf(pointerState));
+    return pRcuPointers;
   }
 
   private void addMemoryLocation(String pFunctionName, Set<MemoryLocation> pRcuPointers,
@@ -204,7 +199,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     }
   }
 
-  private RCUSearchState handleStatementEdge(CStatementEdge pEdge,
+  private Set<MemoryLocation> handleStatementEdge(CStatementEdge pEdge,
                                           String pFunctionName,
                                           RCUSearchState state,
                                           LogManager pLogger)
@@ -213,9 +208,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     CStatement statement = pEdge.getStatement();
     pLogger.log(Level.ALL, "HANDLE_STATEMENT: " + statement.getClass()
                             + ' ' + statement.toString());
-    if (statement instanceof CExpressionAssignmentStatement) {
-      return handleExpressionAssignment(pFunctionName, state, pLogger, pEdge);
-    } else if (statement instanceof CFunctionCallAssignmentStatement) {
+    if (statement instanceof CFunctionCallAssignmentStatement) {
       return handleFunctionCallAssignmentStatement(pFunctionName, state, pLogger,
           (CFunctionCallAssignmentStatement) statement, pEdge);
     } else if (statement instanceof CFunctionCallStatement) {
@@ -223,15 +216,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       return handleFunctionCallExpression(pFunctionName, state, ((CFunctionCallStatement)
           statement).getFunctionCallExpression());
     }
-    return state;
-  }
-
-  private RCUSearchState handleExpressionAssignment(
-      String pFunctionName,
-      RCUSearchState pState,
-      LogManager pLogger, CStatementEdge pEdge) throws CPATransferException, InterruptedException {
-    addKnownLocations(pEdge);
-    return pState;
+    return state.getRcuPointers();
   }
 
   private void addKnownLocations(CFAEdge pEdge)
@@ -245,7 +230,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     logger.log(Level.ALL, "MAP:\n" + pointerState.getPointsToMap());
   }
 
-  private RCUSearchState handleFunctionCallAssignmentStatement(
+  private Set<MemoryLocation> handleFunctionCallAssignmentStatement(
       String pFunctionName,
       RCUSearchState state,
       LogManager pLogger,
@@ -264,14 +249,12 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
         addMemoryLocation(pFunctionName, pRcuPointers, rcuPtr);
 
         addMemoryLocation(pFunctionName, pRcuPointers, leftHandSide);
-      } else {
-        addKnownLocations(pEdge);
       }
     }
     if (!pRcuPointers.equals(state.getRcuPointers())) {
-      return new RCUSearchState(pRcuPointers, PointerState.copyOf(pointerState));
+      return pRcuPointers;
     } else {
-      return state;
+      return state.getRcuPointers();
     }
   }
 
