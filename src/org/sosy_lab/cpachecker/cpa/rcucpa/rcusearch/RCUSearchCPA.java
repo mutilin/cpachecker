@@ -28,6 +28,8 @@ import java.util.Collections;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
@@ -43,7 +45,9 @@ import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.WrapperCPA;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA.PointerOptions;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 
+@Options
 public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnalysisWithBAM,
                                                          StatisticsProvider, WrapperCPA {
 
@@ -51,14 +55,21 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   private final RCUSearchStatistics statistics;
   private final PointerCPA pointerCPA;
 
+  @Option(name = "cpa.pointer2.useFakeLocs", secure = true, description = "whether to use the fake locations "
+        + "during analysis (more precise, but also slower)")
+  private boolean useFakeLocs = true;
+
   RCUSearchCPA (Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super("JOIN", "SEP", new RCUSearchDomain(), new RCUSearchTransfer(config, pLogger));
     logger = pLogger;
+    statistics = new RCUSearchStatistics(config, logger);
+
     PointerOptions options = new PointerOptions();
+    config.inject(this);
     pointerCPA = new PointerCPA(options);
     RCUSearchTransfer transfer = (RCUSearchTransfer) this.getTransferRelation();
     transfer.setPointerTransfer(pointerCPA.getTransferRelation());
-    statistics = new RCUSearchStatistics(config, logger, transfer);
+    ((PointerTransferRelation) transfer.getPointerTransfer()).setUseFakeLocs(useFakeLocs);
   }
 
   public static CPAFactory factory() {

@@ -63,7 +63,7 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
    * Creates a new pointer state with an empty initial points-to map.
     */
   private PointerState() {
-    pointsToMap = PathCopyingPersistentTreeMap.<MemoryLocation, LocationSet>of();
+    pointsToMap = PathCopyingPersistentTreeMap.of();
   }
 
   /**
@@ -251,7 +251,7 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
   }
 
   public static PointerState copyOf(PointerState pState) {
-    return new PointerState(pState.pointsToMap);
+    return new PointerState(PathCopyingPersistentTreeMap.copyOf(pState.pointsToMap));
   }
 
   @Override
