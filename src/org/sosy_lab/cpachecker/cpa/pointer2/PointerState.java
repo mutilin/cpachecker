@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.cpa.pointer2;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 
 import javax.annotation.Nullable;
@@ -256,14 +257,20 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
 
   @Override
   public PointerInformation forget(MemoryLocation pPtr) {
+    Map<MemoryLocation, LocationSet> map = new HashMap<>();
+    map.put(pPtr, pointsToMap.get(pPtr));
+    PersistentSortedMap<MemoryLocation, LocationSet> toForget = PathCopyingPersistentTreeMap.copyOf(map);
+    PointerInformation forgotten = new PointerInformation(toForget);
     pointsToMap = pointsToMap.removeAndCopy(pPtr);
-    // TODO: if it is needed - PointerInformation has empty implementation
-    return null;
+    return forgotten;
   }
 
   @Override
   public void remember(MemoryLocation location, PointerInformation forgottenInformation) {
-    // TODO: if it is needed - PointerInformation has empty implementation
+    Map<MemoryLocation, LocationSet> map = forgottenInformation.getForgottenInfo();
+    LocationSet previousPointsToSet = getPointsToSet(location);
+    LocationSet newPointsToSet = previousPointsToSet.addElements(map.get(location));
+    pointsToMap = pointsToMap.putAndCopy(location, newPointsToSet);
   }
 
   @Override

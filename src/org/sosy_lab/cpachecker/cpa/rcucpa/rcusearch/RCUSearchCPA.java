@@ -45,6 +45,7 @@ import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.WrapperCPA;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA.PointerOptions;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerReducer;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 
 @Options
@@ -54,6 +55,7 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   private final LogManager logger;
   private final RCUSearchStatistics statistics;
   private final PointerCPA pointerCPA;
+  private final RCUSearchReducer reducer;
 
   @Option(name = "cpa.pointer2.useFakeLocs", secure = true, description = "whether to use the fake locations "
         + "during analysis (more precise, but also slower)")
@@ -70,6 +72,7 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
     RCUSearchTransfer transfer = (RCUSearchTransfer) this.getTransferRelation();
     transfer.setPointerTransfer(pointerCPA.getTransferRelation());
     ((PointerTransferRelation) transfer.getPointerTransfer()).setUseFakeLocs(useFakeLocs);
+    reducer = new RCUSearchReducer((PointerReducer) pointerCPA.getReducer());
   }
 
   public static CPAFactory factory() {
@@ -91,7 +94,15 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   @Nullable
   @Override
   public <T extends ConfigurableProgramAnalysis> T retrieveWrappedCpa(Class<T> type) {
-    return type.cast(pointerCPA);
+    if (type.isAssignableFrom(getClass())){
+      return type.cast(this);
+    }
+
+    if (type.isAssignableFrom(pointerCPA.getClass())){
+      return type.cast(pointerCPA);
+    }
+
+    return null;
   }
 
   @Override
@@ -101,6 +112,6 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
 
   @Override
   public Reducer getReducer() {
-    return null;
+    return reducer;
   }
 }

@@ -59,12 +59,9 @@ public class PointerReducer implements Reducer {
       AbstractState rootState, Block reducedContext, AbstractState reducedState)
       throws InterruptedException {
     expandTime.start();
-    PointerState clonedState = PointerState.copyOf((PointerState) reducedState);
+    PointerState clonedState = PointerState.copyOf((PointerState) rootState);
     for (MemoryLocation ptr : ((PointerState) rootState).getTrackedMemoryLocations()) {
-      if (!reducedContext.getMemoryLocations().contains(ptr)) {
-        clonedState = clonedState.addPointsToInformation(ptr, ((PointerState) rootState)
-            .getPointsToMap().get(ptr));
-      }
+        clonedState = clonedState.addPointsToInformation(ptr, ((PointerState) reducedState).getPointsToMap().get(ptr));
     }
     // System.out.println("EEE: " + reducedContext.getCallNode().describeFileLocation());
     expandTime.stop();
