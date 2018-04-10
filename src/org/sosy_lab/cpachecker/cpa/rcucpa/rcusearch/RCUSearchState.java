@@ -62,7 +62,10 @@ public class RCUSearchState implements AbstractWrapperState {
 
     RCUSearchState that = (RCUSearchState) pO;
 
-    if (rcuPointers != null ? !rcuPointers.equals(that.rcuPointers) : that.rcuPointers != null) {
+    if (!rcuPointers.equals(that.rcuPointers)) {
+      return false;
+    }
+    if (!pointerState.equals(that.pointerState)) {
       return false;
     }
 
@@ -71,7 +74,9 @@ public class RCUSearchState implements AbstractWrapperState {
 
   @Override
   public int hashCode() {
-    return rcuPointers != null ? rcuPointers.hashCode() : 0;
+    int result = rcuPointers.hashCode();
+    result = 31 * result + pointerState.hashCode();
+    return result;
   }
 
   @Override
