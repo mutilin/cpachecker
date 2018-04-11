@@ -87,7 +87,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
 
-    Set<MemoryLocation> result = ((RCUSearchState) state).getRcuPointers();
+    Set<MemoryLocation> result = new HashSet<>(((RCUSearchState) state).getRcuPointers());
     Set<MemoryLocation> buf = new HashSet<>();
     Set<MemoryLocation> old_res = new HashSet<>(result);
     logger.log(Level.ALL, "EDGE TYPE: " + cfaEdge.getEdgeType());
@@ -229,7 +229,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       CFunctionCallAssignmentStatement pStatement,
       CFAEdge pEdge) throws CPATransferException, InterruptedException {
     CLeftHandSide leftHandSide = pStatement.getLeftHandSide();
-    Set<MemoryLocation> pRcuPointers = state.getRcuPointers();
+    Set<MemoryLocation> pRcuPointers = new HashSet<>(state.getRcuPointers());
     if (leftHandSide.getExpressionType() instanceof CPointerType) {
       CFunctionCallExpression funcExpr = pStatement.getFunctionCallExpression();
 
