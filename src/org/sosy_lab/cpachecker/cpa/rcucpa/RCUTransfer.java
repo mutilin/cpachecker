@@ -121,14 +121,12 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
   private final LogManager logger;
   private final Set<MemoryLocation> rcuPointers;
-  private final Stack<RCUState> stateStack;
 
   RCUTransfer(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
     logger = pLogger;
     pConfig.inject(this);
     rcuPointers = parseFile(input);
-    stateStack = new Stack<>();
   }
 
   private Set<MemoryLocation> parseFile(Path pInput) {
@@ -177,7 +175,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         result = handleFunctionCallStatement(callExpression, result, cfaEdge.getPredecessor().getFunctionName());
         break;
       case FunctionReturnEdge:
-        result = handleFunctionReturn(((CFunctionReturnEdge) cfaEdge).getPredecessor().getFunctionName(), result);
+        // result = handleFunctionReturn(((CFunctionReturnEdge) cfaEdge).getPredecessor().getFunctionName(), result);
       case ReturnStatementEdge:
         break;
       case CallToReturnEdge:
@@ -191,7 +189,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     logger.log(Level.ALL, "RESULT: " + result);
     return Collections.singleton(result);
   }
-
+/*
   private RCUState handleFunctionReturn(String pFunctionName, RCUState pState) {
     boolean rcuRelevant = pFunctionName.contains(readLockName);
     rcuRelevant |= pFunctionName.contains(readUnlockName);
@@ -213,7 +211,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       return pState;
     }
   }
-
+*/
   private RCUState handleAssignment(CExpression left, CExpression right,
                                     String functionName,
                                     RCUState state,
@@ -271,12 +269,12 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
         result = handleAssignment(rcuPtr, ptr, pFunctionName, state, true, true);
 
-      } else if ( ! fName.equals(free) && ! fName.equals(deref)){
+      }/* else if ( ! fName.equals(free) && ! fName.equals(deref)){
         logger.log(Level.ALL, "1 PUSHING STATE. FUNC: " + fName);
         RCUState toPush = RCUState.copyOf(state);
         logger.log(Level.ALL, "State: " + toPush);
         stateStack.push(toPush);
-      }
+      }*/
     }
     return result;
   }
