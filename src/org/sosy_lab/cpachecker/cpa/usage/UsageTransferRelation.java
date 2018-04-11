@@ -171,7 +171,7 @@ public class UsageTransferRelation implements TransferRelation {
       callstackTransfer.enableRecursiveContext();
       needToReset = true;
       currentEdge = ((FunctionCallEdge)pCfaEdge).getSummaryEdge();
-      currentEdge = currentEdge.getPredecessor().getEdgeTo(currentEdge.getSuccessor());
+      // currentEdge = currentEdge.getPredecessor().getEdgeTo(currentEdge.getSuccessor());
       Preconditions.checkNotNull(currentEdge, "Cannot find summary edge for " + pCfaEdge + " as skipped function");
       logger.log(Level.FINEST, pCfaEdge.getSuccessor().getFunctionName() + " is skipped");
     }
