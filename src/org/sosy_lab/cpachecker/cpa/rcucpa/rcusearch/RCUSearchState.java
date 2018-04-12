@@ -44,7 +44,7 @@ public class RCUSearchState implements AbstractWrapperState {
   }
 
   public RCUSearchState() {
-    rcuPointers = new HashSet<>();
+    rcuPointers = ImmutableSet.of();
     pointerState = PointerState.INITIAL_STATE;
   }
 
@@ -82,7 +82,8 @@ public class RCUSearchState implements AbstractWrapperState {
 
   @Override
   public String toString() {
-    return rcuPointers.toString() + " # " + pointerState.getPointsToMap();
+    return rcuPointers.toString() + (rcuPointers.isEmpty() ? " EMPTY" : " NOT EMPTY") + " # " +
+        pointerState.getPointsToMap();
   }
 
   @Override
@@ -91,7 +92,7 @@ public class RCUSearchState implements AbstractWrapperState {
   }
 
   public static RCUSearchState copyOf(RCUSearchState pState) {
-    return new RCUSearchState(new HashSet<>(pState.rcuPointers),
+    return new RCUSearchState(ImmutableSet.copyOf(pState.rcuPointers),
                               PointerState.copyOf(pState.pointerState));
   }
 

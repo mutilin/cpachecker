@@ -49,6 +49,7 @@ import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
+import org.sosy_lab.cpachecker.cpa.location.LocationState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -135,7 +136,7 @@ public class RCUSearchStatistics implements Statistics {
         aliases.get(pointer).remove(pointer);
         for (MemoryLocation other : pointsTo.keySet()) {
           aliases.putIfAbsent(other, new HashSet<>());
-          logger.log(Level.ALL, "Adding ", pointer, " to ", other, " as an alias");
+          // logger.log(Level.ALL, "Adding ", pointer, " to ", other, " as an alias");
           aliases.get(other).add(pointer);
         }
       } else if (!pointerPointTo.contains(PointerStatistics.getReplLocSetBot())) {
