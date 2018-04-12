@@ -60,7 +60,7 @@ public class PointerReducer implements Reducer {
       throws InterruptedException {
     expandTime.start();
     PointerState clonedState = PointerState.copyOf((PointerState) rootState);
-    for (MemoryLocation ptr : ((PointerState) rootState).getTrackedMemoryLocations()) {
+    for (MemoryLocation ptr : ((PointerState) reducedState).getTrackedMemoryLocations()) {
         clonedState = clonedState.addPointsToInformation(ptr, ((PointerState) reducedState).getPointsToMap().get(ptr));
     }
     // System.out.println("EEE: " + reducedContext.getCallNode().describeFileLocation());
