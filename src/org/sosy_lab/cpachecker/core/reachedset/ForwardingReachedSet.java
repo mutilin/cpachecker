@@ -29,6 +29,8 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Property;
+import org.sosy_lab.cpachecker.core.interfaces.Statistics;
+import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.util.Pair;
 
 import java.util.Collection;
@@ -40,7 +42,7 @@ import java.util.function.BiConsumer;
  * Implementation of ReachedSet that forwards all calls to another instance.
  * The target instance is changable.
  */
-public class ForwardingReachedSet implements ReachedSet {
+public class ForwardingReachedSet implements ReachedSet, StatisticsProvider {
 
   private volatile ReachedSet delegate;
 
@@ -180,12 +182,19 @@ public class ForwardingReachedSet implements ReachedSet {
   }
 
   @Override
-  public boolean hasTargetStates() {
-    return delegate.hasTargetStates();
+  public void collectStatistics(Collection<Statistics> statsCollection) {
+    if (delegate instanceof StatisticsProvider) {
+      ((StatisticsProvider) delegate).collectStatistics(statsCollection);
+    }
   }
 
   @Override
-  public Set<Property> findViolatedProperties() {
-    return delegate.findViolatedProperties();
+  public boolean hasViolatedProperties() {
+    return delegate.hasViolatedProperties();
+  }
+
+  @Override
+  public Collection<Property> getViolatedProperties() {
+    return delegate.getViolatedProperties();
   }
 }

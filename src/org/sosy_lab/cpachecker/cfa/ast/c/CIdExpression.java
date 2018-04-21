@@ -24,13 +24,14 @@
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import java.util.Objects;
-
 import org.sosy_lab.cpachecker.cfa.ast.AIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public final class CIdExpression extends AIdExpression implements CLeftHandSide {
 
+
+  private static final long serialVersionUID = -608459029930942264L;
 
   public CIdExpression(final FileLocation pFileLocation,
                           final CType pType, final String pName,
@@ -78,12 +79,10 @@ public final class CIdExpression extends AIdExpression implements CLeftHandSide 
 
   @Override
   public int hashCode() {
-    int prime = 31;
-    int result = 7;
     if (getDeclaration() != null) {
-      result = prime * result + Objects.hash(getDeclaration().getQualifiedName());
+      return Objects.hash(getDeclaration().getQualifiedName());
     }
-    return prime * result;
+    return 0;
   }
 
   @Override

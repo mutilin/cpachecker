@@ -24,13 +24,13 @@
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import java.util.Objects;
-
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public final class CComplexCastExpression extends AbstractExpression implements CLeftHandSide {
 
+  private static final long serialVersionUID = -3131719369492162894L;
   private final CExpression operand;
   private final CType     type;
   /**
@@ -105,13 +105,7 @@ public final class CComplexCastExpression extends AbstractExpression implements 
    */
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 7;
-    result = prime * result + Objects.hashCode(operand);
-    result = prime * result + Objects.hashCode(type);
-    result = prime * result + Objects.hashCode(isReal);
-    result = prime * result + super.hashCode();
-    return result;
+    return Objects.hash(operand, type, isReal) * 31 + super.hashCode();
   }
 
   /* (non-Javadoc)

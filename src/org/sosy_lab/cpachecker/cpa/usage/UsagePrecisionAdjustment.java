@@ -27,6 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import java.util.Optional;
+import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustment;
@@ -34,7 +35,6 @@ import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustmentResult;
 import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustmentResult.Action;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSetView;
-import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 
 class UsagePrecisionAdjustment implements PrecisionAdjustment {
@@ -46,28 +46,34 @@ class UsagePrecisionAdjustment implements PrecisionAdjustment {
   }
 
   @Override
-  public Optional<PrecisionAdjustmentResult> prec(AbstractState pElement,
+  public Optional<PrecisionAdjustmentResult> prec(
+      AbstractState pElement,
       Precision oldPrecision,
       UnmodifiableReachedSet pElements,
       Function<AbstractState, AbstractState> stateProjection,
-      AbstractState fullState) throws CPAException, InterruptedException {
+      AbstractState fullState)
+      throws CPAException, InterruptedException {
 
     Preconditions.checkArgument(pElement instanceof UsageState);
-    UsageState element = (UsageState)pElement;
+    UsageState element = (UsageState) pElement;
 
-    UnmodifiableReachedSet elements = new UnmodifiableReachedSetView(
-        pElements,  ARGState.getUnwrapFunction(), Functions.<Precision>identity());
+    UnmodifiableReachedSet elements =
+        new UnmodifiableReachedSetView(
+            pElements,
+            AbstractSingleWrapperState.getUnwrapFunction(),
+            Functions.<Precision>identity());
 
     AbstractState oldElement = element.getWrappedState();
 
-    Precision oldWrappedPrecision = ((UsagePrecision)oldPrecision).getWrappedPrecision();
+    Precision oldWrappedPrecision = ((UsagePrecision) oldPrecision).getWrappedPrecision();
 
     Optional<PrecisionAdjustmentResult> optionalUnwrappedResult =
-        wrappedPrecAdjustment.prec(oldElement, oldWrappedPrecision, elements,
-        Functions.compose(
-          ARGState.getUnwrapFunction(),
-          stateProjection),
-        fullState);
+        wrappedPrecAdjustment.prec(
+            oldElement,
+            oldWrappedPrecision,
+            elements,
+            Functions.compose(AbstractSingleWrapperState.getUnwrapFunction(), stateProjection),
+            fullState);
 
     if (!optionalUnwrappedResult.isPresent()) {
       return Optional.empty();
@@ -84,8 +90,10 @@ class UsagePrecisionAdjustment implements PrecisionAdjustment {
       return Optional.of(PrecisionAdjustmentResult.create(pElement, oldPrecision, action));
     }
 
-    UsageState resultElement = element.clone(newElement);
+    UsageState resultElement = element.copy(newElement);
 
-    return Optional.of(PrecisionAdjustmentResult.create(resultElement, ((UsagePrecision)oldPrecision).clone(newPrecision), action));
+    return Optional.of(
+        PrecisionAdjustmentResult.create(
+            resultElement, ((UsagePrecision) oldPrecision).copy(newPrecision), action));
   }
 }

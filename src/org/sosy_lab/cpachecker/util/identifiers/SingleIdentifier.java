@@ -23,10 +23,10 @@
  */
 package org.sosy_lab.cpachecker.util.identifiers;
 
+import java.util.Objects;
+import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
-import java.util.Objects;
 
 public abstract class SingleIdentifier implements AbstractIdentifier {
 
@@ -90,8 +90,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier {
     if (this == obj) {
       return true;
     }
-    if (obj == null ||
-        getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     SingleIdentifier other = (SingleIdentifier) obj;
@@ -99,9 +98,6 @@ public abstract class SingleIdentifier implements AbstractIdentifier {
         && Objects.equals(name, other.name)
         && Objects.equals(type.toASTString(""), other.type.toASTString(""));
   }
-
-  @Override
-  public abstract SingleIdentifier clone();
 
   @Override
   public String toString() {
@@ -117,7 +113,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier {
 
   @Override
   public int compareTo(AbstractIdentifier pO) {
-    if (! (pO instanceof SingleIdentifier)) {
+    if (!(pO instanceof SingleIdentifier)) {
       return 1;
     } else {
       SingleIdentifier other = (SingleIdentifier) pO;

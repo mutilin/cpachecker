@@ -40,6 +40,7 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.AdjustablePrecision;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Refiner;
@@ -48,9 +49,8 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.WrapperCPA;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
-import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.bam.BAMCPA;
 import org.sosy_lab.cpachecker.cpa.bam.BAMTransferRelation;
-import org.sosy_lab.cpachecker.cpa.bam.MultipleARGSubtreeRemover;
 import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateCPA;
 import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateRefiner;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicatePrecision;
@@ -101,14 +101,16 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
   int lastFalseUnsafeSize = -1;
   int lastTrueUnsafes = 0;
 
-  private final Map<SingleIdentifier, PredicatePrecision> precisionMap = new HashMap<>();
+  private final Map<SingleIdentifier, AdjustablePrecision> precisionMap = new HashMap<>();
 
   public IdentifierIterator(ConfigurableRefinementBlock<SingleIdentifier> pWrapper, Configuration config,
       ConfigurableProgramAnalysis pCpa, BAMTransferRelation pTransfer) throws InvalidConfigurationException {
     super(pWrapper);
     config.inject(this);
     cpa = pCpa;
-    logger = CPAs.retrieveCPA(pCpa, UsageCPA.class).getLogger();
+    UsageCPA uCpa = CPAs.retrieveCPA(pCpa, UsageCPA.class);
+    uCpa.getStats().setBAMCPA((BAMCPA) cpa);
+    logger = uCpa.getLogger();
     transfer = pTransfer;
   }
 
@@ -145,22 +147,26 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
 
     Iterator<SingleIdentifier> iterator = container.getUnrefinedUnsafeIterator();
     boolean isPrecisionChanged = false;
+    AbstractState firstState = pReached.getFirstState();
+    AdjustablePrecision finalPrecision = (AdjustablePrecision) pReached.getPrecision(firstState);
+
     while (iterator.hasNext()) {
       SingleIdentifier currentId = iterator.next();
 
       RefinementResult result = wrappedRefiner.performBlockRefinement(currentId);
       newPrecisionFound |= result.isFalse();
 
-      PredicatePrecision info = result.getPrecision();
+      AdjustablePrecision info = result.getPrecision();
 
-      if (info != null && !info.getLocalPredicates().isEmpty()) {
-        PredicatePrecision updatedPrecision;
+      if (info != null) {
+        AdjustablePrecision updatedPrecision;
         if (precisionMap.containsKey(currentId)) {
-          updatedPrecision = precisionMap.get(currentId).mergeWith(info);
+          updatedPrecision = precisionMap.get(currentId).add(info);
         } else {
           updatedPrecision = info;
         }
         precisionMap.put(currentId, updatedPrecision);
+        finalPrecision = finalPrecision.add(updatedPrecision);
         isPrecisionChanged = true;
       }
 
@@ -189,26 +195,25 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
       BAMPredicateCPA bamcpa = CPAs.retrieveCPA(cpa, BAMPredicateCPA.class);
       assert bamcpa != null;
       bamcpa.clearAllCaches();
-      ARGState.clearIdGenerator();
-      AbstractState firstState = pReached.getFirstState();
-      Precision precision = pReached.getPrecision(firstState);
+      //ARGState.clearIdGenerator();
       if (totalARGCleaning) {
         transfer.cleanCaches();
       } else {
-        MultipleARGSubtreeRemover subtreesRemover = transfer.getMultipleARGSubtreeRemover();
-        subtreesRemover.cleanCaches();
+        /* MultipleARGSubtreeRemover subtreesRemover = transfer.getMultipleARGSubtreeRemover();
+        subtreesRemover.cleanCaches();*/
       }
       pReached.clear();
-      PredicatePrecision predicates = Precisions.extractPrecisionByType(precision, PredicatePrecision.class);
 
-      from(container.getProcessedUnsafes())
-        .transform(precisionMap::remove)
-        .filter(Predicates.notNull())
-        .forEach(predicates::subtract);
+      for (AdjustablePrecision prec :
+              from(container.getProcessedUnsafes())
+              .transform(precisionMap::remove)
+              .filter(Predicates.notNull())) {
+        finalPrecision = finalPrecision.subtract(prec);
+      }
 
       CFANode firstNode = AbstractStates.extractLocation(firstState);
       //Get new state to remove all links to the old ARG
-      pReached.add(cpa.getInitialState(firstNode, StateSpacePartition.getDefaultPartition()), precision);
+      pReached.add(cpa.getInitialState(firstNode, StateSpacePartition.getDefaultPartition()), finalPrecision);
 
       //TODO should we signal about removed ids?
 

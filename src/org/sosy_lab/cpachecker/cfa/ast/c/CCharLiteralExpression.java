@@ -29,6 +29,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public class CCharLiteralExpression extends ACharLiteralExpression implements CLiteralExpression {
 
+  private static final long serialVersionUID = -8145502438011551776L;
+
   public CCharLiteralExpression(FileLocation pFileLocation,
                                    CType pType,
                                    char pCharacter) {
@@ -57,9 +59,7 @@ public class CCharLiteralExpression extends ACharLiteralExpression implements CL
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 7;
-    return result * prime + super.hashCode();
+    return super.hashCode();
   }
 
   @Override

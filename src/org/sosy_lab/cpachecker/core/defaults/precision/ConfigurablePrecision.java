@@ -26,7 +26,11 @@ package org.sosy_lab.cpachecker.core.defaults.precision;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Multimap;
-
+import java.io.IOException;
+import java.io.Writer;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.regex.Pattern;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -36,17 +40,14 @@ import org.sosy_lab.cpachecker.cfa.types.Type;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.java.JSimpleType;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
-import org.sosy_lab.cpachecker.util.VariableClassification;
+import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
-
-import java.io.IOException;
-import java.io.Writer;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.regex.Pattern;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassification;
 
 @Options(prefix = "precision")
 public class ConfigurablePrecision extends VariableTrackingPrecision {
+
+  private static final long serialVersionUID = 1L;
 
   @Option(
     secure = true,
@@ -107,7 +108,7 @@ public class ConfigurablePrecision extends VariableTrackingPrecision {
   )
   private boolean trackVariablesBesidesEqAddBool = true;
 
-  private final Optional<VariableClassification> vc;
+  private transient Optional<VariableClassification> vc;
   private final Class<? extends ConfigurableProgramAnalysis> cpaClass;
 
   ConfigurablePrecision(
@@ -210,7 +211,7 @@ public class ConfigurablePrecision extends VariableTrackingPrecision {
 
   @Override
   public VariableTrackingPrecision join(VariableTrackingPrecision consolidatedPrecision) {
-    Preconditions.checkArgument((getClass().equals(consolidatedPrecision.getClass())));
+    Preconditions.checkArgument(getClass().equals(consolidatedPrecision.getClass()));
     return this;
   }
 
@@ -295,5 +296,10 @@ public class ConfigurablePrecision extends VariableTrackingPrecision {
         .add("trackFloatVariables", trackFloatVariables)
         .add("trackAddressedVariables", trackAddressedVariables)
         .toString();
+  }
+
+  private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
+    in.defaultReadObject();
+    vc = GlobalInfo.getInstance().getCFAInfo().get().getCFA().getVarClassification();
   }
 }

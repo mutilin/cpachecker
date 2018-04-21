@@ -30,6 +30,8 @@ public class CFunctionCallStatement extends AFunctionCallStatement implements CS
 
 
 
+  private static final long serialVersionUID = 1103049666572120249L;
+
   public CFunctionCallStatement(FileLocation pFileLocation,
                                    CFunctionCallExpression pFunctionCall) {
     super(pFileLocation, pFunctionCall);

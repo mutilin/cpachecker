@@ -23,26 +23,39 @@
  */
 package org.sosy_lab.cpachecker.cpa.lock;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import com.google.common.collect.ImmutableMap;
-
+import com.google.common.collect.ImmutableSet;
+import java.util.Set;
 
 public class AnnotationInfo {
-  public final String funcName;
-  public final ImmutableMap<String, String> freeLocks;
-  public final ImmutableMap<String, String> restoreLocks;
-  public final ImmutableMap<String, String> resetLocks;
-  public final ImmutableMap<String, String> captureLocks;
+  private final ImmutableSet<LockIdentifier> freeLocks;
+  private final ImmutableSet<LockIdentifier> restoreLocks;
+  private final ImmutableSet<LockIdentifier> resetLocks;
+  private final ImmutableSet<LockIdentifier> captureLocks;
 
-  public AnnotationInfo(String name, Map<String, String> free, Map<String, String> restore, Map<String, String> reset
-      , Map<String, String> capture) {
-    funcName = name;
-    freeLocks = (free == null ? ImmutableMap.copyOf(new HashMap<String, String>()) : ImmutableMap.copyOf(free));
-    restoreLocks = (restore == null ? ImmutableMap.copyOf(new HashMap<String, String>()) : ImmutableMap.copyOf(restore));
-    resetLocks = (reset == null ? ImmutableMap.copyOf(new HashMap<String, String>()) : ImmutableMap.copyOf(reset));
-    captureLocks = (capture == null ? ImmutableMap.copyOf(new HashMap<String, String>()) : ImmutableMap.copyOf(capture));
+  public AnnotationInfo(
+      Set<LockIdentifier> free,
+      Set<LockIdentifier> restore,
+      Set<LockIdentifier> reset,
+      Set<LockIdentifier> capture) {
+    freeLocks = ImmutableSet.copyOf(free);
+    restoreLocks = ImmutableSet.copyOf(restore);
+    resetLocks = ImmutableSet.copyOf(reset);
+    captureLocks = ImmutableSet.copyOf(capture);
   }
 
+  public ImmutableSet<LockIdentifier> getFreeLocks() {
+    return freeLocks;
+  }
+
+  public ImmutableSet<LockIdentifier> getRestoreLocks() {
+    return restoreLocks;
+  }
+
+  public ImmutableSet<LockIdentifier> getResetLocks() {
+    return resetLocks;
+  }
+
+  public ImmutableSet<LockIdentifier> getCaptureLocks() {
+    return captureLocks;
+  }
 }

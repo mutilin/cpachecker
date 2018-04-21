@@ -27,14 +27,16 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+
+import org.sosy_lab.cpachecker.cfa.blocks.Block;
+import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
+
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
-import org.sosy_lab.cpachecker.cfa.blocks.Block;
-import org.sosy_lab.cpachecker.util.Pair;
-import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
 
 public class CachingRelevantPredicatesComputer implements RefineableRelevantPredicatesComputer {
 

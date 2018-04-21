@@ -24,8 +24,9 @@
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.IdentityHashSet;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -43,17 +44,21 @@ import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
+@SuppressFBWarnings(
+  justification = "Serialization of container is useless and not supported",
+  value = "SE_BAD_FIELD"
+)
 public class FunctionContainer extends AbstractUsageStorage {
 
   private static final long serialVersionUID = 1L;
-  //private final Set<FunctionContainer> internalFunctionContainers;
+  // private final Set<FunctionContainer> internalFunctionContainers;
   private final List<LockEffect> effects;
   private final StorageStatistics stats;
 
   private final Set<FunctionContainer> joinedWith;
 
   public static FunctionContainer createInitialContainer() {
-    return new FunctionContainer(new StorageStatistics(), new LinkedList<>() );
+    return new FunctionContainer(new StorageStatistics(), new ArrayList<>());
   }
 
   private FunctionContainer(StorageStatistics pStats, List<LockEffect> pEffects) {
@@ -64,8 +69,8 @@ public class FunctionContainer extends AbstractUsageStorage {
     joinedWith = new IdentityHashSet<>();
   }
 
-  public FunctionContainer clone(List<LockEffect> effects) {
-    return new FunctionContainer(this.stats, effects);
+  public FunctionContainer clone(List<LockEffect> pEffects) {
+    return new FunctionContainer(this.stats, pEffects);
   }
 
   @Override

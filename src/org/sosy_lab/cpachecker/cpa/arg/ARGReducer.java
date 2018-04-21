@@ -27,7 +27,6 @@ import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.core.defaults.GenericReducer;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 
@@ -38,24 +37,6 @@ class ARGReducer extends GenericReducer<ARGState, Precision> {
 
   protected ARGReducer(Reducer pWrappedReducer) {
     wrappedReducer = pWrappedReducer;
-  }
-
-  @Override
-  public AbstractState getVariableReducedState(
-      AbstractState pExpandedState, Block pContext, Block outerContext,
-      CFANode pLocation) throws InterruptedException {
-
-    return new ARGState(wrappedReducer.getVariableReducedState(((ARGState) pExpandedState).getWrappedState(), pContext, outerContext,
-        pLocation), null);
-  }
-
-  @Override
-  public AbstractState getVariableExpandedState(
-      AbstractState pRootState, Block pReducedContext, Block outerContext,
-      AbstractState pReducedState) throws InterruptedException {
-
-    return new ARGState(wrappedReducer.getVariableExpandedState(((ARGState) pRootState).getWrappedState(),
-        pReducedContext, outerContext, ((ARGState) pReducedState).getWrappedState()), null);
   }
 
   @Override
@@ -133,5 +114,10 @@ class ARGReducer extends GenericReducer<ARGState, Precision> {
             expandedState.getWrappedState(),
             exitLocation),
         null);
+  }
+
+  @Override
+  protected boolean canBeUsedInCache0(ARGState pState) {
+    return wrappedReducer.canBeUsedInCache(pState.getWrappedState());
   }
 }

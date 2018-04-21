@@ -31,6 +31,8 @@ public class CUnaryExpression extends AUnaryExpression implements CExpression {
 
 
 
+  private static final long serialVersionUID = -7701970127701577207L;
+
   public CUnaryExpression(final FileLocation pFileLocation,
                              final CType pType, final CExpression pOperand,
                              final UnaryOperator pOperator) {
@@ -102,9 +104,7 @@ public class CUnaryExpression extends AUnaryExpression implements CExpression {
 
   @Override
   public int hashCode() {
-    int prime = 31;
-    int result = 7;
-    return prime * result + super.hashCode();
+    return super.hashCode();
   }
 
   @Override

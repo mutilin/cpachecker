@@ -43,8 +43,9 @@ import javax.annotation.Nullable;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.common.io.MoreFiles;
-import org.sosy_lab.common.io.MoreFiles.DeleteOnCloseFile;
+import org.sosy_lab.common.io.IO;
+import org.sosy_lab.common.io.TempFile;
+import org.sosy_lab.common.io.TempFile.DeleteOnCloseFile;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.time.Timer;
 import org.sosy_lab.cpachecker.cfa.CFA;
@@ -65,9 +66,9 @@ import org.sosy_lab.cpachecker.core.reachedset.AggregatedReachedSets;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSetFactory;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
-import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
+import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateCPA;
 import org.sosy_lab.cpachecker.exceptions.CPAEnabledAnalysisPropertyViolationException;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
@@ -141,17 +142,16 @@ public class PDRAlgorithm implements Algorithm, StatisticsProvider {
     config = Objects.requireNonNull(pConfig);
     optionsCollection = new PDROptions(config);
 
-    predCPA = CPAs.retrieveCPA(Objects.requireNonNull(pCPA), PredicateCPA.class);
-    if (predCPA == null) {
-      throw new InvalidConfigurationException("PredicateCPA needed for PDRAlgorithm");
-    }
+    predCPA =
+        CPAs.retrieveCPAOrFail(
+            Objects.requireNonNull(pCPA), PredicateCPA.class, PDRAlgorithm.class);
     solver = predCPA.getSolver();
     fmgr = solver.getFormulaManager();
     bfmgr = fmgr.getBooleanFormulaManager();
     pfmgr = predCPA.getPathFormulaManager();
     shutdownNotifier = Objects.requireNonNull(pShutdownNotifier);
     logger = Objects.requireNonNull(pLogger);
-    compositeStats = new StatisticsDelegator("PDR related");
+    compositeStats = new StatisticsDelegator("PDR related", pLogger);
     stats = new PDRStatistics();
     compositeStats.register(stats);
     stepwiseTransition =
@@ -522,9 +522,11 @@ public class PDRAlgorithm implements Algorithm, StatisticsProvider {
 
     // This temp file will be automatically deleted when the try block terminates.
     try (DeleteOnCloseFile automatonFile =
-        MoreFiles.createTempFile("counterexample-automaton", ".txt")) {
-      try (Writer w =
-          MoreFiles.openOutputFile(automatonFile.toPath(), Charset.defaultCharset()); ) {
+        TempFile.builder()
+            .prefix("counterexample-automaton")
+            .suffix(".txt")
+            .createDeleteOnClose()) {
+      try (Writer w = IO.openOutputFile(automatonFile.toPath(), Charset.defaultCharset())) {
         ARGUtils.producePathAutomaton(w, paths, "ReplayAutomaton", null);
       }
 

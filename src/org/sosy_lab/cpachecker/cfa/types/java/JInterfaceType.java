@@ -23,13 +23,15 @@
  */
 package org.sosy_lab.cpachecker.cfa.types.java;
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.*;
-
-import org.sosy_lab.cpachecker.cfa.ast.java.VisibilityModifier;
-
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.sosy_lab.cpachecker.cfa.ast.java.VisibilityModifier;
 
 /**
  * Description of a Java interface.
@@ -262,11 +264,10 @@ public final class JInterfaceType extends JClassOrInterfaceType implements JRefe
    * @return a <code>List</code> of all sub types of this interface
    */
   public List<JClassOrInterfaceType> getAllSubTypesOfInterfaces() {
-
-    List<JClassOrInterfaceType> result = new LinkedList<>();
-    result.addAll(getAllSubInterfacesOfInterface());
-    result.addAll(getAllKnownImplementingClassesOfInterface());
-    return result;
+    return ImmutableList.<JClassOrInterfaceType>builder()
+        .addAll(getAllSubInterfacesOfInterface())
+        .addAll(getAllKnownImplementingClassesOfInterface())
+        .build();
   }
 
   /**

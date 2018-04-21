@@ -46,14 +46,15 @@ public class UsageReachedSet extends PartitionedReachedSet {
     }
   }
 
-  private final static RaceProperty propertyInstance = new RaceProperty();
+  private static final RaceProperty propertyInstance = new RaceProperty();
 
   private final Configuration config;
   private final LogManager logger;
 
   private UsageContainer container = null;
 
-  public UsageReachedSet(WaitlistFactory waitlistFactory, Configuration pConfig, LogManager pLogger) {
+  public UsageReachedSet(
+      WaitlistFactory waitlistFactory, Configuration pConfig, LogManager pLogger) {
     super(waitlistFactory);
     config = pConfig;
     logger = pLogger;
@@ -84,16 +85,15 @@ public class UsageReachedSet extends PartitionedReachedSet {
     super.clear();
   }
 
-
   @Override
-  public boolean hasTargetStates() {
+  public boolean hasViolatedProperties() {
     UsageContainer container = getUsageContainer();
     return container == null ? false : container.getTotalUnsafeSize() > 0;
   }
 
   @Override
-  public Set<Property> findViolatedProperties() {
-    if (hasTargetStates()) {
+  public Set<Property> getViolatedProperties() {
+    if (hasViolatedProperties()) {
       return Collections.singleton(propertyInstance);
     } else {
       return Collections.emptySet();
@@ -105,7 +105,7 @@ public class UsageReachedSet extends PartitionedReachedSet {
       if (container == null) {
         container = new UsageContainer(config, logger);
       }
-      //TODO lastState = null
+      // TODO lastState = null
       UsageState lastState = UsageState.get(getLastState());
       container.initContainerIfNecessary(lastState.getFunctionContainer());
       return container;

@@ -32,6 +32,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Maps;
 import com.google.common.collect.SetMultimap;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -47,12 +48,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 import javax.annotation.Nullable;
+import org.sosy_lab.common.Appender;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
-import org.sosy_lab.common.io.MoreFiles;
+import org.sosy_lab.common.io.IO;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult;
@@ -65,7 +67,10 @@ import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.counterexamples.CEXExporter;
+import org.sosy_lab.cpachecker.cpa.arg.witnessexport.ExtendedWitnessExporter;
+import org.sosy_lab.cpachecker.cpa.arg.witnessexport.WitnessExporter;
 import org.sosy_lab.cpachecker.cpa.partitioning.PartitioningCPA.PartitionState;
+import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.cwriter.ARGToCTranslator;
@@ -84,10 +89,29 @@ public class ARGStatistics implements Statistics {
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path argFile = Paths.get("ARG.dot");
 
+  @Option(
+    secure = true,
+    name = "pixelGraphicFile",
+    description =
+        "Export final ARG as pixel graphic to the given file name. The suffix is added "
+            + " corresponding"
+            + " to the value of option pixelgraphic.export.format"
+            + "If set to 'null', no pixel graphic is exported."
+  )
+  @FileOption(FileOption.Type.OUTPUT_FILE)
+  private Path pixelGraphicFile = Paths.get("ARG");
+
   @Option(secure=true, name="proofWitness",
       description="export a proof as .graphml file")
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path proofWitness = null;
+
+  @Option(
+    secure = true,
+    name = "compressWitness",
+    description = "compress the produced correctness-witness automata using GZIP compression."
+  )
+  private boolean compressWitness = true;
 
   @Option(secure=true, name="simplifiedARG.file",
       description="export final ARG as .dot file, showing only loop heads and function entries/exits")
@@ -114,10 +138,11 @@ public class ARGStatistics implements Statistics {
   private Writer refinementGraphUnderlyingWriter = null;
   private ARGToDotWriter refinementGraphWriter = null;
   private final @Nullable CEXExporter cexExporter;
-  private final ARGPathExporter argPathExporter;
+  private final WitnessExporter argWitnessExporter;
+  private final ExtendedWitnessExporter extendedWitnessExporter;
   private final AssumptionToEdgeAllocator assumptionToEdgeAllocator;
   private final ARGToCTranslator argToCExporter;
-
+  private final ARGToPixelsWriter argToBitmapExporter;
   protected final LogManager logger;
 
   public ARGStatistics(
@@ -129,14 +154,18 @@ public class ARGStatistics implements Statistics {
       throws InvalidConfigurationException {
     config.inject(this, ARGStatistics.class); // needed for sub-classes
 
+    argToBitmapExporter = new ARGToPixelsWriter(config);
     logger = pLogger;
     cpa = pCpa;
     assumptionToEdgeAllocator =
-        new AssumptionToEdgeAllocator(config, logger, cfa.getMachineModel());
-    cexExporter = new CEXExporter(config, logger, cfa, pSpecification, cpa);
-    argPathExporter = new ARGPathExporter(config, logger, pSpecification, cfa);
+        AssumptionToEdgeAllocator.create(config, logger, cfa.getMachineModel());
+    argWitnessExporter = new WitnessExporter(config, logger, pSpecification, cfa);
+    extendedWitnessExporter = new ExtendedWitnessExporter(config, logger, pSpecification, cfa);
+    cexExporter =
+        new CEXExporter(config, logger, cfa, cpa, argWitnessExporter, extendedWitnessExporter);
 
-    if (argFile == null && simplifiedArgFile == null && refinementGraphFile == null && proofWitness == null) {
+    if (argFile == null && simplifiedArgFile == null && refinementGraphFile == null
+        && proofWitness == null && pixelGraphicFile == null) {
       exportARG = false;
     }
 
@@ -158,7 +187,7 @@ public class ARGStatistics implements Statistics {
       // We do this lazily so that the file is written only if there are refinements.
       try {
         refinementGraphUnderlyingWriter =
-            MoreFiles.openOutputFile(refinementGraphFile, Charset.defaultCharset());
+            IO.openOutputFile(refinementGraphFile, Charset.defaultCharset());
         refinementGraphWriter = new ARGToDotWriter(refinementGraphUnderlyingWriter);
       } catch (IOException e) {
         if (refinementGraphUnderlyingWriter != null) {
@@ -189,12 +218,15 @@ public class ARGStatistics implements Statistics {
   }
 
   @Override
-  public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
-    if (cexExporter.dumpErrorPathImmediately() && !exportARG) {
+  public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {}
+
+  @Override
+  public void writeOutputFiles(Result pResult, UnmodifiableReachedSet pReached) {
+    if (cexExporter.dumpErrorPathImmediately() && !exportARG && !translateARG) {
       return;
     }
 
-    final Map<ARGState, CounterexampleInfo> counterexamples = getAllCounterexamples(pReached);
+    Map<ARGState, CounterexampleInfo> counterexamples = getAllCounterexamples(pReached);
 
     if (!cexExporter.dumpErrorPathImmediately() && pResult == Result.FALSE) {
       for (Map.Entry<ARGState, CounterexampleInfo> cex : counterexamples.entrySet()) {
@@ -207,10 +239,10 @@ public class ARGStatistics implements Statistics {
     }
 
     if (translateARG) {
-      try (Writer writer = MoreFiles.openOutputFile(argCFile, Charset.defaultCharset())) {
+      try (Writer writer = IO.openOutputFile(argCFile, Charset.defaultCharset())) {
         writer.write(
             argToCExporter.translateARG((ARGState) pReached.getFirstState()));
-      } catch (IOException e) {
+      } catch (IOException | CPAException e) {
         logger.logUserException(Level.WARNING, e, "Could not write C translation of ARG to file");
       }
     }
@@ -269,13 +301,17 @@ public class ARGStatistics implements Statistics {
         ARGUtils.projectARG(rootState, ARGState::getChildren, ARGUtils.RELEVANT_STATE);
     Function<ARGState, Collection<ARGState>> relevantSuccessorFunction = Functions.forMap(relevantSuccessorRelation.asMap(), ImmutableSet.<ARGState>of());
 
-    if (proofWitness != null && pResult == Result.TRUE) {
-      try (Writer w =
-          MoreFiles.openOutputFile(
-              adjustPathNameForPartitioning(rootState, proofWitness), StandardCharsets.UTF_8)) {
-        argPathExporter.writeProofWitness(w, rootState,
-            Predicates.alwaysTrue(),
+    if (proofWitness != null && pResult != Result.FALSE) {
+      try {
+        Path witnessFile = adjustPathNameForPartitioning(rootState, proofWitness);
+        Appender content = pAppendable -> argWitnessExporter.writeProofWitness(pAppendable, rootState, Predicates.alwaysTrue(),
             Predicates.alwaysTrue());
+        if (!compressWitness) {
+          IO.writeFile(witnessFile, StandardCharsets.UTF_8, content);
+        } else {
+          witnessFile = witnessFile.resolveSibling(witnessFile.getFileName() + ".gz");
+          IO.writeGZIPFile(witnessFile, StandardCharsets.UTF_8, content);
+        }
       } catch (IOException e) {
         logger.logUserException(Level.WARNING, e, "Could not write ARG to file");
       }
@@ -283,7 +319,7 @@ public class ARGStatistics implements Statistics {
 
     if (argFile != null) {
       try (Writer w =
-          MoreFiles.openOutputFile(
+          IO.openOutputFile(
               adjustPathNameForPartitioning(rootState, argFile), Charset.defaultCharset())) {
         ARGToDotWriter.write(
             w, rootState, ARGState::getChildren, Predicates.alwaysTrue(), isTargetPathEdge);
@@ -292,9 +328,18 @@ public class ARGStatistics implements Statistics {
       }
     }
 
+    if (pixelGraphicFile != null) {
+      try {
+        Path adjustedBitmapFileName = adjustPathNameForPartitioning(rootState, pixelGraphicFile);
+        argToBitmapExporter.write(rootState, adjustedBitmapFileName);
+      } catch (IOException | InvalidConfigurationException e) {
+        logger.logUserException(Level.WARNING, e, "Could not write ARG bitmap to file");
+      }
+    }
+
     if (simplifiedArgFile != null) {
       try (Writer w =
-          MoreFiles.openOutputFile(
+          IO.openOutputFile(
               adjustPathNameForPartitioning(rootState, simplifiedArgFile),
               Charset.defaultCharset())) {
         ARGToDotWriter.write(w, rootState,
@@ -322,7 +367,8 @@ public class ARGStatistics implements Statistics {
     }
   }
 
-  private Map<ARGState, CounterexampleInfo> getAllCounterexamples(final UnmodifiableReachedSet pReached) {
+  public Map<ARGState, CounterexampleInfo> getAllCounterexamples(
+      final UnmodifiableReachedSet pReached) {
     ImmutableMap.Builder<ARGState, CounterexampleInfo> counterexamples = ImmutableMap.builder();
 
     for (AbstractState targetState : from(pReached).filter(IS_TARGET_STATE)) {
@@ -335,7 +381,10 @@ public class ARGStatistics implements Statistics {
       }
     }
 
-    return counterexamples.build();
+    Map<ARGState, CounterexampleInfo> allCounterexamples = counterexamples.build();
+    final Map<ARGState, CounterexampleInfo> preciseCounterexamples =
+        Maps.filterValues(allCounterexamples, cex -> cex.isPreciseCounterExample());
+    return preciseCounterexamples.isEmpty() ? allCounterexamples : preciseCounterexamples;
   }
 
   public void exportCounterexampleOnTheFly(

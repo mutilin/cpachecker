@@ -23,8 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.value;
 
-import java.util.List;
-import javax.annotation.Nullable;
+import java.util.OptionalLong;
 import org.sosy_lab.common.log.LogManagerWithoutDuplicates;
 import org.sosy_lab.cpachecker.cfa.ast.AIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
@@ -37,21 +36,17 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.DefaultCExpressionVisitor;
 import org.sosy_lab.cpachecker.cfa.ast.java.JIdExpression;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
-import org.sosy_lab.cpachecker.cfa.types.MachineModel.BaseSizeofVisitor;
 import org.sosy_lab.cpachecker.cfa.types.Type;
 import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
-import org.sosy_lab.cpachecker.cfa.types.c.CBitFieldType;
-import org.sosy_lab.cpachecker.cfa.types.c.CComplexType.ComplexTypeKind;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
-import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
+import org.sosy_lab.cpachecker.cfa.types.c.CProblemType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.defaults.ForwardingTransferRelation;
 import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
-
 
 /**
  * This Visitor returns the value from an expression.
@@ -191,7 +186,7 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
     return locationEvaluator.getArraySlotLocationFromArrayStart(pArrayStartLocation, pSlotNumber, pArrayType);
   }
 
-  private static class MemoryLocationEvaluator extends DefaultCExpressionVisitor<MemoryLocation, UnrecognizedCCodeException> {
+  protected static class MemoryLocationEvaluator extends DefaultCExpressionVisitor<MemoryLocation, UnrecognizedCCodeException> {
 
     private final ExpressionValueVisitor evv;
 
@@ -235,7 +230,7 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
         return null;
       }
 
-      long typeSize = evv.getBitSizeof(elementType);
+      long typeSize = evv.getMachineModel().getSizeofInBits(elementType);
 
       long subscriptOffset = subscriptValue.asNumericValue().longValue() * typeSize;
 
@@ -276,9 +271,9 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
 
       CType canonicalOwnerType = pOwnerType.getCanonicalType();
 
-      Integer offset = getFieldOffsetInBits(canonicalOwnerType, pFieldName);
+      OptionalLong offset = getFieldOffsetInBits(canonicalOwnerType, pFieldName);
 
-      if (offset == null) {
+      if (!offset.isPresent()) {
         return null;
       }
 
@@ -287,69 +282,38 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
       if (pStartLocation.isOnFunctionStack()) {
 
         return MemoryLocation.valueOf(
-            pStartLocation.getFunctionName(), pStartLocation.getIdentifier(), baseOffset + offset);
+            pStartLocation.getFunctionName(), pStartLocation.getIdentifier(), baseOffset + offset.getAsLong());
       } else {
 
-        return MemoryLocation.valueOf(pStartLocation.getIdentifier(), baseOffset + offset);
+        return MemoryLocation.valueOf(pStartLocation.getIdentifier(), baseOffset + offset.getAsLong());
       }
     }
 
-    private @Nullable Integer getFieldOffsetInBits(CType ownerType, String fieldName)
+    private OptionalLong getFieldOffsetInBits(CType ownerType, String fieldName)
         throws UnrecognizedCCodeException {
 
       if (ownerType instanceof CElaboratedType) {
         return getFieldOffsetInBits(((CElaboratedType) ownerType).getRealType(), fieldName);
       } else if (ownerType instanceof CCompositeType) {
-        return getFieldOffsetInBits((CCompositeType) ownerType, fieldName);
+        return OptionalLong.of(
+            evv.getMachineModel().getFieldOffsetInBits((CCompositeType) ownerType, fieldName));
       } else if (ownerType instanceof CPointerType) {
         evv.missingPointer = true;
-        return null;
+        return OptionalLong.empty();
+      } else if (ownerType instanceof CProblemType) {
+         /*
+          * At this point CProblemType should not occur
+          * unless the parsing of the automaton for
+          * Counterexample-check failed to determine
+          * the type of an assumptions operand.
+          *
+          * This is unfortunate but not as critical as
+          * letting CPAchecker crash here.
+          */
+         return OptionalLong.empty();
       }
 
       throw new AssertionError();
-    }
-
-    private @Nullable Integer getFieldOffsetInBits(CCompositeType ownerType, String fieldName) {
-
-      List<CCompositeTypeMemberDeclaration> membersOfType = ownerType.getMembers();
-
-      int bitOffset = 0;
-
-      if (ownerType.getKind() == ComplexTypeKind.STRUCT) {
-        int sizeOfConsecutiveBitFields = 0;
-        BaseSizeofVisitor sizeofVisitor = new BaseSizeofVisitor(evv.getMachineModel());
-        for (CCompositeTypeMemberDeclaration typeMember : membersOfType) {
-          String memberName = typeMember.getName();
-
-          if (memberName.equals(fieldName)) {
-            return bitOffset;
-          }
-
-          CType type = typeMember.getType();
-          if (type.isIncomplete()) {
-            return null;
-          }
-
-          int fieldSizeInBits = evv.getMachineModel().getBitSizeof(type);
-
-          if (typeMember.getType() instanceof CBitFieldType) {
-            sizeOfConsecutiveBitFields += fieldSizeInBits;
-          } else {
-            bitOffset += sizeOfConsecutiveBitFields;
-            sizeOfConsecutiveBitFields = 0;
-            bitOffset +=
-                evv.getMachineModel()
-                    .getPadding(sizeofVisitor.calculateByteSize(bitOffset), typeMember.getType());
-            bitOffset += fieldSizeInBits;
-          }
-        }
-      }
-
-      if (membersOfType.stream().anyMatch(m -> m.getName().equals(fieldName))) {
-        return 0;
-      }
-
-      return null;
     }
 
     protected MemoryLocation getArraySlotLocationFromArrayStart(
@@ -357,7 +321,7 @@ public class ExpressionValueVisitor extends AbstractExpressionValueVisitor {
         final int pSlotNumber,
         final CArrayType pArrayType) {
 
-      long typeSize = evv.getBitSizeof(pArrayType.getType());
+      long typeSize = evv.getMachineModel().getSizeofInBits(pArrayType.getType());
       long offset = typeSize * pSlotNumber;
       long baseOffset = pArrayStartLocation.isReference() ? pArrayStartLocation.getOffset() : 0;
 

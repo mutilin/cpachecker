@@ -28,27 +28,27 @@ import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.cpachecker.util.AbstractStates.IS_TARGET_STATE;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
-import com.google.common.collect.Sets;
-
-import org.sosy_lab.cpachecker.cfa.model.CFANode;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
-import org.sosy_lab.cpachecker.core.interfaces.Precision;
-import org.sosy_lab.cpachecker.core.interfaces.Property;
-import org.sosy_lab.cpachecker.core.interfaces.Targetable;
-import org.sosy_lab.cpachecker.core.waitlist.Waitlist;
-import org.sosy_lab.cpachecker.core.waitlist.Waitlist.WaitlistFactory;
-import org.sosy_lab.cpachecker.util.Pair;
-
 import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.BiConsumer;
-
 import javax.annotation.Nullable;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.Precision;
+import org.sosy_lab.cpachecker.core.interfaces.Property;
+import org.sosy_lab.cpachecker.core.interfaces.Targetable;
+import org.sosy_lab.cpachecker.core.waitlist.AbstractSortedWaitlist;
+import org.sosy_lab.cpachecker.core.waitlist.Waitlist;
+import org.sosy_lab.cpachecker.core.waitlist.Waitlist.WaitlistFactory;
+import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.statistics.AbstractStatValue;
 
 /**
  * Basic implementation of ReachedSet.
@@ -292,20 +292,26 @@ class DefaultReachedSet implements ReachedSet {
     return reached.keySet().toString();
   }
 
+  public Map<String, ? extends AbstractStatValue> getStatistics() {
+    if (waitlist instanceof AbstractSortedWaitlist) {
+      return ((AbstractSortedWaitlist<?>) waitlist).getDelegationCounts();
+
+    } else {
+      return ImmutableMap.of();
+    }
+  }
+
   @Override
-  public boolean hasTargetStates() {
+  public boolean hasViolatedProperties() {
     return from(unmodifiableReached).anyMatch(IS_TARGET_STATE);
   }
 
   @Override
-  public Set<Property> findViolatedProperties() {
-    final Set<Property> result = Sets.newHashSet();
-
-    for (AbstractState e : from(unmodifiableReached).filter(IS_TARGET_STATE)) {
-      Targetable t = (Targetable) e;
-      result.addAll(t.getViolatedProperties());
-    }
-
-    return result;
+  public Collection<Property> getViolatedProperties() {
+    return from(unmodifiableReached)
+        .filter(IS_TARGET_STATE)
+        .filter(Targetable.class)
+        .transformAndConcat(Targetable::getViolatedProperties)
+        .toSet();
   }
 }

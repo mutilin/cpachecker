@@ -27,20 +27,20 @@ import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
+import org.sosy_lab.cpachecker.cpa.bam.BAMCPA;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
 import org.sosy_lab.cpachecker.cpa.bam.BAMSubgraphIterator;
-import org.sosy_lab.cpachecker.cpa.bam.BAMTransferRelation;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.RefinementBlockFactory.PathEquation;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -49,12 +49,11 @@ import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-
 public class PathPairIterator extends
     GenericIterator<Pair<UsageInfo, UsageInfo>, Pair<ExtendedARGPath, ExtendedARGPath>> {
 
   private final Set<List<Integer>> refinedStates = new HashSet<>();
-  private final BAMTransferRelation transfer;
+  private final BAMCPA bamCpa;
   private BAMMultipleCEXSubgraphComputer subgraphComputer;
   private final Map<UsageInfo, BAMSubgraphIterator> targetToPathIterator;
 
@@ -75,10 +74,13 @@ public class PathPairIterator extends
   //internal state
   private ExtendedARGPath firstPath = null;
 
-  public PathPairIterator(ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper,
-      BAMTransferRelation bamTransfer, PathEquation type) throws InvalidConfigurationException {
+  public PathPairIterator(
+      ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper,
+      BAMCPA pBamCpa,
+      PathEquation type)
+      throws InvalidConfigurationException {
     super(pWrapper);
-    transfer = bamTransfer;
+    bamCpa = pBamCpa;
 
     switch (type) {
       case ARGStateId:
@@ -93,15 +95,15 @@ public class PathPairIterator extends
         throw new InvalidConfigurationException("Unexpexted type " + type);
 
     }
-    targetToPathIterator = Maps.newHashMap();
+    targetToPathIterator = new IdentityHashMap<>();
   }
 
   @Override
   protected void init(Pair<UsageInfo, UsageInfo> pInput) {
     firstPath = null;
-    //subgraph computer need partitioning, which is not built at creation.
-    //Thus, we move the creation of subgraphcomputer here
-    subgraphComputer = transfer.createBAMMultipleSubgraphComputer(idExtractor);
+    // subgraph computer need partitioning, which is not built at creation.
+    // Thus, we move the creation of subgraphcomputer here
+    subgraphComputer = bamCpa.createBAMMultipleSubgraphComputer(idExtractor);
     targetToPathIterator.clear();
   }
 
@@ -154,7 +156,7 @@ public class PathPairIterator extends
   }
 
   @Override
-  protected void finalize(Pair<ExtendedARGPath, ExtendedARGPath> pathPair, RefinementResult wrapperResult) {
+  protected void finishIteration(Pair<ExtendedARGPath, ExtendedARGPath> pathPair, RefinementResult wrapperResult) {
     ExtendedARGPath firstExtendedPath, secondExtendedPath;
 
     firstExtendedPath = pathPair.getFirst();
@@ -187,7 +189,7 @@ public class PathPairIterator extends
   }
 
   @Override
-  public void printDetailedStatistics(StatisticsWriter pOut) {
+  protected void printDetailedStatistics(StatisticsWriter pOut) {
     pOut.spacer()
       .put(computingPath)
       .put(additionTimerCheck)
@@ -197,7 +199,7 @@ public class PathPairIterator extends
   }
 
   @Override
-  public void handleFinishSignal(Class<? extends RefinementInterface> callerClass) {
+  protected void handleFinishSignal(Class<? extends RefinementInterface> callerClass) {
     if (callerClass.equals(IdentifierIterator.class)) {
       //Refinement iteration finishes
       refinedStates.clear();
@@ -215,7 +217,7 @@ public class PathPairIterator extends
     if (!path.isUnreachable()) {
       List<ExtendedARGPath> alreadyComputedPaths;
       if (!alreadyComputed) {
-        alreadyComputedPaths = new LinkedList<>();
+        alreadyComputedPaths = new ArrayList<>();
         computedPathsForUsage.put(usage, alreadyComputedPaths);
       } else {
         alreadyComputedPaths = computedPathsForUsage.get(usage);
@@ -237,8 +239,9 @@ public class PathPairIterator extends
     //Start from already computed set (it is partially refined)
     Iterator<ExtendedARGPath> iterator = currentIterators.get(info);
     if (iterator == null && computedPathsForUsage.containsKey(info)) {
-      //first call
-      iterator = computedPathsForUsage.get(info).iterator();
+      // first call
+      // Clone the set to avoid concurrent modification
+      iterator = Sets.newHashSet(computedPathsForUsage.get(info)).iterator();
       currentIterators.put(info, iterator);
     }
 
@@ -279,5 +282,4 @@ public class PathPairIterator extends
     }
     previousForkForUsage.put(path.getUsageInfo(), (BackwardARGState)nextStart);*/
   }
-
 }

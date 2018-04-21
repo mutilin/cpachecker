@@ -25,7 +25,7 @@ package org.sosy_lab.cpachecker.cfa.blocks;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSet.Builder;
-import java.util.Collections;
+import com.google.common.collect.ImmutableSortedSet;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
@@ -63,18 +63,22 @@ public class Block {
     this(pReferencedVariables, pCallNodes, pReturnNodes, allNodes, ImmutableSet.of(), ImmutableSet.of());
   }
 
-  public Block(Iterable<ReferencedVariable> pReferencedVariables,
-      Set<CFANode> pCallNodes, Set<CFANode> pReturnNodes,
+  public Block(
+      Iterable<ReferencedVariable> pReferencedVariables,
+      Set<CFANode> pCallNodes,
+      Set<CFANode> pReturnNodes,
       Iterable<CFANode> allNodes) {
-    this(ImmutableSet.copyOf(pReferencedVariables), pCallNodes, pReturnNodes, ImmutableSet.copyOf(allNodes));
+
+    referencedVariables = ImmutableSet.copyOf(pReferencedVariables);
+    callNodes = ImmutableSortedSet.copyOf(pCallNodes);
+    returnNodes = ImmutableSortedSet.copyOf(pReturnNodes);
+    nodes = ImmutableSortedSet.copyOf(allNodes);
+    capturedLocks = ImmutableSet.of();
+    memoryLocations = ImmutableSet.of();
   }
 
   public Set<CFANode> getCallNodes() {
     return callNodes;
-  }
-
-  public Set<LockIdentifier> getCapturedLocks() {
-    return Collections.unmodifiableSet(capturedLocks);
   }
 
   public CFANode getCallNode() {
@@ -82,12 +86,14 @@ public class Block {
     return callNodes.iterator().next();
   }
 
-  /** returns a collection of variables used in the block */
+  /** returns a collection of variables used in the block.
+   * For soundness this must be a superset of the actually used variables. */
   public Set<ReferencedVariable> getReferencedVariables() {
     return referencedVariables;
   }
 
-  /** returns a collection of variables used in the block */
+  /** returns a collection of variables used in the block.
+   * For soundness this must be a superset of the actually used variables. */
   public Set<String> getVariables() {
     if (variables == null) {
       Builder<String> builder = ImmutableSet.builder();

@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
@@ -33,10 +34,9 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CProblemType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-import java.util.Objects;
-
 public final class CFieldReference extends AbstractExpression implements CLeftHandSide {
 
+  private static final long serialVersionUID = 3207784831993480113L;
   private final String         name;
   private final CExpression owner;
   private final boolean        isPointerDereference;
@@ -161,13 +161,7 @@ public final class CFieldReference extends AbstractExpression implements CLeftHa
    */
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 7;
-    result = prime * result + (isPointerDereference ? 1231 : 1237);
-    result = prime * result + Objects.hashCode(name);
-    result = prime * result + Objects.hashCode(owner);
-    result = prime * result + super.hashCode();
-    return result;
+    return Objects.hash(isPointerDereference, name, owner) * 31 + super.hashCode();
   }
 
   /* (non-Javadoc)

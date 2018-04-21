@@ -23,14 +23,14 @@
  */
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-import java.util.Objects;
-
 public final class CTypeIdExpression extends AbstractExpression implements CExpression {
 
+  private static final long serialVersionUID = -665995216646475799L;
   private final TypeIdOperator operator;
   private final CType type;
 
@@ -100,12 +100,7 @@ public final class CTypeIdExpression extends AbstractExpression implements CExpr
    */
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 7;
-    result = prime * result + Objects.hashCode(operator);
-    result = prime * result + Objects.hashCode(type);
-    result = prime * result + super.hashCode();
-    return result;
+    return Objects.hash(operator, type) * 31 + super.hashCode();
   }
 
   /* (non-Javadoc)

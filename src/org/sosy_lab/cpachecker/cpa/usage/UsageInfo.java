@@ -25,8 +25,8 @@ package org.sosy_lab.cpachecker.cpa.usage;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -40,7 +40,6 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
-
 public class UsageInfo implements Comparable<UsageInfo> {
 
   public static enum Access {
@@ -48,20 +47,21 @@ public class UsageInfo implements Comparable<UsageInfo> {
     READ;
   }
 
-  private final static UsageInfo IRRELEVANT_USAGE = new UsageInfo();
+  private static final UsageInfo IRRELEVANT_USAGE = new UsageInfo();
 
   private final LineInfo line;
   private final Access accessType;
   private AbstractState keyState;
   private List<CFAEdge> path;
   private final SingleIdentifier id;
-  //Can not be immutable due to reduce/expand - lock states are modified (may be smth else)
-  private final Map<Class<? extends CompatibleState>, CompatibleState> compatibleStates = new LinkedHashMap<>();
+  // Can not be immutable due to reduce/expand - lock states are modified (may be smth else)
+  private final Map<Class<? extends CompatibleState>, CompatibleState> compatibleStates =
+      new LinkedHashMap<>();
   private boolean isLooped;
   private boolean isReachable;
 
   private UsageInfo() {
-    //Only for unsupported usage
+    // Only for unsupported usage
     line = null;
     accessType = Access.WRITE;
     keyState = null;
@@ -79,13 +79,16 @@ public class UsageInfo implements Comparable<UsageInfo> {
     id = ident;
   }
 
-  public static UsageInfo createUsageInfo(@Nonnull Access atype, int l,
-      @Nonnull UsageState state, AbstractIdentifier ident) {
+  public static UsageInfo createUsageInfo(
+      @Nonnull Access atype, int l, @Nonnull UsageState state, AbstractIdentifier ident) {
     if (ident instanceof SingleIdentifier) {
-      UsageInfo result = new UsageInfo(atype,
-          new LineInfo(l, AbstractStates.extractLocation(state)), (SingleIdentifier)ident);
-      FluentIterable<CompatibleState> states = AbstractStates.asIterable(state)
-        .filter(CompatibleState.class);
+      UsageInfo result =
+          new UsageInfo(
+              atype,
+              new LineInfo(l, AbstractStates.extractLocation(state)),
+              (SingleIdentifier) ident);
+      FluentIterable<CompatibleState> states =
+          AbstractStates.asIterable(state).filter(CompatibleState.class);
       if (states.allMatch(s -> s.isRelevantFor(result.id))) {
         states.forEach(s -> result.compatibleStates.put(s.getClass(), s.prepareToStore()));
         return result;
@@ -99,7 +102,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
   }
 
   public List<CompatibleState> getAllCompatibleStates() {
-    return new LinkedList<>(compatibleStates.values());
+    return new ArrayList<>(compatibleStates.values());
   }
 
   public @Nonnull Access getAccess() {
@@ -111,7 +114,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
   }
 
   public @Nonnull SingleIdentifier getId() {
-    assert(id != null);
+    assert (id != null);
     return id;
   }
 
@@ -129,12 +132,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + Objects.hashCode(accessType);
-    result = prime * result + Objects.hashCode(line);
-    result = prime * result + Objects.hashCode(compatibleStates);
-    return result;
+    return Objects.hash(accessType, line, compatibleStates);
   }
 
   @Override
@@ -142,8 +140,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
     if (this == obj) {
       return true;
     }
-    if (obj == null ||
-        getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     UsageInfo other = (UsageInfo) obj;
@@ -153,7 +150,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
   }
 
   @Override
-  public String toString(){
+  public String toString() {
     StringBuilder sb = new StringBuilder();
 
     if (id != null) {
@@ -200,7 +197,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
   }
 
   public List<CFAEdge> getPath() {
-    //assert path != null;
+    // assert path != null;
     return path;
   }
 
@@ -213,16 +210,18 @@ public class UsageInfo implements Comparable<UsageInfo> {
     }
     Set<Class<? extends CompatibleState>> currentStateTypes = compatibleStates.keySet();
     Set<Class<? extends CompatibleState>> otherStateTypes = pO.compatibleStates.keySet();
-    Preconditions.checkArgument(currentStateTypes.equals(otherStateTypes),
+    Preconditions.checkArgument(
+        currentStateTypes.equals(otherStateTypes),
         "Different compatible states in usages are not supported");
     for (Class<? extends CompatibleState> pClass : currentStateTypes) {
-      //May be sorted not in the convenient order: Locks last
+      // May be sorted not in the convenient order: Locks last
       CompatibleState currentState = this.getState(pClass);
       if (currentState != null) {
-        result = currentState.compareTo(pO.getState(pClass));
+        // Revert order to negate the result:
+        // Usages without locks are more convenient to analyze
+        result = pO.getState(pClass).compareTo(currentState);
         if (result != 0) {
-          //Usages without locks are more convenient to analyze
-          return -result;
+          return result;
         }
       }
     }
@@ -239,7 +238,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
      * that old refined usage with zero key state is the same as new one
      */
     if (this.id != null && pO.id != null) {
-      //Identifiers may not be equal here:
+      // Identifiers may not be equal here:
       // if (a.b > c.b)
       // FieldIdentifiers are the same (when we add to container),
       // but full identifiers (here) are not equal
@@ -257,8 +256,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
     isReachable = false;
   }
 
-  @Override
-  public UsageInfo clone() {
+  public UsageInfo copy() {
     UsageInfo result = new UsageInfo(accessType, line, id);
     result.keyState = this.keyState;
     result.path = this.path;
@@ -269,7 +267,7 @@ public class UsageInfo implements Comparable<UsageInfo> {
   }
 
   public UsageInfo expand(LockState expandedState) {
-    UsageInfo result = clone();
+    UsageInfo result = copy();
 
     result.compatibleStates.put(LockState.class, expandedState);
     return result;

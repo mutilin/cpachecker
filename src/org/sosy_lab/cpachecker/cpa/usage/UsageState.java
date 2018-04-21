@@ -27,7 +27,6 @@ import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import java.util.Collections;
 import java.util.HashMap;
@@ -65,19 +64,20 @@ public class UsageState extends AbstractSingleWrapperState implements
   private TemporaryUsageStorage recentUsages;
   private boolean isStorageCloned;
   private final FunctionContainer functionContainer;
-  private final StateStatistics stats;
+  private final transient StateStatistics stats;
 
   private boolean isExitState;
 
-  private final Map<AbstractIdentifier, AbstractIdentifier> variableBindingRelation;
+  private final transient Map<AbstractIdentifier, AbstractIdentifier> variableBindingRelation;
 
-  private UsageState(final AbstractState pWrappedElement
-      , final Map<AbstractIdentifier, AbstractIdentifier> pVarBind
-      , final TemporaryUsageStorage pRecentUsages
-      , final boolean pCloned
-      , final FunctionContainer pFuncContainer
-      , final StateStatistics pStats
-      , boolean exit) {
+  private UsageState(
+      final AbstractState pWrappedElement,
+      final Map<AbstractIdentifier, AbstractIdentifier> pVarBind,
+      final TemporaryUsageStorage pRecentUsages,
+      final boolean pCloned,
+      final FunctionContainer pFuncContainer,
+      final StateStatistics pStats,
+      boolean exit) {
     super(pWrappedElement);
     variableBindingRelation = pVarBind;
     recentUsages = pRecentUsages;
@@ -89,32 +89,40 @@ public class UsageState extends AbstractSingleWrapperState implements
 
   public static UsageState createInitialState(final AbstractState pWrappedElement) {
     FunctionContainer initialContainer = FunctionContainer.createInitialContainer();
-    return new UsageState(pWrappedElement, new HashMap<>(), new TemporaryUsageStorage(),
-        true, initialContainer, new StateStatistics(initialContainer.getStatistics()), false);
+    return new UsageState(
+        pWrappedElement,
+        new HashMap<>(),
+        new TemporaryUsageStorage(),
+        true,
+        initialContainer,
+        new StateStatistics(initialContainer.getStatistics()),
+        false);
   }
 
   private UsageState(final AbstractState pWrappedElement, final UsageState state) {
-    this(pWrappedElement, new HashMap<>(state.variableBindingRelation), state.recentUsages,
-        false, state.functionContainer, state.stats, state.isExitState);
+    this(
+        pWrappedElement,
+        new HashMap<>(state.variableBindingRelation),
+        state.recentUsages,
+        false,
+        state.functionContainer,
+        state.stats,
+        state.isExitState);
   }
 
   public boolean containsLinks(final AbstractIdentifier id) {
     /* Special contains!
-    *  if we have *b, map also contains **b, ***b and so on.
-    *  So, if we get **b, having (*b, c), we give *c
-    */
+     *  if we have *b, map also contains **b, ***b and so on.
+     *  So, if we get **b, having (*b, c), we give *c
+     */
     return from(Identifiers.getDereferencedIdentifiers(id))
-           .anyMatch(variableBindingRelation::containsKey);
+        .anyMatch(variableBindingRelation::containsKey);
   }
 
   public void put(final AbstractIdentifier id1, final AbstractIdentifier id2) {
     if (!id1.equals(id2)) {
       variableBindingRelation.put(id1, id2);
     }
-  }
-
-  public boolean containsUsage(final SingleIdentifier id) {
-    return recentUsages.containsKey(id);
   }
 
   public AbstractIdentifier getLinksIfNecessary(final AbstractIdentifier id) {
@@ -127,7 +135,7 @@ public class UsageState extends AbstractSingleWrapperState implements
      */
     Optional<AbstractIdentifier> linkedId =
         from(Identifiers.getDereferencedIdentifiers(id))
-          .firstMatch(variableBindingRelation::containsKey);
+            .firstMatch(variableBindingRelation::containsKey);
 
     if (linkedId.isPresent()) {
       AbstractIdentifier pointsFrom = linkedId.get();
@@ -145,12 +153,11 @@ public class UsageState extends AbstractSingleWrapperState implements
     return null;
   }
 
-  @Override
-  public UsageState clone() {
-    return clone(this.getWrappedState());
+  public UsageState copy() {
+    return copy(this.getWrappedState());
   }
 
-  public UsageState clone(final AbstractState pWrappedState) {
+  public UsageState copy(final AbstractState pWrappedState) {
     return new UsageState(pWrappedState, this);
   }
 
@@ -168,8 +175,7 @@ public class UsageState extends AbstractSingleWrapperState implements
     if (this == obj) {
       return true;
     }
-    if (obj == null ||
-        getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     UsageState other = (UsageState) obj;
@@ -190,7 +196,7 @@ public class UsageState extends AbstractSingleWrapperState implements
 
   @Override
   public boolean isLessOrEqual(final UsageState other) {
-    //If we are here, the wrapped domain return true and the stop depends only on this value
+    // If we are here, the wrapped domain return true and the stop depends only on this value
 
     // this element is not less or equal than the other element, if that one contains less elements
     if (this.variableBindingRelation.size() > other.variableBindingRelation.size()) {
@@ -198,9 +204,10 @@ public class UsageState extends AbstractSingleWrapperState implements
     }
 
     // also, this element is not less or equal than the other element,
-    // if any one constant's value of the other element differs from the constant's value in this element
+    // if any one constant's value of the other element differs from the constant's value in this
+    // element
     if (from(variableBindingRelation.keySet())
-         .anyMatch(Predicates.not(other.variableBindingRelation::containsKey))) {
+        .anyMatch(Predicates.not(other.variableBindingRelation::containsKey))) {
       return false;
     }
 
@@ -214,9 +221,9 @@ public class UsageState extends AbstractSingleWrapperState implements
   }
 
   public void addUsage(final SingleIdentifier id, final UsageInfo usage) {
-    //Clone it
+    // Clone it
     if (!isStorageCloned) {
-      recentUsages = recentUsages.clone();
+      recentUsages = recentUsages.copy();
       isStorageCloned = true;
     }
     recentUsages.add(id, usage);
@@ -232,20 +239,27 @@ public class UsageState extends AbstractSingleWrapperState implements
     LockState rootLockState = AbstractStates.extractStateByType(this, LockState.class);
     LockState reducedLockState = AbstractStates.extractStateByType(wrappedState, LockState.class);
     List<LockEffect> difference;
-    if (rootLockState == null && reducedLockState == null) {
-      //No LockCPA
+    if (rootLockState == null || reducedLockState == null) {
+      // No LockCPA
       difference = Collections.emptyList();
     } else {
       difference = reducedLockState.getDifference(rootLockState);
     }
 
-    return new UsageState(wrappedState, new HashMap<>(), recentUsages.clone(),
-        true, functionContainer.clone(difference), this.stats, this.isExitState);
+    return new UsageState(
+        wrappedState,
+        new HashMap<>(),
+        recentUsages.copy(),
+        true,
+        functionContainer.clone(difference),
+        this.stats,
+        this.isExitState);
   }
 
   public void saveUnsafesInContainerIfNecessary(AbstractState abstractState) {
     ARGState argState = AbstractStates.extractStateByType(abstractState, ARGState.class);
-    PredicateAbstractState state = AbstractStates.extractStateByType(argState, PredicateAbstractState.class);
+    PredicateAbstractState state =
+        AbstractStates.extractStateByType(argState, PredicateAbstractState.class);
     if (state == null || (!state.getAbstractionFormula().isFalse() && state.isAbstractionState())) {
       recentUsages.setKeyState(argState);
       stats.addRecentUsagesTimer.start();
@@ -260,7 +274,7 @@ public class UsageState extends AbstractSingleWrapperState implements
   }
 
   public void asExitable() {
-    //return new UsageExitableState(this);
+    // return new UsageExitableState(this);
     isExitState = true;
   }
 
@@ -268,10 +282,10 @@ public class UsageState extends AbstractSingleWrapperState implements
     return stats;
   }
 
-  @Override
+  /*@Override
   public boolean isExitState() {
     return isExitState;
-  }
+  }*/
 
   @Override
   public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
@@ -330,10 +344,7 @@ public class UsageState extends AbstractSingleWrapperState implements
     }
 
     public void printStatistics(StatisticsWriter out) {
-      out.spacer()
-         .put(expandTimer)
-         .put(joinTimer)
-         .put(addRecentUsagesTimer);
+      out.spacer().put(expandTimer).put(joinTimer).put(addRecentUsagesTimer);
 
       storageStats.printStatistics(out);
     }
@@ -345,7 +356,17 @@ public class UsageState extends AbstractSingleWrapperState implements
 
   @Override
   public UsageState join(UsageState pOther) {
-    Preconditions.checkArgument(false);
-    return null;
+    throw new UnsupportedOperationException("Join is not permitted for UsageCPA");
+  }
+
+  protected Object readResolve() {
+    return new UsageState(
+        getWrappedState(),
+        new HashMap<>(),
+        this.recentUsages,
+        this.isStorageCloned,
+        this.functionContainer,
+        new StateStatistics(this.functionContainer.getStatistics()),
+        this.isExitState);
   }
 }

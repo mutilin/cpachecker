@@ -26,10 +26,10 @@ package org.sosy_lab.cpachecker.cpa.usage.storage;
 import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -141,11 +141,12 @@ public class UsageContainer {
       unsafeUsages = 0;
       Set<SingleIdentifier> toDelete = new HashSet<>();
 
-      for (SingleIdentifier id : unrefinedIds.keySet()) {
-        UnrefinedUsagePointSet tmpList = unrefinedIds.get(id);
+      for (Entry<SingleIdentifier, UnrefinedUsagePointSet> entry : unrefinedIds.entrySet()) {
+        UnrefinedUsagePointSet tmpList = entry.getValue();
         if (detector.isUnsafe(tmpList)) {
           unsafeUsages += tmpList.size();
         } else {
+          SingleIdentifier id = entry.getKey();
           toDelete.add(id);
           falseUnsafes.add(id);
         }
@@ -272,9 +273,9 @@ public class UsageContainer {
 
   public void printUsagesStatistics(StatisticsWriter out) {
     int unsafeSize = getTotalUnsafeSize();
-    StatInt topUsagePoints = new StatInt(StatKind.COUNT, "Total amount of unrefined usage points");
-    StatInt unrefinedUsages = new StatInt(StatKind.COUNT, "Total amount of unrefined usages");
-    StatInt refinedUsages = new StatInt(StatKind.COUNT, "Total amount of refined usages");
+    StatInt topUsagePoints = new StatInt(StatKind.SUM, "Total amount of unrefined usage points");
+    StatInt unrefinedUsages = new StatInt(StatKind.SUM, "Total amount of unrefined usages");
+    StatInt refinedUsages = new StatInt(StatKind.SUM, "Total amount of refined usages");
     StatCounter failedUsages = new StatCounter("Total amount of failed usages");
 
     final int generalUnrefinedSize = unrefinedIds.keySet().size();
@@ -311,13 +312,6 @@ public class UsageContainer {
        .put("Total amount of failed unsafes", generalFailedSize)
        .put(failedUsages)
        .put(resetTimer);
-  }
-
-  @Override
-  public UsageContainer clone() {
-    UsageContainer result = new UsageContainer(Maps.newTreeMap(unrefinedIds),
-        Maps.newTreeMap(refinedIds), Maps.newTreeMap(failedIds), Sets.newHashSet(falseUnsafes), logger, detector);
-    return result;
   }
 
   public Set<SingleIdentifier> getProcessedUnsafes() {

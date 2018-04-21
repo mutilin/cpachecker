@@ -30,6 +30,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 public class CPointerExpression extends APointerExpression implements CLeftHandSide {
 
 
+  private static final long serialVersionUID = -3958623972429247982L;
+
   public CPointerExpression(final FileLocation pFileLocation,
                             final CType pType, final CExpression pOperand) {
     super(pFileLocation, pType, pOperand);
@@ -68,9 +70,7 @@ public class CPointerExpression extends APointerExpression implements CLeftHandS
 
   @Override
   public int hashCode() {
-    int prime = 31;
-    int result = 7;
-    return prime * result + super.hashCode();
+    return super.hashCode();
   }
 
   @Override

@@ -29,7 +29,7 @@ import javax.annotation.Nonnull;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public class LocalVariableIdentifier extends VariableIdentifier {
-  protected @Nonnull String function;//function, where this variable was declared
+  protected @Nonnull String function; // function, where this variable was declared
 
   public LocalVariableIdentifier(String nm, CType t, String func, int dereference) {
     super(nm, t, dereference);
@@ -49,17 +49,11 @@ public class LocalVariableIdentifier extends VariableIdentifier {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj) ||
-        getClass() != obj.getClass()) {
+    if (!super.equals(obj) || getClass() != obj.getClass()) {
       return false;
     }
     LocalVariableIdentifier other = (LocalVariableIdentifier) obj;
     return Objects.equals(function, other.function);
-  }
-
-  @Override
-  public LocalVariableIdentifier clone() {
-    return cloneWithDereference(dereference);
   }
 
   @Override
@@ -94,7 +88,7 @@ public class LocalVariableIdentifier extends VariableIdentifier {
         return result;
       }
       return this.function.compareTo(((LocalVariableIdentifier) pO).function);
-    } else if (pO instanceof GlobalVariableIdentifier){
+    } else if (pO instanceof GlobalVariableIdentifier) {
       return -1;
     } else {
       return 1;

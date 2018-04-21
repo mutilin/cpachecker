@@ -22,9 +22,9 @@
  *    http://cpachecker.sosy-lab.org
  */
 package org.sosy_lab.cpachecker.core.algorithm;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.cpachecker.util.AbstractStates.IS_TARGET_STATE;
 
@@ -80,25 +80,30 @@ import org.sosy_lab.cpachecker.core.reachedset.HistoryForwardingReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.exceptions.CounterexampleAnalysisFailed;
+import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.Triple;
 import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 import org.sosy_lab.cpachecker.util.resources.ResourceLimitChecker;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsUtils;
 
 @Options(prefix="restartAlgorithm")
 public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedSetUpdater {
 
   private static class RestartAlgorithmStatistics implements Statistics {
 
+    private final LogManager logger;
     private final int noOfAlgorithms;
     private final Collection<Statistics> subStats;
     private int noOfAlgorithmsUsed = 0;
     private Timer totalTime = new Timer();
 
-    public RestartAlgorithmStatistics(int pNoOfAlgorithms) {
+    public RestartAlgorithmStatistics(int pNoOfAlgorithms, LogManager pLogger) {
       noOfAlgorithms = pNoOfAlgorithms;
       subStats = new ArrayList<>();
+      logger = checkNotNull(pLogger);
     }
 
     public Collection<Statistics> getSubStatistics() {
@@ -136,21 +141,21 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
       printSubStatistics(out, result, reached);
     }
 
-    private void printSubStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
+    private void printSubStatistics(
+        PrintStream out, Result result, UnmodifiableReachedSet reached) {
       out.println("Total time for algorithm " + noOfAlgorithmsUsed + ": " + totalTime);
 
       for (Statistics s : subStats) {
-        String name = s.getName();
-        if (!isNullOrEmpty(name)) {
-          name = name + " statistics";
-          out.println("");
-          out.println(name);
-          out.println(Strings.repeat("-", name.length()));
-        }
-        s.printStatistics(out, result, reached);
+        StatisticsUtils.printStatistics(s, out, logger, result, reached);
       }
     }
 
+    @Override
+    public void writeOutputFiles(Result pResult, UnmodifiableReachedSet pReached) {
+      for (Statistics s : subStats) {
+        StatisticsUtils.writeOutputFiles(s, logger, pResult, pReached);
+      }
+    }
   }
 
   @Option(
@@ -182,15 +187,35 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
   )
   private boolean printIntermediateStatistics = true;
 
-  @Option(name="alwaysrun",
-      description="if it's true, we always run other algorithm, even previous is sound and finished correctly")
-  private boolean alwaysRunOtherAlgorithm = false;
+  @Option(
+    secure = true,
+    description =
+        "let each component of the restart algorithm write output files"
+            + " and not only the last one that is excuted"
+  )
+  private boolean writeIntermediateOutputFiles = false;
+
+  /* The option is useful for some preanalysis,
+   * for instance, the first analysis is fast and provides some hints to the next ones
+   * Is used, for example, in CPALockator
+   *
+   * TODO It might be better to have two lists of algorithms given to the RestartAlgorithm.
+   * One list for analysis with no result expected except information about the program
+   * and a second list for the real analyses to be restarted if necessary.
+   * This would allow to combine the pre-computation of information and
+   * the normal sequential composition of algorithms in a more flexible way.
+   */
+  @Option(
+    secure = true,
+    description =
+        "wether to start next algorithm independently from the previous result"
+  )
+  private boolean alwaysRestart = false;
 
   private final LogManager logger;
   private final ShutdownNotifier shutdownNotifier;
   private final ShutdownRequestListener logShutdownListener;
   private final RestartAlgorithmStatistics stats;
-  private final String filename;
   private final CFA cfa;
   private final Configuration globalConfig;
   private final Specification specification;
@@ -207,7 +232,6 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
       LogManager pLogger,
       ShutdownNotifier pShutdownNotifier,
       Specification pSpecification,
-      String pFilename,
       CFA pCfa)
       throws InvalidConfigurationException {
     config.inject(this);
@@ -216,10 +240,9 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
       throw new InvalidConfigurationException("Need at least one configuration for restart algorithm!");
     }
 
-    this.stats = new RestartAlgorithmStatistics(configFiles.size());
+    this.stats = new RestartAlgorithmStatistics(configFiles.size(), pLogger);
     this.logger = pLogger;
     this.shutdownNotifier = pShutdownNotifier;
-    this.filename = pFilename;
     this.cfa = pCfa;
     this.globalConfig = config;
     specification = checkNotNull(pSpecification);
@@ -238,11 +261,10 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
       LogManager pLogger,
       ShutdownNotifier pShutdownNotifier,
       Specification pSpecification,
-      String pFilename,
       CFA pCfa)
       throws InvalidConfigurationException {
     RestartAlgorithm algorithm =
-        new RestartAlgorithm(pConfig, pLogger, pShutdownNotifier, pSpecification, pFilename, pCfa);
+        new RestartAlgorithm(pConfig, pLogger, pShutdownNotifier, pSpecification, pCfa);
     if (algorithm.useARGCombiningAlgorithm) {
       return new PartialARGsCombiner(algorithm, pConfig, pLogger, pShutdownNotifier);
     }
@@ -284,6 +306,11 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
 
       try {
         Path singleConfigFileName = configFilesIterator.next().value();
+        logger.logf(
+            Level.INFO,
+            "Loading analysis %d from file %s ...",
+            stats.noOfAlgorithmsUsed + 1,
+            singleConfigFileName);
 
         try {
           Triple<Algorithm, ConfigurableProgramAnalysis, ReachedSet> currentAlg =
@@ -329,9 +356,10 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
         // run algorithm
         registerReachedSetUpdateListeners();
         try {
+          logger.logf(Level.INFO, "Starting analysis %d ...", stats.noOfAlgorithmsUsed);
           status = currentAlgorithm.run(currentReached);
 
-          if (from(currentReached).anyMatch(IS_TARGET_STATE) && status.isPrecise()) {
+          if (currentReached.hasViolatedProperties() && status.isPrecise()) {
 
             // If the algorithm is not _precise_, verdict "false" actually means "unknown".
             return status;
@@ -340,22 +368,26 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
           if (!status.isSound()) {
             // if the analysis is not sound and we can proceed with
             // another algorithm, continue with the next algorithm
-            logger.log(Level.INFO, "Analysis result was unsound.");
+            logger.logf(
+                Level.INFO,
+                "Analysis %d terminated, but result is unsound.",
+                stats.noOfAlgorithmsUsed);
 
           } else if (currentReached.hasWaitingState()) {
             // if there are still states in the waitlist, the result is unknown
             // continue with the next algorithm
-            logger.log(Level.INFO, "Analysis not completed: There are still states to be processed.");
-
-          } else if (alwaysRunOtherAlgorithm && configFilesIterator.hasNext()) {
-            logger.log(Level.INFO, "Analysis is finished");
+            logger.logf(
+                Level.INFO,
+                "Analysis %d terminated but did not finish: There are still states to be processed.",
+                stats.noOfAlgorithmsUsed);
 
           } else if (!(from(currentReached).anyMatch(IS_TARGET_STATE) && !status.isPrecise())) {
 
-            // sound analysis and completely finished, terminate
-            if (!configFilesIterator.hasNext()) {
+            if (!(alwaysRestart && configFilesIterator.hasNext())) {
+              // sound analysis and completely finished, terminate
               return status;
             }
+
           }
           lastAnalysisTerminated = true;
           isLastReachedSetUsable = true;
@@ -363,11 +395,12 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
         } catch (CPAException e) {
           isLastReachedSetUsable = false;
           lastAnalysisFailed = true;
-          if (e.getMessage().contains("Counterexample could not be analyzed")) {
+          if (e instanceof CounterexampleAnalysisFailed || e instanceof RefinementFailedException) {
             status = status.withPrecise(false);
           }
           if (configFilesIterator.hasNext()) {
-            logger.logUserException(Level.WARNING, e, "Analysis not completed");
+            logger.logUserException(
+                Level.WARNING, e, "Analysis " + stats.noOfAlgorithmsUsed + " not completed.");
             if (e.getMessage().contains("recursion")) {
               recursionFound = true;
             }
@@ -382,7 +415,7 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
           lastAnalysisInterrupted = true;
           if (configFilesIterator.hasNext()) {
             logger.logUserException(
-                Level.WARNING, e, "Analysis " + stats.noOfAlgorithmsUsed + " stopped");
+                Level.WARNING, e, "Analysis " + stats.noOfAlgorithmsUsed + " stopped.");
             shutdownNotifier.shutdownIfNecessary(); // check if we should also stop
           } else {
             throw e;
@@ -426,7 +459,11 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
                 foundConfig = true;
                 break;
             default:
-              logger.logf(Level.WARNING, "Ignoring invalid restart condition '%s'.", condition);
+                logger.logf(
+                    Level.WARNING,
+                    "Ignoring invalid restart condition '%s' for file %s.",
+                    condition.get(),
+                    configFilesIterator.peek().value());
               foundConfig = true;
             }
             if (!foundConfig) {
@@ -434,7 +471,7 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
                   Level.INFO,
                   "Ignoring restart configuration '%s' because condition %s did not match.",
                   configFilesIterator.peek().value(),
-                  condition);
+                  condition.get());
               configFilesIterator.next();
               stats.noOfAlgorithmsUsed++;
             }
@@ -447,6 +484,9 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
           stats.printIntermediateStatistics(System.out, Result.UNKNOWN, currentReached);
         } else {
           stats.printIntermediateStatistics(new PrintStream(ByteStreams.nullOutputStream()), Result.UNKNOWN, currentReached);
+        }
+        if (writeIntermediateOutputFiles) {
+          stats.writeOutputFiles(Result.UNKNOWN, pReached);
         }
         stats.resetSubStatistics();
 
@@ -486,8 +526,6 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
     singleConfigBuilder.copyFrom(globalConfig);
     singleConfigBuilder.clearOption("restartAlgorithm.configFiles");
     singleConfigBuilder.clearOption("analysis.restartAfterUnknown");
-    singleConfigBuilder.clearOption("analysis.saveLocalResult");
-
     singleConfigBuilder.loadFromFile(singleConfigFileName);
 
     Configuration singleConfig = singleConfigBuilder.build();
@@ -515,7 +553,7 @@ public class RestartAlgorithm implements Algorithm, StatisticsProvider, ReachedS
 
     GlobalInfo.getInstance().setUpInfoFromCPA(cpa);
 
-    algorithm = coreComponents.createAlgorithm(cpa, filename, cfa, specification);
+    algorithm = coreComponents.createAlgorithm(cpa, cfa, specification);
     if (algorithm instanceof RestartAlgorithm) {
       // To avoid accidental infinitely-recursive nesting.
       throw new InvalidConfigurationException(

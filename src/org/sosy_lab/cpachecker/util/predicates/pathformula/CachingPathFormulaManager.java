@@ -38,12 +38,12 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
+import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 import org.sosy_lab.java_smt.api.Formula;
 import org.sosy_lab.java_smt.api.Model.ValueAssignment;
-
 /**
  * Implementation of {@link PathFormulaManager} that delegates to another
  * instance but caches results of some methods.
@@ -165,6 +165,7 @@ public class CachingPathFormulaManager implements PathFormulaManager {
   }
 
   @Override
+  @Deprecated
   public PathFormula makeNewPathFormula(PathFormula pOldFormula, SSAMap pM) {
     return delegate.makeNewPathFormula(pOldFormula, pM);
   }
@@ -181,14 +182,15 @@ public class CachingPathFormulaManager implements PathFormulaManager {
   }
 
   @Override
-  public Map<Integer, Boolean> getBranchingPredicateValuesFromModel(Iterable<ValueAssignment> pModel) {
-    return delegate.getBranchingPredicateValuesFromModel(pModel);
+  public BooleanFormula buildBranchingFormula(Set<ARGState> pElementsOnPath,
+      Map<Pair<ARGState, CFAEdge>, PathFormula> pParentFormulasOnPath)
+      throws CPATransferException, InterruptedException {
+    return delegate.buildBranchingFormula(pElementsOnPath, pParentFormulasOnPath);
   }
 
   @Override
-  public PathFormula makeNewPathFormula(PathFormula pOldFormula, SSAMap pM,
-      PointerTargetSet pts) {
-    return delegate.makeNewPathFormula(pOldFormula, pM, pts);
+  public Map<Integer, Boolean> getBranchingPredicateValuesFromModel(Iterable<ValueAssignment> pModel) {
+    return delegate.getBranchingPredicateValuesFromModel(pModel);
   }
 
   @Override
@@ -224,5 +226,22 @@ public class CachingPathFormulaManager implements PathFormulaManager {
     out.println();
 
     delegate.printStatistics(out);
+  }
+
+  @Override
+  public BooleanFormula addBitwiseAxiomsIfNeeded(final BooleanFormula pMainFormula, final BooleanFormula pExtractionFormula) {
+    return delegate.addBitwiseAxiomsIfNeeded(pMainFormula, pExtractionFormula);
+  }
+
+  @Override
+  public PathFormula makeNewPathFormula(PathFormula pOldFormula, SSAMap pM, PointerTargetSet pPts) {
+    return delegate.makeNewPathFormula(pOldFormula, pM, pPts);
+  }
+
+  @Override
+  public BooleanFormula buildWeakestPrecondition(
+      final CFAEdge pEdge, final BooleanFormula pPostcondition)
+      throws UnrecognizedCCodeException, UnrecognizedCFAEdgeException, InterruptedException {
+    return delegate.buildWeakestPrecondition(pEdge, pPostcondition);
   }
 }

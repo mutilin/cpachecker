@@ -21,7 +21,6 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-
 package org.sosy_lab.cpachecker.cfa.postprocessing.function;
 
 import java.util.HashSet;

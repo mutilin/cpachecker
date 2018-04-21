@@ -26,36 +26,37 @@ package org.sosy_lab.cpachecker.cpa.bam;
 import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Function;
-import com.google.common.collect.Multimap;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
 import java.util.TreeSet;
+import javax.annotation.Nonnull;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
-import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
-import org.sosy_lab.cpachecker.util.AbstractStates;
+import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 
+/**
+ * The subgraph computer is used to restore paths not to target states, but to any other.
+ * The difficulty is to determine the outer block.
+ *
+ * One more feature of the computer is skipping such paths, which contains special (repeated) states.
+ * The feature is extremely important for refinement optimization: we do not refine and even not compute the similar paths
+ */
 
 public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
 
-  private final Multimap<AbstractState, AbstractState> reducedToExpanded;
-  private Set<LinkedList<Integer>> remainingStates = new HashSet<>();
+  private Set<ArrayDeque<Integer>> remainingStates = new HashSet<>();
   private final Function<ARGState, Integer> getStateId;
 
-  BAMMultipleCEXSubgraphComputer(BAMCPA bamCPA,
-      Multimap<AbstractState, AbstractState> pReduced,
-      Function<ARGState, Integer> idExtractor) {
+  BAMMultipleCEXSubgraphComputer(BAMCPA bamCPA, @Nonnull Function<ARGState, Integer> idExtractor) {
     super(bamCPA);
-    this.reducedToExpanded = pReduced;
     getStateId = idExtractor;
   }
 
@@ -70,18 +71,12 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
     //Deep clone to be patient about modification
     remainingStates.clear();
     for (List<Integer> newList : pProcessedStates) {
-      remainingStates.add(new LinkedList<>(newList));
+      remainingStates.add(new ArrayDeque<>(newList));
     }
 
     ARGState target = newTreeTarget.getARGState();
     elementsMap.put(target, newTreeTarget);
     ARGState currentState = target;
-
-    //Find path to nearest abstraction state
-    PredicateAbstractState pState = AbstractStates.extractStateByType(currentState, PredicateAbstractState.class);
-    if (pState != null) {
-      assert (pState.isAbstractionState());
-    }
 
     openElements.addAll(target.getParents());
     while (!openElements.isEmpty()) {
@@ -98,13 +93,28 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
         }
       }
 
+      if (childrenInSubgraph.isEmpty()) {
+        continue;
+      }
+
       inCallstackFunction = false;
       if (currentState.getParents().isEmpty()) {
-        //Find correct expanded state
-        Collection<AbstractState> expandedStates = reducedToExpanded.get(currentState);
+        // Find correct expanded state
+        Collection<AbstractState> expandedStates = data.getNonReducedInitialStates(currentState);
 
-        assert expandedStates != null;
+        if (expandedStates.isEmpty()) {
+          // children are a normal successors -> create an connection from parent to children
+          for (final BackwardARGState newChild : childrenInSubgraph) {
+            newChild.addParent(newCurrentElement);
+            if (checkRepeatitionOfState(newChild)) {
+              return DUMMY_STATE_FOR_REPEATED_STATE;
+            }
+          }
 
+          //The first state
+          root = newCurrentElement;
+          break;
+        }
 
         //Try to find path.
         //Exchange the reduced state by the expanded one
@@ -117,7 +127,7 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
       // add parent for further processing
       openElements.addAll(currentState.getParents());
 
-      if (data.hasInitialState(currentState) && !inCallstackFunction && !childrenInSubgraph.isEmpty()) {
+      if (data.hasInitialState(currentState) && !inCallstackFunction) {
 
         // If child-state is an expanded state, the child is at the exit-location of a block.
         // In this case, we enter the block (backwards).
@@ -126,19 +136,19 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
         // The current subtree (successors of child) is appended beyond the innerTree, to get a complete subgraph.
         computeCounterexampleSubgraphForBlock(newCurrentElement, childrenInSubgraph);
         assert childrenInSubgraph.size() == 1;
-        BackwardARGState tmpState = childrenInSubgraph.iterator().next(), nextState;
+        BackwardARGState tmpState = childrenInSubgraph.iterator().next();
+        //Check repetition of constructed states
         while (tmpState != newCurrentElement) {
-          Collection<ARGState> parents = tmpState.getParents();
-          assert parents.size() == 1;
-          nextState = (BackwardARGState) parents.iterator().next();
           if (checkRepeatitionOfState(tmpState.getARGState())) {
             return DUMMY_STATE_FOR_REPEATED_STATE;
           }
-          tmpState = nextState;
+          Collection<ARGState> parents = tmpState.getParents();
+          assert parents.size() == 1;
+          tmpState = (BackwardARGState) parents.iterator().next();
         }
 
       } else {
-        // children are a normal successors -> create an connection from parent to children
+        // children are normal successors -> create an connection from parent to children
         for (final BackwardARGState newChild : childrenInSubgraph) {
           newChild.addParent(newCurrentElement);
           if (checkRepeatitionOfState(newChild)) {
@@ -161,12 +171,14 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
   }
 
   private boolean checkRepeatitionOfState(ARGState currentElement) {
-    int currentId = getStateId.apply(currentElement);
-    for (LinkedList<Integer> rest : remainingStates) {
-      if (rest.getLast() == currentId) {
-        rest.removeLast();
-        if (rest.isEmpty()) {
-          return true;
+    if (currentElement != null && getStateId != null) {
+      Integer currentId = getStateId.apply(currentElement);
+      for (ArrayDeque<Integer> rest : remainingStates) {
+        if (rest.getLast().equals(currentId)) {
+          rest.removeLast();
+          if (rest.isEmpty()) {
+            return true;
+          }
         }
       }
     }
@@ -222,6 +234,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer{
    */
 
   public BAMSubgraphIterator iterator(ARGState target) {
-    return new BAMSubgraphIterator(target, this, reducedToExpanded);
+    return new BAMSubgraphIterator(target, this, data);
   }
 }

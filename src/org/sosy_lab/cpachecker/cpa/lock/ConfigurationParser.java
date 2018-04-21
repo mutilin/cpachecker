@@ -25,11 +25,12 @@ package org.sosy_lab.cpachecker.cpa.lock;
 
 import static com.google.common.collect.FluentIterable.from;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
-import java.util.Arrays;
+import com.google.common.collect.Sets;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
@@ -43,18 +44,18 @@ import org.sosy_lab.cpachecker.cpa.lock.effects.ResetLockEffect;
 import org.sosy_lab.cpachecker.cpa.lock.effects.SetLockEffect;
 import org.sosy_lab.cpachecker.util.Pair;
 
-@Options(prefix="cpa.lock")
+@Options(prefix = "cpa.lock")
 public class ConfigurationParser {
   private Configuration config;
 
-  @Option(name="lockinfo",
-      description="contains all lock names",
-      secure = true)
-  private Set<String> lockinfo;
+  @Option(name = "lockinfo", description = "contains all lock names", secure = true)
+  private Set<String> lockinfo = Sets.newHashSet();
 
-  @Option(name="annotate",
-      description=" annotated functions, which are known to works right",
-      secure = true)
+  @Option(
+    name = "annotate",
+    description = " annotated functions, which are known to works right",
+    secure = true
+  )
   private Set<String> annotated;
 
   ConfigurationParser(Configuration pConfig) throws InvalidConfigurationException {
@@ -67,9 +68,7 @@ public class ConfigurationParser {
     Map<String, Integer> tmpInfo = new HashMap<>();
     Map<String, Pair<LockEffect, LockIdUnprepared>> functionEffects = new HashMap<>();
     Map<String, LockIdentifier> variableEffects = new HashMap<>();
-    Set<String> variables;
     String tmpString;
-
 
     for (String lockName : lockinfo) {
       int num = getValue(lockName + ".maxDepth", 10);
@@ -79,16 +78,16 @@ public class ConfigurationParser {
 
       tmpString = config.getProperty(lockName + ".variable");
       if (tmpString != null) {
-        variables = new HashSet<>(Arrays.asList(tmpString.split(", *")));
-        variables.forEach(
-            k -> variableEffects.put(k, LockIdentifier.of(lockName)));
-      } else {
-        variables = new HashSet<>();
+        tmpString = tmpString.replaceAll("\\s", "");
+        Splitter.on(",")
+            .splitToList(tmpString)
+            .forEach(k -> variableEffects.put(k, LockIdentifier.of(lockName)));
       }
 
       tmpString = config.getProperty(lockName + ".setlevel");
       if (tmpString != null && !tmpString.isEmpty()) {
-        functionEffects.put(tmpString, Pair.of(SetLockEffect.getInstance(), new LockIdUnprepared(lockName, 0)));
+        functionEffects.put(
+            tmpString, Pair.of(SetLockEffect.getInstance(), new LockIdUnprepared(lockName, 0)));
       }
       tmpInfo.put(lockName, num);
     }
@@ -96,16 +95,20 @@ public class ConfigurationParser {
   }
 
   @SuppressWarnings("deprecation")
-  private Map<String, Pair<LockEffect, LockIdUnprepared>> createMap(String lockName, String target, LockEffect effect) {
+  private Map<String, Pair<LockEffect, LockIdUnprepared>> createMap(
+      String lockName, String target, LockEffect effect) {
 
     String tmpString = config.getProperty(lockName + "." + target);
     if (tmpString != null) {
 
-      return from(Arrays.asList(tmpString.split(", *")))
-            .toMap(f ->
-                Pair.of(effect,
-                    new LockIdUnprepared(lockName, getValue(lockName + "." + f + ".parameters", 0))
-                ));
+      tmpString = tmpString.replaceAll("\\s", "");
+      return from(Splitter.on(",").splitToList(tmpString))
+          .toMap(
+              f ->
+                  Pair.of(
+                      effect,
+                      new LockIdUnprepared(
+                          lockName, getValue(lockName + "." + f + ".parameters", 0))));
     }
     return Maps.newHashMap();
   }
@@ -122,12 +125,11 @@ public class ConfigurationParser {
   }
 
   public ImmutableMap<String, AnnotationInfo> parseAnnotatedFunctions() {
-    Map<String, String> freeLocks;
-    Map<String, String> restoreLocks;
-    Map<String, String> resetLocks;
-    Map<String, String> captureLocks;
-    AnnotationInfo tmpAnnotationInfo;
-    Map<String, AnnotationInfo> annotatedfunctions = new HashMap<>();
+    Set<LockIdentifier> freeLocks;
+    Set<LockIdentifier> restoreLocks;
+    Set<LockIdentifier> resetLocks;
+    Set<LockIdentifier> captureLocks;
+    ImmutableMap.Builder<String, AnnotationInfo> annotatedfunctions = ImmutableMap.builder();
 
     if (annotated != null) {
       for (String fName : annotated) {
@@ -135,34 +137,31 @@ public class ConfigurationParser {
         restoreLocks = createAnnotationMap(fName, "restore");
         resetLocks = createAnnotationMap(fName, "reset");
         captureLocks = createAnnotationMap(fName, "lock");
-        if (restoreLocks == null && freeLocks == null && resetLocks == null && captureLocks == null) {
-          //we don't specify the annotation. Restore all locks.
-          tmpAnnotationInfo = new AnnotationInfo(fName, null, new HashMap<String, String>(), null, null);
-        } else {
-          tmpAnnotationInfo = new AnnotationInfo(fName, freeLocks, restoreLocks, resetLocks, captureLocks);
-        }
-        annotatedfunctions.put(fName, tmpAnnotationInfo);
+        annotatedfunctions.put(
+            fName, new AnnotationInfo(freeLocks, restoreLocks, resetLocks, captureLocks));
       }
     }
-    return ImmutableMap.copyOf(annotatedfunctions);
+    return annotatedfunctions.build();
   }
 
   @SuppressWarnings("deprecation")
-  private Map<String, String> createAnnotationMap(String function, String target) {
-    Map<String, String> result = null;
+  private Set<LockIdentifier> createAnnotationMap(String function, String target) {
+    Set<LockIdentifier> result = Sets.newTreeSet();
 
     String property = config.getProperty("annotate." + function + "." + target);
     if (property != null) {
-      Set<String> lockNames = new HashSet<>(Arrays.asList(property.split(", *")));
-      result = new HashMap<>();
+      property = property.replaceAll("\\s", "");
+      List<String> lockNames = Splitter.on(",").splitToList(property);
+      LockIdentifier parsedId;
       for (String fullName : lockNames) {
         if (fullName.matches(".*\\(.*")) {
-          String[] stringArray = fullName.split("\\(");
-          assert stringArray.length == 2;
-          result.put(stringArray[0], stringArray[1]);
+          List<String> stringArray = Splitter.on("\\(").splitToList(fullName);
+          assert stringArray.size() == 2;
+          parsedId = LockIdentifier.of(stringArray.get(0), stringArray.get(1));
         } else {
-          result.put(fullName, "");
+          parsedId = LockIdentifier.of(fullName, "");
         }
+        result.add(parsedId);
       }
     }
     return result;

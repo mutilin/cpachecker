@@ -23,9 +23,10 @@
  */
 package org.sosy_lab.cpachecker.cpa.predicate.relevantpredicates;
 
-import java.util.Collection;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
+
+import java.util.Collection;
 
 
 /**
@@ -35,7 +36,13 @@ import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
  * but the set of relevant variables must remain constant (within one instance).
  */
 public interface RelevantPredicatesComputer {
-  public void clear();
   public Collection<AbstractionPredicate> getRelevantPredicates(
       Block context, Collection<AbstractionPredicate> predicates);
+
+  /**
+   * Clear all internal caches.
+   * Some launches are so huge, that may lead to memory limit,
+   * so, in some case it ise useful to reset outdated (and, maybe, necessary) information
+   */
+  public void clear();
 }

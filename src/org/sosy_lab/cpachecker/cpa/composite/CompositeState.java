@@ -32,21 +32,23 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractWrapperState;
-import org.sosy_lab.cpachecker.core.interfaces.Exitable;
 import org.sosy_lab.cpachecker.core.interfaces.Graphable;
 import org.sosy_lab.cpachecker.core.interfaces.Partitionable;
 import org.sosy_lab.cpachecker.core.interfaces.Property;
 import org.sosy_lab.cpachecker.core.interfaces.PseudoPartitionable;
 import org.sosy_lab.cpachecker.core.interfaces.Targetable;
+import org.sosy_lab.cpachecker.cpa.arg.Splitable;
 
 public class CompositeState
-    implements AbstractWrapperState, Targetable, Exitable, Partitionable, PseudoPartitionable, Serializable,
-        Graphable {
+    implements AbstractWrapperState, Targetable, Partitionable, PseudoPartitionable, Serializable,
+        Graphable, Splitable {
   private static final long serialVersionUID = -5143296331663510680L;
   private final ImmutableList<AbstractState> states;
   private transient Object partitionKey; // lazily initialized
@@ -65,16 +67,6 @@ public class CompositeState
   public boolean isTarget() {
     for (AbstractState element : states) {
       if ((element instanceof Targetable) && ((Targetable)element).isTarget()) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @Override
-  public boolean isExitState() {
-    for (AbstractState element : states) {
-      if ((element instanceof Exitable) && ((Exitable)element).isExitState()) {
         return true;
       }
     }
@@ -143,7 +135,7 @@ public class CompositeState
   }
 
   @Override
-  public List<AbstractState> getWrappedStates() {
+  public ImmutableList<AbstractState> getWrappedStates() {
     return states;
   }
 
@@ -208,7 +200,9 @@ public class CompositeState
     return pseudoHashCode;
   }
 
-  private static final class CompositePartitionKey {
+  private static final class CompositePartitionKey implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final Object[] keys;
 
@@ -242,7 +236,9 @@ public class CompositeState
 
   @SuppressWarnings("rawtypes")
   private static final class CompositePseudoPartitionKey
-      implements Comparable<CompositePseudoPartitionKey> {
+      implements Comparable<CompositePseudoPartitionKey>, Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     private final Comparable<?>[] keys;
 
@@ -282,5 +278,33 @@ public class CompositeState
       }
       return c.result();
     }
+  }
+
+  @Override
+  public AbstractState forkWithReplacements(Collection<AbstractState> pReplacementStates) {
+    List<AbstractState> wrappedStates = getWrappedStates();
+    List<AbstractState> newWrappedStates = new ArrayList<>(wrappedStates.size());
+
+    for (AbstractState state : wrappedStates) {
+      int targetSize = newWrappedStates.size()+1;
+      // will state be replaced?
+      for (AbstractState replacement : pReplacementStates) {
+        if (!newWrappedStates.contains(replacement) && replacement.getClass().isInstance(state)) {
+          newWrappedStates.add(replacement);
+          break;
+        }
+      }
+      // if state was not replaced, add it:
+      if (targetSize>newWrappedStates.size()) {
+        //recursion might end here if state is not splitable:
+        if (state instanceof Splitable) {
+        newWrappedStates.add(((Splitable) state).forkWithReplacements(pReplacementStates));
+        } else {
+          newWrappedStates.add(state);
+        }
+      }
+    }
+    CompositeState newState = new CompositeState(newWrappedStates);
+    return newState;
   }
 }

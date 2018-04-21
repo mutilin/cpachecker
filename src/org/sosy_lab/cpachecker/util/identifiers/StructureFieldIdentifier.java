@@ -56,17 +56,11 @@ public class StructureFieldIdentifier extends StructureIdentifier {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj) ||
-        getClass() != obj.getClass()) {
+    if (!super.equals(obj) || getClass() != obj.getClass()) {
       return false;
     }
     StructureFieldIdentifier other = (StructureFieldIdentifier) obj;
     return Objects.equals(type, other.type);
-  }
-
-  @Override
-  public StructureFieldIdentifier clone() {
-    return cloneWithDereference(dereference);
   }
 
   @Override
@@ -93,11 +87,10 @@ public class StructureFieldIdentifier extends StructureIdentifier {
   public int compareTo(AbstractIdentifier pO) {
     if (pO instanceof GlobalVariableIdentifier || pO instanceof LocalVariableIdentifier) {
       return -1;
-    } else if (pO instanceof StructureFieldIdentifier){
+    } else if (pO instanceof StructureFieldIdentifier) {
       return super.compareTo(pO);
     } else {
       return 1;
     }
   }
-
 }

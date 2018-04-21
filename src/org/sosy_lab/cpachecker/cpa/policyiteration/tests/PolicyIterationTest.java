@@ -1,16 +1,14 @@
 package org.sosy_lab.cpachecker.cpa.policyiteration.tests;
 
 import com.google.common.collect.ImmutableMap;
-
+import java.nio.file.Paths;
+import java.util.Map;
 import org.junit.Test;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.cpachecker.util.test.CPATestRunner;
 import org.sosy_lab.cpachecker.util.test.TestDataTools;
 import org.sosy_lab.cpachecker.util.test.TestResults;
-
-import java.nio.file.Paths;
-import java.util.Map;
 
 /**
  * Integration testing for policy iteration.
@@ -145,7 +143,7 @@ public class PolicyIterationTest {
 
   @Test public void unrolling_true_assert() throws Exception {
     check("unrolling_true_assert.c",
-        ImmutableMap.of("cpa.loopstack.loopIterationsBeforeAbstraction", "2"));
+        ImmutableMap.of("cpa.loopbound.loopIterationsBeforeAbstraction", "2"));
   }
 
   @Test public void timeout_true_assert() throws Exception {
@@ -156,7 +154,8 @@ public class PolicyIterationTest {
     // Use explicit value analysis to track boolean variables.
     check("boolean_true_assert.c",
         ImmutableMap.of("cpa.lpi.maxExpressionSize", "2",
-            "CompositeCPA.cpas", "cpa.location.LocationCPA, cpa.callstack.CallstackCPA, cpa.functionpointer.FunctionPointerCPA, cpa.loopstack.LoopstackCPA, cpa.value.ValueAnalysisCPA, cpa.policyiteration.PolicyCPA",
+            "CompositeCPA.cpas", "cpa.location.LocationCPA, cpa.callstack.CallstackCPA, cpa.functionpointer.FunctionPointerCPA, cpa.loopbound.LoopBoundCPA, cpa.value.ValueAnalysisCPA, cpa.policyiteration.PolicyCPA",
+            "cpa.loopbound.trackStack", "true",
             "precision.trackIntAddVariables", "false",
             "precision.trackVariablesBesidesEqAddBool", "false"));
   }
@@ -222,12 +221,7 @@ public class PolicyIterationTest {
   }
 
   private void check(String filename, Configuration config) throws Exception {
-    String fullPath;
-    if (filename.contains("test/programs/benchmarks")) {
-      fullPath = filename;
-    } else {
-      fullPath = Paths.get(TEST_DIR_PATH, filename).toString();
-    }
+    String fullPath = Paths.get(TEST_DIR_PATH, filename).toString();
 
     TestResults results = CPATestRunner.run(config, fullPath);
     if (filename.contains("_true_assert") || filename.contains("_true-unreach")) {

@@ -26,19 +26,25 @@ package org.sosy_lab.cpachecker.cfa.model;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.sosy_lab.common.UniqueIdGenerator;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
-public class CFANode implements Comparable<CFANode> {
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
+
+public class CFANode implements Comparable<CFANode>, Serializable {
+
+  private static final long serialVersionUID = 5168350921309486536L;
 
   private static final UniqueIdGenerator idGenerator = new UniqueIdGenerator();
 
   private final int nodeNumber;
 
-  private final List<CFAEdge> leavingEdges = new ArrayList<>(1);
-  private final List<CFAEdge> enteringEdges = new ArrayList<>(1);
+  // do not serialize edges, recursive traversal of the CFA causes a stack-overflow.
+  // edge-list is final, except for serialization
+  private transient List<CFAEdge> leavingEdges = new ArrayList<>(1);
+  private transient List<CFAEdge> enteringEdges = new ArrayList<>(1);
 
   // is start node of a loop?
   private boolean isLoopStart = false;
@@ -132,15 +138,6 @@ public class CFANode implements Comparable<CFANode> {
     }
 
     return hasEdge;
-  }
-
-  public boolean hasLeavingEdge(CFAEdge edge) {
-    for (CFAEdge e : leavingEdges) {
-      if (edge == e) {
-        return true;
-      }
-    }
-    return false;
   }
 
   public void setLoopStart() {
@@ -250,5 +247,15 @@ public class CFANode implements Comparable<CFANode> {
     }
 
     return "";
+  }
+
+  @SuppressWarnings("unchecked")
+  private void readObject(java.io.ObjectInputStream s)
+      throws java.io.IOException, ClassNotFoundException {
+    s.defaultReadObject();
+
+    // leaving and entering edges have to be updated explicitly after reading a node
+    leavingEdges = new ArrayList<>(1);
+    enteringEdges = new ArrayList<>(1);
   }
 }

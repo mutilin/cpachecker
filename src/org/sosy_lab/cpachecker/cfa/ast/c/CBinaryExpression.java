@@ -24,13 +24,13 @@
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import java.util.Objects;
-
 import org.sosy_lab.cpachecker.cfa.ast.ABinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public class CBinaryExpression extends ABinaryExpression implements CExpression {
 
+  private static final long serialVersionUID = 1902123965106390020L;
   private final CType calculationType;
 
   public CBinaryExpression(final FileLocation pFileLocation,
@@ -179,10 +179,7 @@ public class CBinaryExpression extends ABinaryExpression implements CExpression 
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 7;
-    result = prime * result + Objects.hashCode(calculationType);
-    return result * prime + super.hashCode();
+    return Objects.hashCode(calculationType) * 31 + super.hashCode();
   }
 
   @Override

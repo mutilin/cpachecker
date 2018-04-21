@@ -39,6 +39,7 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.MergeOperator;
+import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustment;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
@@ -55,11 +56,11 @@ import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 /**
  * CPA used to capture the assumptions that ought to be dumped.
  *
- * Note that once the CPA algorithm has finished running, a call
- * to dumpInvariants() is needed to process the reachable states
- * and produce the actual invariants.
+ * <p>Note that once the CPA algorithm has finished running, a call to dumpInvariants() is needed to
+ * process the reachable states and produce the actual invariants.
  */
-public class AssumptionStorageCPA implements ConfigurableProgramAnalysis, ProofChecker {
+public class AssumptionStorageCPA
+    implements ConfigurableProgramAnalysis, ProofChecker, AutoCloseable {
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(AssumptionStorageCPA.class);
@@ -67,12 +68,14 @@ public class AssumptionStorageCPA implements ConfigurableProgramAnalysis, ProofC
 
   private final AbstractDomain abstractDomain;
   private final StopOperator stopOperator;
-  private final TransferRelation transferRelation;
+  private final AssumptionStorageTransferRelation transferRelation;
   private final FormulaManagerView formulaManager;
   private final AssumptionStorageState topState;
 
+  private final Solver solver;
+
   private AssumptionStorageCPA(Configuration config, LogManager logger, ShutdownNotifier pShutdownNotifier, CFA cfa) throws InvalidConfigurationException {
-    Solver solver = Solver.create(config, logger, pShutdownNotifier);
+    solver = Solver.create(config, logger, pShutdownNotifier);
     formulaManager = solver.getFormulaManager();
     FormulaEncodingOptions options = new FormulaEncodingOptions(config);
     CtoFormulaTypeHandler typeHandler = new CtoFormulaTypeHandler(logger, cfa.getMachineModel());
@@ -114,6 +117,11 @@ public class AssumptionStorageCPA implements ConfigurableProgramAnalysis, ProofC
   }
 
   @Override
+  public PrecisionAdjustment getPrecisionAdjustment() {
+    return new AssumptionStoragePrecisionAdjustment(transferRelation);
+  }
+
+  @Override
   public boolean areAbstractSuccessors(AbstractState pState, CFAEdge pCfaEdge,
       Collection<? extends AbstractState> pSuccessors) throws CPATransferException, InterruptedException {
     // always assume is successor, only write and read states that have true assumptions, stop formulae
@@ -124,5 +132,10 @@ public class AssumptionStorageCPA implements ConfigurableProgramAnalysis, ProofC
   public boolean isCoveredBy(AbstractState pState, AbstractState pOtherState) throws CPAException, InterruptedException {
     // always assume is covered, only write and read states that have true assumptions, stop formulae
     return true;
+  }
+
+  @Override
+  public void close() {
+    solver.close();
   }
 }

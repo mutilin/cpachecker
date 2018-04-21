@@ -23,21 +23,21 @@
  */
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Objects;
-
 import org.sosy_lab.cpachecker.cfa.ast.AParameterDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CStorageClass;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-
 
 /**
  * This is the declaration of a function parameter. It contains a type and a name.
  */
 public final class CParameterDeclaration extends AParameterDeclaration implements CSimpleDeclaration {
 
+  private static final long serialVersionUID = -6856088248264928629L;
   private String qualifiedName;
 
   public CParameterDeclaration(FileLocation pFileLocation,
@@ -68,11 +68,7 @@ public final class CParameterDeclaration extends AParameterDeclaration implement
 
   @Override
   public int hashCode() {
-    int prime = 31;
-    int result = 7;
-    result = prime * result + super.hashCode();
-    result = prime * result + Objects.hashCode(qualifiedName);
-    return result;
+    return Objects.hashCode(qualifiedName) * 31 * super.hashCode();
   }
 
   @Override

@@ -23,7 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
-import java.util.LinkedList;
+import com.google.errorprone.annotations.ForOverride;
+import java.util.ArrayList;
 import java.util.List;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicatePrecision;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
@@ -38,8 +39,8 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
 
   PredicatePrecision completePrecision;
 
-  //Some iterations may be postponed to the end (complicated ones)
-  List<O> postponedIterations = new LinkedList<>();
+  // Some iterations may be postponed to the end (complicated ones)
+  List<O> postponedIterations = new ArrayList<>();
 
   public GenericIterator(ConfigurableRefinementBlock<O> pWrapper) {
     super(pWrapper);
@@ -80,9 +81,7 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
 
   private RefinementResult iterate(O iteration) throws CPAException, InterruptedException {
     numOfIterations.inc();
-    //totalTimer.stop();
     RefinementResult result = wrappedRefiner.performBlockRefinement(iteration);
-    //totalTimer.start();
 
     if (result.isTrue()) {
       //Finish iteration, the race is found
@@ -95,15 +94,21 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
       completePrecision = completePrecision.mergeWith(precision);
     }
 
-    finalize(iteration, result);
+    finishIteration(iteration, result);
     return result;
   }
 
 
   abstract protected O getNext(I pInput);
-  protected void init(I pInput) {}
-  protected void finalize(O output, RefinementResult r) {}
-  protected void printDetailedStatistics(StatisticsWriter pOut) {}
+
+  protected void init(@SuppressWarnings("unused") I pInput) {}
+
+  @ForOverride
+  protected void finishIteration(
+      @SuppressWarnings("unused") O output, @SuppressWarnings("unused") RefinementResult r) {}
+
+  @ForOverride
+  protected void printDetailedStatistics(@SuppressWarnings("unused") StatisticsWriter pOut) {}
 
   @Override
   public final void printStatistics(StatisticsWriter pOut) {

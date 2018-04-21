@@ -31,6 +31,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public class CAddressOfLabelExpression extends AbstractExpression implements CExpression {
 
+  private static final long serialVersionUID = -6304788147442934412L;
   private final String label;
 
   public CAddressOfLabelExpression(final FileLocation pFileLocation,
@@ -70,11 +71,7 @@ public class CAddressOfLabelExpression extends AbstractExpression implements CEx
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + label.hashCode();
-    result = prime * result + super.hashCode();
-    return result;
+    return label.hashCode() * 31 + super.hashCode();
   }
 
   @Override

@@ -3,7 +3,14 @@ package org.sosy_lab.cpachecker.cpa.formulaslicing;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -18,8 +25,9 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustmentResult;
 import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustmentResult.Action;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
+import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
-import org.sosy_lab.cpachecker.cpa.loopstack.LoopstackState;
+import org.sosy_lab.cpachecker.cpa.loopbound.LoopBoundState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -38,17 +46,8 @@ import org.sosy_lab.java_smt.api.BooleanFormula;
 import org.sosy_lab.java_smt.api.BooleanFormulaManager;
 import org.sosy_lab.java_smt.api.SolverException;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.logging.Level;
-
 @Options(prefix="cpa.slicing")
-public class FormulaSlicingManager implements IFormulaSlicingManager {
+public class FormulaSlicingManager implements StatisticsProvider {
   @Option(secure=true, description="Check target states reachability")
   private boolean checkTargetStates = true;
 
@@ -93,7 +92,6 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
     loopStructure = pCfa.getLoopStructure().get();
   }
 
-  @Override
   public Collection<? extends SlicingState> getAbstractSuccessors(
       SlicingState oldState, CFAEdge edge)
       throws CPATransferException, InterruptedException {
@@ -118,7 +116,6 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
     return Collections.singleton(out);
   }
 
-  @Override
   public Optional<PrecisionAdjustmentResult> prec(
       SlicingState pState,
       UnmodifiableReachedSet pStates, AbstractState pFullState)
@@ -143,7 +140,9 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
     }
 
     boolean shouldPerformAbstraction = shouldPerformAbstraction(iState.getNode(), pFullState);
+
     if (shouldPerformAbstraction) {
+
       Optional<SlicingAbstractedState> oldState = findOldToMerge(
           pStates, pFullState, pState);
 
@@ -205,21 +204,23 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
 
     Set<BooleanFormula> finalLemmas = new HashSet<>();
     for (BooleanFormula lemma : lemmas) {
-      if (filterByLiveness
-          && Sets.intersection(
-                  ImmutableSet.copyOf(
-                      liveVariables
-                          .getLiveVariablesForNode(node)
-                          .transform(ASimpleDeclaration::getQualifiedName)
-                          .filter(s -> s != null)),
-                  fmgr.extractFunctionNames(fmgr.uninstantiate(lemma)))
-              .isEmpty()) {
-
+      if (filterByLiveness && !containsLiveVariables(lemma, node)) {
         continue;
       }
       finalLemmas.add(fmgr.uninstantiate(lemma));
     }
     return finalLemmas;
+  }
+
+  private boolean containsLiveVariables(BooleanFormula lemma, CFANode node) {
+    Set<String> functionNames = fmgr.extractFunctionNames(fmgr.uninstantiate(lemma));
+    for (ASimpleDeclaration variable : liveVariables.getLiveVariablesForNode(node)) {
+      String name = variable.getQualifiedName();
+      if (name != null && functionNames.contains(name)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private final Map<Pair<SlicingIntermediateState, SlicingAbstractedState>,
@@ -265,6 +266,7 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
     try {
       statistics.inductiveWeakening.start();
       if (parentState != prevToMerge) {
+
         finalClauses = inductiveWeakeningManager.findInductiveWeakeningForRCNF(
             parentState.getSSA(),
             parentState.getAbstraction(),
@@ -361,12 +363,10 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
     }
   }
 
-  @Override
   public SlicingState getInitialState(CFANode node) {
     return SlicingAbstractedState.empty(fmgr, node);
   }
 
-  @Override
   public boolean isLessOrEqual(SlicingState pState1, SlicingState pState2) {
     Preconditions.checkState(pState1.isAbstracted() == pState2.isAbstracted());
 
@@ -440,15 +440,13 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
   }
 
   private boolean shouldPerformAbstraction(CFANode node, AbstractState pFullState) {
-    LoopstackState loopState = AbstractStates.extractStateByType(pFullState,
-        LoopstackState.class);
+    LoopBoundState loopState = AbstractStates.extractStateByType(pFullState, LoopBoundState.class);
 
     // Slicing is only performed on the loop heads.
     return loopStructure.getAllLoopHeads().contains(node) &&
         (loopState == null || loopState.isLoopCounterAbstracted());
   }
 
-  @Override
   public SlicingState merge(SlicingState pState1, SlicingState pState2) throws InterruptedException {
     Preconditions.checkState(pState1.isAbstracted() == pState2.isAbstracted());
 
@@ -492,6 +490,7 @@ public class FormulaSlicingManager implements IFormulaSlicingManager {
                 states.getReached(pArgState),
                 SlicingAbstractedState.class)
         );
+
     if (filteredSiblings.isEmpty()) {
       return Optional.empty();
     }

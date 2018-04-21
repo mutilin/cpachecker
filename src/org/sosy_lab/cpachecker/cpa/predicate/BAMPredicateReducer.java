@@ -23,7 +23,6 @@
  */
 package org.sosy_lab.cpachecker.cpa.predicate;
 
-import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter.PARAM_VARIABLE_NAME;
 
 import com.google.common.base.Preconditions;
@@ -41,7 +40,6 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
-import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -55,6 +53,7 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.regions.Region;
 import org.sosy_lab.java_smt.api.BooleanFormulaManager;
 
@@ -83,9 +82,6 @@ public class BAMPredicateReducer implements Reducer {
   @Option(description = "Enable/disable precision reduction using RelevantPredicateComputer", secure = true)
   private boolean reduceIrrelevantPrecision = true;
 
-  @Option (description="whether to reduce predicates, related to a function, when we leave it", secure = true)
-  private boolean aggressiveReduce = false;
-
   public BAMPredicateReducer(
       BooleanFormulaManager bfmgr, BAMPredicateCPA cpa, Configuration pConfig)
       throws InvalidConfigurationException {
@@ -99,7 +95,7 @@ public class BAMPredicateReducer implements Reducer {
 
   @Override
   public AbstractState getVariableReducedState(
-      AbstractState pExpandedState, Block pContext, Block outerContext,
+      AbstractState pExpandedState, Block pContext,
       CFANode pLocation) throws InterruptedException {
 
     if (useAbstractionReduction) {
@@ -116,17 +112,7 @@ public class BAMPredicateReducer implements Reducer {
               new HashSet<>(predicates),
               new HashSet<>(
                   cpa.getRelevantPredicatesComputer().getRelevantPredicates(pContext, predicates)));
-      if (outerContext != null && aggressiveReduce) {
-        removePredicates = new HashSet<>(removePredicates);
 
-        assert pLocation instanceof FunctionEntryNode;
-
-        final String outerFunctionName = "|" + outerContext.getCallNode().getFunctionName() + "::";
-
-        ImmutableSet<AbstractionPredicate> currentFunctionPredicates = from(predicates)
-            .filter(p -> p.toString().contains(outerFunctionName)).toSet();
-        removePredicates.addAll(currentFunctionPredicates);
-      }
       PathFormula pathFormula = predicateElement.getPathFormula();
 
       assert bfmgr.isTrue(pathFormula.getFormula());
@@ -145,15 +131,27 @@ public class BAMPredicateReducer implements Reducer {
 
   @Override
   public AbstractState getVariableExpandedState(
-      AbstractState pRootState, Block pReducedContext, Block outerContext,
+      AbstractState pRootState, Block pReducedContext,
       AbstractState pReducedState) throws InterruptedException {
 
-    if (useAbstractionReduction) {
-      PredicateAbstractState rootState = (PredicateAbstractState) pRootState;
-      PredicateAbstractState reducedState = (PredicateAbstractState) pReducedState;
+    PredicateAbstractState rootState = (PredicateAbstractState) pRootState;
+    PredicateAbstractState reducedState = (PredicateAbstractState) pReducedState;
 
-      Preconditions.checkState(reducedState.isAbstractionState());
-      Preconditions.checkState(rootState.isAbstractionState());
+    Preconditions.checkState(reducedState.isAbstractionState());
+    Preconditions.checkState(rootState.isAbstractionState());
+
+    PathFormula oldPathFormula = reducedState.getPathFormula();
+    assert bfmgr.isTrue(oldPathFormula.getFormula()) : "Formula should be TRUE, but formula is "
+        + oldPathFormula.getFormula();
+    SSAMap oldSSA = oldPathFormula.getSsa();
+
+    //pathFormula.getSSa() might not contain index for the newly added variables in predicates; while the actual index is not really important at this point,
+    //there still should be at least _some_ index for each variable of the abstraction formula.
+    SSAMapBuilder builder = oldSSA.builder();
+    SSAMap rootSSA = rootState.getPathFormula().getSsa();
+    PointerTargetSet rootPts = rootState.getPathFormula().getPointerTargetSet();
+
+    if (useAbstractionReduction) {
 
       //Note: BAM might introduce some additional abstraction if root region is not a cube
       AbstractionFormula rootAbstraction = rootState.getAbstractionFormula();
@@ -161,23 +159,9 @@ public class BAMPredicateReducer implements Reducer {
 
       Collection<AbstractionPredicate> rootPredicates = pamgr.extractPredicates(rootAbstraction.asRegion());
       Collection<AbstractionPredicate> relevantRootPredicates =
-        cpa.getRelevantPredicatesComputer().getRelevantPredicates(pReducedContext, rootPredicates);
-      if (outerContext != null && aggressiveReduce) {
-        final String outerFunctionName = "|" + outerContext.getCallNode().getFunctionName() + "::";
-
-        relevantRootPredicates = from(relevantRootPredicates).filter(
-            p -> !p.toString().contains(outerFunctionName)).toSet();
-      }
+          cpa.getRelevantPredicatesComputer().getRelevantPredicates(pReducedContext, rootPredicates);
       //for each removed predicate, we have to lookup the old (expanded) value and insert it to the reducedStates region
 
-      PathFormula oldPathFormula = reducedState.getPathFormula();
-      assert bfmgr.isTrue(oldPathFormula.getFormula()) : "Formula should be TRUE, but formula is " + oldPathFormula.getFormula();
-      SSAMap oldSSA = oldPathFormula.getSsa();
-
-      //pathFormula.getSSa() might not contain index for the newly added variables in predicates; while the actual index is not really important at this point,
-      //there still should be at least _some_ index for each variable of the abstraction formula.
-      SSAMapBuilder builder = oldSSA.builder();
-      SSAMap rootSSA = rootState.getPathFormula().getSsa();
       for (String var : rootSSA.allVariables()) {
         //if we do not have the index in the reduced map..
         if (!oldSSA.containsVariable(var)) {
@@ -186,13 +170,7 @@ public class BAMPredicateReducer implements Reducer {
         }
       }
       SSAMap newSSA = builder.build();
-      /* Is it really important?
-       * PointerTargetSet rootPts = rootState.getPathFormula().getPointerTargetSet();
-      PointerTargetSet reducedPts = oldPathFormula.getPointerTargetSet();
-
-      PointerTargetSet newPts = pmgr.getPtsManager().expand(rootPts, reducedPts,
-          pReducedContext.getCallNode().getFunctionName(), newSSA);*/
-      PathFormula newPathFormula = pmgr.makeNewPathFormula(oldPathFormula, newSSA);
+      PathFormula newPathFormula = pmgr.makeNewPathFormula(oldPathFormula, newSSA, rootPts);
 
       AbstractionFormula newAbstractionFormula =
           pamgr.expand(reducedAbstraction.asRegion(), rootAbstraction.asRegion(),
@@ -203,7 +181,9 @@ public class BAMPredicateReducer implements Reducer {
       return PredicateAbstractState.mkAbstractionState(newPathFormula,
           newAbstractionFormula, abstractionLocations);
     } else {
-      return pReducedState;
+      PathFormula newPathFormula = pmgr.makeNewPathFormula(oldPathFormula, oldSSA, rootPts);
+      return PredicateAbstractState.mkAbstractionState(newPathFormula,
+          reducedState.getAbstractionFormula(), reducedState.getAbstractionLocationsOnPath());
     }
   }
 
@@ -226,8 +206,6 @@ public class BAMPredicateReducer implements Reducer {
     // TODO is Object-equality for RelevantPredicatesComputer enough or should we implement RelevantPredicatesComputer.equals()?
 
     return Triple.of(element.getAbstractionFormula().asRegion(), precision, cpa.getRelevantPredicatesComputer());
-
-    //return Pair.of(element.getAbstractionFormula().asRegion(), precision);
   }
 
   @Override
@@ -406,6 +384,7 @@ public class BAMPredicateReducer implements Reducer {
       }
     }
     SSAMap newSSA = builder.build();
+    @SuppressWarnings("deprecation") // TODO: seems buggy because it ignores PointerTargetSet
     PathFormula newPathFormula = pmgr.makeNewPathFormula(pmgr.makeEmptyPathFormula(), newSSA);
 
     AbstractionFormula newAbstractionFormula =
@@ -590,14 +569,8 @@ public class BAMPredicateReducer implements Reducer {
   }
 
   @Override
-  public AbstractState getVariableReducedState(AbstractState pExpandedState, Block pContext,
-      CFANode pCallNode) throws InterruptedException {
-    return getVariableReducedState(pExpandedState, pContext, null, pCallNode);
-  }
-
-  @Override
-  public AbstractState getVariableExpandedState(AbstractState pRootState, Block pReducedContext,
-      AbstractState pReducedState) throws InterruptedException {
-    return getVariableExpandedState(pRootState, pReducedContext, null, pReducedState);
+  public boolean canBeUsedInCache(AbstractState pState) {
+    PredicateAbstractState predicateState = (PredicateAbstractState) pState;
+    return !predicateState.getPathFormula().getPointerTargetSet().hasEmptyDeferredAllocationsSet();
   }
 }

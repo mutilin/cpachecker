@@ -23,20 +23,19 @@
  */
 package org.sosy_lab.cpachecker.cfa;
 
-import static com.google.common.base.Predicates.instanceOf;
-import static org.sosy_lab.cpachecker.util.CFAUtils.enteringEdges;
-
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import com.google.common.io.MoreFiles;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.Writer;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.ListIterator;
@@ -44,6 +43,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
+import java.util.zip.GZIPOutputStream;
+import javax.annotation.Nullable;
 import org.sosy_lab.common.Concurrency;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.Configuration;
@@ -51,7 +52,7 @@ import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
-import org.sosy_lab.common.io.MoreFiles;
+import org.sosy_lab.common.io.IO;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.time.Timer;
 import org.sosy_lab.cpachecker.cfa.ast.ADeclaration;
@@ -65,6 +66,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.java.JDeclaration;
+import org.sosy_lab.cpachecker.cfa.export.CFAToPixelsWriter;
 import org.sosy_lab.cpachecker.cfa.export.DOTBuilder;
 import org.sosy_lab.cpachecker.cfa.export.DOTBuilder2;
 import org.sosy_lab.cpachecker.cfa.export.FunctionCallDumper;
@@ -73,11 +75,10 @@ import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
-import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.java.JDeclarationEdge;
-import org.sosy_lab.cpachecker.cfa.parser.eclipse.EclipseParsers;
+import org.sosy_lab.cpachecker.cfa.parser.Parsers;
 import org.sosy_lab.cpachecker.cfa.postprocessing.function.CFADeclarationMover;
 import org.sosy_lab.cpachecker.cfa.postprocessing.function.CFASimplifier;
 import org.sosy_lab.cpachecker.cfa.postprocessing.function.CFunctionPointerResolver;
@@ -97,6 +98,7 @@ import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.threading.ThreadingTransferRelation;
+import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CParserException;
 import org.sosy_lab.cpachecker.exceptions.JParserException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
@@ -105,8 +107,11 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.LiveVariables;
 import org.sosy_lab.cpachecker.util.LoopStructure;
 import org.sosy_lab.cpachecker.util.Pair;
-import org.sosy_lab.cpachecker.util.VariableClassification;
-import org.sosy_lab.cpachecker.util.VariableClassificationBuilder;
+import org.sosy_lab.cpachecker.util.dependencegraph.DGBuilder;
+import org.sosy_lab.cpachecker.util.dependencegraph.DependenceGraph;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassification;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassificationBuilder;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassificationBuilder.VariableClassificationStatistics;
 
 /**
  * Class that encapsulates the whole CFA creation process.
@@ -146,9 +151,22 @@ public class CFACreator {
       description="create all potential function pointer call edges")
   private boolean fptrCallEdges = true;
 
+  @Option(
+    secure = true,
+    name = "analysis.threadOperationsTransform",
+    description =
+        "Replace thread creation operations with a special function calls"
+            + "so, any analysis can go through the function"
+  )
+  private boolean enableThreadOperationsInstrumentation = false;
+
   @Option(secure=true, name="analysis.useGlobalVars",
       description="add declarations for global variables before entry function")
   private boolean useGlobalVars = true;
+
+  @Option(secure=true, name="analysis.useLoopStructure",
+      description="add loop-structure information to CFA.")
+  private boolean useLoopStructure = true;
 
   @Option(secure=true, name="cfa.export",
       description="export CFA as .dot file")
@@ -172,17 +190,38 @@ public class CFACreator {
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path exportCfaFile = Paths.get("cfa.dot");
 
+  @Option(
+    secure = true,
+    name = "cfa.serialize",
+    description = "export CFA as .ser file (dump Java objects)"
+  )
+  private boolean serializeCfa = false;
+
+  @Option(
+    secure = true,
+    name = "cfa.serializeFile",
+    description = "export CFA as .ser file (dump Java objects)"
+  )
+  @FileOption(FileOption.Type.OUTPUT_FILE)
+  private Path serializeCfaFile = Paths.get("cfa.ser.gz");
+
+  @Option(
+    secure = true,
+    name = "cfa.pixelGraphicFile",
+    description =
+        "Export CFA as pixel graphic to the given file name. The suffix is added"
+            + " corresponding"
+            + " to the value of option pixelgraphic.export.format"
+            + "If set to 'null', no pixel graphic is exported."
+  )
+  @FileOption(FileOption.Type.OUTPUT_FILE)
+  private Path exportCfaPixelFile = Paths.get("cfaPixel");
+
   @Option(secure=true, name="cfa.checkNullPointers",
       description="while this option is activated, before each use of a "
           + "PointerExpression, or a dereferenced field access the expression is "
           + "checked if it is 0")
   private boolean checkNullPointers = false;
-
-  @Option(secure=true, name="cfa.skippedFunctionCalls",
-      description="function calls, which were deleted from cfa."
-          + "This option is useful to avoid unimportant recursion in final functions "
-          + "like exit() or abort()")
-  private Set<String> skippedFunctionCalls = new HashSet<>();
 
   @Option(secure=true, name="cfa.expandFunctionPointerArrayAssignments",
       description="When a function pointer array element is written with a variable as index, "
@@ -223,11 +262,18 @@ public class CFACreator {
               + " is read later on.")
   private boolean findLiveVariables = false;
 
+  @Option(
+    secure = true,
+    name = "cfa.createDependenceGraph",
+    description = "Whether to create dependence graph for the CFA of the program"
+  )
+  private boolean createDependenceGraph = false;
+
   @Option(secure=true, name="cfa.classifyNodes",
       description="This option enables the computation of a classification of CFA nodes.")
 private boolean classifyNodes = false;
 
-  @Option(secure=true, description="C or Java?")
+  @Option(secure=true, description="C, Java, or LLVM IR?")
   private Language language = Language.C;
 
   private final LogManager logger;
@@ -243,7 +289,10 @@ private boolean classifyNodes = false;
     private final Timer checkTime = new Timer();
     private final Timer processingTime = new Timer();
     private final Timer variableClassificationTime = new Timer();
+    private final Timer dependenceGraphConstructionTime = new Timer();
     private final Timer exportTime = new Timer();
+    private @Nullable VariableClassificationStatistics varClassificationStats;
+    private Statistics dependenceGraphStats;
 
     @Override
     public String getName() {
@@ -260,9 +309,25 @@ private boolean classifyNodes = false;
       out.println("    Time for post-processing: " + processingTime);
       if (variableClassificationTime.getNumberOfIntervals() > 0) {
         out.println("      Time for var class.:    " + variableClassificationTime);
+        if (varClassificationStats != null) {
+          varClassificationStats.printStatistics(out, pResult, pReached);
+        }
+      }
+      if (dependenceGraphConstructionTime.getNumberOfIntervals() > 0) {
+        out.println("      Time for dep. graph:    " + dependenceGraphConstructionTime);
+        if (dependenceGraphStats != null) {
+          dependenceGraphStats.printStatistics(out, pResult, pReached);
+        }
       }
       if (exportTime.getNumberOfIntervals() > 0) {
         out.println("    Time for CFA export:      " + exportTime);
+      }
+    }
+
+    @Override
+    public void writeOutputFiles(Result pResult, UnmodifiableReachedSet pReached) {
+      if (varClassificationStats != null) {
+        varClassificationStats.writeOutputFiles(pResult, pReached);
       }
     }
   }
@@ -283,7 +348,7 @@ private boolean classifyNodes = false;
 
     switch (language) {
     case JAVA:
-      parser = EclipseParsers.getJavaParser(logger, config);
+      parser = Parsers.getJavaParser(logger, config);
       break;
     case C:
       CParser outerParser =
@@ -301,6 +366,11 @@ private boolean classifyNodes = false;
       parser = outerParser;
 
       break;
+    case LLVM:
+      parser = Parsers.getLlvmParser(logger, machineModel);
+      language = Language.C; // After parsing we will have a CFA representing C code
+      break;
+
     default:
       throw new AssertionError();
     }
@@ -330,6 +400,7 @@ private boolean classifyNodes = false;
       assert mainFunction != null : "program lacks main function.";
 
       CFA cfa = createCFA(parseResult, mainFunction);
+
       return cfa;
     } finally {
       stats.totalTime.stop();
@@ -385,7 +456,14 @@ private boolean classifyNodes = false;
 
     assert mainFunction != null;
 
-    MutableCFA cfa = new MutableCFA(machineModel, pParseResult.getFunctions(), pParseResult.getCFANodes(), mainFunction, language);
+    MutableCFA cfa =
+        new MutableCFA(
+            machineModel,
+            pParseResult.getFunctions(),
+            pParseResult.getCFANodes(),
+            mainFunction,
+            pParseResult.getFileNames(),
+            language);
 
     stats.checkTime.start();
 
@@ -417,7 +495,9 @@ private boolean classifyNodes = false;
 
     // get loop information
     // (needs post-order information)
-    addLoopStructure(cfa);
+    if (useLoopStructure) {
+      addLoopStructure(cfa);
+    }
 
     // FOURTH, insert call and return edges and build the supergraph
     if (interprocedural) {
@@ -444,7 +524,9 @@ private boolean classifyNodes = false;
     if (language == Language.C) {
       try {
         stats.variableClassificationTime.start();
-        varClassification = Optional.of(new VariableClassificationBuilder(config, logger).build(cfa));
+        VariableClassificationBuilder builder = new VariableClassificationBuilder(config, logger);
+        varClassification = Optional.of(builder.build(cfa));
+        stats.varClassificationStats = builder.getStatistics();
       } catch (UnrecognizedCCodeException e) {
         throw new CParserException(e);
       } finally {
@@ -463,9 +545,25 @@ private boolean classifyNodes = false;
                                                 config));
     }
 
+    Optional<DependenceGraph> depGraph;
+    if (createDependenceGraph) {
+      try {
+        stats.dependenceGraphConstructionTime.start();
+        DGBuilder depGraphBuilder = DependenceGraph.builder(cfa, config, logger, shutdownNotifier);
+        depGraph = Optional.of(depGraphBuilder.build());
+        stats.dependenceGraphStats = depGraphBuilder.getStatistics();
+      } catch (CPAException pE) {
+        throw new CParserException(pE);
+      } finally {
+        stats.dependenceGraphConstructionTime.stop();
+      }
+    } else {
+      depGraph = Optional.empty();
+    }
+
     stats.processingTime.stop();
 
-    final ImmutableCFA immutableCFA = cfa.makeImmutableCFA(varClassification);
+    final ImmutableCFA immutableCFA = cfa.makeImmutableCFA(varClassification, depGraph);
 
     // check the super CFA starting at the main function
     stats.checkTime.start();
@@ -473,7 +571,9 @@ private boolean classifyNodes = false;
     stats.checkTime.stop();
 
     if (((exportCfaFile != null) && (exportCfa || exportCfaPerFunction))
-        || ((exportFunctionCallsFile != null) && exportFunctionCalls)) {
+        || ((exportFunctionCallsFile != null) && exportFunctionCalls)
+        || ((serializeCfaFile != null) && serializeCfa)
+        || (exportCfaPixelFile != null)) {
       exportCFAAsync(immutableCFA);
     }
 
@@ -542,13 +642,16 @@ private boolean classifyNodes = false;
     return parseResult;
   }
 
-  /** This method changes the CFAs of the functions with adding, removing, replacing or moving CFAEdges.
-   * The CFAs are independent, i.e. there are no super-edges (functioncall- and return-edges) between them.
+  /**
+   * This method changes the CFAs of the functions with adding, removing, replacing or moving
+   * CFAEdges. The CFAs are independent, i.e. there are no super-edges (functioncall- and
+   * return-edges) between them.
    *
    * @return either a modified old CFA or a complete new CFA
    */
-  private MutableCFA postProcessingOnMutableCFAs(MutableCFA cfa, final List<Pair<ADeclaration, String>> globalDeclarations)
-          throws InvalidConfigurationException, CParserException, InterruptedException {
+  private MutableCFA postProcessingOnMutableCFAs(
+      MutableCFA cfa, final List<Pair<ADeclaration, String>> globalDeclarations)
+      throws InvalidConfigurationException, CParserException {
 
     // remove all edges which don't have any effect on the program
     if (simplifyCfa) {
@@ -576,12 +679,11 @@ private boolean classifyNodes = false;
       fptrResolver.resolveFunctionPointers();
     }
 
-    //Transform ldv_thread_create
-    ThreadCreateTransformer TCtransformer = new ThreadCreateTransformer(logger, config);
-    TCtransformer.transform(cfa);
-
-    // Transform dummy loops into edges to termination nodes
-    transformDummyLoopsToEdges(cfa);
+    // Transform pthread_create(.., &func) -> func()
+    if (enableThreadOperationsInstrumentation) {
+      ThreadCreateTransformer TCtransformer = new ThreadCreateTransformer(logger, config);
+      TCtransformer.transform(cfa);
+    }
 
     if (useFunctionCallUnwinding) {
       // must be done before adding global vars
@@ -602,63 +704,7 @@ private boolean classifyNodes = false;
       insertGlobalDeclarations(cfa, globalDeclarations);
     }
 
-    if (!skippedFunctionCalls.isEmpty()) {
-      for (String functionName : skippedFunctionCalls) {
-        cfa.removeFunction(functionName);
-      }
-    }
     return cfa;
-  }
-
-  /** Transform dummy loops into edges to termination nodes */
-  private void transformDummyLoopsToEdges(MutableCFA cfa) throws InterruptedException {
-    List<CFANode> toAdd = new ArrayList<>(1);
-    Predicate<Object> isBlankEdge = instanceOf(BlankEdge.class);
-
-    for (CFANode node : cfa.getAllNodes()) {
-      this.shutdownNotifier.shutdownIfNecessary();
-
-      // only potential loop heads are interesting for us, they also need to have
-      // at least one BlankEdge as successor and predecessor
-      if (node.getNumEnteringEdges() < 2
-          || !(node.getNumLeavingEdges() == 1 && node.getLeavingEdge(0) instanceof BlankEdge)
-          || enteringEdges(node).anyMatch(isBlankEdge)) {
-        continue;
-      }
-
-      Set<CFANode> visited = new HashSet<>();
-      CFANode current = node;
-      while (current.getNumLeavingEdges() == 1
-          && current.getLeavingEdge(0) instanceof BlankEdge
-          && visited.add(current)) {
-
-        CFAEdge leavingBlankEdge = current.getLeavingEdge(0);
-        CFANode succ = leavingBlankEdge.getSuccessor();
-
-        // Found empty loop
-        if (succ.equals(node)) {
-          leavingBlankEdge.getPredecessor().removeLeavingEdge(leavingBlankEdge);
-          leavingBlankEdge.getSuccessor().removeEnteringEdge(leavingBlankEdge);
-          CFANode terminationNode = new CFATerminationNode(node.getFunctionName());
-          BlankEdge terminationEdge =
-              new BlankEdge(
-                  leavingBlankEdge.getRawStatement(),
-                  leavingBlankEdge.getFileLocation(),
-                  leavingBlankEdge.getPredecessor(),
-                  terminationNode,
-                  leavingBlankEdge.getDescription());
-          terminationEdge.getPredecessor().addLeavingEdge(terminationEdge);
-          terminationEdge.getSuccessor().addEnteringEdge(terminationEdge);
-          toAdd.add(terminationNode);
-        }
-
-        current = succ;
-      }
-    }
-
-    for (CFANode nodeToAdd : toAdd) {
-      cfa.addNode(nodeToAdd);
-    }
   }
 
   /** check, whether the program contains function calls to crate a new thread. */
@@ -723,7 +769,7 @@ private boolean classifyNodes = false;
     Path file = Paths.get(fileDenotation);
 
     try {
-      MoreFiles.checkReadableFile(file);
+      IO.checkReadableFile(file);
     } catch (FileNotFoundException e) {
       throw new InvalidConfigurationException(e.getMessage());
     }
@@ -927,7 +973,7 @@ v.addInitializer(initializer);
 
     // write CFA to file
     if (exportCfa && exportCfaFile != null) {
-      try (Writer w = MoreFiles.openOutputFile(exportCfaFile, Charset.defaultCharset())) {
+      try (Writer w = IO.openOutputFile(exportCfaFile, Charset.defaultCharset())) {
         DOTBuilder.generateDOT(w, cfa);
       } catch (IOException e) {
         logger.logUserException(Level.WARNING, e,
@@ -949,12 +995,33 @@ v.addInitializer(initializer);
     }
 
     if (exportFunctionCalls && exportFunctionCallsFile != null) {
-      try (Writer w = MoreFiles.openOutputFile(exportFunctionCallsFile, Charset.defaultCharset())) {
+      try (Writer w = IO.openOutputFile(exportFunctionCallsFile, Charset.defaultCharset())) {
         FunctionCallDumper.dump(w, cfa);
       } catch (IOException e) {
         logger.logUserException(Level.WARNING, e,
             "Could not write functionCalls to dot file");
         // continue with analysis
+      }
+    }
+
+    if (exportCfaPixelFile != null) {
+      try {
+        new CFAToPixelsWriter(config).write(cfa.getMainFunction(), exportCfaPixelFile);
+      } catch (IOException | InvalidConfigurationException e) {
+        logger.logUserException(Level.WARNING, e, "Could not write CFA as pixel graphic.");
+      }
+    }
+
+    if (serializeCfa && serializeCfaFile != null) {
+      try {
+        MoreFiles.createParentDirectories(serializeCfaFile);
+        try (OutputStream outputStream = Files.newOutputStream(serializeCfaFile);
+            OutputStream gzipOutputStream = new GZIPOutputStream(outputStream);
+            ObjectOutputStream oos = new ObjectOutputStream(gzipOutputStream)) {
+          oos.writeObject(cfa);
+        }
+      } catch (IOException e) {
+        logger.logException(Level.WARNING, e, "Could not serialize CFA to file.");
       }
     }
 

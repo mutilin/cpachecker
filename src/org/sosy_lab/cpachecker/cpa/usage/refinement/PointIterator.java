@@ -112,8 +112,8 @@ public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageI
     UsageInfoSet secondUsageInfoSet = currentUsagePointSet.getUsageInfo(second);
 
     if (firstUsageInfoSet == secondUsageInfoSet) {
-      //To avoid concurrent modification
-      secondUsageInfoSet = secondUsageInfoSet.clone();
+      // To avoid concurrent modification
+      secondUsageInfoSet = secondUsageInfoSet.copy();
     }
 
     assert secondUsageInfoSet != null;
@@ -121,7 +121,7 @@ public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageI
   }
 
   @Override
-  protected void finalize(Pair<UsageInfoSet, UsageInfoSet> pPair, RefinementResult r) {
+  protected void finishIteration(Pair<UsageInfoSet, UsageInfoSet> pPair, RefinementResult r) {
     UsageInfoSet firstUsageInfoSet = pPair.getFirst();
     UsageInfoSet secondUsageInfoSet = pPair.getSecond();
 
@@ -155,6 +155,5 @@ public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageI
   }
 
   @Override
-  protected void printDetailedStatistics(StatisticsWriter pOut) {
-  }
+  protected void printDetailedStatistics(StatisticsWriter pOut) {}
 }

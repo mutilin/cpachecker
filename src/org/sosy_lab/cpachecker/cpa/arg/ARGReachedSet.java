@@ -24,6 +24,7 @@
 package org.sosy_lab.cpachecker.cpa.arg;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
@@ -34,19 +35,26 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
 import com.google.common.collect.SetMultimap;
 import java.io.IOException;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.logging.Level;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSetWrapper;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicatePrecision;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Precisions;
 
 /**
@@ -99,12 +107,64 @@ public class ARGReachedSet {
    * covered by removed elements.
    *
    * @param e The root of the removed subtree, may not be the initial element.
+   * @throws InterruptedException can be thrown in subclass
    */
-  public void removeSubtree(ARGState e) {
+  public void removeSubtree(ARGState e) throws InterruptedException {
     Set<ARGState> toWaitlist = removeSubtree0(e);
 
     for (ARGState ae : toWaitlist) {
       mReached.reAddToWaitlist(ae);
+    }
+  }
+
+  /**
+   * For the case that the ARG is not a tree, recalculate the ReachedSet
+   * by calculating the states reachable from the rootState.
+   * States which have become unreachable get properly detached
+   */
+  public void recalculateReachedSet(ARGState rootState) {
+    removeReachableFrom(Collections.singleton(rootState), ARGState::getChildren, x -> true);
+  }
+
+  /**
+   * If at least one error state is present,remove the parts of the ARG from which no error state is reachable.
+   * Warning: This might remove states that could cover other states.
+   */
+  public void removeSafeRegions() {
+    Collection<AbstractState> targetStates = from(mReached)
+        .filter(AbstractStates.IS_TARGET_STATE)
+        .toList();
+    if (!targetStates.isEmpty()) {
+      removeReachableFrom(targetStates,
+          ARGState::getParents, x -> x.wasExpanded());
+    }
+  }
+
+  private void removeReachableFrom(Collection<AbstractState> startStates,
+      Function<? super ARGState, ? extends Iterable<ARGState>> successorFunction,
+      Predicate<ARGState> allowedToRemove) {
+    Deque<AbstractState> toVisit = new ArrayDeque<>(startStates);
+    Set<ARGState> reached = new HashSet<>();
+    while (!toVisit.isEmpty()) {
+      ARGState currentElement = (ARGState) toVisit.removeFirst();
+      if (reached.add(currentElement)) {
+        List<ARGState> notYetReached = from(successorFunction.apply(currentElement))
+            .filter(x -> !reached.contains(x))
+            .toList();
+        toVisit.addAll(notYetReached);
+      }
+    }
+    List<ARGState> toRemove = new ArrayList<>(2);
+    for (AbstractState inOldReached : mReached) {
+      if (!reached.contains(inOldReached) && allowedToRemove.apply((ARGState) inOldReached)) {
+        toRemove.add((ARGState) inOldReached);
+      }
+    }
+    mReached.removeAll(toRemove);
+    for (ARGState state : toRemove) {
+      if (!state.isDestroyed()) {
+        state.removeFromARG();
+      }
     }
   }
 
@@ -244,21 +304,6 @@ public class ARGReachedSet {
         });
   }
 
-  public void updateFirstStatePrecision(Precision pNewPrecision,
-      Predicate<? super Precision> pPrecisionType) {
-
-    ARGState s = (ARGState) mReached.getFirstState();
-    Precision oldPrecision = mReached.getPrecision(s);
-    PredicatePrecision old = Precisions.extractPrecisionByType(oldPrecision, PredicatePrecision.class);
-    if (old != null) {
-      PredicatePrecision newP = Precisions.extractPrecisionByType(pNewPrecision, PredicatePrecision.class);
-      PredicatePrecision merged = newP.mergeWith(old);
-      pNewPrecision = Precisions.replaceByType(pNewPrecision, merged, pPrecisionType);
-    }
-    Precision newPrecision = adaptPrecision(oldPrecision, pNewPrecision, pPrecisionType);
-    mReached.updatePrecision(s, newPrecision);
-  }
-
   /**
    * Adapts a precision with a new precision.
    * If the old precision is a wrapper precision, pNewPrecision replaces the
@@ -269,7 +314,7 @@ public class ARGReachedSet {
    * @return The adapted precision.
    */
   private Precision adaptPrecision(Precision pOldPrecision, Precision pNewPrecision,
-    Predicate<? super Precision> pPrecisionType) {
+      Predicate<? super Precision> pPrecisionType) {
     return Precisions.replaceByType(pOldPrecision, pNewPrecision, pPrecisionType);
   }
 
@@ -412,7 +457,9 @@ public class ARGReachedSet {
   public boolean tryToCover(ARGState v) throws CPAException, InterruptedException {
     assert v.mayCover();
 
-    cpa.getStopOperator().stop(v, mReached.getReached(v), mReached.getPrecision(v));
+    // sideeffect: coverage and cleanup of ARG is done in ARGStopSep#stop
+    boolean stop = cpa.getStopOperator().stop(v, mReached.getReached(v), mReached.getPrecision(v));
+    Preconditions.checkState(!stop);
     // ignore return value of stop, because it will always be false
 
     if (v.isCovered()) {
@@ -466,6 +513,7 @@ public class ARGReachedSet {
     assert v.mayCover();
 
     if (beUnsound) {
+      // sideeffect: coverage and cleanup of ARG is done in ARGStopSep#stop
       cpa.getStopOperator().stop(v, mReached.getReached(v), mReached.getPrecision(v));
       return v.isCovered();
     }
@@ -481,23 +529,6 @@ public class ARGReachedSet {
       super(pReached.mReached);
       delegate = pReached;
     }
-
-    @Override
-    public UnmodifiableReachedSet asReachedSet() {
-      return delegate.asReachedSet();
-    }
-
-    @Override
-    public void removeSubtree(ARGState pE) {
-      delegate.removeSubtree(pE);
-    }
-
-    @Override
-    public void removeSubtree(
-        ARGState pE, Precision pP, Predicate<? super Precision> pPrecisionType)
-        throws InterruptedException {
-      delegate.removeSubtree(pE, pP, pPrecisionType);
-    }
   }
 
   /**
@@ -512,5 +543,15 @@ public class ARGReachedSet {
     while (mReached.hasWaitingState()) {
       mReached.popFromWaitlist();
     }
+  }
+
+  /**
+   * This method adds a state to the reached after splitting, but removes it from the waitlist.
+   * The precision is taken from the original state. Only call this method if you are sure that
+   * the state does not represent unreached concrete states, otherwise it will be unsound.
+   */
+  public void addForkedState(ARGState forkedState, ARGState originalState) {
+    mReached.add(forkedState, mReached.getPrecision(originalState));
+    mReached.removeOnlyFromWaitlist(forkedState);
   }
 }

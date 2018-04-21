@@ -37,16 +37,16 @@ import javax.xml.parsers.ParserConfigurationException;
 import org.sosy_lab.common.Appender;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.common.io.MoreFiles;
+import org.sosy_lab.common.io.IO;
 import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.cpachecker.cfa.Language;
+import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
-import org.sosy_lab.cpachecker.cfa.types.MachineModel;
+import org.sosy_lab.cpachecker.core.Specification;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
 import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -63,11 +63,18 @@ import org.w3c.dom.Element;
 
 public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
 
-  public KleverErrorTracePrinterOld(Configuration c, BAMMultipleCEXSubgraphComputer pT, LogManager pL, LockTransferRelation lT) throws InvalidConfigurationException {
-    super(c, pT, pL, lT);
+  public KleverErrorTracePrinterOld(
+      Configuration c,
+      BAMMultipleCEXSubgraphComputer pT,
+      CFA pCfa,
+      LogManager pL,
+      LockTransferRelation lT)
+      throws InvalidConfigurationException {
+    super(c, pT, pCfa, pL, lT);
   }
 
   int idCounter = 0;
+
   private String getId() {
     return "A" + idCounter++;
   }
@@ -86,23 +93,34 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
     }
     try {
       File name = new File("output/witness." + createUniqueName(pId) + ".graphml");
-      String defaultSourcefileName = from(firstPath)
-          .filter(FILTER_EMPTY_FILE_LOCATIONS).get(0).getFileLocation().getFileName();
+      String defaultSourcefileName =
+          from(firstPath)
+              .filter(FILTER_EMPTY_FILE_LOCATIONS)
+              .get(0)
+              .getFileLocation()
+              .getFileName();
 
-      GraphMlBuilder builder = new GraphMlBuilder(WitnessType.VIOLATION_WITNESS, defaultSourcefileName, Language.C,
-          MachineModel.LINUX64, new VerificationTaskMetaData(config, java.util.Optional.empty()));
+      GraphMlBuilder builder =
+          new GraphMlBuilder(
+              WitnessType.VIOLATION_WITNESS,
+              defaultSourcefileName,
+              cfa,
+              new VerificationTaskMetaData(config, Specification.alwaysSatisfied()));
 
       idCounter = 0;
       Element result = builder.createNodeElement("A0", NodeType.ONPATH);
-      builder.addDataElementChild(result, NodeFlag.ISENTRY.key , "true");
+      builder.addDataElementChild(result, NodeFlag.ISENTRY.key, "true");
       printPath(firstUsage, 0, builder);
       result = printPath(secondUsage, 2, builder);
 
       builder.addDataElementChild(result, NodeFlag.ISVIOLATION.key, "true");
 
-      //builder.appendTo(w);
-      MoreFiles.writeFile(Paths.get(name.getAbsolutePath()), Charset.defaultCharset(), (Appender) a -> builder.appendTo(a));
-      //w.close();
+      // builder.appendTo(w);
+      IO.writeFile(
+          Paths.get(name.getAbsolutePath()),
+          Charset.defaultCharset(),
+          (Appender) a -> builder.appendTo(a));
+      // w.close();
     } catch (IOException e) {
       logger.log(Level.SEVERE, "Exception during printing unsafe " + pId + ": " + e.getMessage());
     } catch (ParserConfigurationException e) {
@@ -112,22 +130,22 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
     } catch (InvalidConfigurationException e1) {
       logger.log(Level.SEVERE, "Exception during printing unsafe " + pId + ": " + e1.getMessage());
     }
-
   }
-
 
   private Element printPath(UsageInfo usage, int threadId, GraphMlBuilder builder) {
     String currentId = getId(), nextId = currentId;
     SingleIdentifier pId = usage.getId();
     List<CFAEdge> path = usage.getPath();
 
-    Iterator<CFAEdge> iterator = from(path)
-               .filter(FILTER_EMPTY_FILE_LOCATIONS)
-               .iterator();
+    Iterator<CFAEdge> iterator = from(path).filter(FILTER_EMPTY_FILE_LOCATIONS).iterator();
 
-    Optional<CFAEdge> warningEdge = from(path)
-      .filter(e -> e.getPredecessor() == usage.getLine().getNode() && e.toString().contains(pId.getName()))
-      .last();
+    Optional<CFAEdge> warningEdge =
+        from(path)
+            .filter(
+                e ->
+                    e.getPredecessor() == usage.getLine().getNode()
+                        && e.toString().contains(pId.getName()))
+            .last();
 
     CFAEdge warning;
 
@@ -191,7 +209,7 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
       builder.addDataElementChild(lastWarningElement, KeyDef.WARNING, usage.getWarningMessage());
     }
 
-    //Special hack to connect two traces
+    // Special hack to connect two traces
     idCounter--;
     return result;
   }
@@ -201,7 +219,6 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
     if (pEdge.getSuccessor() instanceof FunctionEntryNode) {
       FunctionEntryNode in = (FunctionEntryNode) pEdge.getSuccessor();
       builder.addDataElementChild(result, KeyDef.FUNCTIONENTRY, in.getFunctionName());
-
     }
     if (pEdge.getSuccessor() instanceof FunctionExitNode) {
       FunctionExitNode out = (FunctionExitNode) pEdge.getSuccessor();
@@ -217,12 +234,12 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
     FileLocation location = pEdge.getFileLocation();
     assert (location != null) : "should be filtered";
     builder.addDataElementChild(result, KeyDef.ORIGINFILE, location.getFileName());
-    builder.addDataElementChild(result, KeyDef.STARTLINE, Integer.toString(location.getStartingLineInOrigin()));
+    builder.addDataElementChild(
+        result, KeyDef.STARTLINE, Integer.toString(location.getStartingLineInOrigin()));
     builder.addDataElementChild(result, KeyDef.OFFSET, Integer.toString(location.getNodeOffset()));
 
     if (!pEdge.getRawStatement().trim().isEmpty()) {
       builder.addDataElementChild(result, KeyDef.SOURCECODE, pEdge.getRawStatement());
     }
   }
-
 }

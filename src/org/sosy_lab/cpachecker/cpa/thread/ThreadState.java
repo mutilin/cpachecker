@@ -29,7 +29,6 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
@@ -58,8 +57,8 @@ public class ThreadState implements LatticeAbstractState<ThreadState>, AbstractS
     private List<ThreadLabel> rSet;
 
     private ThreadStateBuilder(ThreadState state) {
-      tSet = new LinkedList<>(state.threadSet);
-      rSet = new LinkedList<>(state.removedSet);
+      tSet = new ArrayList<>(state.threadSet);
+      rSet = new ArrayList<>(state.removedSet);
     }
 
     public void handleParentThread(CThreadCreateStatement tCall) throws HandleCodeException {
@@ -143,13 +142,7 @@ public class ThreadState implements LatticeAbstractState<ThreadState>, AbstractS
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + Objects.hashCode(callstack);
-    result = prime * result + Objects.hashCode(location);
-    result = prime * result + Objects.hashCode(removedSet);
-    result = prime * result + Objects.hashCode(threadSet);
-    return result;
+    return Objects.hash(callstack, location, removedSet, threadSet);
   }
 
   @Override
@@ -267,7 +260,7 @@ public class ThreadState implements LatticeAbstractState<ThreadState>, AbstractS
   }
 
   public static ThreadState emptyState(LocationState l, CallstackState c) {
-    List<ThreadLabel> emptySet = new LinkedList<>();
+    List<ThreadLabel> emptySet = new ArrayList<>();
     return new ThreadState(l, c, emptySet, emptySet);
   }
 
@@ -285,8 +278,7 @@ public class ThreadState implements LatticeAbstractState<ThreadState>, AbstractS
 
   @Override
   public ThreadState join(ThreadState pOther) {
-    Preconditions.checkArgument(false, "Join of Thread states is not supported");
-    return null;
+    throw new UnsupportedOperationException("Join is not implemented for ThreadCPA");
   }
 
   @Override

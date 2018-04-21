@@ -23,10 +23,13 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
+import com.google.common.collect.Sets;
 import java.util.Iterator;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
+import org.sosy_lab.cpachecker.cpa.usage.storage.UnsafeDetector;
+import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.util.Pair;
 
@@ -40,6 +43,8 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
   private UsageInfo firstUsage = null;
   private UsageInfoSet secondUsageInfoSet;
 
+  private UnsafeDetector detector;
+
   public UsagePairIterator(ConfigurableRefinementBlock<Pair<UsageInfo, UsageInfo>> pWrapper, LogManager l) {
     super(pWrapper);
     logger = l;
@@ -51,11 +56,8 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
     firstUsageInfoSet = pInput.getFirst();
     secondUsageInfoSet = pInput.getSecond();
 
-    Iterable<UsageInfo> firstUsages = firstUsageInfoSet.getUsages();
-    Iterable<UsageInfo> secondUsages = secondUsageInfoSet.getUsages();
-
-    firstUsageIterator = firstUsages.iterator();
-    secondUsageIterator = secondUsages.iterator();
+    firstUsageIterator = firstUsageInfoSet.iterator();
+    secondUsageIterator = secondUsageInfoSet.iterator();
 
     firstUsage = null;
   }
@@ -75,9 +77,7 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
 
     if (result == null && firstUsageIterator.hasNext()) {
       firstUsage = firstUsageIterator.next();
-      UsageInfoSet secondUsageInfoSet = pInput.getSecond();
-      Iterable<UsageInfo> secondUsages = secondUsageInfoSet.getUsages();
-      secondUsageIterator = secondUsages.iterator();
+      secondUsageIterator = pInput.getSecond().iterator();
       result = checkSecondIterator();
     }
     if (result == null) {
@@ -86,7 +86,7 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
       UsageInfo firstUsage = result.getFirst();
       UsageInfo secondUsage = result.getSecond();
       if (firstUsage == secondUsage) {
-        secondUsage = secondUsage.clone();
+        secondUsage = secondUsage.copy();
       }
       return Pair.of(firstUsage, secondUsage);
     }
@@ -99,14 +99,16 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
         //It may happens if we refine to same sets (first == second)
         //It is normal, just skip
       } else {
-        return Pair.of(firstUsage, secondUsage);
+        if (detector.isUnsafe(Sets.newHashSet(firstUsage, secondUsage))) {
+          return Pair.of(firstUsage, secondUsage);
+        }
       }
     }
     return null;
   }
 
   @Override
-  protected void finalize(Pair<UsageInfo, UsageInfo> usagePair, RefinementResult r) {
+  protected void finishIteration(Pair<UsageInfo, UsageInfo> usagePair, RefinementResult r) {
     UsageInfo first = usagePair.getFirst();
     UsageInfo second = usagePair.getSecond();
 
@@ -118,8 +120,21 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
       logger.log(Level.FINE, "Usage " + firstUsageIterator + " is not reachable, remove it from container");
       firstUsageIterator.remove();
       firstUsage = null;
-      Iterable<UsageInfo> secondUsages = secondUsageInfoSet.getUsages();
-      secondUsageIterator = secondUsages.iterator();
+      secondUsageIterator = secondUsageInfoSet.iterator();
+    }
+    if ((first.isLooped() || second.isLooped()) && first.equals(second)) {
+      first.setAsLooped();
+      second.setAsLooped();
+    }
+  }
+
+  @Override
+  protected void
+      handleUpdateSignal(Class<? extends RefinementInterface> pCallerClass, Object pData) {
+    if (pCallerClass.equals(IdentifierIterator.class)) {
+      assert pData instanceof UsageContainer;
+      UsageContainer container = (UsageContainer) pData;
+      detector = container.getUnsafeDetector();
     }
   }
 }

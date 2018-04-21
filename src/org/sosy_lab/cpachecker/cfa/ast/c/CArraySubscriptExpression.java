@@ -31,6 +31,8 @@ public final class CArraySubscriptExpression extends AArraySubscriptExpression i
 
 
 
+  private static final long serialVersionUID = 129923340158722862L;
+
   public CArraySubscriptExpression(final FileLocation pFileLocation,
                                       final CType pType,
                                       final CExpression pArrayExpression,
@@ -75,9 +77,7 @@ public final class CArraySubscriptExpression extends AArraySubscriptExpression i
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 7;
-    return result * prime + super.hashCode();
+    return super.hashCode();
   }
 
   @Override

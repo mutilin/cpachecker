@@ -31,7 +31,6 @@ import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Deque;
 import java.util.HashSet;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
@@ -65,6 +64,8 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
       + "The value '-1' disables this option.")
   private int maximalDepthForExplicitRecursion = -1;
 
+  private final BAMCPA bamCPA;
+
   // flags of the fixpoint-algorithm for recursion
   private boolean recursionSeen = false;
   private boolean resultStatesChanged = false;
@@ -79,6 +80,7 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
       throws InvalidConfigurationException {
     super(pConfig, bamCpa, wrappedChecker, pShutdownNotifier);
     pConfig.inject(this);
+    bamCPA = bamCpa;
   }
 
   @Override
@@ -186,7 +188,7 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
   /** update waitlists of all reachedsets to re-explore the previously found recursive function-call. */
   private void reAddStatesForFixPointIteration() {
     for (final AbstractState recursionUpdateState : potentialRecursionUpdateStates) {
-      for (final ReachedSet reachedSet : data.bamCache.getAllCachedReachedStates()) {
+      for (final ReachedSet reachedSet : data.getCache().getAllCachedReachedStates()) {
         if (reachedSet.contains(recursionUpdateState)) {
           logger.log(Level.FINEST, "re-adding state", recursionUpdateState);
           reachedSet.reAddToWaitlist(recursionUpdateState);
@@ -202,7 +204,6 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
 
   /** returns a covering level or Null, if no such level is found. */
   private Triple<AbstractState, Precision, Block> getCoveringLevel(
-      final Deque<Triple<AbstractState, Precision, Block>> stack,
       final Triple<AbstractState, Precision, Block> currentLevel)
       throws CPAException, InterruptedException {
 
@@ -323,8 +324,7 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
       throws CPAException, InterruptedException {
 
     final Collection<AbstractState> expandedFunctionReturnStates;
-    final Triple<AbstractState, Precision, Block> coveringLevel =
-        getCoveringLevel(stack, stack.peek());
+    final Triple<AbstractState, Precision, Block> coveringLevel = getCoveringLevel(stack.peek());
     if (coveringLevel != null) {
       // if level is twice in stack, we have endless recursion.
       // with current knowledge we would never abort unrolling the recursion.
@@ -385,7 +385,7 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
     // try to get previously computed states from cache
     final Pair<ReachedSet, Collection<AbstractState>> pair =
             //argCache.get(reducedInitialState, reducedInitialPrecision, currentBlock);
-            data.bamCache.get(pCoveringLevel.getFirst(), pCoveringLevel.getSecond(), pCoveringLevel.getThird());
+            data.getCache().get(pCoveringLevel.getFirst(), pCoveringLevel.getSecond(), pCoveringLevel.getThird());
     final ReachedSet reached = pair.getFirst();
     final Collection<AbstractState> previousResult = pair.getSecond();
     final Collection<AbstractState> reducedResult;
@@ -402,7 +402,7 @@ public class BAMTransferRelationWithFixPointForRecursion extends BAMTransferRela
       logger.logf(Level.FINEST, "skipping recursive call with cached result (root is %s)", reached.getFirstState());
     }
 
-    data.registerInitialState(initialState, reached);
+    registerInitalAndExitStates(initialState, reducedResult, reached);
 
     if (bamPccManager.isPCCEnabled()) {
       bamPccManager.addBlockAnalysisInfo(pReducedInitialState);

@@ -23,19 +23,20 @@
  */
 package org.sosy_lab.cpachecker.cfa;
 
+import com.google.common.collect.ImmutableSet;
+import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.util.LiveVariables;
 import org.sosy_lab.cpachecker.util.LoopStructure;
-import org.sosy_lab.cpachecker.util.VariableClassification;
-
-import java.util.Optional;
-import com.google.common.collect.ImmutableSet;
+import org.sosy_lab.cpachecker.util.dependencegraph.DependenceGraph;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassification;
 
 public interface CFA {
 
@@ -65,5 +66,9 @@ public interface CFA {
 
   Optional<LiveVariables> getLiveVariables();
 
+  Optional<DependenceGraph> getDependenceGraph();
+
   Language getLanguage();
+
+  List<Path> getFileNames();
 }

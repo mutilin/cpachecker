@@ -23,29 +23,34 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
-import java.util.LinkedList;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
 import java.util.List;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
+@SuppressFBWarnings(
+  justification = "Serialization of container is useless and not supported",
+  value = "SE_BAD_FIELD"
+)
 public class TemporaryUsageStorage extends AbstractUsageStorage {
   private static final long serialVersionUID = -8932709343923545136L;
 
-  //Not set! There was a bug, when two similar usages of different ids are overlapped.
+  // Not set! There was a bug, when two similar usages of different ids are overlapped.
   private final List<UsageInfo> withoutARGState;
 
   private TemporaryUsageStorage previousStorage;
 
   private TemporaryUsageStorage(TemporaryUsageStorage previous) {
     super(previous);
-    //Copy states without ARG to set it later
-    withoutARGState = new LinkedList<>(previous.withoutARGState);
+    // Copy states without ARG to set it later
+    withoutARGState = new ArrayList<>(previous.withoutARGState);
     previousStorage = previous;
   }
 
   public TemporaryUsageStorage() {
-    withoutARGState = new LinkedList<>();
+    withoutARGState = new ArrayList<>();
     previousStorage = null;
   }
 
@@ -74,8 +79,7 @@ public class TemporaryUsageStorage extends AbstractUsageStorage {
     previousStorage = null;
   }
 
-  @Override
-  public TemporaryUsageStorage clone() {
+  public TemporaryUsageStorage copy() {
     return new TemporaryUsageStorage(this);
   }
 

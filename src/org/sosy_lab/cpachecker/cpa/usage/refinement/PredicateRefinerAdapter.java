@@ -24,10 +24,10 @@
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -46,10 +46,10 @@ import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGBasedRefiner;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.predicate.BAMBlockFormulaStrategy;
+import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateAbstractionRefinementStrategy;
 import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateCPA;
 import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateRefiner;
-import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateRefiner.BAMBlockFormulaStrategy;
-import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateRefiner.BAMPredicateAbstractionRefinementStrategy;
 import org.sosy_lab.cpachecker.cpa.predicate.BlockFormulaStrategy;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractionManager;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateCPARefinerFactory;
@@ -83,7 +83,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
   private StatCounter numberOfBAMupdates = new StatCounter("Number of BAM updates");
 
   public PredicateRefinerAdapter(ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> wrapper,
-      ConfigurableProgramAnalysis pCpa) throws InvalidConfigurationException {
+      ConfigurableProgramAnalysis pCpa, LogManager pLogger) throws InvalidConfigurationException {
     super(wrapper);
 
     if (!(pCpa instanceof WrapperCPA)) {
@@ -95,11 +95,10 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
       throw new InvalidConfigurationException(BAMPredicateRefiner.class.getSimpleName() + " needs an BAMPredicateCPA");
     }
 
-    logger = predicateCpa.getLogger();
-    Solver solver = predicateCpa.getSolver();
+    logger = pLogger;
     PathFormulaManager pfmgr = predicateCpa.getPathFormulaManager();
 
-    BlockFormulaStrategy blockFormulaStrategy = new BAMBlockFormulaStrategy(pfmgr, solver.getFormulaManager());
+    BlockFormulaStrategy blockFormulaStrategy = new BAMBlockFormulaStrategy(pfmgr);
 
     strategy = new UsageStatisticsRefinementStrategy(
                                           predicateCpa.getConfiguration(),
@@ -135,7 +134,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
             numberOfrepeatedPaths.inc();
             logger.log(Level.WARNING, "Path is repeated, BAM is looped");
             pInput.getUsageInfo().setAsLooped();
-            result = RefinementResult.createUnknown();
+            result = RefinementResult.createTrue();
             potentialLoopTraces.remove(edgeSet);
           } else {
             result = performPredicateRefinement(pInput);
@@ -221,14 +220,13 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
   }
 
   @Override
-  public void printAdditionalStatistics(StatisticsWriter pOut) {
+  protected void printAdditionalStatistics(StatisticsWriter pOut) {
     pOut.beginLevel()
-      .put(numberOfrefinedPaths)
-      .put(numberOfrepeatedPaths)
-      .put(solverFailures)
-      .put(numberOfBAMupdates)
-      .put("Size of false cache", falseCache.size())
-      .endLevel();
+        .put(numberOfrefinedPaths)
+        .put(numberOfrepeatedPaths)
+        .put(solverFailures)
+        .put(numberOfBAMupdates)
+        .put("Size of false cache", falseCache.size());
   }
 
   @Override
@@ -257,28 +255,41 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
 
   protected static class UsageStatisticsRefinementStrategy extends BAMPredicateAbstractionRefinementStrategy {
 
-    private List<ARGState> lastAffectedStates = new LinkedList<>();
+    private List<ARGState> lastAffectedStates = new ArrayList<>();
     private PredicatePrecision lastAddedPrecision;
 
-    public UsageStatisticsRefinementStrategy(final Configuration config, final LogManager logger,
+    public UsageStatisticsRefinementStrategy(final Configuration config, final LogManager pLogger,
         final BAMPredicateCPA predicateCpa,
         final Solver pSolver,
         final PredicateAbstractionManager pPredAbsMgr) throws InvalidConfigurationException {
-      super(config, logger, predicateCpa, pSolver, pPredAbsMgr);
+      super(config, pLogger, predicateCpa, pSolver, pPredAbsMgr);
     }
 
     @Override
-    protected void finishRefinementOfPath(ARGState pUnreachableState,
-        List<ARGState> pAffectedStates, ARGReachedSet pReached,
-        boolean pRepeatedCounterexample)
+    protected void finishRefinementOfPath(
+            ARGState pUnreachableState,
+            List<ARGState> pAffectedStates,
+            ARGReachedSet pReached,
+            List<ARGState> abstractionStatesTrace,
+            boolean pRepeatedCounterexample)
         throws CPAException, InterruptedException {
 
-      super.finishRefinementOfPath(pUnreachableState, pAffectedStates, pReached, pRepeatedCounterexample);
-
-      lastAddedPrecision = newPrecisionFromPredicates;
+      super.finishRefinementOfPath(pUnreachableState, pAffectedStates, pReached, abstractionStatesTrace, pRepeatedCounterexample);
 
       lastAffectedStates.clear();
-      pAffectedStates.forEach(lastAffectedStates::add);
+      lastAffectedStates.addAll(pAffectedStates);
+    }
+
+    @Override
+    protected PredicatePrecision addPredicatesToPrecision(PredicatePrecision basePrecision) {
+      PredicatePrecision newPrecision = super.addPredicatesToPrecision(basePrecision);
+      lastAddedPrecision = (PredicatePrecision) newPrecision.subtract(basePrecision);
+      return newPrecision;
+    }
+
+    @Override
+    protected void updateARG(PredicatePrecision pNewPrecision, ARGState pRefinementRoot, ARGReachedSet pReached) throws InterruptedException {
+      //Do not update ARG for race analysis
     }
   }
 

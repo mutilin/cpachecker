@@ -31,7 +31,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-public class StructureIdentifier extends SingleIdentifier{
+public class StructureIdentifier extends SingleIdentifier {
   protected AbstractIdentifier owner;
 
   public StructureIdentifier(String pNm, CType pTp, int dereference, AbstractIdentifier own) {
@@ -48,13 +48,8 @@ public class StructureIdentifier extends SingleIdentifier{
   }
 
   @Override
-  public StructureIdentifier clone() {
-    return cloneWithDereference(dereference);
-  }
-
-  @Override
   public StructureIdentifier cloneWithDereference(int pDereference) {
-    return new StructureIdentifier(name, type, pDereference, owner.clone());
+    return new StructureIdentifier(name, type, pDereference, owner);
   }
 
   public AbstractIdentifier getOwner() {
@@ -74,8 +69,7 @@ public class StructureIdentifier extends SingleIdentifier{
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj) ||
-        getClass() != obj.getClass()) {
+    if (!super.equals(obj) || getClass() != obj.getClass()) {
       return false;
     }
     StructureIdentifier other = (StructureIdentifier) obj;
@@ -108,7 +102,7 @@ public class StructureIdentifier extends SingleIdentifier{
 
   public StructureFieldIdentifier toStructureFieldIdentifier() {
     if (owner instanceof SingleIdentifier) {
-      return new StructureFieldIdentifier(name, ((SingleIdentifier)owner).type, dereference, null);
+      return new StructureFieldIdentifier(name, ((SingleIdentifier) owner).type, dereference, null);
     } else {
       return new StructureFieldIdentifier(name, type, dereference, null);
     }

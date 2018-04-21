@@ -23,19 +23,15 @@
  */
 package org.sosy_lab.cpachecker.core.algorithm;
 
-import static org.sosy_lab.cpachecker.cfa.model.CFAEdgeType.CallToReturnEdge;
-import static org.sosy_lab.cpachecker.cfa.model.CFAEdgeType.FunctionReturnEdge;
-import static org.sosy_lab.cpachecker.cfa.model.CFAEdgeType.ReturnStatementEdge;
-import static org.sosy_lab.cpachecker.util.AbstractStates.asIterable;
-import static org.sosy_lab.cpachecker.util.AbstractStates.extractStateByType;
-import static org.sosy_lab.cpachecker.util.AbstractStates.isTargetState;
-
 import com.google.common.base.Functions;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -48,8 +44,6 @@ import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.time.Timer;
-import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
-import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.defaults.MergeSepOperator;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -64,30 +58,31 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
+import org.sosy_lab.cpachecker.core.reachedset.PartitionedReachedSet;
+import org.sosy_lab.cpachecker.core.reachedset.PseudoPartitionedReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGMergeJoinCPAEnabledAnalysis;
-import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState;
-import org.sosy_lab.cpachecker.cpa.location.LocationState;
-import org.sosy_lab.cpachecker.cpa.usage.UsageReachedSet;
-import org.sosy_lab.cpachecker.cpa.usage.UsageState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
-import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.statistics.AbstractStatValue;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class CPAAlgorithm implements Algorithm, StatisticsProvider {
 
-  protected static class CPAStatistics implements Statistics {
+  private static class CPAStatistics implements Statistics {
 
-    protected Timer totalTimer         = new Timer();
-    protected Timer chooseTimer        = new Timer();
-    protected Timer precisionTimer     = new Timer();
-    protected Timer transferTimer      = new Timer();
-    protected Timer mergeTimer         = new Timer();
-    protected Timer stopTimer          = new Timer();
-    protected Timer addTimer           = new Timer();
-    protected Timer forcedCoveringTimer = new Timer();
+    private Timer totalTimer         = new Timer();
+    private Timer chooseTimer        = new Timer();
+    private Timer precisionTimer     = new Timer();
+    private Timer transferTimer      = new Timer();
+    private Timer mergeTimer         = new Timer();
+    private Timer stopTimer          = new Timer();
+    private Timer addTimer           = new Timer();
+    private Timer forcedCoveringTimer = new Timer();
 
     private int   countIterations   = 0;
     private int   maxWaitlistSize   = 0;
@@ -97,6 +92,8 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
     private int   countMerge        = 0;
     private int   countStop         = 0;
     private int   countBreak        = 0;
+
+    private Map<String, AbstractStatValue> reachedSetStatistics = new HashMap<>();
 
     @Override
     public String getName() {
@@ -114,6 +111,10 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
       out.println("Max size of waitlist:            " + maxWaitlistSize);
       out.println("Average size of waitlist:        " + countWaitlistSize
           / countIterations);
+      StatisticsWriter w = StatisticsWriter.writingStatisticsTo(out);
+      for (AbstractStatValue c : reachedSetStatistics.values()) {
+        w.put(c);
+      }
       out.println("Number of computed successors:   " + countSuccessors);
       out.println("Max successors for one state:    " + maxSuccessors);
       out.println("Number of times merged:          " + countMerge);
@@ -132,11 +133,12 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
       }
       out.println("  Time for stop operator:         " + stopTimer);
       out.println("  Time for adding to reached set: " + addTimer);
+
     }
   }
 
-  @Options(prefix="cpa")
-  public static class CPAAlgorithmFactory {
+  @Options(prefix = "cpa")
+  public static class CPAAlgorithmFactory implements AlgorithmFactory {
 
     @Option(
       secure = true,
@@ -172,6 +174,7 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
 
     }
 
+    @Override
     public CPAAlgorithm newInstance() {
       return new CPAAlgorithm(cpa, logger, shutdownNotifier, forcedCovering, reportFalseAsUnknown);
     }
@@ -186,7 +189,7 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
 
   private final ForcedCovering forcedCovering;
 
-  protected final CPAStatistics               stats = new CPAStatistics();
+  private final CPAStatistics               stats = new CPAStatistics();
 
   private final TransferRelation transferRelation;
   private final MergeOperator mergeOperator;
@@ -199,7 +202,7 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
 
   private final AlgorithmStatus status;
 
-  public CPAAlgorithm(ConfigurableProgramAnalysis cpa, LogManager logger,
+  private CPAAlgorithm(ConfigurableProgramAnalysis cpa, LogManager logger,
       ShutdownNotifier pShutdownNotifier,
       ForcedCovering pForcedCovering,
       boolean pIsImprecise) {
@@ -228,6 +231,40 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
       stats.stopTimer.stopIfRunning();
       stats.addTimer.stopIfRunning();
       stats.forcedCoveringTimer.stopIfRunning();
+
+      Map<String, ? extends AbstractStatValue> reachedSetStats;
+      if (reachedSet instanceof PartitionedReachedSet) {
+        reachedSetStats = ((PartitionedReachedSet) reachedSet).getStatistics();
+      } else if (reachedSet instanceof PseudoPartitionedReachedSet) {
+        reachedSetStats = ((PseudoPartitionedReachedSet) reachedSet).getStatistics();
+      } else {
+        reachedSetStats = null;
+      }
+
+      if (reachedSetStats != null) {
+        for (Entry<String, ? extends AbstractStatValue> e : reachedSetStats.entrySet()) {
+          String key = e.getKey();
+          AbstractStatValue val = e.getValue();
+          if (!stats.reachedSetStatistics.containsKey(key)) {
+            stats.reachedSetStatistics.put(key, val);
+          } else {
+            AbstractStatValue newVal = stats.reachedSetStatistics.get(key);
+
+            if (newVal instanceof StatCounter) {
+              assert val instanceof StatCounter;
+              for (int i = 0; i < ((StatCounter) val).getValue(); i++) {
+                ((StatCounter) newVal).inc();
+              }
+            } else if (newVal instanceof StatInt) {
+              assert val instanceof StatInt;
+              ((StatInt) newVal).add((StatInt) val);
+            } else {
+              assert false : "Can't handle " + val.getClass().getSimpleName();
+            }
+          }
+        }
+      }
+
     }
   }
 
@@ -265,7 +302,7 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
 
     }
 
-    return status.withProgramNeverTerminates(isProgramNeverTerminating(reachedSet));
+    return status;
   }
 
   /**
@@ -423,13 +460,6 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
         logger.log(Level.FINER, "Successor is covered or unreachable, not adding to waitlist");
         stats.countStop++;
 
-        if (reachedSet instanceof UsageReachedSet) {
-          //removing this if-condition increase the number of predicates by 1000 at 10 circles
-          //Do not remove!
-          UsageState USstate = AbstractStates.extractStateByType(successor, UsageState.class);
-          USstate.saveUnsafesInContainerIfNecessary(successor);
-        }
-
       } else {
         logger.log(Level.FINER, "No need to stop, adding successor to waitlist");
 
@@ -440,51 +470,6 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
     }
 
     return false;
-  }
-
-  private boolean isProgramNeverTerminating(final ReachedSet reachedSet) {
-    LocationState locationState =
-        extractStateByType(reachedSet.getFirstState(), LocationState.class);
-
-    // Consider only forward analysis and a fully explored state space.
-    if (!reachedSet.hasWaitingState()
-            && locationState != null
-            && locationState.getClass().equals(LocationState.class)) {
-
-      String entryFunctionName = locationState.getLocationNode().getFunctionName();
-
-      // The program never terminates if no program end state is in the reached set.
-      for (AbstractState state : reachedSet) {
-        if (asIterable(state)
-            .filter(AutomatonState.class)
-            .anyMatch(as -> as.getInternalStateName().equals("STOP"))) {
-          return false; // sink state ==> terminating
-        }
-        if (isTargetState(state)) {
-          return false; // target state ==> terminating
-        }
-
-        if (asIterable(state)
-            .filter(LocationState.class)
-            .transform(LocationState::getLocationNode)
-            .filter(n -> n.getFunctionName().equals(entryFunctionName))
-            .transformAndConcat(n -> CFAUtils.allEnteringEdges(n))
-            .transform(CFAEdge::getEdgeType)
-            .anyMatch(
-                et ->
-                    et.equals(FunctionReturnEdge)
-                        || et.equals(ReturnStatementEdge)
-                        || et.equals(CallToReturnEdge))) {
-          return false; // main exit state ==> terminating
-        }
-        if (state instanceof CFATerminationNode) {
-          return false; // terminating state after __VERIFIER_assume ==> terminating
-        }
-      }
-      return true; // no terminating state found ==> never terminating
-    } else {
-      return false;
-    }
   }
 
   @Override

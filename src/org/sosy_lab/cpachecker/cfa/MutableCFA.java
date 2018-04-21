@@ -23,23 +23,25 @@
  */
 package org.sosy_lab.cpachecker.cfa;
 
-import java.util.Optional;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.SortedSetMultimap;
-
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.SortedMap;
+import java.util.SortedSet;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.util.LiveVariables;
 import org.sosy_lab.cpachecker.util.LoopStructure;
-import org.sosy_lab.cpachecker.util.VariableClassification;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
-import java.util.SortedSet;
+import org.sosy_lab.cpachecker.util.dependencegraph.DependenceGraph;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassification;
 
 public class MutableCFA implements CFA {
 
@@ -47,21 +49,25 @@ public class MutableCFA implements CFA {
   private final SortedMap<String, FunctionEntryNode> functions;
   private final SortedSetMultimap<String, CFANode> allNodes;
   private final FunctionEntryNode mainFunction;
+  private final List<Path> fileNames;
   private final Language language;
   private Optional<LoopStructure> loopStructure = Optional.empty();
   private Optional<LiveVariables> liveVariables = Optional.empty();
+  private Optional<DependenceGraph> dependenceGraph = Optional.empty();
 
   public MutableCFA(
       MachineModel pMachineModel,
       SortedMap<String, FunctionEntryNode> pFunctions,
       SortedSetMultimap<String, CFANode> pAllNodes,
       FunctionEntryNode pMainFunction,
+      List<Path> pFileNames,
       Language pLanguage) {
 
     machineModel = pMachineModel;
     functions = pFunctions;
     allNodes = pAllNodes;
     mainFunction = pMainFunction;
+    fileNames = ImmutableList.copyOf(pFileNames);
     language = pLanguage;
 
     assert functions.keySet().equals(allNodes.keySet());
@@ -86,11 +92,6 @@ public class MutableCFA implements CFA {
     if (functionNodes.isEmpty()) {
       functions.remove(pNode.getFunctionName());
     }
-  }
-
-  public void removeFunction(String function) {
-    functions.remove(function);
-    allNodes.removeAll(function);
   }
 
   @Override
@@ -159,9 +160,20 @@ public class MutableCFA implements CFA {
     return Optional.empty();
   }
 
-  public ImmutableCFA makeImmutableCFA(Optional<VariableClassification> pVarClassification) {
-    return new ImmutableCFA(machineModel, functions, allNodes, mainFunction,
-        loopStructure, pVarClassification, liveVariables, language);
+  public ImmutableCFA makeImmutableCFA(
+      Optional<VariableClassification> pVarClassification,
+      Optional<DependenceGraph> pDependenceGraph) {
+    return new ImmutableCFA(
+        machineModel,
+        functions,
+        allNodes,
+        mainFunction,
+        loopStructure,
+        pVarClassification,
+        liveVariables,
+        pDependenceGraph,
+        fileNames,
+        language);
   }
 
   @Override
@@ -179,8 +191,17 @@ public class MutableCFA implements CFA {
   }
 
   @Override
+  public Optional<DependenceGraph> getDependenceGraph() {
+    return dependenceGraph;
+  }
+
+  @Override
   public Language getLanguage() {
       return language;
   }
 
+  @Override
+  public List<Path> getFileNames() {
+    return fileNames;
+  }
 }
