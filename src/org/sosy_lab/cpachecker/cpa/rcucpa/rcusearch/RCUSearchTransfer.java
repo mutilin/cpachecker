@@ -114,6 +114,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
               cfaEdge.getSuccessor().getFunctionName(),
               oldRcuSearchState, logger);
         }
+      // fall through
       default:
         break;
     }

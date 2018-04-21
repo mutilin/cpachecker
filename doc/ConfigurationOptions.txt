@@ -1573,6 +1573,11 @@ cpa.pointer2.noOutput = true
 # name of a file containing information on pointer relations
 cpa.pointer2.precisionFile = "TrackedPointers"
 
+# whether to use the fake locations during analysis (more precise, but also
+# slower)
+cpa.pointer2.useFakeLocs = false
+cpa.pointer2.useFakeLocs = true
+
 # which merge operator to use for PointerACPA
 cpa.pointerA.merge = "JOIN"
   allowed values: [SEP, JOIN]

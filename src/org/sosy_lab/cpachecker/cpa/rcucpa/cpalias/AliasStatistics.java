@@ -23,7 +23,6 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
-import com.google.common.collect.FluentIterable;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Writer;
@@ -38,7 +37,6 @@ import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.FileOption.Type;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
-import org.sosy_lab.common.io.MoreFiles;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
@@ -69,12 +67,7 @@ public class AliasStatistics implements Statistics {
   }
 
   private void exportAsPrecision(Set<AbstractIdentifier> rcuPointers) {
-    try {
-      Writer w = MoreFiles.openOutputFile(path, Charset.defaultCharset());
 
-    } catch (IOException e) {
-
-    }
   }
 
   @Nullable

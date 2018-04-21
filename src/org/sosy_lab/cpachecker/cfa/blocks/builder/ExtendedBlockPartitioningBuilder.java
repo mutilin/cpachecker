@@ -27,6 +27,7 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.SetMultimap;
 import com.google.common.collect.Sets;
+import de.uni_freiburg.informatik.ultimate.smtinterpol.util.ArrayQueue;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,6 +37,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
@@ -119,7 +121,7 @@ public class ExtendedBlockPartitioningBuilder extends BlockPartitioningBuilder {
         break;
       }
       //Detect a recursion loop
-      LinkedList<CFANode> foundedRecursionLoop = new LinkedList<>();
+      Queue<CFANode> foundedRecursionLoop = new ArrayQueue<>();
       /* Create a random path by getting the first function call from every node
        * and find the first node which is repeated
        */
@@ -132,7 +134,7 @@ public class ExtendedBlockPartitioningBuilder extends BlockPartitioningBuilder {
 
       Set<FunctionEntryNode> functionsCalledFromTheLoop = new HashSet<>();
       //Remove the first elements, which are not included in the loop
-      while (!foundedRecursionLoop.pollFirst().equals(representativeNode)) {}
+      while (!foundedRecursionLoop.poll().equals(representativeNode)) {}
       //Join all partitions of functions from the loop
       for (CFANode recursiveCaller : foundedRecursionLoop) {
         loopMapping.put(recursiveCaller, representativeNode);
