@@ -70,6 +70,7 @@ import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
+import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcucpa")
@@ -229,17 +230,36 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
       logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
       logger.log(Level.ALL, "State: " + state);
-
-      result = result.addToRelations(rcuPtr, ptr);
-      if (twoSided) {
-        result = result.addToRelations(ptr, rcuPtr);
+      AbstractIdentifier nonTemporaryId = result.getNonTemporaryId(rcuPtr);
+      AbstractIdentifier buf = rcuPtr;
+      if (nonTemporaryId != null) {
+        buf = nonTemporaryId;
       }
-
+      result = addTmpMappingIfNecessary(rcuPtr, ptr, result);
       if (invalidates) {
-        result = result.addToOutdated(rcuPtr);
+        result = result.addToOutdated(buf);
       }
+      result = result.addToRelations(buf, ptr);
+      if (twoSided) {
+        result = result.addToRelations(ptr, buf);
+      }
+      if (!buf.equals(rcuPtr)) {
+        result = result.addToRelations(rcuPtr, ptr);
+      }
+
     }
     return result;
+  }
+
+  private RCUState addTmpMappingIfNecessary(
+      AbstractIdentifier tmpVar,
+      AbstractIdentifier nonTmpVar,
+      RCUState pResult) {
+    if (tmpVar instanceof SingleIdentifier &&
+        ((SingleIdentifier) tmpVar).getName().contains("CPAchecker_TMP")) {
+      pResult = pResult.addTmpMapping(tmpVar, nonTmpVar);
+    }
+    return pResult;
   }
 
   private RCUState handleFunctionCallStatement(CFunctionCallExpression pCallExpression,
@@ -319,6 +339,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
           if (initializer != null && initializer instanceof CInitializerExpression) {
             AbstractIdentifier init =
                 ((CInitializerExpression) initializer).getExpression().accept(localIc);
+            pResult = addTmpMappingIfNecessary(ail, init, pResult);
             pResult = pResult.addToRelations(ail, init);
           } else {
             pResult = pResult.addToRelations(ail, null);
