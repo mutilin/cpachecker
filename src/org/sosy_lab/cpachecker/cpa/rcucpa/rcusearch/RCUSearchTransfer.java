@@ -183,14 +183,16 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       CFunctionCallExpression pFc) {
     CFunctionDeclaration fd = pFc.getDeclaration();
     Set<MemoryLocation> pRcuPointers = new HashSet<>();
-    logger.log(Level.ALL, "Handling function: " + fd.getName());
-    if (fd.getName().contains(assign)) {
-      logger.log(Level.ALL, "Handling rcu_assign_pointer");
-      List<CExpression> params = pFc.getParameterExpressions();
-      PointerState pointerState = (PointerState) state.getWrappedStates().iterator().next();
+    if (fd != null) {
+      logger.log(Level.ALL, "Handling function: " + fd.getName());
+      if(fd.getName().contains(assign)) {
+        logger.log(Level.ALL, "Handling rcu_assign_pointer");
+        List<CExpression> params = pFc.getParameterExpressions();
+        PointerState pointerState = (PointerState) state.getWrappedStates().iterator().next();
 
-      addMemoryLocation(pFunctionName, pointerState, pRcuPointers, params.get(0));
-      addMemoryLocation(pFunctionName, pointerState, pRcuPointers, params.get(1));
+        addMemoryLocation(pFunctionName, pointerState, pRcuPointers, params.get(0));
+        addMemoryLocation(pFunctionName, pointerState, pRcuPointers, params.get(1));
+      }
     }
 
     return pRcuPointers;
