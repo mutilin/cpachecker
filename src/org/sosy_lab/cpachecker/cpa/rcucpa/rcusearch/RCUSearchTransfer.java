@@ -211,7 +211,10 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     } else {
       identifierCreator = new IdentifierCreator("");
       id = expression.accept(identifierCreator);
-      pRcuPointers.add(LocationIdentifierConverter.toLocation(id));
+      MemoryLocation loc = LocationIdentifierConverter.toLocation(id);
+      if (loc != null) {
+        pRcuPointers.add(loc);
+      }
     }
   }
 
