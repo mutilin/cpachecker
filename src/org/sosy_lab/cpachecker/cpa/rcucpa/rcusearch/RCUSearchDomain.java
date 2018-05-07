@@ -68,7 +68,11 @@ public class RCUSearchDomain implements AbstractDomain {
     RCUSearchState searchState1 = (RCUSearchState) state1;
     RCUSearchState searchState2 = (RCUSearchState) state2;
 
-    if (!searchState2.getRcuPointers().containsAll(searchState1.getRcuPointers())) {
+    PointerState pState1 = (PointerState) searchState1.getWrappedStates().iterator().next();
+    PointerState pState2 = (PointerState) searchState2.getWrappedStates().iterator().next();
+
+    if (!searchState2.getRcuPointers().containsAll(searchState1.getRcuPointers())
+        && !PointerDomain.INSTANCE.isLessOrEqual(pState2, pState1)) {
       return false;
     }
 

@@ -29,7 +29,26 @@ import org.sosy_lab.cpachecker.exceptions.CPAException;
 public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   @Override
   public LockStateRCU join(LockStateRCU other) {
-    return null;
+    int minReadLock;
+    if (this.readLockCount < other.readLockCount){
+      minReadLock = this.readLockCount;
+    } else {
+      minReadLock = other.readLockCount;
+    }
+    HeldLock lock;
+    boolean hasRead, hasWrite, noLock;
+    hasRead = this.lockType == HeldLock.READ_LOCK || other.lockType == HeldLock.READ_LOCK;
+    hasWrite = this.lockType == HeldLock.WRITE_LOCK || other.lockType == HeldLock.WRITE_LOCK;
+    noLock = this.lockType == HeldLock.NO_LOCK || other.lockType == HeldLock.NO_LOCK;
+
+    if (hasWrite && !noLock) {
+      lock = HeldLock.WRITE_LOCK;
+    } else if (hasRead && !noLock) {
+      lock = HeldLock.READ_LOCK;
+    } else {
+      lock = HeldLock.NO_LOCK;
+    }
+    return new LockStateRCU(lock, minReadLock);
   }
 
   private LockStateRCU(HeldLock lock, int readCount) {

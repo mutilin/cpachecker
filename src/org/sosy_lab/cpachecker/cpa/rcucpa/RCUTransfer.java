@@ -231,20 +231,28 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
       logger.log(Level.ALL, "State: " + state);
       AbstractIdentifier nonTemporaryId = result.getNonTemporaryId(rcuPtr);
-      AbstractIdentifier buf = rcuPtr;
+      AbstractIdentifier leftPtr = rcuPtr;
       if (nonTemporaryId != null) {
-        buf = nonTemporaryId;
+        leftPtr = nonTemporaryId;
       }
+      nonTemporaryId = result.getNonTemporaryId(rcuPtr);
+      AbstractIdentifier rightPtr = ptr;
+      if (nonTemporaryId != null) {
+        rightPtr = nonTemporaryId;
+      }
+
       result = addTmpMappingIfNecessary(rcuPtr, ptr, result);
+      result = addTmpMappingIfNecessary(ptr, rcuPtr, result);
+
       if (invalidates) {
-        result = result.addToOutdated(buf);
+        result = result.addToOutdated(leftPtr);
       }
-      result = result.addToRelations(buf, ptr);
+      result = result.addToRelations(leftPtr, rightPtr);
       if (twoSided) {
-        result = result.addToRelations(ptr, buf);
+        result = result.addToRelations(rightPtr, leftPtr);
       }
-      if (!buf.equals(rcuPtr)) {
-        result = result.addToRelations(rcuPtr, ptr);
+      if (!leftPtr.equals(rcuPtr)) {
+        result = result.addToRelations(rcuPtr, rightPtr);
       }
 
     }

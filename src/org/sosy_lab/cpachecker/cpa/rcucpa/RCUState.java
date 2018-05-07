@@ -27,6 +27,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import static com.google.common.collect.FluentIterable.from;
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
@@ -72,7 +73,24 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
   @Override
   public RCUState join(RCUState other) {
-    return null;
+    Multimap<AbstractIdentifier, AbstractIdentifier> newRel = HashMultimap.create(rcuRelations);
+    for (AbstractIdentifier key : other.rcuRelations.keySet()) {
+      newRel.putAll(key, other.rcuRelations.get(key));
+    }
+    Set<AbstractIdentifier> newOutdated = this.outdatedRCU;
+    newOutdated.addAll(other.outdatedRCU);
+
+    Set<AbstractIdentifier> newLocal = this.localAgain;
+    newLocal.addAll(other.localAgain);
+
+    Map<AbstractIdentifier, AbstractIdentifier> newTmp = this.tmpMapping;
+    for (AbstractIdentifier key : other.tmpMapping.keySet()) {
+      newTmp.putIfAbsent(key, other.tmpMapping.get(key));
+    }
+
+    LockStateRCU newLock = this.lockState.join(other.lockState);
+
+    return new RCUState(newLock, newRel, newOutdated, newLocal, newTmp);
   }
 
   @Override
