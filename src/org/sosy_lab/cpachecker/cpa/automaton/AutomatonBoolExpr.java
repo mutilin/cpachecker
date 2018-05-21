@@ -53,6 +53,7 @@ import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
@@ -652,6 +653,14 @@ interface AutomatonBoolExpr extends AutomatonExpression<Boolean> {
           throw new UnrecognizedCFAEdgeException(pArgs.getCfaEdge());
         }
         // some edges do not have an AST node attached to them, e.g. BlankEdges
+        if (patternAST.matches((CAstNode) ast.get(), pArgs)) {
+          return CONST_TRUE;
+        } else {
+          return CONST_FALSE;
+        }
+      } else if (pArgs.getCfaEdge().getEdgeType() == CFAEdgeType.FunctionReturnEdge) {
+        FunctionReturnEdge edge = (FunctionReturnEdge) pArgs.getCfaEdge();
+        ast = Optional.of(edge.getSummaryEdge().getExpression());
         if (patternAST.matches((CAstNode) ast.get(), pArgs)) {
           return CONST_TRUE;
         } else {
