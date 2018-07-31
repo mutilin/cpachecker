@@ -2,7 +2,7 @@
  *  CPAchecker is a tool for configurable software verification.
  *  This file is part of CPAchecker.
  *
- *  Copyright (C) 2007-2014  Dirk Beyer
+ *  Copyright (C) 2007-2018  Dirk Beyer
  *  All rights reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,4 +23,18 @@
  */
 package org.sosy_lab.cpachecker.core.interfaces;
 
-public interface StopOperator extends AbstractStopOperator<AbstractState> {}
+import java.util.Collection;
+import org.sosy_lab.cpachecker.exceptions.CPATransferException;
+import org.sosy_lab.cpachecker.util.Pair;
+
+public interface TransferRelationWithPartialStates {
+
+  /**
+   * Get all successors of the current abstract state.
+   *
+   * @param element an element of waitlist
+   * @return collection of all successors of the current state (may be empty)
+   */
+  Collection<Pair<? extends AbstractState, ? extends Precision>> getAbstractSuccessors(WaitlistElement element)
+      throws CPATransferException, InterruptedException;
+}

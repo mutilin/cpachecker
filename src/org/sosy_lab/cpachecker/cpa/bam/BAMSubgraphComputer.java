@@ -308,6 +308,7 @@ public class BAMSubgraphComputer {
       super(originalState, null);
     }
 
+    @Override
     public ARGState getARGState() {
       return (ARGState) getWrappedState();
     }

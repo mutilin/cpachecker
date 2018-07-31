@@ -42,21 +42,20 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.UniqueIdGenerator;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
-import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
+import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
-import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperState;
+import org.sosy_lab.cpachecker.core.interfaces.ARGStateProvider;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithDummyLocation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithLocations;
 import org.sosy_lab.cpachecker.core.interfaces.Graphable;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicateInferenceObject;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 
 public class ARGState extends AbstractSingleWrapperState
-    implements Comparable<ARGState>, Graphable, Splitable{
+    implements Comparable<ARGState>, Graphable, Splitable, ARGStateProvider {
 
   private static final long serialVersionUID = 2608287648397165040L;
 
@@ -213,14 +212,17 @@ public class ARGState extends AbstractSingleWrapperState
         }
         ARGInferenceObject object = pChild.getAppliedEffect();
         if (allEdges.isEmpty() && object != null) {
-          //environment
-          PredicateInferenceObject pO = AbstractStates.extractStateByType(object, PredicateInferenceObject.class);
+          // environment
+          /*PredicateInferenceObject pO = AbstractStates.extractStateByType(object, PredicateInferenceObject.class);
           Set<CAssignment> effects = pO.getAction();
 
           for (CAssignment a : effects) {
             CFAEdge dummyEdge = new CStatementEdge("environment: " + a, a, FileLocation.DUMMY, currentLoc, childLoc);
             allEdges.add(dummyEdge);
-          }
+          }*/
+          allEdges.add(
+              new BlankEdge(
+                  "environment: ", FileLocation.DUMMY, currentLoc, childLoc, "environment: "));
         }
       }
       return allEdges;
@@ -614,5 +616,10 @@ public class ARGState extends AbstractSingleWrapperState
     } else {
       assert !pOtherParent.children.contains(this) : "Problem detected!";
     }
+  }
+
+  @Override
+  public ARGState getARGState() {
+    return this;
   }
 }
