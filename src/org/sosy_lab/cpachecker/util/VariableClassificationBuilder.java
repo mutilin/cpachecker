@@ -1047,7 +1047,7 @@ public class VariableClassificationBuilder {
       for (Partition partition : partitions) {
 
         // is at least one var from the partition part of vars
-        if (!Sets.intersection(partition.getVars(), vars).isEmpty()) {
+        if (!Sets.intersection(vars, partition.getVars()).isEmpty()) {
           // add all dependend vars to vars
           vars.addAll(partition.getVars());
         }
