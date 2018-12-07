@@ -107,9 +107,12 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMapMerger.MergeResult;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.CToFormulaConverterWithPointerAliasing;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.FormulaEncodingWithPointerAliasingOptions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSetBuilder.DummyPointerTargetSetBuilder;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.SummaryHandler;
 import org.sosy_lab.cpachecker.util.predicates.smt.BitvectorFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.smt.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
@@ -128,7 +131,7 @@ import org.sosy_lab.java_smt.api.FunctionDeclaration;
 public class CtoFormulaConverter {
 
   // list of functions that are pure (no side-effects from the perspective of this analysis)
-  static final ImmutableSet<String> PURE_EXTERNAL_FUNCTIONS =
+ public static final ImmutableSet<String> PURE_EXTERNAL_FUNCTIONS =
       ImmutableSet.of(
           "abort",
           "exit",
@@ -954,6 +957,21 @@ public class CtoFormulaConverter {
       final SSAMapBuilder ssa, final PointerTargetSetBuilder pts,
       final Constraints constraints, final ErrorConditions errorConditions)
           throws UnrecognizedCCodeException, UnrecognizedCFAEdgeException, InterruptedException {
+    if (this instanceof CToFormulaConverterWithPointerAliasing &&
+        options instanceof FormulaEncodingWithPointerAliasingOptions &&
+        ((FormulaEncodingWithPointerAliasingOptions)options).isStub(edge.getPredecessor().getFunctionName()) &&
+        ((FormulaEncodingWithPointerAliasingOptions)options).isStub(edge.getSuccessor().getFunctionName())) {
+      final CToFormulaConverterWithPointerAliasing self = (CToFormulaConverterWithPointerAliasing) this;
+      final SummaryHandler handler = new SummaryHandler(self,
+                                                         edge,
+                                                         function,
+                                                         ssa,
+                                                         pts,
+                                                         constraints,
+                                                         errorConditions,
+                                                         self.getRegnManager());
+      return handler.getFormula();
+    }
     switch (edge.getEdgeType()) {
     case StatementEdge: {
       return makeStatement((CStatementEdge) edge, function,
@@ -981,6 +999,7 @@ public class CtoFormulaConverter {
     }
 
     case FunctionCallEdge: {
+      SummaryHandler.startSummary(ssa);
       return makeFunctionCall((CFunctionCallEdge)edge, function,
           ssa, pts, constraints, errorConditions);
     }
@@ -1379,7 +1398,7 @@ public class CtoFormulaConverter {
     return exp.accept(new LvalueVisitor(this, edge, function, ssa, pts, constraints, errorConditions));
   }
 
-  <T extends Formula> T ifTrueThenOneElseZero(FormulaType<T> type, BooleanFormula pCond) {
+  public <T extends Formula> T ifTrueThenOneElseZero(FormulaType<T> type, BooleanFormula pCond) {
     T one = fmgr.makeNumber(type, 1);
     T zero = fmgr.makeNumber(type, 0);
     return bfmgr.ifThenElse(pCond, one, zero);

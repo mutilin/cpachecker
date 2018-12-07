@@ -1002,7 +1002,8 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     }
 
     declareSharedBase(declaration, declaration, false, constraints, pts);
-    if (!options.isPureStructOptimizationEnabled()
+    if (!options.isPureStructOptimizationEnabled() &&
+        !isSimpleType(declarationType)
         || CTypeUtils.containsArray(declarationType, declaration)) {
       addPreFilledBase(declaration.getQualifiedName(), declarationType, true, false, constraints, pts);
     }
@@ -1220,7 +1221,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
    */
   @Override
   protected Formula makeVariable(String pName, CType pType, SSAMapBuilder pSsa) {
-    return super.makeVariable(pName, pType, pSsa);
+    return super.makeVariable(pName, typeHandler.simplifyType(pType), pSsa);
   }
 
   /**
@@ -1328,5 +1329,9 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
   @Override
   public void printStatistics(PrintStream out) {
     regionMgr.printStatistics(out);
+  }
+
+  public MemoryRegionManager getRegnManager() {
+    return regionMgr;
   }
 }

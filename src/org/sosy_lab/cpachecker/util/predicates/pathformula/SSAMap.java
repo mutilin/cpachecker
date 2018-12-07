@@ -26,7 +26,11 @@ package org.sosy_lab.cpachecker.util.predicates.pathformula;
 import com.google.common.base.Equivalence;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-
+import java.io.Serializable;
+import java.util.AbstractMap.SimpleImmutableEntry;
+import java.util.Map;
+import java.util.SortedMap;
+import java.util.SortedSet;
 import org.sosy_lab.common.collect.Collections3;
 import org.sosy_lab.common.collect.MapsDifference;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
@@ -40,12 +44,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CFunctionType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
-
-import java.io.Serializable;
-import java.util.AbstractMap.SimpleImmutableEntry;
-import java.util.Map;
-import java.util.SortedMap;
-import java.util.SortedSet;
+import org.sosy_lab.java_smt.api.BooleanFormula;
+import org.sosy_lab.java_smt.api.Formula;
 
 /**
  * Maps a variable name to its latest "SSA index", that should be used when
@@ -89,6 +89,21 @@ public class SSAMap implements Serializable {
         }
       };
 
+      private static MergeConflictHandler<String, Formula> FORMULA_CONFLICT_CHECKER =
+          new MergeConflictHandler<String, Formula>() {
+            @Override
+            public Formula resolveConflict(String name, Formula fmla1, Formula _fmla2) {
+              return fmla1;
+            }
+      };
+
+      private static MergeConflictHandler<String, BooleanFormula> PREDICATE_CONFLICT_CHECKER =
+          new MergeConflictHandler<String, BooleanFormula>() {
+            @Override
+            public BooleanFormula resolveConflict(String name, BooleanFormula fmla1, BooleanFormula _fmla2) {
+              return fmla1;
+            }
+      };
   /**
    * Builder for SSAMaps. Its state starts with an existing SSAMap, but may be
    * changed later. It supports read access, but it is not recommended to use
@@ -104,6 +119,9 @@ public class SSAMap implements Serializable {
     private FreshValueProvider freshValueProvider;
     private PersistentSortedMap<String, CType> varTypes;
 
+    private PersistentSortedMap<String, Formula> termCache;
+    private PersistentSortedMap<String, BooleanFormula> predCache;
+
     // Instead of computing vars.hashCode(),
     // we calculate the hashCode ourselves incrementally
     // (this is possible because a Map's hashCode is clearly defined).
@@ -116,6 +134,9 @@ public class SSAMap implements Serializable {
 
       this.varTypes = ssa.varTypes;
       this.varsHashCode = ssa.varsHashCode;
+
+      this.termCache = ssa.termCache;
+      this.predCache = ssa.predCache;
     }
 
     public int getIndex(String variable) {
@@ -180,15 +201,40 @@ public class SSAMap implements Serializable {
       return Collections3.subMapWithPrefix(varTypes, prefix);
     }
 
+    public Formula getTerm(final String key) {
+      return termCache.get(key);
+    }
+
+    public BooleanFormula getPredicate(final String key) {
+      return predCache.get(key);
+    }
+
+    public SSAMapBuilder setTerm(final String key, final Formula term) {
+      termCache = termCache.putAndCopy(key, term);
+      return this;
+    }
+
+    public SSAMapBuilder setPredicate(final String key, final BooleanFormula pred) {
+      predCache = predCache.putAndCopy(key, pred);
+      return this;
+    }
+
+    public SSAMapBuilder clearCaches() {
+      termCache = PathCopyingPersistentTreeMap.of();
+      predCache = PathCopyingPersistentTreeMap.of();
+      return this;
+    }
+
     /**
      * Returns an immutable SSAMap with all the changes made to the builder.
      */
     public SSAMap build() {
-      if (vars == ssa.vars && freshValueProvider == ssa.freshValueProvider) {
+      if (vars == ssa.vars && freshValueProvider == ssa.freshValueProvider
+          && termCache == ssa.termCache && predCache == ssa.predCache) {
         return ssa;
       }
 
-      ssa = new SSAMap(vars, freshValueProvider, varsHashCode, varTypes, ssa.defaultValue);
+      ssa = new SSAMap(vars, freshValueProvider, varsHashCode, varTypes, ssa.defaultValue, termCache, predCache);
       return ssa;
     }
 
@@ -205,6 +251,8 @@ public class SSAMap implements Serializable {
       PathCopyingPersistentTreeMap.of(),
       new FreshValueProvider(),
       0,
+      PathCopyingPersistentTreeMap.of(),
+      PathCopyingPersistentTreeMap.of(),
       PathCopyingPersistentTreeMap.of());
 
   /**
@@ -215,7 +263,8 @@ public class SSAMap implements Serializable {
   }
 
   public SSAMap withDefault(final int defaultValue) {
-    return new SSAMap(this.vars, this.freshValueProvider, this.varsHashCode, this.varTypes, defaultValue);
+    return new SSAMap(this.vars, this.freshValueProvider, this.varsHashCode, this.varTypes, defaultValue,
+                      this.termCache, this.predCache);
   }
 
   /**
@@ -258,12 +307,21 @@ public class SSAMap implements Serializable {
             TYPE_CONFLICT_CHECKER,
             MapsDifference.ignoreMapsDifference());
 
-    return new SSAMap(vars, freshValueProvider, 0, varTypes);
+    PersistentSortedMap<String, Formula> termCache =
+        PersistentSortedMaps.merge(s1.termCache, s2.termCache, FORMULA_CONFLICT_CHECKER);
+
+    PersistentSortedMap<String, BooleanFormula> predCache =
+        PersistentSortedMaps.merge(s1.predCache, s2.predCache, PREDICATE_CONFLICT_CHECKER);
+
+    return new SSAMap(vars, freshValueProvider, 0, varTypes, termCache, predCache);
   }
 
   private final PersistentSortedMap<String, Integer> vars;
   private final FreshValueProvider freshValueProvider;
   private final PersistentSortedMap<String, CType> varTypes;
+
+  private PersistentSortedMap<String, Formula> termCache;
+  private PersistentSortedMap<String, BooleanFormula> predCache;
 
   // Cache hashCode of potentially big map
   private final int varsHashCode;
@@ -272,7 +330,9 @@ public class SSAMap implements Serializable {
                  FreshValueProvider freshValueProvider,
                  int varsHashCode,
                  PersistentSortedMap<String, CType> varTypes,
-                 int defaultSSAIdx) {
+                 int defaultSSAIdx,
+                 PersistentSortedMap<String, Formula> termCache,
+                 PersistentSortedMap<String, BooleanFormula> predCache) {
     this.vars = vars;
     this.freshValueProvider = freshValueProvider;
     this.varTypes = varTypes;
@@ -285,13 +345,18 @@ public class SSAMap implements Serializable {
     }
 
     defaultValue = defaultSSAIdx;
+
+    this.termCache = termCache;
+    this.predCache = predCache;
   }
 
   private SSAMap(PersistentSortedMap<String, Integer> vars,
                  FreshValueProvider freshValueProvider,
                  int varsHashCode,
-                 PersistentSortedMap<String, CType> varTypes) {
-    this(vars, freshValueProvider, varsHashCode, varTypes, DEFAULT_DEFAULT_IDX);
+                 PersistentSortedMap<String, CType> varTypes,
+                 PersistentSortedMap<String, Formula> termCache,
+                 PersistentSortedMap<String, BooleanFormula> predCache) {
+    this(vars, freshValueProvider, varsHashCode, varTypes, DEFAULT_DEFAULT_IDX, termCache, predCache);
   }
 
   /**
@@ -352,7 +417,9 @@ public class SSAMap implements Serializable {
       // Do a few cheap checks before the expensive ones.
       return varsHashCode == other.varsHashCode
           && vars.equals(other.vars)
-          && freshValueProvider.equals(other.freshValueProvider);
+          && freshValueProvider.equals(other.freshValueProvider)
+          && termCache.equals(other.termCache)
+          && predCache.equals(other.predCache);
     }
   }
 }

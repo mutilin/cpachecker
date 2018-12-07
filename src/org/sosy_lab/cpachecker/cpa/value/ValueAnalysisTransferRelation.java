@@ -191,11 +191,26 @@ public class ValueAnalysisTransferRelation
     @Option(
       secure = true,
       description =
-          "Explicit-value counterpart of __VERIFIER_havoc_region, to "
+          "Explicit-value counterpart of __VERIFIER_havoc, to "
               + "be used for scope-bounded verification; implemented as crude over-approximation, "
               + "havocs the entire heap"
     )
-    private String havocRegionFunctionName = "__VERIFIER_havoc_region";
+    private String havocFunctionName = "__VERIFIER_havoc";
+
+    @Option(
+        secure = true,
+        description =
+            "Assign the value of the memory region to the specified logic array. "
+                + "To be used in summaries"
+      )
+      private String assignFunctionName = "__VERIFIER_assign";
+
+    @Option(
+        secure = true,
+        description =
+            "Branching shortcut function to be used in summaries"
+      )
+      private String iteFunctionName = "__VERIFIER_ite";
 
     public ValueTransferOptions(Configuration config) throws InvalidConfigurationException {
       config.inject(this);
@@ -213,8 +228,13 @@ public class ValueAnalysisTransferRelation
       return optimizeBooleanVariables;
     }
 
-    boolean isHavocRegionFunctionName(final String name) {
-      return havocRegionFunctionName.equals(name);
+    boolean isHavocFunctionName(final String name) {
+      return havocFunctionName.equals(name) ||
+             assignFunctionName.equals(name);
+    }
+
+    boolean isIteFunctionName(final String name) {
+      return iteFunctionName.equals(name);
     }
   }
 
@@ -860,7 +880,8 @@ public class ValueAnalysisTransferRelation
 
     ValueAnalysisState newElement = ValueAnalysisState.copyOf(state);
 
-    if (options.isHavocRegionFunctionName(functionCallExp.getDeclaration().getName())) {
+    if (functionCallExp.getDeclaration() != null &&
+        options.isHavocFunctionName(functionCallExp.getDeclaration().getName())) {
       newElement
           .getConstantsMapView()
           .forEach(
@@ -872,7 +893,25 @@ public class ValueAnalysisTransferRelation
       return newElement;
     }
 
-    Value newValue = evv.evaluate(functionCallExp, leftSideType);
+    final Value newValue;
+
+    if (functionCallExp.getDeclaration() != null &&
+        options.isIteFunctionName(functionCallExp.getDeclaration().getName())) {
+      final CFunctionCallExpression call = pFunctionCallAssignment.getRightHandSide();
+      final List<CExpression> args = call.getParameterExpressions();
+      final Value cond = evv.evaluate(args.get(0), args.get(0).getExpressionType());
+      if (cond.isNumericValue() && cond.asNumericValue().isExplicitlyKnown()) {
+        if (cond.asNumericValue().bigDecimalValue().equals(BigDecimal.ZERO)) {
+          newValue = evv.evaluate(args.get(2), args.get(2).getExpressionType());
+        } else {
+          newValue = evv.evaluate(args.get(1), args.get(1).getExpressionType());
+        }
+      } else {
+        newValue = UnknownValue.getInstance();
+      }
+    } else {
+      newValue = evv.evaluate(functionCallExp, leftSideType);
+    }
 
     final Optional<MemoryLocation> memLoc = getMemoryLocation(leftSide, newValue, evv);
 

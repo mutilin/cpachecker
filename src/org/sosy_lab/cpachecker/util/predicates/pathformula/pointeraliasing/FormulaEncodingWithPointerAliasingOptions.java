@@ -72,6 +72,12 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
   )
   private boolean useArraysForHeap = false;
 
+  @Option(
+      secure = true,
+      description = "Postifix to recognize summary stubs"
+    )
+  private String stubPostfix = "___stub";
+
   @Option(secure=true, description = "The default length for arrays when the real length cannot be determined.")
   private int defaultArrayLength = 20;
 
@@ -90,7 +96,7 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
             + "the havoc should NOT be entirely non-deterministic, the data dependency approximation "
             + "should be (and actually is) provided through the variadic arguments"
   )
-  private String havocRegionFunctionName = "__VERIFIER_havoc_region";
+  private String havocFunctionName = "__VERIFIER_havoc";
 
   @Option(
     secure = true,
@@ -99,6 +105,92 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
             + "dependency approximation provided through variadic arguments"
   )
   private String chooseFunctionName = "__VERIFIER_choose";
+
+  @Option(
+      secure=true,
+      description =
+          "Returns a fresh address of unconditionally successfully allocated memory of specified"
+              + " size. To be used in summaries"
+  )
+  private String allocFunctionName = "__VERIFIER_alloc";
+
+  @Option(
+      secure=true,
+      description =
+          "Returns a logic array representing the current state of the specified memory region."
+              + " To be used in summaries"
+  )
+  private String memoryFunctionName = "__VERIFIER_memory";
+
+  @Option(
+      secure=true,
+      description =
+          "Returns a value of a logic array at the specified index."
+              + " To be used in summaries"
+  )
+  private String selectFunctionName = "__VERIFIER_select";
+
+  @Option(
+      secure=true,
+      description =
+          "Returns a logic array equal to a given array at all indices except the given one, which is mapped"
+              + " to the given value. To be used in summaries"
+  )
+  private String updateFunctionName = "__VERIFIER_update";
+
+  @Option(
+      secure=true,
+      description =
+          "Returns a logic array filled with the given value."
+              + " To be used in summaries"
+  )
+  private String constFunctionName = "__VERIFIER_const";
+
+  @Option(
+      secure=true,
+      description =
+          "Returns a fresh arbitrarily initialized logic array."
+              + " To be used in summaries"
+  )
+  private String nondetMemFunctionName = "__VERIFIER_nondet_mem";
+
+  @Option(
+      secure=true,
+      description =
+          "Sets the current state of the given memory region to the provided logic array."
+              + " To be used in summaries"
+  )
+  private String assignFunctionName = "__VERIFIER_assign";
+
+  @Option(
+      secure=true,
+      description = "Branching shortcut function to be used in summaries"
+  )
+  private String iteFunctionName = "__VERIFIER_ite";
+
+  @Option(
+      secure=true,
+      description = "Direct access to logical negation"
+  )
+  private String notFunctionName = "__VERIFIER_not";
+
+  @Option(
+      secure=true,
+      description = "Direct access to logical conjunction"
+  )
+  private String andFunctionName = "__VERIFIER_and";
+
+  @Option(
+      secure=true,
+      description = "Direct access to logical disjunction"
+  )
+  private String orFunctionName = "__VERIFIER_or";
+
+  @Option(
+      secure=true,
+      description = "Branching shortcut function to be used in summaries"
+  )
+  private String iteMemFunctionName = "__VERIFIER_ite_mem";
 
   @Option(
     secure = true,
@@ -146,12 +238,64 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
     return memoryAllocationFunctionsWithSuperfluousParameters.contains(name);
   }
 
-  boolean isHavocRegionFunctionName(final String name) {
-    return havocRegionFunctionName.equals(name);
+  boolean isIteFunctionName(final String name) {
+    return iteFunctionName.equals(name);
+  }
+
+  boolean isNotFunctionName(final String name) {
+    return notFunctionName.equals(name);
+  }
+
+  boolean isAndFunctionName(final String name) {
+    return andFunctionName.equals(name);
+  }
+
+  boolean isOrFunctionName(final String name) {
+    return orFunctionName.equals(name);
+  }
+
+  boolean isHavocFunctionName(final String name) {
+    return havocFunctionName.equals(name);
+  }
+
+  boolean isAssignFunctionName(final String name) {
+    return assignFunctionName.equals(name);
   }
 
   boolean isChooseFunctionName(final String name) {
     return chooseFunctionName.equals(name);
+  }
+
+  boolean isAllocFunctionName(final String name) {
+    return allocFunctionName.equals(name);
+  }
+
+  boolean isMemoryFunctionName(final String name) {
+    return memoryFunctionName.equals(name);
+  }
+
+  boolean isSelectFunctionName(final String name) {
+    return selectFunctionName.equals(name);
+  }
+
+  boolean isUpdateFunctionName(final String name) {
+    return updateFunctionName.equals(name);
+  }
+
+  boolean isConstFunctionName(final String name) {
+    return constFunctionName.equals(name);
+  }
+
+  boolean isNondetMemFunctionName(final String name) {
+    return nondetMemFunctionName.equals(name);
+  }
+
+  boolean isIteMemFunctionName(final String name) {
+    return iteMemFunctionName.equals(name);
+  }
+
+  public boolean isStub(final String name) {
+    return name.endsWith(stubPostfix);
   }
 
   boolean isPureStructOptimizationEnabled() {

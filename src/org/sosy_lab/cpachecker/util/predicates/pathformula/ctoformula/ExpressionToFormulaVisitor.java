@@ -76,8 +76,8 @@ import org.sosy_lab.java_smt.api.FormulaType.FloatingPointType;
 public class ExpressionToFormulaVisitor extends DefaultCExpressionVisitor<Formula, UnrecognizedCCodeException>
                                         implements CRightHandSideVisitor<Formula, UnrecognizedCCodeException> {
 
-  private final CtoFormulaConverter conv;
-  private final CFAEdge       edge;
+  protected final CtoFormulaConverter conv;
+  protected final CFAEdge       edge;
   private final String        function;
   private final Constraints   constraints;
   protected final FormulaManagerView mgr;

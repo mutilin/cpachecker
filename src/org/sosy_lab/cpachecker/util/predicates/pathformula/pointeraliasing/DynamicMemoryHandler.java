@@ -148,7 +148,7 @@ class DynamicMemoryHandler {
    * @throws UnrecognizedCCodeException If the C code was unrecognizable.
    * @throws InterruptedException If the execution was interrupted.
    */
-  private Formula handleMemoryAllocation(final CFunctionCallExpression e,
+  Formula handleMemoryAllocation(final CFunctionCallExpression e,
       final String functionName) throws UnrecognizedCCodeException, InterruptedException {
     final boolean isZeroing = conv.options.isMemoryAllocationFunctionWithZeroing(functionName);
     List<CExpression> parameters = e.getParameterExpressions();
