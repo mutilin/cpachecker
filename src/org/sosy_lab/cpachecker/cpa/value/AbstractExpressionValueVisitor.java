@@ -2224,11 +2224,18 @@ public abstract class AbstractExpressionValueVisitor
     }
 
     // For now can only cast numeric value's
-    if (!value.isNumericValue()) {
+    if (!value.isNumericValue() && !(value instanceof BooleanValue)) {
       logger.logf(Level.FINE, "Can not cast C value %s to %s", value.toString(), targetType.toString());
       return value;
     }
-    NumericValue numericValue = (NumericValue) value;
+
+    NumericValue numericValue;
+    if (value.isNumericValue()) {
+      numericValue = (NumericValue) value;
+    } else {
+      numericValue =
+          ((BooleanValue) value).isTrue() ? new NumericValue(BigInteger.ONE) : new NumericValue(BigInteger.ZERO);
+    }
 
     final CType type = targetType.getCanonicalType();
     if (type instanceof CSimpleType) {

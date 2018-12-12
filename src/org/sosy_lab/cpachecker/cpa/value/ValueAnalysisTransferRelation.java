@@ -933,8 +933,12 @@ public class ValueAnalysisTransferRelation
       final String name = functionCallExp.getDeclaration().getName();
       final CFunctionCallExpression call = pFunctionCallAssignment.getRightHandSide();
       final List<CExpression> args = call.getParameterExpressions();
-      final Predicate<Value> isExplicit = v -> v.isNumericValue() && v.asNumericValue().isExplicitlyKnown();
-      final Predicate<Value> isFalse = v -> v.asNumericValue().bigDecimalValue().equals(BigDecimal.ZERO);
+      final Predicate<Value> isExplicit =
+          v -> v.isNumericValue() && v.asNumericValue().isExplicitlyKnown() ||
+          v instanceof BooleanValue && ((BooleanValue) v).isExplicitlyKnown();
+      final Predicate<Value> isFalse = v ->
+        v.isNumericValue() ? v.asNumericValue().bigDecimalValue().equals(BigDecimal.ZERO) :
+        !((BooleanValue) v).isTrue();
 
       if (options.isIteFunctionName(name)) {
         final Value cond = evv.evaluate(args.get(0), args.get(0).getExpressionType());
