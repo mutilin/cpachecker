@@ -1004,7 +1004,7 @@ public class CToFormulaConverterWithPointerAliasing extends CtoFormulaConverter 
     declareSharedBase(declaration, declaration, false, constraints, pts);
     if (!options.isPureStructOptimizationEnabled() &&
         !isSimpleType(declarationType)
-        || CTypeUtils.containsArray(declarationType, declaration)) {
+        || isAddressedVariable(declaration)) {
       addPreFilledBase(declaration.getQualifiedName(), declarationType, true, false, constraints, pts);
     }
 
