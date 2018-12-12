@@ -43,6 +43,7 @@ import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
+import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
@@ -198,9 +199,13 @@ public final class SummaryHandler {
           throw new UnrecognizedCCodeException("Need pointer aliasing converter", edge);
         }
         final CToFormulaConverterWithPointerAliasing convtr = (CToFormulaConverterWithPointerAliasing) conv;
+        CType type = e.getExpressionType();
+        if (type instanceof CArrayType) {
+          type = new CPointerType(false, false, ((CArrayType) type).getType());
+        }
         return convtr.makeVariable(
                         e.getDeclaration().getQualifiedName(),
-                        e.getExpressionType(),
+                        type,
                         ssa);
       }
     }
