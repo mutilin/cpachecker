@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -203,14 +204,35 @@ public class ValueAnalysisTransferRelation
             "Assign the value of the memory region to the specified logic array. "
                 + "To be used in summaries"
       )
-      private String assignFunctionName = "__VERIFIER_assign";
+    private String assignFunctionName = "__VERIFIER_assign";
 
     @Option(
         secure = true,
         description =
             "Branching shortcut function to be used in summaries"
       )
-      private String iteFunctionName = "__VERIFIER_ite";
+    private String iteFunctionName = "__VERIFIER_ite";
+
+    @Option(
+        secure = true,
+        description =
+            "Conjunction for use in sumaries"
+      )
+    private String andFunctionName = "__VERIFIER_and";
+
+    @Option(
+        secure = true,
+        description =
+            "Disjunction for use in sumaries"
+      )
+    private String orFunctionName = "__VERIFIER_or";
+
+    @Option(
+        secure = true,
+        description =
+            "Negation for use in sumaries"
+      )
+    private String notFunctionName = "__VERIFIER_not";
 
     public ValueTransferOptions(Configuration config) throws InvalidConfigurationException {
       config.inject(this);
@@ -235,6 +257,18 @@ public class ValueAnalysisTransferRelation
 
     boolean isIteFunctionName(final String name) {
       return iteFunctionName.equals(name);
+    }
+
+    boolean isAndFunctionName(final String name) {
+      return andFunctionName.equals(name);
+    }
+
+    boolean isOrFunctionName(final String name) {
+      return orFunctionName.equals(name);
+    }
+
+    boolean isNotFunctionName(final String name) {
+      return notFunctionName.equals(name);
     }
   }
 
@@ -895,19 +929,49 @@ public class ValueAnalysisTransferRelation
 
     final Value newValue;
 
-    if (functionCallExp.getDeclaration() != null &&
-        options.isIteFunctionName(functionCallExp.getDeclaration().getName())) {
+    if (functionCallExp.getDeclaration() != null) {
+      final String name = functionCallExp.getDeclaration().getName();
       final CFunctionCallExpression call = pFunctionCallAssignment.getRightHandSide();
       final List<CExpression> args = call.getParameterExpressions();
-      final Value cond = evv.evaluate(args.get(0), args.get(0).getExpressionType());
-      if (cond.isNumericValue() && cond.asNumericValue().isExplicitlyKnown()) {
-        if (cond.asNumericValue().bigDecimalValue().equals(BigDecimal.ZERO)) {
-          newValue = evv.evaluate(args.get(2), args.get(2).getExpressionType());
+      final Predicate<Value> isExplicit = v -> v.isNumericValue() && v.asNumericValue().isExplicitlyKnown();
+      final Predicate<Value> isFalse = v -> v.asNumericValue().bigDecimalValue().equals(BigDecimal.ZERO);
+
+      if (options.isIteFunctionName(name)) {
+        final Value cond = evv.evaluate(args.get(0), args.get(0).getExpressionType());
+        if (isExplicit.test(cond)) {
+          if (isFalse.test(cond)) {
+            newValue = evv.evaluate(args.get(2), args.get(2).getExpressionType());
+          } else {
+            newValue = evv.evaluate(args.get(1), args.get(1).getExpressionType());
+          }
         } else {
-          newValue = evv.evaluate(args.get(1), args.get(1).getExpressionType());
+          newValue = UnknownValue.getInstance();
+        }
+      } else if (options.isNotFunctionName(name)) {
+        final Value arg = evv.evaluate(args.get(0), args.get(0).getExpressionType());
+        if (isExplicit.test(arg)) {
+          newValue = BooleanValue.valueOf(isFalse.test(arg));
+        } else {
+          newValue = UnknownValue.getInstance();
+        }
+      } else if (options.isAndFunctionName(name)) {
+        final Value a = evv.evaluate(args.get(0), args.get(0).getExpressionType());
+        final Value b = evv.evaluate(args.get(1), args.get(1).getExpressionType());
+        if (isExplicit.test(a) && isExplicit.test(b)) {
+          newValue = BooleanValue.valueOf(!isFalse.test(a) && !isFalse.test(b));
+        } else {
+          newValue = UnknownValue.getInstance();
+        }
+      } else if (options.isOrFunctionName(name)) {
+        final Value a = evv.evaluate(args.get(0), args.get(0).getExpressionType());
+        final Value b = evv.evaluate(args.get(1), args.get(1).getExpressionType());
+        if (isExplicit.test(a) && isExplicit.test(b)) {
+          newValue = BooleanValue.valueOf(!isFalse.test(a) || !isFalse.test(b));
+        } else {
+          newValue = UnknownValue.getInstance();
         }
       } else {
-        newValue = UnknownValue.getInstance();
+        newValue = evv.evaluate(functionCallExp, leftSideType);
       }
     } else {
       newValue = evv.evaluate(functionCallExp, leftSideType);

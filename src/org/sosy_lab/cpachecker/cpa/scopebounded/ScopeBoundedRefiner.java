@@ -57,7 +57,7 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGCPA;
 import org.sosy_lab.cpachecker.cpa.arg.ARGPath;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.AbstractARGBasedRefiner;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicateRefiner;
+import org.sosy_lab.cpachecker.cpa.value.refiner.ValueAnalysisDelegatingRefiner;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 
@@ -103,11 +103,6 @@ public final class ScopeBoundedRefiner implements ARGBasedRefiner {
                 .collect(Collectors.toSet())
                 .size()
             / maxUnrollFraction;
-
-    /*final FunctionCallCollector collector = new FunctionCallCollector();
-    CFATraversal.dfs().traverseOnce(cpa.getCFA().getMainFunction(), collector);
-    collector.getFunctionCalls().forEach( e ->
-      ScopeBoundedPrecision.addFunctionToUnroll(e.getSuccessor().getFunctionName()));*/
   }
 
   @Override
@@ -189,10 +184,6 @@ public final class ScopeBoundedRefiner implements ARGBasedRefiner {
             ScopeBoundedPrecision.unrolledFunctions());
 
         pReached.clearWaitlist();
-        /*pReached.updatePrecisionGlobally(
-            cpa.getInitialPrecision(
-                cfa.getMainFunction(), StateSpacePartition.getDefaultPartition()),
-            Predicates.alwaysTrue());*/
         info.getTargetPath()
             .asStatesList()
             .stream()
@@ -223,7 +214,7 @@ public final class ScopeBoundedRefiner implements ARGBasedRefiner {
 
     final ScopeBoundedCPA cpa = (ScopeBoundedCPA) pCpa;
     final ARGBasedRefiner wrapped =
-        ((AbstractARGBasedRefiner) PredicateRefiner.create(cpa.getWrappedCpa()))
+        ((AbstractARGBasedRefiner) ValueAnalysisDelegatingRefiner.create(cpa.getWrappedCpa()))
             .getRefiner();
     return AbstractARGBasedRefiner.forARGBasedRefiner(
         new ScopeBoundedRefiner(wrapped, cpa, cpa.getConfig()), cpa);
