@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.ClassOption;
@@ -58,6 +59,8 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGMergeJoinCPAEnabledAnalysis;
+import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
+import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -385,6 +388,14 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
             // If we terminate, we should still update the reachedSet if necessary
             // because ARGCPA doesn't like states in toRemove to be in the reachedSet.
             reachedSet.removeAll(toRemove);
+            if (!toAdd.isEmpty() && toAdd.get(0).getFirst() instanceof ARGState) {
+              final ARGReachedSet argReached = new ARGReachedSet(reachedSet);
+              toAdd.forEach( p -> {
+                final List<ARGState> oldChildren =
+                  ((ARGState) p.getFirst()).getChildren().stream().collect(Collectors.toList());
+                oldChildren.forEach(argReached::cutOffSubtree);
+              });
+            }
             reachedSet.addAll(toAdd);
           }
 
