@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.cpa.scopebounded;
 
 import static org.sosy_lab.cpachecker.util.AbstractStates.extractLocation;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
@@ -48,7 +49,6 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
-import org.sosy_lab.cpachecker.core.counterexample.CFAPathWithAssumptions;
 import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Refiner;
@@ -115,10 +115,12 @@ public final class ScopeBoundedRefiner implements ARGBasedRefiner {
       return info;
     } else {
 
-      final CFAPathWithAssumptions path = info.getCFAPathWithAssignments();
+      final ARGPath path = info.getTargetPath();
       final Set<String> stubNames =
-          path.stream()
-              .map(e -> e.getCFAEdge().getSuccessor())
+          path.getInnerEdges()
+              .stream()
+              .filter(Predicates.notNull())
+              .map(e -> e.getSuccessor())
               .filter(
                   n -> {
                     if (n instanceof FunctionEntryNode) {
