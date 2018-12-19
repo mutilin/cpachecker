@@ -203,9 +203,6 @@ public class ARGReachedSet {
 
     for (ARGState ae : subgraph) {
       ae.detachFromARG();
-      if (ae.isCovered()) {
-        ae.uncover();
-      }
     }
   }
 
