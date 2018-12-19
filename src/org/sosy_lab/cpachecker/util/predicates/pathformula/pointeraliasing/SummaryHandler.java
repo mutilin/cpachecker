@@ -291,8 +291,13 @@ public final class SummaryHandler {
   }
 
   private BooleanFormula assignVar(final CIdExpression left, final CIdExpression right) {
+    final String lname = left.getDeclaration().getQualifiedName();
     final String rname = right.getName();
-    return fmgr.makeEqual(conv.makeVariable(left.getDeclaration().getQualifiedName(), left.getExpressionType(), ssa),
+    final CType type = typeHandler.simplifyType(left.getExpressionType());
+    int index = ssa.getIndex(lname);
+    if (index < 0) index = 1;
+    ssa.setIndex(lname, type, index + 1);
+    return fmgr.makeEqual(conv.makeVariable(lname, type, ssa),
                           getTerm(rname, right.getExpressionType()));
   }
 
