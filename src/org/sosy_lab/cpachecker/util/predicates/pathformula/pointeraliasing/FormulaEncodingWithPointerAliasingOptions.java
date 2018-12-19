@@ -112,7 +112,7 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
           "Returns a fresh address of unconditionally successfully allocated memory of specified"
               + " size. To be used in summaries"
   )
-  private String allocFunctionName = "__VERIFIER_alloc";
+  private String allocFunctionName = "malloc";
 
   @Option(
       secure=true,
