@@ -164,33 +164,11 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
 
   @Option(
       secure=true,
-      description = "Branching shortcut function to be used in summaries"
+      description =
+          "Auxiliary array to access cached subexpressions without auxiliary variables."
+              + " To be used in summaries"
   )
-  private String iteFunctionName = "__VERIFIER_ite";
-
-  @Option(
-      secure=true,
-      description = "Direct access to logical negation"
-  )
-  private String notFunctionName = "__VERIFIER_not";
-
-  @Option(
-      secure=true,
-      description = "Direct access to logical conjunction"
-  )
-  private String andFunctionName = "__VERIFIER_and";
-
-  @Option(
-      secure=true,
-      description = "Direct access to logical disjunction"
-  )
-  private String orFunctionName = "__VERIFIER_or";
-
-  @Option(
-      secure=true,
-      description = "Branching shortcut function to be used in summaries"
-  )
-  private String iteMemFunctionName = "__VERIFIER_ite_mem";
+  private String auxArrayName = "__VERIFIER_aux";
 
   @Option(
     secure = true,
@@ -238,22 +216,6 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
     return memoryAllocationFunctionsWithSuperfluousParameters.contains(name);
   }
 
-  boolean isIteFunctionName(final String name) {
-    return iteFunctionName.equals(name);
-  }
-
-  boolean isNotFunctionName(final String name) {
-    return notFunctionName.equals(name);
-  }
-
-  boolean isAndFunctionName(final String name) {
-    return andFunctionName.equals(name);
-  }
-
-  boolean isOrFunctionName(final String name) {
-    return orFunctionName.equals(name);
-  }
-
   boolean isHavocFunctionName(final String name) {
     return havocFunctionName.equals(name);
   }
@@ -290,8 +252,9 @@ public class FormulaEncodingWithPointerAliasingOptions extends FormulaEncodingOp
     return nondetMemFunctionName.equals(name);
   }
 
-  boolean isIteMemFunctionName(final String name) {
-    return iteMemFunctionName.equals(name);
+  boolean isAuxArrayName(final String name) {
+    return auxArrayName.equals(name) ||
+           name.equals(auxArrayName + "_nz");
   }
 
   public boolean isStub(final String name) {

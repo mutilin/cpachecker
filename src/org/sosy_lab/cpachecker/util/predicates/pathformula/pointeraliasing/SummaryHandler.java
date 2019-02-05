@@ -24,35 +24,23 @@
 package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 
 import java.math.BigInteger;
-import java.util.Arrays;
 import java.util.List;
-import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
-import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIntegerLiteralExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
-import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
-import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
-import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
+import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCCodeException;
-import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.ExpressionToFormulaVisitor;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.smt.ArrayFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.smt.BooleanFormulaManagerView;
@@ -61,7 +49,6 @@ import org.sosy_lab.java_smt.api.ArrayFormula;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 import org.sosy_lab.java_smt.api.Formula;
 import org.sosy_lab.java_smt.api.FormulaType;
-import org.sosy_lab.java_smt.api.visitors.DefaultFormulaVisitor;
 
 public final class SummaryHandler {
 
@@ -81,10 +68,6 @@ public final class SummaryHandler {
   private final ArrayFormulaManagerView afmgr;
 
   private static int freshIdx = 0;
-
-
-  private static final List<String> auxStarts =
-      Arrays.asList(new String[]{"grd", "ass", "var", "mem", "tmp", "__CPAchecker_TMP", "result"});
 
   public SummaryHandler(
       final CToFormulaConverterWithPointerAliasing pConv,
@@ -116,189 +99,36 @@ public final class SummaryHandler {
      ssa.clearCaches();
   }
 
-  private Formula getTerm(final String name, final CType type) {
-    Formula term = ssa.getTerm(name);
-    if (term == null) {
-      final BooleanFormula pred = ssa.getPredicate(name);
-      final FormulaType<?> ftype = typeHandler.getFormulaTypeFromCType(type);
-      term = conv.ifTrueThenOneElseZero(ftype, pred);
+  private ArrayFormula<?, ?> getMem(final int idx, final CType elemType) {
+    ArrayFormula<?, ?> result = ssa.getMem(idx);
+    if (result == null) {
+      final FormulaType<?> elementType = typeHandler.getFormulaTypeFromCType(elemType);
+      result = afmgr.makeArray("fresh", freshIdx++, typeHandler.getPointerType(), elementType);
     }
-    return term;
+    return result;
   }
 
-  private BooleanFormula getPred(final String name) {
-    BooleanFormula pred = ssa.getPredicate(name);
-    if (pred == null) {
-      final Formula term = ssa.getTerm(name);
-      final FormulaType<?> ftype = fmgr.getFormulaType(term);
-      pred = bfmgr.not(fmgr.makeEqual(term, fmgr.makeNumber(ftype, BigInteger.ZERO)));
+  private void putVal(final int idx, final Formula term) {
+    ssa.setVal(idx, term);
+  }
+
+  private void putMem(final int idx, final ArrayFormula<?, ?> mem) {
+    ssa.setMem(idx, mem);
+  }
+
+  private BooleanFormula choose(final List<CExpression> args) {
+    final CType type = CNumericTypes.UNSIGNED_LONG_LONG_INT;
+    final FormulaType<?> formulaType = typeHandler.getFormulaTypeFromCType(type);
+    final Formula fresh = fmgr.makeVariable(formulaType, "fresh", freshIdx++);
+    if (options.addRangeConstraintsForNondet()) {
+      conv.addRangeConstraint(fresh, type, constraints);
     }
-    return pred;
-  }
-
-  private static class ConstFormulaVisitor extends DefaultFormulaVisitor<Boolean> {
-    private long c;
-
-    ConstFormulaVisitor(final long c) {
-      this.c = c;
+    final int idx = (int) ((CIntegerLiteralExpression)args.get(0)).asLong();
+    if (((CIntegerLiteralExpression)args.get(1)).asLong() != 0L) {
+      constraints.addConstraint(fmgr.makeNot(fmgr.makeEqual(fresh, fmgr.makeNumber(formulaType, BigInteger.ZERO))));
     }
-
-    @Override
-    public Boolean visitDefault(final Formula f) {
-      return false;
-    }
-
-    @Override
-    public Boolean visitConstant(final Formula f, final Object v) {
-      if (v instanceof Number) {
-        final Number n = (Number) v;
-        return n.longValue() == c;
-      }
-      return false;
-    }
-  }
-
-  private boolean isConst(final Formula f, final long c) {
-    return fmgr.visit(f, new ConstFormulaVisitor(c));
-  }
-
-  private void putTerm(final String name, final Formula term) {
-    ssa.setTerm(name, term);
-    fmgr.splitIfThenElse(term).ifPresent( ite -> {
-      if (isConst(ite.getSecond(), 1) && isConst(ite.getThird(), 0)) {
-        ssa.setPredicate(name, ite.getFirst());
-      }
-    });
-  }
-
-  private void putPred(final String name, final BooleanFormula pred) {
-    ssa.setPredicate(name, pred);
-  }
-
-  private static boolean isAux(final String name) {
-    return auxStarts.stream().anyMatch(name::startsWith);
-  }
-
-  private class CSummaryExpressionVisitor extends ExpressionToFormulaVisitor {
-    CSummaryExpressionVisitor(final CToFormulaConverterWithPointerAliasing cToFormulaConverter,
-                                final FormulaManagerView fmgr,
-                                final CFAEdge cfaEdge,
-                                final String function,
-                                final SSAMapBuilder ssa,
-                                final Constraints constraints) {
-      super(cToFormulaConverter, fmgr, cfaEdge, function, ssa, constraints);
-    }
-
-    @Override
-    public Formula visit(final CIdExpression e) throws UnrecognizedCCodeException {
-      final String name = e.getName();
-      if (isAux(name)) {
-        return getTerm(name, e.getExpressionType());
-      } else {
-        if (!(conv instanceof CToFormulaConverterWithPointerAliasing)) {
-          throw new UnrecognizedCCodeException("Need pointer aliasing converter", edge);
-        }
-        final CToFormulaConverterWithPointerAliasing convtr = (CToFormulaConverterWithPointerAliasing) conv;
-        CType type = e.getExpressionType();
-        if (type instanceof CArrayType) {
-          type = new CPointerType(false, false, ((CArrayType) type).getType());
-        }
-        return convtr.makeVariable(
-                        e.getDeclaration().getQualifiedName(),
-                        type,
-                        ssa);
-      }
-    }
-  }
-
-  private Formula evaluate(final CExpression e) throws UnrecognizedCCodeException {
-    final ExpressionToFormulaVisitor vis = new CSummaryExpressionVisitor(conv,
-                                                                         fmgr,
-                                                                         edge,
-                                                                         function,
-                                                                         ssa,
-                                                                         constraints);
-    return e.accept(vis);
-  }
-
-  private BooleanFormula evaluate(final String name, final CExpression e) throws UnrecognizedCCodeException {
-    if (e instanceof CCastExpression &&
-        ((CCastExpression)e).getOperand() instanceof CIdExpression) {
-      final String rname = ((CIdExpression)((CCastExpression)e).getOperand()).getName();
-      final Formula result = ssa.getTerm(rname);
-      if (result != null && result instanceof ArrayFormula) {
-        putTerm(name, result);
-        return bfmgr.makeTrue();
-      }
-      if (result != null &&
-          fmgr.getFormulaType(result).equals(
-              typeHandler.getFormulaTypeFromCType(((CCastExpression)e).getCastType()))) {
-        putTerm(name, result);
-        return bfmgr.makeTrue();
-      }
-    }
-
-    putTerm(name, evaluate(e));
+    putVal(idx, fresh);
     return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula choose(final String name, final List<CExpression> args) {
-    final CType returnType = args.get(1).getExpressionType();
-    final Formula fresh = fmgr.makeVariable(typeHandler.getFormulaTypeFromCType(returnType), "fresh", freshIdx++);
-    if (conv.options.addRangeConstraintsForNondet()) {
-      conv.addRangeConstraint(fresh, returnType, constraints);
-    }
-    ssa.setTerm(name, fresh);
-    return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula alloc(final String name, final String fname, final CFunctionCallExpression call)
-      throws UnrecognizedCCodeException, InterruptedException {
-    final DynamicMemoryHandler memoryHandler =
-        new DynamicMemoryHandler(conv, edge, ssa, pts, constraints, err, regionMgr);
-    putTerm(name, memoryHandler.handleMemoryAllocation(call, fname));
-    return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula ite(final String name, final List<CExpression> args)
-      throws UnrecognizedCCodeException {
-    final BooleanFormula c = getPred(((CIdExpression)args.get(0)).getName());
-    final Formula t = evaluate(args.get(1));
-    final Formula e = evaluate(args.get(2));
-    final Formula result = bfmgr.ifThenElse(c, t, e);
-    ssa.setTerm(name, result);
-    return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula not(final String name, final List<CExpression> args) {
-    final BooleanFormula a = getPred(((CIdExpression)args.get(0)).getName());
-    putPred(name, bfmgr.not(a));
-    return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula and(final String name, final List<CExpression> args) {
-    final BooleanFormula a = getPred(((CIdExpression)args.get(0)).getName());
-    final BooleanFormula b = getPred(((CIdExpression)args.get(1)).getName());
-    putPred(name, bfmgr.and(a, b));
-    return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula or(final String name, final List<CExpression> args) {
-    final BooleanFormula a = getPred(((CIdExpression)args.get(0)).getName());
-    final BooleanFormula b = getPred(((CIdExpression)args.get(1)).getName());
-    putPred(name, bfmgr.or(a, b));
-    return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula assignVar(final CIdExpression left, final CIdExpression right) {
-    final String lname = left.getDeclaration().getQualifiedName();
-    final String rname = right.getName();
-    final CType type = typeHandler.simplifyType(left.getExpressionType());
-    int index = ssa.getIndex(lname);
-    if (index < 0) index = 1;
-    ssa.setIndex(lname, type, index + 1);
-    return fmgr.makeEqual(conv.makeVariable(lname, type, ssa),
-                          getTerm(rname, right.getExpressionType()));
   }
 
   private ArrayFormula<?, ?> array(final String name, final CType elementCType) {
@@ -327,215 +157,112 @@ public final class SummaryHandler {
     return array(regionMgr.getPointerAccessName(region), region.getType());
   }
 
-  private BooleanFormula memory(final String name, final List<CExpression> args)
+  private BooleanFormula memory(final List<CExpression> args)
       throws UnrecognizedCCodeException {
-    final Formula result = array(args.get(0));
-    ssa.setTerm(name, result);
+    final int idx = (int) ((CIntegerLiteralExpression)args.get(0)).asLong();
+    final ArrayFormula<?, ?> result = array(args.get(1));
+    putMem(idx, result);
     return bfmgr.makeTrue();
   }
 
-  private BooleanFormula select(final String name, final List<CExpression> args) {
-    final Formula arr = ssa.getTerm(((CIdExpression) args.get(0)).getName());
-    final Formula idx = getTerm(((CIdExpression) args.get(1)).getName(), args.get(1).getExpressionType());
+  private BooleanFormula select(final List<CExpression> args) throws UnrecognizedCCodeException {
+    final int idx = (int) ((CIntegerLiteralExpression)args.get(0)).asLong();
+    final int midx = (int) ((CIntegerLiteralExpression)args.get(1)).asLong();
+    final CType ptrType = args.get(2).getExpressionType();
+    CType elemType = ((CPointerType) ptrType).getType();
+    if (elemType instanceof CArrayType) {
+      elemType = ((CArrayType) elemType).getType();
+    }
+    final ArrayFormula<?, ?> arr = getMem(midx, elemType);
+    final CExpressionVisitorWithPointerAliasing vis =
+        new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, err, pts, regionMgr);
+    final Formula adr = vis.asValueFormula(args.get(2).accept(vis), ptrType);
     @SuppressWarnings("unchecked")
-    final Formula result = afmgr.select((ArrayFormula<Formula,?>)arr, idx);
-    ssa.setTerm(name, result);
+    final Formula result = afmgr.select((ArrayFormula<Formula,?>)arr, adr);
+    putVal(idx, result);
     return bfmgr.makeTrue();
   }
 
-  private BooleanFormula update(final String name, final List<CExpression> args) {
-    final Formula arr = ssa.getTerm(((CIdExpression) args.get(0)).getName());
-    final Formula idx = getTerm(((CIdExpression) args.get(1)).getName(), args.get(1).getExpressionType());
-    final Formula val = getTerm(((CIdExpression) args.get(2)).getName(), args.get(2).getExpressionType());
+  private BooleanFormula update(final List<CExpression> args) throws UnrecognizedCCodeException {
+    final int idx = (int) ((CIntegerLiteralExpression)args.get(0)).asLong();
+    final int midx = (int) ((CIntegerLiteralExpression)args.get(1)).asLong();
+    final CType ptrType = args.get(2).getExpressionType();
+    CType elemType = ((CPointerType) ptrType).getType();
+    if (elemType instanceof CArrayType) {
+      elemType = ((CArrayType) elemType).getType();
+    }
+    final ArrayFormula<?, ?> arr = getMem(midx, elemType);
+    final CExpressionVisitorWithPointerAliasing vis =
+        new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, err, pts, regionMgr);
+    final Formula adr = vis.asValueFormula(args.get(2).accept(vis), ptrType);
+    final Formula val = vis.asValueFormula(args.get(3).accept(vis), elemType);
     @SuppressWarnings("unchecked")
-    final Formula result = afmgr.store((ArrayFormula<Formula, Formula>)arr, idx, val);
-    ssa.setTerm(name, result);
+    final ArrayFormula<?, ?> result = afmgr.store((ArrayFormula<Formula, Formula>)arr, adr, val);
+    putMem(idx, result);
     return bfmgr.makeTrue();
   }
 
-  private BooleanFormula nondetMem(final String name, final List<CExpression> args)
-         throws UnrecognizedCCodeException {
-    final CExpression arg0 = args.get(0);
-    if (!(arg0 instanceof CIdExpression)) {
-      throw new UnrecognizedCCodeException("Need variable witness to create memory", edge);
-    }
-    final CIdExpression arg = (CIdExpression)arg0;
-    if (!(arg.getExpressionType() instanceof CPointerType)) {
-      throw new UnrecognizedCCodeException("Need pointer type to create memory", edge);
-    }
-    final FormulaType<?> elementType =
-        typeHandler.getFormulaTypeFromCType(((CPointerType)arg.getExpressionType()).getType());
-    final Formula result = afmgr.makeArray("fresh", freshIdx++, typeHandler.getPointerType(), elementType);
-    ssa.setTerm(name, result);
+  private BooleanFormula nondetMem() {
     return bfmgr.makeTrue();
-  }
-
-  private BooleanFormula makeAssignment(final CLeftHandSide left, final CRightHandSide right)
-          throws UnrecognizedCCodeException, InterruptedException {
-    if (left instanceof CIdExpression) {
-      final CIdExpression id = (CIdExpression) left;
-      final String name = id.getName();
-      if (isAux(name)) {
-        if (right instanceof CExpression) {
-          return evaluate(name, (CExpression) right);
-        } else {
-          if (!(right instanceof CFunctionCallExpression)) {
-            throw new UnrecognizedCCodeException("Unknown RHS", edge);
-          }
-          final CFunctionCallExpression call = (CFunctionCallExpression) right;
-          final CExpression fexp = call.getFunctionNameExpression();
-          if (!(fexp instanceof CIdExpression)) {
-            throw new UnrecognizedCCodeException("Only special notational functions are supported", edge);
-          }
-          final String fname = ((CIdExpression) fexp).getName();
-          final List<CExpression> args = call.getParameterExpressions();
-          if (conv.options.isChooseFunctionName(fname)) {
-            return choose(name, args);
-          } else if (options.isAllocFunctionName(fname)) {
-            return alloc(name, fname, call);
-          } if (conv.options.isIteFunctionName(fname)) {
-            return ite(name, args);
-          } else if (conv.options.isIteMemFunctionName(fname)) {
-            return ite(name, args);
-          } else if (conv.options.isNotFunctionName(fname)) {
-            return not(name, args);
-          } else if (conv.options.isAndFunctionName(fname)) {
-            return and(name, args);
-          } else if (conv.options.isOrFunctionName(fname)) {
-            return or(name, args);
-          } else if (conv.options.isMemoryFunctionName(fname)) {
-            return memory(name, args);
-          } else if (conv.options.isSelectFunctionName(fname)) {
-            return select(name, args);
-          } else if (conv.options.isUpdateFunctionName(fname)) {
-            return update(name, args);
-          } else if (conv.options.isConstFunctionName(fname)) {
-            return nondetMem(name, args);
-          } else if (conv.options.isNondetMemFunctionName(fname)) {
-            return nondetMem(name, args);
-          } else {
-            throw new UnrecognizedCCodeException("Only special notational functions are supported", edge);
-          }
-        }
-      } else {
-        if (!(right instanceof CIdExpression)) {
-          throw new UnrecognizedCCodeException("Uncached resulting value", edge);
-        }
-        return assignVar(id, (CIdExpression) right);
-      }
-    } else {
-      throw new UnrecognizedCCodeException("Only variable assignments are allowed in summaries", edge);
-    }
   }
 
   private BooleanFormula havoc(final CFunctionCallExpression call) throws UnrecognizedCCodeException {
     final MemoryRegion region = region(call.getParameterExpressions().get(0));
     conv.makeFreshIndex(regionMgr.getPointerAccessName(region), region.getType(), ssa);
-     if (conv.options.addRangeConstraintsForNondet()) {
+     if (options.addRangeConstraintsForNondet()) {
        conv.addHavocRegionRangeConstraints(region, ssa, constraints, pts);
      }
      return bfmgr.makeTrue();
   }
 
-  private BooleanFormula makeCall(final CFunctionCallExpression call)
+  public BooleanFormula makeCall(final CFunctionCallExpression call)
       throws UnrecognizedCCodeException {
     final CExpression fexp = call.getFunctionNameExpression();
     if (!(fexp instanceof CIdExpression)) {
       throw new UnrecognizedCCodeException("Only special notational functions are supported", edge);
     }
     final String fname = ((CIdExpression) fexp).getName();
-    if (conv.options.isHavocFunctionName(fname)) {
+    final List<CExpression> args = call.getParameterExpressions();
+    if (options.isHavocFunctionName(fname)) {
       return havoc(call);
-    } else if (conv.options.isAssignFunctionName(fname)) {
+    } else if (options.isAssignFunctionName(fname)) {
       return havoc(call);
-    } else if (CtoFormulaConverter.PURE_EXTERNAL_FUNCTIONS.contains(fname)) {
-      return bfmgr.makeTrue();
+    } else  if (options.isChooseFunctionName(fname)) {
+      return choose(args);
+    } else if (options.isMemoryFunctionName(fname)) {
+      return memory(args);
+    } else if (options.isSelectFunctionName(fname)) {
+      return select(args);
+    } else if (options.isUpdateFunctionName(fname)) {
+      return update(args);
+    } else if (options.isConstFunctionName(fname)) {
+      return nondetMem();
+    } else if (options.isNondetMemFunctionName(fname)) {
+      return nondetMem();
     } else {
       throw new UnrecognizedCCodeException("Only special notational functions are supported", edge);
     }
   }
 
-  private BooleanFormula assume(final CExpression e, boolean isTrue) {
-    final CIdExpression cond;
-    if (e instanceof CIdExpression) {
-      cond = (CIdExpression) e;
-    } else {
-      final CBinaryExpression bin = (CBinaryExpression) e;
-      cond = (CIdExpression) bin.getOperand1();
-      final CExpression z = bin.getOperand2();
-      assert
-        z instanceof CIntegerLiteralExpression &&
-        ((CIntegerLiteralExpression) z).getValue().equals(BigInteger.ZERO) :
-          "Unrecognized assumption";
-      if (bin.getOperator() == BinaryOperator.EQUALS) {
-        isTrue = !isTrue;
-      }
-    }
-    BooleanFormula result = getPred(cond.getName());
-    if (!isTrue) {
-      result = bfmgr.not(result);
-    }
-    return result;
-  }
-
-  private BooleanFormula makeStatement(final CStatementEdge statement)
-          throws UnrecognizedCCodeException, InterruptedException {
-
+  public boolean isSpecial(final CStatementEdge statement) {
     CStatement stmt = statement.getStatement();
-    if (stmt instanceof CAssignment) {
-      final CAssignment assignment = (CAssignment) stmt;
-      return makeAssignment(assignment.getLeftHandSide(), assignment.getRightHandSide());
-    } else {
-      if (stmt instanceof CFunctionCallStatement) {
-        final CFunctionCallStatement call = (CFunctionCallStatement) stmt;
-         return makeCall(call.getFunctionCallExpression());
-      } else if (!(stmt instanceof CExpressionStatement)) {
-        throw new UnrecognizedCCodeException("Unknown statement", statement, stmt);
-      }
-      return bfmgr.makeTrue();
-    }
-  }
-
-  public BooleanFormula getFormula()
-          throws UnrecognizedCCodeException, UnrecognizedCFAEdgeException, InterruptedException {
-    switch (edge.getEdgeType()) {
-    case StatementEdge: {
-      return makeStatement((CStatementEdge) edge);
-    }
-
-    case ReturnStatementEdge: {
-      CReturnStatementEdge returnEdge = (CReturnStatementEdge)edge;
-      final com.google.common.base.Optional<CAssignment> ass = returnEdge.asAssignment();
-      if (ass.isPresent()) {
-      return makeAssignment(ass.get().getLeftHandSide(), ass.get().getRightHandSide());
-      } else {
-        return bfmgr.makeTrue();
+    if (stmt instanceof CFunctionCallStatement) {
+      final CFunctionCallStatement call = (CFunctionCallStatement) stmt;
+      final CFunctionCallExpression cexp = call.getFunctionCallExpression();
+      final CExpression fexp = cexp.getFunctionNameExpression();
+      if (fexp instanceof CIdExpression) {
+        final String fname = ((CIdExpression) fexp).getName();
+        return
+            options.isHavocFunctionName(fname) ||
+            options.isAssignFunctionName(fname) ||
+            options.isMemoryFunctionName(fname) ||
+            options.isChooseFunctionName(fname) ||
+            options.isSelectFunctionName(fname) ||
+            options.isUpdateFunctionName(fname) ||
+            options.isConstFunctionName(fname) ||
+            options.isNondetMemFunctionName(fname);
       }
     }
-
-    case DeclarationEdge: {
-      return bfmgr.makeTrue();
-    }
-
-    case AssumeEdge: {
-      CAssumeEdge assumeEdge = (CAssumeEdge)edge;
-      return assume(assumeEdge.getExpression(), assumeEdge.getTruthAssumption());
-    }
-
-    case BlankEdge: {
-      return bfmgr.makeTrue();
-    }
-
-    case FunctionCallEdge: {
-      throw new UnrecognizedCFAEdgeException(edge);
-    }
-
-    case FunctionReturnEdge: {
-      throw new UnrecognizedCFAEdgeException(edge);
-    }
-
-    default:
-      throw new UnrecognizedCFAEdgeException(edge);
-    }
+    return false;
   }
 }

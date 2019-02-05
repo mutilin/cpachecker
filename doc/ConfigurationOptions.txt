@@ -1478,6 +1478,18 @@ cpa.predicate.abstractions.file = "abstractions.txt"
 # (signature, not name!).
 cpa.predicate.addRangeConstraintsForNondet = false
 
+# Returns a fresh address of unconditionally successfully allocated memory of
+# specified size. To be used in summaries
+cpa.predicate.allocFunctionName = "malloc"
+
+# Sets the current state of the given memory region to the provided logic
+# array. To be used in summaries
+cpa.predicate.assignFunctionName = "__VERIFIER_assign"
+
+# Auxiliary array to access cached subexpressions without auxiliary
+# variables. To be used in summaries
+cpa.predicate.auxArrayName = "__VERIFIER_aux"
+
 # which strategy/heuristic should be used to compute relevant predicates for
 # a block-reduction?
 # AUXILIARY: dependencies between variables.
@@ -1558,6 +1570,9 @@ cpa.predicate.checkBlockFeasibility = false
 # approximation provided through variadic arguments
 cpa.predicate.chooseFunctionName = "__VERIFIER_choose"
 
+# Returns a logic array filled with the given value. To be used in summaries
+cpa.predicate.constFunctionName = "__VERIFIER_const"
+
 # The default size in bytes for memory allocations when the value cannot be
 # determined.
 cpa.predicate.defaultAllocationSize = 4
@@ -1628,7 +1643,7 @@ cpa.predicate.handleStringLiteralInitializers = false
 # the havoc should NOT be entirely non-deterministic, the data dependency
 # approximation should be (and actually is) provided through the variadic
 # arguments
-cpa.predicate.havocRegionFunctionName = "__VERIFIER_havoc_region"
+cpa.predicate.havocFunctionName = "__VERIFIER_havoc"
 
 # Allows to ignore Concat and Extract Calls when Bitvector theory was
 # replaced with Integer or Rational.
@@ -1740,6 +1755,10 @@ cpa.predicate.memoryAllocationsAlwaysSucceed = false
 # Function that is used to free allocated memory.
 cpa.predicate.memoryFreeFunctionName = "free"
 
+# Returns a logic array representing the current state of the specified
+# memory region. To be used in summaries
+cpa.predicate.memoryFunctionName = "__VERIFIER_memory"
+
 # which merge operator to use for predicate cpa (usually ABE should be used)
 cpa.predicate.merge = "ABE"
   allowed values: [SEP, ABE]
@@ -1757,6 +1776,10 @@ cpa.predicate.nondetFunctions = {
 # Regexp pattern for functions that should be considered as giving a
 # non-deterministic return value (c.f. cpa.predicate.nondedFunctions)
 cpa.predicate.nondetFunctionsRegexp = "^(__VERIFIER_)?nondet_[a-zA-Z0-9_]*"
+
+# Returns a fresh arbitrarily initialized logic array. To be used in
+# summaries
+cpa.predicate.nondetMemFunctionName = "__VERIFIER_nondet_mem"
 
 # Where to apply the found predicates to?
 cpa.predicate.precision.sharing = LOCATION
@@ -1928,6 +1951,10 @@ cpa.predicate.satCheck = 0
 # precision adjustment. This property is required in proof checking.
 cpa.predicate.satCheckAtAbstraction = false
 
+# Returns a value of a logic array at the specified index. To be used in
+# summaries
+cpa.predicate.selectFunctionName = "__VERIFIER_select"
+
 # Call 'simplify' on generated formulas.
 cpa.predicate.simplifyGeneratedPathFormulas = false
 
@@ -1951,6 +1978,9 @@ cpa.predicate.strengthenWithReusedAbstractions = false
 # file that consists of old abstractions, to be used during strengthening
 cpa.predicate.strengthenWithReusedAbstractionsFile = "abstractions.txt"
 
+# Postifix to recognize summary stubs
+cpa.predicate.stubPostfix = "___stub"
+
 # The function used to model successful heap object allocation. This is only
 # used, when pointer analysis with UFs is enabled.
 cpa.predicate.successfulAllocFunctionName = "__VERIFIER_successful_alloc"
@@ -1968,6 +1998,10 @@ cpa.predicate.targetStateSatCheck = false
 
 # Whether to track values stored in variables of function-pointer type.
 cpa.predicate.trackFunctionPointers = true
+
+# Returns a logic array equal to a given array at all indices except the
+# given one, which is mapped to the given value. To be used in summaries
+cpa.predicate.updateFunctionName = "__VERIFIER_update"
 
 # Use the theory of arrays for heap-memory encoding. This requires an SMT
 # solver that is capable of the theory of arrays.
@@ -2030,11 +2064,11 @@ cpa.reportFalseAsUnknown = false
 
 # Add at least this number of edges (if available) to CFA for each unrolled
 # function
-cpa.scopebounded.refiner.edgeIncrement = 50
+cpa.scopebounded.refiner.edgeIncrement = 1
 
 # Give up and unroll everything if more than this fraction of stubs have to
 # be unrolled
-cpa.scopebounded.refiner.maxUnrollFraction = 5
+cpa.scopebounded.refiner.maxUnrollFraction = 1
 
 # Postfix used to detect function stubs (summaries)
 cpa.scopebounded.stubPostfix = "___stub"
@@ -2316,15 +2350,22 @@ cpa.value.abstraction.onlyAtNonLinearCFA = false
 # specify postfix to find the stub for a function e.g. f --> f_stub
 cpa.value.abstraction.stubPostfix = "___stub"
 
+# Conjunction for use in sumaries
+cpa.value.andFunctionName = "__VERIFIER_and"
+
+# Assign the value of the memory region to the specified logic array. To be
+# used in summaries
+cpa.value.assignFunctionName = "__VERIFIER_assign"
+
 # Whether to replace symbolic values with a concrete value when only one
 # value is possible for an assumption to be true (e.g. for (x == 1) set x to
 # 1, even if x is a symbolic expression).
 cpa.value.assignSymbolicAssumptionVars = false
 
-# Explicit-value counterpart of __VERIFIER_havoc_region, to be used for
+# Explicit-value counterpart of __VERIFIER_havoc, to be used for
 # scope-bounded verification; implemented as crude over-approximation, havocs
 # the entire heap
-cpa.value.havocRegionFunctionName = "__VERIFIER_havoc_region"
+cpa.value.havocFunctionName = "__VERIFIER_havoc"
 
 # if there is an assumption like (x!=0), this option sets unknown
 # (uninitialized) variables to 1L, when the true-branch is handled.
@@ -2347,13 +2388,22 @@ cpa.value.interpolation.applyUnsatSuffixOptimization = true
 # whether or not to manage the callstack, which is needed for BAM
 cpa.value.interpolation.manageCallstack = true
 
+# Branching shortcut function to be used in summaries
+cpa.value.iteFunctionName = "__VERIFIER_ite"
+
 # which merge operator to use for ValueAnalysisCPA
 cpa.value.merge = "SEP"
   allowed values: [SEP, JOIN]
 
+# Negation for use in sumaries
+cpa.value.notFunctionName = "__VERIFIER_not"
+
 # Assume that variables used only in a boolean context are either zero or
 # one.
 cpa.value.optimizeBooleanVariables = true
+
+# Disjunction for use in sumaries
+cpa.value.orFunctionName = "__VERIFIER_or"
 
 # target file to hold the exported precision
 cpa.value.precisionFile = no default value

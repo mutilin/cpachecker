@@ -41,6 +41,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CIntegerLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CParameterDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
@@ -283,7 +284,7 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
    * @throws UnrecognizedCCodeException If the C code was unrecognizable.
    */
   @Override
-  public AliasedLocation visit(final CArraySubscriptExpression e)
+  public Expression visit(final CArraySubscriptExpression e)
       throws UnrecognizedCCodeException {
     // There are two distinct kinds of arrays in C:
     // -- fixed-length arrays for which the aliased location of the first element is returned here
@@ -291,6 +292,15 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     //    is returned (arrays as function parameters also fall into this category)
     // So we use #dereference() to resolve the ambiguity
     final CExpression arrayExpression = e.getArrayExpression();
+
+    if (arrayExpression instanceof CIdExpression) {
+      final CIdExpression id = (CIdExpression) arrayExpression;
+      if (conv.options.isAuxArrayName(id.getName())) {
+        final int key = (int) ((CIntegerLiteralExpression) e.getSubscriptExpression()).asLong();
+        return Value.ofValue(ssa.getVal(key));
+      }
+    }
+
     final Expression base = dereference(arrayExpression, arrayExpression.accept(this));
 
     // Now we should always have the aliased location of the first array element

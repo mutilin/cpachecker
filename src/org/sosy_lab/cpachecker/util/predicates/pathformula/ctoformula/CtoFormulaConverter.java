@@ -957,24 +957,27 @@ public class CtoFormulaConverter {
       final SSAMapBuilder ssa, final PointerTargetSetBuilder pts,
       final Constraints constraints, final ErrorConditions errorConditions)
           throws UnrecognizedCCodeException, UnrecognizedCFAEdgeException, InterruptedException {
-    if (this instanceof CToFormulaConverterWithPointerAliasing &&
-        options instanceof FormulaEncodingWithPointerAliasingOptions &&
-        ((FormulaEncodingWithPointerAliasingOptions)options).isStub(edge.getPredecessor().getFunctionName()) &&
-        ((FormulaEncodingWithPointerAliasingOptions)options).isStub(edge.getSuccessor().getFunctionName())) {
-      final CToFormulaConverterWithPointerAliasing self = (CToFormulaConverterWithPointerAliasing) this;
-      final SummaryHandler handler = new SummaryHandler(self,
-                                                         edge,
-                                                         function,
-                                                         ssa,
-                                                         pts,
-                                                         constraints,
-                                                         errorConditions,
-                                                         self.getRegnManager());
-      return handler.getFormula();
-    }
     switch (edge.getEdgeType()) {
     case StatementEdge: {
-      return makeStatement((CStatementEdge) edge, function,
+      final CStatementEdge statement = (CStatementEdge) edge;
+      if (this instanceof CToFormulaConverterWithPointerAliasing &&
+          options instanceof FormulaEncodingWithPointerAliasingOptions &&
+          ((FormulaEncodingWithPointerAliasingOptions)options).isStub(edge.getPredecessor().getFunctionName()) &&
+          ((FormulaEncodingWithPointerAliasingOptions)options).isStub(edge.getSuccessor().getFunctionName())) {
+        final CToFormulaConverterWithPointerAliasing self = (CToFormulaConverterWithPointerAliasing) this;
+        final SummaryHandler handler = new SummaryHandler(self,
+                                                           edge,
+                                                           function,
+                                                           ssa,
+                                                           pts,
+                                                           constraints,
+                                                           errorConditions,
+                                                           self.getRegnManager());
+        if (handler.isSpecial(statement)) {
+          return handler.makeCall(((CFunctionCallStatement) statement.getStatement()).getFunctionCallExpression());
+        }
+      }
+      return makeStatement(statement, function,
           ssa, pts, constraints, errorConditions);
     }
 
