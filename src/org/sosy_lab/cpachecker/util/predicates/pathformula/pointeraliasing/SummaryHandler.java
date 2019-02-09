@@ -168,11 +168,17 @@ public final class SummaryHandler {
   private BooleanFormula select(final List<CExpression> args) throws UnrecognizedCCodeException {
     final int idx = (int) ((CIntegerLiteralExpression)args.get(0)).asLong();
     final int midx = (int) ((CIntegerLiteralExpression)args.get(1)).asLong();
-    final CType ptrType = args.get(2).getExpressionType();
-    CType elemType = ((CPointerType) ptrType).getType();
+    CType ptrType = args.get(2).getExpressionType();
+    CType elemType;
+    if (ptrType instanceof CPointerType) {
+      elemType = ((CPointerType) ptrType).getType();
+    } else {
+      elemType = ((CArrayType) ptrType).getType();
+    }
     if (elemType instanceof CArrayType) {
       elemType = ((CArrayType) elemType).getType();
     }
+    ptrType = conv.typeHandler.simplifyType(new CPointerType(false, false, elemType));
     final ArrayFormula<?, ?> arr = getMem(midx, elemType);
     final CExpressionVisitorWithPointerAliasing vis =
         new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, err, pts, regionMgr);
@@ -186,11 +192,17 @@ public final class SummaryHandler {
   private BooleanFormula update(final List<CExpression> args) throws UnrecognizedCCodeException {
     final int idx = (int) ((CIntegerLiteralExpression)args.get(0)).asLong();
     final int midx = (int) ((CIntegerLiteralExpression)args.get(1)).asLong();
-    final CType ptrType = args.get(2).getExpressionType();
-    CType elemType = ((CPointerType) ptrType).getType();
+    CType ptrType = args.get(2).getExpressionType();
+    CType elemType;
+    if (ptrType instanceof CPointerType) {
+      elemType = ((CPointerType) ptrType).getType();
+    } else {
+      elemType = ((CArrayType) ptrType).getType();
+    }
     if (elemType instanceof CArrayType) {
       elemType = ((CArrayType) elemType).getType();
     }
+    ptrType = conv.typeHandler.simplifyType(new CPointerType(false, false, elemType));
     final ArrayFormula<?, ?> arr = getMem(midx, elemType);
     final CExpressionVisitorWithPointerAliasing vis =
         new CExpressionVisitorWithPointerAliasing(conv, edge, function, ssa, constraints, err, pts, regionMgr);
