@@ -51,7 +51,7 @@ public abstract class AutomatonVariable implements Cloneable, Serializable {
           result = new AutomatonSetVariable<String>(pName);
         } else {
           throw new IllegalArgumentException(
-              "Element type '" + elementType + "' is not suppoprted for sets");
+              "Element type '" + elementType + "' is not supported for sets");
         }
         if (args.length > 1) {
           String value = args[1];
