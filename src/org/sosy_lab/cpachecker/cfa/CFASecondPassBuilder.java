@@ -163,9 +163,7 @@ public class CFASecondPassBuilder {
       final CFunctionCallExpression callExpression = cCall.getFunctionCallExpression();
       final String funcName = callExpression.getDeclaration().getName();
       final FunctionExitNode funcExit = cfa.getFunctionHead(funcName).getExitNode();
-      // don't approximate knowingly non-terminating functions
-      // this should not be unsound, but may result in significantly different CFA
-      if (stubEdges && stubPostfix != null && funcExit.getNumEnteringEdges() != 0) {
+      if (stubEdges && stubPostfix != null) {
         final String stubName = callExpression.getDeclaration().getName() + stubPostfix;
         final CFunctionEntryNode stubEntry = (CFunctionEntryNode) cfa.getFunctionHead(stubName);
         if (stubEntry != null
@@ -361,10 +359,14 @@ public class CFASecondPassBuilder {
     beforeStubCall.addLeavingEdge(stubCallEdge);
     stubEntry.addEnteringEdge(stubCallEdge);
 
-    final CFunctionReturnEdge funcReturnEdge =
-        new CFunctionReturnEdge(fileLocation, funcExit, successorNode, funcSummaryEdge);
-    funcExit.addLeavingEdge(funcReturnEdge);
-    successorNode.addEnteringEdge(funcReturnEdge);
+    if (funcExit.getNumEnteringEdges() == 0) {
+      CFACreationUtils.removeChainOfNodesFromCFA(successorNode);
+    } else {
+      final CFunctionReturnEdge funcReturnEdge =
+          new CFunctionReturnEdge(fileLocation, funcExit, successorNode, funcSummaryEdge);
+      funcExit.addLeavingEdge(funcReturnEdge);
+      successorNode.addEnteringEdge(funcReturnEdge);
+    }
 
     final CFunctionReturnEdge stubReturnEdge =
         new CFunctionReturnEdge(fileLocation, stubExit, stubNode, stubSummaryEdge);
