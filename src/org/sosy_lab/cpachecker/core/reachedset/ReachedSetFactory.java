@@ -59,8 +59,7 @@ public class ReachedSetFactory {
     LOCATIONMAPPED,
     PARTITIONED,
     PSEUDOPARTITIONED,
-    USAGE,
-    THREADMODULAR
+    USAGE
   }
 
   @Option(
@@ -205,6 +204,12 @@ public class ReachedSetFactory {
   private ReachedSetType reachedSet = ReachedSetType.PARTITIONED;
 
   @Option(
+    secure = true,
+    name = "reachedSet.useThreadModularWrapper",
+    description = "use thread-modular wrapper over a normal reached set")
+  private boolean useThreadModularWrapper = false;
+
+  @Option(
       secure = true,
       name = "reachedSet.withStatistics",
       description = "track more statistics about the reachedset")
@@ -284,9 +289,6 @@ public class ReachedSetFactory {
 
     ReachedSet reached;
     switch (reachedSet) {
-      case THREADMODULAR:
-        reached = new ThreadModularReachedSet(waitlistFactory);
-        break;
     case PARTITIONED:
         reached = new PartitionedReachedSet(waitlistFactory);
         break;
@@ -304,6 +306,9 @@ public class ReachedSetFactory {
         reached = new DefaultReachedSet(waitlistFactory);
     }
 
+    if (useThreadModularWrapper) {
+      reached = new ThreadModularReachedSet(reached);
+    }
     if (withStatistics) {
       reached = new StatisticsReachedSet(reached);
     }
