@@ -24,7 +24,8 @@ public interface Property {
   public enum CommonPropertyType implements Property {
     REACHABILITY_LABEL("G ! label(ERROR)"),
 
-    REACHABILITY("G ! call(__VERIFIER_error())"),
+    REACHABILITY(
+        "G ! call(reach_error())"),
 
     VALID_FREE("G valid-free"),
 

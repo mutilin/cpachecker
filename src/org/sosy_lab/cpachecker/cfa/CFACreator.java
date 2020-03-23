@@ -140,7 +140,9 @@ public class CFACreator {
       description="entry function")
   private String mainFunctionName = "main";
 
-  @Option(secure=true, name="analysis.machineModel",
+  @Option(
+      secure = true,
+      name = "analysis.machineModel",
       description = "the machine model, which determines the sizes of types like int")
   private MachineModel machineModel = MachineModel.LINUX32;
 
@@ -200,8 +202,7 @@ public class CFACreator {
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path exportFunctionCallsUsedFile = Paths.get("functionCallsUsed.dot");
 
-  @Option(secure=true, name="cfa.file",
-      description="export CFA as .dot file")
+  @Option(secure = true, name = "cfa.file", description = "export CFA as .dot file")
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path exportCfaFile = Paths.get("cfa.dot");
 
@@ -285,17 +286,19 @@ public class CFACreator {
   )
   private boolean addLabels = false;
 
-  @Option(secure=true,
-      description="Programming language of the input program. If not given explicitly, "
-          + "auto-detection will occur")
+  @Option(
+      secure = true,
+      description =
+          "Programming language of the input program. If not given explicitly, "
+              + "auto-detection will occur")
   // keep option name in sync with {@link CPAMain#language}, value might differ
   private Language language = Language.C;
 
-  private final LogManager logger;
+  protected final LogManager logger;
   private final Parser parser;
   private final ShutdownNotifier shutdownNotifier;
 
-  private static class CFACreatorStatistics implements Statistics {
+  protected static class CFACreatorStatistics implements Statistics {
 
     private final Timer parserInstantiationTime = new Timer();
     private final Timer totalTime = new Timer();
@@ -307,7 +310,7 @@ public class CFACreator {
     private final List<Statistics> statisticsCollection;
     private final LogManager logger;
 
-    private CFACreatorStatistics(LogManager pLogger) {
+    protected CFACreatorStatistics(LogManager pLogger) {
       logger = pLogger;
       statisticsCollection = new ArrayList<>();
     }
@@ -343,18 +346,18 @@ public class CFACreator {
     }
   }
 
-  private final CFACreatorStatistics stats;
+  protected CFACreatorStatistics stats;
   private final Configuration config;
 
   public CFACreator(Configuration config, LogManager logger, ShutdownNotifier pShutdownNotifier)
       throws InvalidConfigurationException {
 
-    config.inject(this);
+    config.inject(this, CFACreator.class);
 
     this.config = config;
     this.logger = logger;
     this.shutdownNotifier = pShutdownNotifier;
-    this.stats = new CFACreatorStatistics(logger);
+    this.stats = createStatistics(logger);
 
     stats.parserInstantiationTime.start();
 
@@ -439,6 +442,9 @@ public class CFACreator {
       logger.log(Level.FINE, "Starting parsing of file(s)");
 
       final ParseResult c = parseToCFAs(sourceFiles);
+      if (c == null) {
+        return null;
+      }
 
       logger.log(Level.FINE, "Parser Finished");
 
@@ -637,10 +643,12 @@ public class CFACreator {
     return parseResult;
   }
 
-  /** This method parses the sourceFiles and builds a CFA for each function.
-   * The ParseResult is only a Wrapper for the CFAs of the functions and global declarations. */
-  private ParseResult parseToCFAs(final List<String> sourceFiles)
-          throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
+  /**
+   * This method parses the sourceFiles and builds a CFA for each function. The ParseResult is only
+   * a Wrapper for the CFAs of the functions and global declarations.
+   */
+  protected ParseResult parseToCFAs(final List<String> sourceFiles)
+      throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
     final ParseResult parseResult;
 
     if (language == Language.C) {
@@ -995,7 +1003,7 @@ v.addInitializer(initializer);
     }
   }
 
-  private void exportCFAAsync(final CFA cfa) {
+  protected void exportCFAAsync(final CFA cfa) {
     // Execute asynchronously, this may take several seconds for large programs on slow disks.
     // This is safe because we don't modify the CFA from this point on.
     Concurrency.newThread("CFA export thread", () -> exportCFA(cfa)).start();
@@ -1084,5 +1092,9 @@ v.addInitializer(initializer);
 
   public CFACreatorStatistics getStatistics() {
     return stats;
+  }
+
+  protected CFACreatorStatistics createStatistics(LogManager pLogger) {
+    return new CFACreatorStatistics(pLogger);
   }
 }
