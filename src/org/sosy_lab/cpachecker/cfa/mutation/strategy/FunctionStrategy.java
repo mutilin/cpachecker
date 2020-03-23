@@ -17,9 +17,8 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -28,24 +27,29 @@ import java.util.List;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.util.Pair;
 
-public class FunctionBodyStrategy
+@Options
+public class FunctionStrategy
     extends GenericCFAMutationStrategy<String, Pair<FunctionEntryNode, SortedSet<CFANode>>> {
+  @Option(
+      secure = true,
+      name = "mutations.functionsWhitelist",
+      description = "Names of functions (separated with space) that should not be deleted from CFA")
+  private String whitelist = "main";
 
-  private final static List<String> blackList =
-      ImmutableList.of(
-          "main",
-          "ldv_pm_ops_scenario_4",
-          "ldv_insmod_5",
-          "ldv_interrupt_scenario_2",
-          "ldv_platform_instance_3");
-
-  public FunctionBodyStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth);
+  public FunctionStrategy(Configuration pConfig, LogManager pLogger, int pRate, int pStartDepth)
+      throws InvalidConfigurationException {
+    super(pLogger, pRate, pStartDepth, "Functions");
+    pConfig.inject(this);
   }
 
   @Override
@@ -61,9 +65,9 @@ public class FunctionBodyStrategy
             - parseResult.getCFANodes().get(pArg1).size();
       }
     }
+    List<String> v = List.of(whitelist.split(" "));
     List<String> answer = new ArrayList<>(pParseResult.getFunctions().keySet());
-    // answer.removeIf(s -> s.equals("main"));
-    answer.removeAll(blackList);
+    answer.removeAll(v);
     Collections.sort(answer, new FunctionSize(pParseResult));
     return answer;
   }

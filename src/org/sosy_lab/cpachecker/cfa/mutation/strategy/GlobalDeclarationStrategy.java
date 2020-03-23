@@ -17,12 +17,13 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.ADeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionDeclaration;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -31,7 +32,7 @@ public class GlobalDeclarationStrategy
     extends GenericCFAMutationStrategy<Pair<ADeclaration, String>, Pair<Integer, Pair<ADeclaration, String>>> {
 
   public GlobalDeclarationStrategy(LogManager pLogger, int pAtATime, int pStartDepth) {
-    super(pLogger, pAtATime, pStartDepth);
+    super(pLogger, pAtATime, pStartDepth, "Global declarations");
   }
 
   @Override
@@ -44,6 +45,7 @@ public class GlobalDeclarationStrategy
     if (decl instanceof AFunctionDeclaration) {
       return !pParseResult.getFunctions().containsKey(decl.getName());
     }
+    // TODO other declarations
     return true;
   }
 
@@ -67,14 +69,6 @@ public class GlobalDeclarationStrategy
   @Override
   protected void removeObject(ParseResult pParseResult, Pair<ADeclaration, String> pObject) {
     List<Pair<ADeclaration, String>> prgd = pParseResult.getGlobalDeclarations();
-    System.out.println(
-        "prgd size is "
-            + prgd.size()
-            + "\nremoving ("
-            + prgd.indexOf(pObject)
-            + ", "
-            + pObject
-            + ")");
     assert prgd.remove(pObject);
     assert !prgd.contains(pObject);
     pParseResult =
@@ -89,7 +83,6 @@ public class GlobalDeclarationStrategy
   protected void returnObject(
       ParseResult pParseResult, Pair<Integer, Pair<ADeclaration, String>> pRollbackInfo) {
     List<Pair<ADeclaration, String>> prgd = pParseResult.getGlobalDeclarations();
-    System.out.println("prgd size is " + prgd.size() + "\nreturning " + pRollbackInfo);
     assert !prgd.contains(pRollbackInfo.getSecond());
     prgd.add(pRollbackInfo.getFirst(), pRollbackInfo.getSecond());
     assert prgd.indexOf(pRollbackInfo.getSecond()) == pRollbackInfo.getFirst();

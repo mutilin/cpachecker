@@ -24,36 +24,32 @@ import com.google.common.collect.SortedSetMultimap;
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.IdentityHashSet;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.io.Writer;
-import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.sosy_lab.common.Concurrency;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.Configuration;
-import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
-import org.sosy_lab.common.io.IO;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.mutation.strategy.AbstractCFAMutationStrategy;
+import org.sosy_lab.cpachecker.cfa.mutation.strategy.CompositeStrategy;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
+import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
-import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.CFATraversal.CompositeCFAVisitor;
 import org.sosy_lab.cpachecker.util.CFATraversal.EdgeCollectingCFAVisitor;
 import org.sosy_lab.cpachecker.util.CFATraversal.NodeCollectingCFAVisitor;
-import org.sosy_lab.cpachecker.util.cwriter.CFAToCTranslator;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
@@ -62,23 +58,23 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public class CFAMutator extends CFACreator {
   @Option(
       secure = true,
-      name = "analysis.runMutationsCount",
+      name = "mutations.count",
       description =
-          "if analysis.runMutations is true and this option is not 0, this option limits count of runs")
+          "With this option set to positive integer, count of runs will be limited by given number.")
   private int runMutationsCount = 0;
 
   @Option(
       secure = true,
-      name = "exportToC.enable",
-      description = "Whether to export slices as C program files")
-  private boolean exportToC = false;
+      name = "mutations.exportRounds",
+      description =
+          "With this option set to positive integer, CFA will be exported every round divisible by given number.")
+  private int exportRounds = 0;
 
   @Option(
       secure = true,
-      name = "exportToC.file",
-      description = "File template for exported C program slices")
-  @FileOption(FileOption.Type.OUTPUT_FILE)
-  private Path exportToCFile = Paths.get("mutated.c");
+      name = "mutations.exportOriginal",
+      description = "With this option set to true, original CFA will be exported as well.")
+  private boolean exportOriginal = false;
 
   private ParseResult parseResult = null;
   private Set<CFANode> originalNodes = null;
@@ -96,12 +92,11 @@ public class CFAMutator extends CFACreator {
     private final StatCounter mutationsDone = new StatCounter("Successful mutation rounds");
     private final StatCounter rollbacksDone =
         new StatCounter("Unsuccessful rounds (count of rollbacks)");
-    private long possibleMutations;
     private long originalNodesCount;
     private long originalEdgesCount;
     private long remainedNodesCount;
     private long remainedEdgesCount;
-    private long remainedMutations;
+    private final Collection<Statistics> strategyStats = new ArrayList<>();
 
     private CFAMutatorStatistics(LogManager pLogger) {
       super(pLogger);
@@ -116,14 +111,15 @@ public class CFAMutator extends CFACreator {
           .put(clearingTimer)
           .put("Initial nodes count", originalNodesCount)
           .put("Initial edges count", originalEdgesCount)
-          .put("Mutations possible", possibleMutations)
           .put(mutationRound)
           .put(mutationsDone)
           .put(rollbacksDone)
           .put("Nodes remained", remainedNodesCount)
           .put("Edges remained", remainedEdgesCount)
-          .put("Mutations remained", remainedMutations)
           .endLevel();
+      for (Statistics st : strategyStats) {
+        st.printStatistics(out, pResult, pReached);
+      }
     }
 
     @Override
@@ -138,7 +134,7 @@ public class CFAMutator extends CFACreator {
 
     pConfig.inject(this, CFAMutator.class);
 
-    strategy = new CompositeStrategy(logger);
+    strategy = new CompositeStrategy(pConfig, pLogger);
   }
 
 
@@ -153,8 +149,6 @@ public class CFAMutator extends CFACreator {
 
       ((CFAMutatorStatistics) stats).originalNodesCount = originalNodes.size();
       ((CFAMutatorStatistics) stats).originalEdgesCount = originalEdges.size();
-      ((CFAMutatorStatistics) stats).possibleMutations =
-          strategy.countPossibleMutations(parseResult);
       return parseResult;
     }
 
@@ -165,7 +159,8 @@ public class CFAMutator extends CFACreator {
       return null;
     }
 
-    if (((CFAMutatorStatistics) stats).mutationRound.getValue() == runMutationsCount) {
+    if (runMutationsCount > 0
+        && ((CFAMutatorStatistics) stats).mutationRound.getValue() == runMutationsCount) {
       doLastRun = true;
     } else {
       ((CFAMutatorStatistics) stats).mutationTimer.start();
@@ -176,8 +171,8 @@ public class CFAMutator extends CFACreator {
     if (doLastRun) {
       ((CFAMutatorStatistics) stats).remainedNodesCount = originalNodes.size();
       ((CFAMutatorStatistics) stats).remainedEdgesCount = originalEdges.size();
-      ((CFAMutatorStatistics) stats).remainedMutations =
-          strategy.countPossibleMutations(parseResult);
+      strategy.makeAftermath(parseResult);
+      strategy.collectStatistics(((CFAMutatorStatistics) stats).strategyStats);
     }
 
     // need to return after possible rollback
@@ -228,6 +223,8 @@ public class CFAMutator extends CFACreator {
   }
 
   private void clearAfterPostprocessings() {
+    exportIfNeeded();
+
     ((CFAMutatorStatistics) stats).clearingTimer.start();
     final EdgeCollectingCFAVisitor edgeCollector = new EdgeCollectingCFAVisitor();
     final NodeCollectingCFAVisitor nodeCollector = new NodeCollectingCFAVisitor();
@@ -279,8 +276,20 @@ public class CFAMutator extends CFACreator {
     ((CFAMutatorStatistics) stats).clearingTimer.stop();
   }
 
+  private void exportIfNeeded() {
+    // TODO export with suffix or to different subdirs
+    if (exportOriginal && ((CFAMutatorStatistics) stats).mutationRound.getValue() == 0) {
+      exportCFA(lastCFA);
+    } else if (exportRounds > 0) {
+      long suf = ((CFAMutatorStatistics) stats).mutationRound.getValue() / exportRounds;
+      if (suf * exportRounds == ((CFAMutatorStatistics) stats).mutationRound.getValue()) {
+        exportCFA(lastCFA);
+      }
+    }
+  }
+
   @Override
-  public void exportCFAAsync(final CFA cfa) {
+  protected void exportCFAAsync(final CFA cfa) {
     if (cfa == null) {
       return;
     }
@@ -289,29 +298,9 @@ public class CFAMutator extends CFACreator {
 
     if (cfa == lastCFA) {
       super.exportCFAAsync(lastCFA);
-      if (exportToC && exportToCFile != null) {
-        exportCFAToC(lastCFA);
-      }
     } else {
       lastCFA = cfa;
     }
-  }
-
-  private void exportCFAToC(CFA pCFA) {
-    logger.logf(Level.INFO, "translating cfa to %s", exportToCFile);
-    Concurrency.newThread(
-            "CFAMutator-to-C-exporter",
-            () -> {
-              try (Writer writer = IO.openOutputFile(exportToCFile, Charset.defaultCharset())) {
-
-                String code = new CFAToCTranslator().translateCfa(pCFA);
-                writer.write(code);
-
-              } catch (CPAException | IOException | InvalidConfigurationException e) {
-                logger.logUserException(Level.WARNING, e, "Could not write CFA to C file.");
-              }
-            })
-        .start();
   }
 
   @Override

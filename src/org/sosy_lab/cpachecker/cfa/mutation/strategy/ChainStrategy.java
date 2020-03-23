@@ -17,7 +17,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
@@ -98,7 +99,7 @@ public class ChainStrategy extends GenericCFAMutationStrategy<Chain, Chain> {
   private Set<CFANode> previousChainsNodes = new HashSet<>();
 
   public ChainStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth);
+    super(pLogger, pRate, pStartDepth, "Chains");
   }
 
   // can delete node with its only leaving edge and reconnect entering edge instead
@@ -216,7 +217,7 @@ public class ChainStrategy extends GenericCFAMutationStrategy<Chain, Chain> {
     }
   }
 
-  private Chain getChainWith(CFANode pNode) {
+  public Chain getChainWith(CFANode pNode) {
     NodePollingChainVisitor oneWayChainVisitor = new NodePollingChainVisitor(false);
     CFATraversal.dfs().backwards().traverse(pNode, oneWayChainVisitor);
     oneWayChainVisitor.changeDirection();

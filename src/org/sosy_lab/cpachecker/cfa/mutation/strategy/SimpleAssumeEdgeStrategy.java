@@ -17,7 +17,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -33,11 +34,11 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.Pair;
 
-public class AssumeEdgeStrategy
+public class SimpleAssumeEdgeStrategy
     extends GenericCFAMutationStrategy<Pair<AssumeEdge, AssumeEdge>, Pair<AssumeEdge, AssumeEdge>> {
 
-  public AssumeEdgeStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth);
+  public SimpleAssumeEdgeStrategy(LogManager pLogger, int pRate, int pStartDepth) {
+    super(pLogger, pRate, pStartDepth, "Easy branching");
   }
 
   @Override
@@ -67,12 +68,12 @@ public class AssumeEdgeStrategy
     return answer;
   }
 
-  private boolean isBackwardEdge(CFAEdge pEdge) {
+  protected static boolean isBackwardEdge(CFAEdge pEdge) {
     return pEdge.getPredecessor().getReversePostorderId()
         <= pEdge.getSuccessor().getReversePostorderId();
   }
 
-  private int countForwardEnteringEdges(CFANode pNode) {
+  private static int countForwardEnteringEdges(CFANode pNode) {
     int count = 0;
     for (CFANode p : CFAUtils.predecessorsOf(pNode)) {
       if (p.getReversePostorderId() > pNode.getReversePostorderId()) {

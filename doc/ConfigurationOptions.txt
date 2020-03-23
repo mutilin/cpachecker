@@ -310,6 +310,10 @@ analysis.replacedFunctionsWithParameters = {"pthread_create"}
 # restart the analysis using a different configuration after unknown result
 analysis.restartAfterUnknown = false
 
+# run analysis each time with slightly mutated cfa, until cfa cannot be
+# mutated
+analysis.runMutations = false
+
 # Use heuristics to select the analysis
 analysis.selectAnalysisHeuristically = false
 
@@ -1837,6 +1841,9 @@ cpa.predicate.abstractions.file = "abstractions.txt"
 # (signature, not name!).
 cpa.predicate.addRangeConstraintsForNondet = false
 
+# apply only if state is not true (relevant)
+cpa.predicate.applyOptimization = true
+
 # Apply only relevant effects.
 cpa.predicate.applyRelevantEffects = false
 
@@ -2746,9 +2753,6 @@ cpa.thread.skipTheSameThread = false
 # may try to support it with self-parallelizm.
 cpa.thread.supportSelfCreation = false
 
-# Use special case with environment actions
-cpa.thread.withEnvironmentActions = false
-
 # allow assignments of a new thread to the same left-hand-side as an existing
 # thread.
 cpa.threading.allowMultipleLHS = false
@@ -2778,6 +2782,9 @@ cpa.threading.useLocalAccessLocks = true
 # successful after N times of refining. A real error state is not necessary
 # to be found. Use 0 for unlimited refinements (default).
 cpa.threadmodular.refinement.stopAfterNRefinements = 0
+
+# apply projections only if the state is relevant
+cpa.threadmodular.relevanceOptimization = true
 
 # which merge operator to use for UninitializedVariablesCPA?
 cpa.uninitvars.merge = "sep"
@@ -3392,6 +3399,21 @@ mpv.partitionOperator = no default value
 # - AUTOMATON: each automaton represent a single property.
 mpv.propertySeparator = FILE
   enum:     [FILE, AUTOMATON]
+
+# With this option set to positive integer, count of runs will be limited by
+# given number.
+mutations.count = 0
+
+# With this option set to true, original CFA will be exported as well.
+mutations.exportOriginal = false
+
+# With this option set to positive integer, CFA will be exported every round
+# divisible by given number.
+mutations.exportRounds = 0
+
+# Names of functions (separated with space) that should not be deleted from
+# CFA
+mutations.functionsWhitelist = "main"
 
 # When checking for the overflow property, use this configuration file
 # instead of the current one.
@@ -4035,6 +4057,9 @@ undefinedFunctionsCollector.stubsFile = "stubs.c"
 
 # Should we process the same blocks with covered sets of locks
 usage.processCoveredUsages = true
+
+# use sound regions as identifiers
+usage.useSoundRegions = false
 
 # File for exporting the witness automaton in DOT format.
 witness.automatonDumpFile = no default value

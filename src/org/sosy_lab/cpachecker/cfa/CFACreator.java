@@ -1003,13 +1003,13 @@ v.addInitializer(initializer);
     }
   }
 
-  public void exportCFAAsync(final CFA cfa) {
+  protected void exportCFAAsync(final CFA cfa) {
     // Execute asynchronously, this may take several seconds for large programs on slow disks.
     // This is safe because we don't modify the CFA from this point on.
     Concurrency.newThread("CFA export thread", () -> exportCFA(cfa)).start();
   }
 
-  private void exportCFA(final CFA cfa) {
+  protected void exportCFA(final CFA cfa) {
     stats.exportTime.start();
 
     // write CFA to file

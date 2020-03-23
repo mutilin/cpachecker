@@ -17,12 +17,10 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -30,8 +28,8 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class FunctionCallStrategy extends SingleNodeStrategy {
 
-  public FunctionCallStrategy(LogManager pLogger, int step, int start) {
-    super(pLogger, step, start);
+  public FunctionCallStrategy(LogManager pLogger, int step, int pStartDepth) {
+    super(pLogger, step, pStartDepth, "Function call edges");
   }
 
   @Override
@@ -45,16 +43,5 @@ public class FunctionCallStrategy extends SingleNodeStrategy {
       return false;
     }
     return (((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall);
-  }
-
-  @Override
-  protected Collection<CFANode> getAllObjects(ParseResult pParseResult) {
-    List<CFANode> answer = new ArrayList<>();
-    for (CFANode node : super.getAllObjects(pParseResult)) {
-      if (canRemove(pParseResult, node)) {
-        answer.add(node);
-      }
-    }
-    return answer;
   }
 }

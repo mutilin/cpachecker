@@ -17,30 +17,22 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
+import org.sosy_lab.cpachecker.cfa.model.ADeclarationEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
-public class DummyStrategy extends AbstractCFAMutationStrategy {
-  private int steps;
+public class DeclarationStrategy extends SingleNodeStrategy {
 
-  public DummyStrategy(LogManager pLogger, int pSteps) {
-    super(pLogger);
-    steps = pSteps;
+  public DeclarationStrategy(LogManager pLogger, int pRate, int pStartDepth) {
+    super(pLogger, pRate, pStartDepth, "Declaration edges");
   }
 
   @Override
-  public int countPossibleMutations(ParseResult pParseResult) {
-    return steps;
-  }
-
-  @Override
-  public boolean mutate(ParseResult pParseResult) {
-    return steps-- > 0;
-  }
-
-  @Override
-  public void rollback(ParseResult pParseResult) {
-    assert false : "Dummy strategy does not change parseResult, there has to be no rollbacks";
+  protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
+    return super.canRemove(pParseResult, pNode)
+        && pNode.getLeavingEdge(0) instanceof ADeclarationEdge;
   }
 }

@@ -17,7 +17,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-package org.sosy_lab.cpachecker.cfa;
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
@@ -37,7 +38,11 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
   public SingleNodeStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth);
+    super(pLogger, pRate, pStartDepth, "Nodes (w 1 leaving edge)");
+  }
+
+  protected SingleNodeStrategy(LogManager pLogger, int pRate, int pStartDepth, String objects) {
+    super(pLogger, pRate, pStartDepth, objects);
   }
 
   // can delete node with its only leaving edge and reconnect entering edge instead
