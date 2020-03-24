@@ -45,10 +45,12 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionReturnEdge;
+import org.sosy_lab.cpachecker.cfa.model.FunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CLabelNode;
 import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
@@ -162,6 +164,8 @@ public class CFAToCTranslator {
     Collection<CFAEdge> outgoingEdges =
         CFAUtils.leavingEdges(currentElement)
             .filter(e -> !(e instanceof FunctionReturnEdge))
+            .filter(e -> !(e instanceof FunctionSummaryEdge))
+            .filter(e -> !(e instanceof CFunctionSummaryStatementEdge))
             .toList();
 
     if (outgoingEdges.size() == 1) {
@@ -224,6 +228,7 @@ public class CFAToCTranslator {
       boolean previousTruthAssumption = false;
       String elseCond = null;
       for (CFAEdge edgeToChild : outgoingEdges) {
+
         assert edgeToChild instanceof CAssumeEdge
             : "something wrong: branch in ARG without condition: " + edgeToChild;
         CAssumeEdge assumeEdge = (CAssumeEdge) edgeToChild;
@@ -358,7 +363,16 @@ public class CFAToCTranslator {
         {
           CFANode succ = pCFAEdge.getSuccessor();
           if (succ instanceof CLabelNode) {
-            return getLabelCode(((CLabelNode) succ).getLabel());
+            String label = ((CLabelNode) succ).getLabel();
+            if (label.startsWith("label")) {
+              return getLabelCode(label);
+            } else {
+              // All labels, which were presented in origin file becomes invalid, because of
+              // duplicating
+              // Actually, it may be a bug, just a workaround is to disable them as all goto'salso
+              // transformed
+              break;
+            }
           } else {
             // nothing to do
             break;

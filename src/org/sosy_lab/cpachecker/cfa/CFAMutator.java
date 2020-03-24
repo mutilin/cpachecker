@@ -71,7 +71,7 @@ public class CFAMutator extends CFACreator {
       secure = true,
       name = "exportToC.enable",
       description = "Whether to export slices as C program files")
-  private boolean exportToC = true;
+  private boolean exportToC = false;
 
   @Option(
       secure = true,
@@ -280,7 +280,7 @@ public class CFAMutator extends CFACreator {
   }
 
   @Override
-  protected void exportCFAAsync(final CFA cfa) {
+  public void exportCFAAsync(final CFA cfa) {
     if (cfa == null) {
       return;
     }

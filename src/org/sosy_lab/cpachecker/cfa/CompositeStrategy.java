@@ -42,15 +42,24 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new FunctionBodyStrategy(pLogger, 5, 0),
             new BlankChainStrategy(pLogger, 5, 0),
             new ChainStrategy(pLogger, 5, 1),
-            new AssumeEdgeStrategy(pLogger, 5, 1),
+            new AssumeEdgeStrategy(
+                pLogger,
+                5,
+                1),
             //
             new BlankChainStrategy(pLogger, 5, 0),
             new SingleNodeStrategy(pLogger, 5, 1),
-            new AssumeEdgeStrategy(pLogger, 5, 1),
+            new AssumeEdgeStrategy(
+                pLogger,
+                5,
+                1),
             //
             new BlankChainStrategy(pLogger, 5, 0),
             new SingleNodeStrategy(pLogger, 5, 1),
-            new AssumeEdgeStrategy(pLogger, 5, 1),
+            new AssumeEdgeStrategy(
+                pLogger,
+                5,
+                1),
             //
             new SingleNodeStrategy(pLogger, 5, 1),
             new SpoilerFunctionStrategy(pLogger, 5, 0),

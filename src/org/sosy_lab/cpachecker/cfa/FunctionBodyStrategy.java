@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cfa;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +35,14 @@ import org.sosy_lab.cpachecker.util.Pair;
 
 public class FunctionBodyStrategy
     extends GenericCFAMutationStrategy<String, Pair<FunctionEntryNode, SortedSet<CFANode>>> {
+
+  private final static List<String> blackList =
+      ImmutableList.of(
+          "main",
+          "ldv_pm_ops_scenario_4",
+          "ldv_insmod_5",
+          "ldv_interrupt_scenario_2",
+          "ldv_platform_instance_3");
 
   public FunctionBodyStrategy(LogManager pLogger, int pRate, int pStartDepth) {
     super(pLogger, pRate, pStartDepth);
@@ -53,7 +62,8 @@ public class FunctionBodyStrategy
       }
     }
     List<String> answer = new ArrayList<>(pParseResult.getFunctions().keySet());
-    answer.removeIf(s -> s.equals("main"));
+    // answer.removeIf(s -> s.equals("main"));
+    answer.removeAll(blackList);
     Collections.sort(answer, new FunctionSize(pParseResult));
     return answer;
   }

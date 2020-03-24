@@ -749,6 +749,7 @@ public class CPAchecker {
           ObjectInputStream ois = new ObjectInputStream(gzipInputStream)) {
         cfa = (CFA) ois.readObject();
       }
+      cfaCreator.exportCFAAsync(cfa);
 
       assert CFACheck.check(cfa.getMainFunction(), null, cfa.getMachineModel());
     }
