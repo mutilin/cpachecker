@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -27,16 +28,20 @@ import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.FunctionCallCollector;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.AExpression;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.model.AReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.Triple;
 
@@ -47,10 +52,10 @@ public class SpoilerFunctionStrategy
   private final FunctionStrategy functionRemover;
 
   public SpoilerFunctionStrategy(
-      Configuration pConfig, LogManager pLogger, int pRate, int pStartDepth)
+      Configuration pConfig, LogManager pLogger, int pRate, boolean ptryAllAtFirst)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, pStartDepth, "Spoiler functions");
-    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, 0);
+    super(pLogger, pRate, ptryAllAtFirst, "Spoiler functions");
+    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, false, ImmutableSet.of("main"));
   }
 
   @Override
@@ -64,17 +69,32 @@ public class SpoilerFunctionStrategy
     return answer;
   }
 
-  @Override
   protected boolean canRemove(ParseResult parseResult, String pObject) {
-    if (!super.canRemove(parseResult, pObject)) {
-      return false;
-    }
     // can't remove function that is not called (e.g. main)
     if (getAllCallsTo(parseResult, pObject).isEmpty()) {
+      logger.logf(Level.FINE, "No calls to %s", pObject);
       return false;
     }
-    // can remove this function only if it calls another function
-    return getOnlyCallIn(parseResult, pObject) != null;
+
+    // can remove this function only if it calls any function once
+    // what TODO with recursion?
+    CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pObject);
+    if (innerCallEdge == null) {
+      return false;
+    }
+
+    CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
+    logger.logf(Level.FINE, "spoilered callee is %s", innerCall.getFunctionCallExpression());
+    List<CExpression> params = innerCall.getFunctionCallExpression().getParameterExpressions();
+    if (!params.isEmpty()) {
+      // TODO args replacing
+      // Simple case: if inner call uses only constants and spoilers' args
+      // as its actual parameters, subst spoilers' actual parameters where needed.
+      // For now there can be no parameters.
+      logger.log(Level.FINE, "Can't remove spoiler because of parameters.");
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -82,16 +102,17 @@ public class SpoilerFunctionStrategy
     logger.logf(Level.INFO, "removing %s as spoiler function", pFunctionName);
     Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> fullInfo =
         getRollbackInfo(parseResult, pFunctionName);
-    CFAEdge innerCall = getOnlyCallIn(parseResult, pFunctionName);
-    logger.logf(
-        Level.INFO,
-        "spoiler calls %s",
-        ((AFunctionCall) ((AStatementEdge) innerCall).getStatement()).getFunctionCallExpression());
+    CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pFunctionName);
+    CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
+    logger.logf(Level.INFO, "spoilered callee is %s", innerCall.getFunctionCallExpression());
+    List<CExpression> iParams = innerCall.getFunctionCallExpression().getParameterExpressions();
+    assert iParams.isEmpty() : "TODO args replacing";
 
-    for (CFAEdge outerCall : fullInfo.getThird()) {
-      CFAEdge newEdge = dupEdge(innerCall, outerCall.getPredecessor(), outerCall.getSuccessor());
-      logger.logf(Level.INFO, "replacing call %s as %s", outerCall, newEdge);
-      disconnectEdge(outerCall);
+    for (CFAEdge outerCallEdge : fullInfo.getThird()) {
+      CFAEdge newEdge =
+          dupEdge(innerCallEdge, outerCallEdge.getPredecessor(), outerCallEdge.getSuccessor());
+      logger.logf(Level.INFO, "replacing call %s as %s", outerCallEdge, newEdge);
+      disconnectEdge(outerCallEdge);
       connectEdge(newEdge);
     }
     functionRemover.removeObject(parseResult, pFunctionName);
@@ -129,52 +150,46 @@ public class SpoilerFunctionStrategy
       }
       CFAEdge leavingEdge = node.getLeavingEdge(0);
       switch (leavingEdge.getEdgeType()) {
-        case BlankEdge:
-          continue; // skipping blank edges
         case StatementEdge:
           if (((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall) {
             if (found != null) { // if more than one call
+              logger.logf(Level.FINE, "Found another call %s", leavingEdge);
               return null;
             }
             found = leavingEdge;
-            continue;
+            logger.logf(Level.FINE, "Found call %s", found);
           }
-          return null;
+          continue;
         case ReturnStatementEdge:
           AExpression expr = ((AReturnStatementEdge) leavingEdge).getExpression().orNull();
           if (expr != null && expr instanceof AFunctionCallExpression) {
             if (found != null) { // if more than one call
+              logger.logf(Level.FINE, "Found another call %s", leavingEdge);
               return null;
             }
             found = leavingEdge;
-            continue;
+            logger.logf(Level.FINE, "Found call %s", found);
           }
-          return null;
+          continue;
         default:
-          return null;
+          continue;
       }
+    }
+    if (found == null) {
+      logger.logf(Level.FINE, "No inner call found");
     }
     return found;
   }
 
-  private Collection<CFAEdge> getAllCallEdges(ParseResult parseResult) {
-    List<CFAEdge> answer = new ArrayList<>();
-    for (CFANode node : parseResult.getCFANodes().values()) {
-      if (node.getNumLeavingEdges() != 1) {
-        continue;
-      }
-      CFAEdge leavingEdge = node.getLeavingEdge(0);
-      if (leavingEdge instanceof AStatementEdge
-          && ((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall) {
-        answer.add(leavingEdge);
-      }
-    }
-    return answer;
-  }
-
-  private Collection<CFAEdge> getAllCallsTo(ParseResult parseResult, String pFunctionName) {
+  public static Collection<CFAEdge> getAllCallsTo(ParseResult parseResult, String pFunctionName) {
     Collection<CFAEdge> calls = new ArrayList<>();
-    for (CFAEdge callEdge : getAllCallEdges(parseResult)) {
+
+    final FunctionCallCollector fCallCollector = new FunctionCallCollector();
+    for (FunctionEntryNode startingNode : parseResult.getFunctions().values()) {
+      CFATraversal.dfs().traverseOnce(startingNode, fCallCollector);
+    }
+
+    for (CFAEdge callEdge : fCallCollector.getFunctionCalls()) {
       AFunctionDeclaration d =
           ((AFunctionCall) ((AStatementEdge) callEdge).getStatement())
               .getFunctionCallExpression()

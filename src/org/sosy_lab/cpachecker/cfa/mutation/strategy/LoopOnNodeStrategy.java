@@ -29,24 +29,21 @@ import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 
-public class NodeWithLoopStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
+public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
-  public NodeWithLoopStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth, "Nodes with loops");
+  public LoopOnNodeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Loops on nodes");
   }
 
-  @Override
-  protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
-    return super.canRemove(pParseResult, pNode)
-        && pNode.getNumLeavingEdges() == 1
-        && pNode.hasEdgeTo(pNode);
+  protected boolean canRemove(CFANode pNode) {
+    return pNode.getNumLeavingEdges() == 1 && pNode.hasEdgeTo(pNode);
   }
 
   @Override
   protected Collection<CFANode> getAllObjects(ParseResult pParseResult) {
     Collection<CFANode> answer = new ArrayList<>();
     for (CFANode node : pParseResult.getCFANodes().values()) {
-      if (canRemove(pParseResult, node)) {
+      if (canRemove(node)) {
         answer.add(node);
       }
     }

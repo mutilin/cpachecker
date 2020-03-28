@@ -20,7 +20,6 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -28,13 +27,13 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class FunctionCallStrategy extends SingleNodeStrategy {
 
-  public FunctionCallStrategy(LogManager pLogger, int step, int pStartDepth) {
-    super(pLogger, step, pStartDepth, "Function call edges");
+  public FunctionCallStrategy(LogManager pLogger, int step, boolean ptryAllAtFirst) {
+    super(pLogger, step, ptryAllAtFirst, "Function call edges");
   }
 
   @Override
-  protected boolean canRemove(ParseResult pr, CFANode pNode) {
-    if (!super.canRemove(pr, pNode)) {
+  protected boolean canRemove(CFANode pNode) {
+    if (!super.canRemove(pNode)) {
       return false;
     }
 

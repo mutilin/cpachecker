@@ -34,53 +34,41 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
   protected final ImmutableList<AbstractCFAMutationStrategy> strategiesList;
   protected UnmodifiableIterator<AbstractCFAMutationStrategy> strategies;
   protected AbstractCFAMutationStrategy currentStrategy;
+  private AbstractMutationStatistics stats;
 
   public CompositeStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
-    super(pLogger);
-    strategiesList =
+    this(
+        pLogger,
         ImmutableList.of(
             // First, try to remove most functions.
             //   Remove functions, 60-150 rounds for 10-15k nodes in input, 500-800 nodes remain.
-            new FunctionStrategy(pConfig, pLogger, 5, 0),
-            new BlankNodeStrategy(pLogger, 5, 0),
+            new FunctionStrategy(pConfig, pLogger, 5, true),
+            new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
+            // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
+            // new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
-
-            //   1. Remove unneeded assumes and statements.
             new CycleStrategy(pLogger),
-            //   TODO remove remained branches with a return statement
 
-            //   2. Remove loops on nodes (edges from node to itself).
-            new NodeWithLoopStrategy(pLogger, 5, 0),
-            new DummyStrategy(pLogger),
-            //   Now we can remove delooped blank edges.
-            new BlankNodeStrategy(pLogger, 5, 0),
-            new DummyStrategy(pLogger),
-
-            //   3. Remove unneeded declarations. TODO *unneeded*
-            new DeclarationStrategy(pLogger, 5, 0),
-            new DummyStrategy(pLogger),
-            new CycleStrategy(pLogger),
-            new DummyStrategy(pLogger),
-            //   4. Linearize loops: instead branching
-            //   insert loop body branch and "exit" branch successively,
+            //   5. Linearize loops: instead branching
+            //   insert "loop-body" branch and "exit" branch successively,
             //   as if loop is "executed" once.
-            new LoopAssumeEdgeStrategy(pLogger, 5, 0),
+            new LoopAssumeEdgeStrategy(pLogger, 3, true),
+            new DummyStrategy(pLogger),
+
+            // Replaces threading with plain calls
+            new ThreadCreateStrategy(pConfig, pLogger, 5, true),
             new DummyStrategy(pLogger),
 
             // Third, remove functions-spoilers: they just call another function
-            // It seems it does not change result, so try to remove all in one round
-            new SpoilerFunctionStrategy(pConfig, pLogger, 5, 0),
+            new SpoilerFunctionStrategy(pConfig, pLogger, 7, true),
             new DummyStrategy(pLogger),
 
-            // And last: remove global declarations, certainly of already removed functions.
-            // TODO declarations of global variables and types
-            new GlobalDeclarationStrategy(pLogger, 5, 1),
-            new DummyStrategy(pLogger));
-    strategies = strategiesList.iterator();
-    currentStrategy = strategies.next();
+            // And last: remove unneeded global declarations
+            new GlobalDeclarationStrategy(pLogger, 5, true),
+            new DummyStrategy(pLogger)));
   }
 
   public CompositeStrategy(
@@ -89,6 +77,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     strategiesList = pStrategiesList;
     strategies = strategiesList.iterator();
     currentStrategy = strategies.next();
+    stats = new AbstractMutationStatistics();
   }
 
   @Override
@@ -99,12 +88,13 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     boolean answer = currentStrategy.mutate(parseResult);
     while (!answer) {
       logger.logf(
-          Level.INFO,
-          "Round %d. Mutation strategy %s finished in %d rounds with %d rollbacks.",
+          Level.FINE,
+          "Round %d. Mutation strategy %s finished.",
           stats.rounds.getValue(),
-          currentStrategy,
-          currentStrategy.stats.rounds.getValue(),
-          currentStrategy.stats.rollbacks.getValue());
+          currentStrategy
+      // currentStrategy.stats.rounds.getValue(),
+      // currentStrategy.stats.rollbacks.getValue()
+      );
       if (!strategies.hasNext()) {
         return answer;
       }
@@ -137,5 +127,9 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     for (AbstractCFAMutationStrategy str : strategiesList) {
       str.collectStatistics(pStatsCollection);
     }
+
+    strategies = strategiesList.iterator();
+    currentStrategy = strategies.next();
+    stats = new AbstractMutationStatistics();
   }
 }

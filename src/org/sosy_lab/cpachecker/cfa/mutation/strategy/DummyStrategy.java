@@ -49,7 +49,8 @@ public class DummyStrategy extends AbstractCFAMutationStrategy {
 
   @Override
   public void rollback(ParseResult pParseResult) {
-    assert false : "Dummy strategy does not change parseResult, there has to be no rollbacks";
+    throw new UnsupportedOperationException(
+        "Dummy strategy does not change parseResult, there has to be no rollbacks");
   }
 
   @Override

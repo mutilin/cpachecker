@@ -324,10 +324,6 @@ analysis.restartAfterUnknown = false
 # mutated
 analysis.runMutations = false
 
-# if analysis.runMutations is true and this option is not 0, this option
-# limits count of runs
-analysis.runMutationsCount = 0
-
 # Use heuristics to select the analysis
 analysis.selectAnalysisHeuristically = false
 
@@ -761,6 +757,7 @@ cfa.simplifyConstExpressions = true
 cfa.simplifyPointerExpressions = false
 
 # A name of thread_create function
+cfa.threads.threadCreate = {"pthread_create"}
 cfa.threads.threadCreate = "pthread_create"
 
 # A name of thread_join function
@@ -1865,6 +1862,9 @@ cpa.predicate.abstractions.file = "abstractions.txt"
 # (signature, not name!).
 cpa.predicate.addRangeConstraintsForNondet = false
 
+# apply only if state is not true (relevant)
+cpa.predicate.applyOptimization = no default value
+
 # Check satisfiability for plain conjunction of edge and assumptions.
 cpa.predicate.assumptionStrengtheningSatCheck = false
 
@@ -1959,6 +1959,9 @@ cpa.predicate.deferUntypedAllocations = true
 cpa.predicate.direction = FORWARD
   enum:     [FORWARD, BACKWARD]
 
+# do not consider abstraction from inference objects
+cpa.predicate.emptyAbstraction = no default value
+
 # Enable the possibility to precompute explicit abstraction locations.
 cpa.predicate.enableBlockreducer = false
 
@@ -2008,6 +2011,9 @@ cpa.predicate.handlePointerAliasing = true
 # of the char array with the contents of the string literal instead of just
 # assigning a fresh non-det address to it
 cpa.predicate.handleStringLiteralInitializers = false
+
+# reset shared variables values
+cpa.predicate.havocAbstraction2 = no default value
 
 # Allows to ignore Concat and Extract Calls when Bitvector theory was
 # replaced with Integer or Rational.
@@ -2456,6 +2462,9 @@ cpa.predicate.useParameterVariablesForGlobals = false
 # that is capable of quantifiers (e.g. Z3 or PRINCESS).
 cpa.predicate.useQuantifiersOnArrays = false
 
+# Use undefined assignments (havoc abstraction)
+cpa.predicate.useUndefFunctions = no default value
+
 # Do not follow states which can not syntactically lead to a target location
 cpa.property_reachability.noFollowBackwardsUnreachable = true
 
@@ -2770,6 +2779,14 @@ cpa.threading.useClonedFunctions = true
 # local access locks are used to avoid expensive interleaving, if a thread
 # only reads and writes its own variables.
 cpa.threading.useLocalAccessLocks = true
+
+# Instead of updating precision and arg we say that the refinement was not
+# successful after N times of refining. A real error state is not necessary
+# to be found. Use 0 for unlimited refinements (default).
+cpa.threadmodular.refinement.stopAfterNRefinements = no default value
+
+# apply projections only if the state is relevant
+cpa.threadmodular.relevanceOptimization = no default value
 
 # which merge operator to use for UninitializedVariablesCPA?
 cpa.uninitvars.merge = "sep"
@@ -3141,18 +3158,6 @@ enabledanalysis.allowLazyRefinement = false
 enabledanalysis.enablerCPA = PREDICATE
   enum:     [APRON, INTERVAL, OCTAGON, PREDICATE, VALUE]
 
-# Whether to export list of remained functions
-exportFunctionNames = true
-
-# File for exported function names list
-exportFunctionNamesFile = "functions.txt"
-
-# Whether to export mutated CFA as C program
-exportToC = true
-
-# File for mutated CFA exported as C program
-exportToCFile = "mutated.c"
-
 # Configuration for programs containing more than @Option adressedRatio
 # addressed vars.
 heuristicSelection.addressedConfig = no default value
@@ -3378,6 +3383,21 @@ mpv.partitionOperator = no default value
 # - AUTOMATON: each automaton represent a single property.
 mpv.propertySeparator = FILE
   enum:     [FILE, AUTOMATON]
+
+# With this option set to positive integer, count of runs will be limited by
+# given number.
+mutations.count = 0
+
+# With this option set to true, original CFA will be exported as well.
+mutations.exportOriginal = false
+
+# With this option set to positive integer, CFA will be exported every round
+# divisible by given number.
+mutations.exportRounds = 0
+
+# Names of functions (separated with comma) that should not be deleted from
+# CFA
+mutations.functionsWhitelist = {"main"}
 
 # When checking for the overflow property, use this configuration file
 # instead of the current one.

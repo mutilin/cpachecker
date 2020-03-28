@@ -37,8 +37,8 @@ import org.sosy_lab.cpachecker.util.Pair;
 public class SimpleAssumeEdgeStrategy
     extends GenericCFAMutationStrategy<Pair<AssumeEdge, AssumeEdge>, Pair<AssumeEdge, AssumeEdge>> {
 
-  public SimpleAssumeEdgeStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth, "Easy branching");
+  public SimpleAssumeEdgeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Easy branching");
   }
 
   @Override
@@ -56,11 +56,11 @@ public class SimpleAssumeEdgeStrategy
       // loops can be disconnected from cfa,
       // CFANode.isLoopStart is not enough for some reason
       CFANode s = e0.getSuccessor();
-      if (isBackwardEdge(e0) && s.getNumEnteringEdges() > 1 || countForwardEnteringEdges(s) > 1) {
+      if ((isBackwardEdge(e0) && s.getNumEnteringEdges() > 1) || countForwardEnteringEdges(s) > 1) {
         answer.add(Pair.of(e0, e1));
       }
       s = e1.getSuccessor();
-      if (isBackwardEdge(e1) && s.getNumEnteringEdges() > 1 || countForwardEnteringEdges(s) > 1) {
+      if ((isBackwardEdge(e1) && s.getNumEnteringEdges() > 1) || countForwardEnteringEdges(s) > 1) {
         answer.add(Pair.of(e1, e0));
       }
     }
@@ -92,7 +92,7 @@ public class SimpleAssumeEdgeStrategy
 
     int found = 0;
     for (Pair<AssumeEdge, AssumeEdge> pair : getAllObjects(pParseResult)) {
-      if (!canRemove(pParseResult, pair)) {
+      if (alreadyTried(pair)) {
         continue;
       }
 
