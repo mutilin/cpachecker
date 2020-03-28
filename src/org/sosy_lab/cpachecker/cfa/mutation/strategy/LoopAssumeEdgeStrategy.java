@@ -35,8 +35,8 @@ import org.sosy_lab.cpachecker.util.Triple;
 public class LoopAssumeEdgeStrategy
     extends GenericCFAMutationStrategy<Chain, Triple<CFAEdge, CFAEdge, CFAEdge>> {
 
-  public LoopAssumeEdgeStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth, "Branch-loops");
+  public LoopAssumeEdgeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Branch-loops");
   }
 
   private Collection<CFAEdge> getBackwardEnteringEdges(final CFANode pNode) {
@@ -57,7 +57,7 @@ public class LoopAssumeEdgeStrategy
         continue;
       }
 
-      ChainStrategy cs = new ChainStrategy(logger, 0, 0);
+      ChainStrategy cs = new ChainStrategy(logger, 0, false);
       Chain chain = null;
       // continue if the only entering chain does not start on node
       if (backwardEnteringEdges.size() == 1) {

@@ -26,8 +26,8 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class BlankChainStrategy extends ChainStrategy {
 
-  public BlankChainStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth);
+  public BlankChainStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst);
   }
 
   @Override

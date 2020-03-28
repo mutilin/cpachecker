@@ -25,28 +25,18 @@ import java.util.List;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.ADeclaration;
-import org.sosy_lab.cpachecker.cfa.ast.AFunctionDeclaration;
 import org.sosy_lab.cpachecker.util.Pair;
 
 public class GlobalDeclarationStrategy
     extends GenericCFAMutationStrategy<Pair<ADeclaration, String>, Pair<Integer, Pair<ADeclaration, String>>> {
 
-  public GlobalDeclarationStrategy(LogManager pLogger, int pAtATime, int pStartDepth) {
-    super(pLogger, pAtATime, pStartDepth, "Global declarations");
+  public GlobalDeclarationStrategy(LogManager pLogger, int pAtATime, boolean ptryAllAtFirst) {
+    super(pLogger, pAtATime, ptryAllAtFirst, "Global declarations");
   }
 
   @Override
   protected boolean canRemove(ParseResult pParseResult, Pair<ADeclaration, String> p) {
-    if (!super.canRemove(pParseResult, p)) {
-      return false;
-    }
-
-    ADeclaration decl = p.getFirst();
-    if (decl instanceof AFunctionDeclaration) {
-      return !pParseResult.getFunctions().containsKey(decl.getName());
-    }
-    // TODO other declarations
-    return true;
+    return false;
   }
 
   @Override

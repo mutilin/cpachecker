@@ -53,11 +53,16 @@ public abstract class AbstractCFAMutationStrategy implements StatisticsProvider 
     protected final StatCounter rollbacks = new StatCounter("rollbacks");
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
-      StatisticsWriter.writingStatisticsTo(pOut).beginLevel().put(rounds).put(rollbacks).endLevel();
+      StatisticsWriter.writingStatisticsTo(pOut)
+          .beginLevel()
+          .put(getName(), "")
+          .put(rounds)
+          .put(rollbacks)
+          .endLevel();
     }
     @Override
     public @Nullable String getName() {
-      return this.toString();
+      return "Strategy";
     }
   }
 

@@ -31,8 +31,8 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 
 public class NodeWithLoopStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
-  public NodeWithLoopStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth, "Nodes with loops");
+  public NodeWithLoopStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Nodes with loops");
   }
 
   @Override

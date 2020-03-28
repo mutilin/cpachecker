@@ -98,8 +98,8 @@ public class ChainStrategy extends GenericCFAMutationStrategy<Chain, Chain> {
 
   private Set<CFANode> previousChainsNodes = new HashSet<>();
 
-  public ChainStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth, "Chains");
+  public ChainStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Chains");
   }
 
   // can delete node with its only leaving edge and reconnect entering edge instead

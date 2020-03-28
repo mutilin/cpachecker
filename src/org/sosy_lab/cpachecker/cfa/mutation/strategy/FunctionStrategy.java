@@ -154,9 +154,10 @@ public class FunctionStrategy
     }
   }
 
-  public FunctionStrategy(Configuration pConfig, LogManager pLogger, int pRate, int pStartDepth)
+  public FunctionStrategy(
+      Configuration pConfig, LogManager pLogger, int pRate, boolean ptryAllAtFirst)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, pStartDepth, "Functions");
+    super(pLogger, pRate, ptryAllAtFirst, "Functions");
     pConfig.inject(this);
   }
 
@@ -164,10 +165,10 @@ public class FunctionStrategy
       Configuration pConfig,
       LogManager pLogger,
       int pRate,
-      int pStartDepth,
+      boolean ptryAllAtFirst,
       final String pWhitelist)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, pStartDepth, "Functions(2)");
+    super(pLogger, pRate, ptryAllAtFirst, "Functions");
     pConfig.inject(this);
     whitelist = pWhitelist;
   }

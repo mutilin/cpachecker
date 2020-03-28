@@ -42,33 +42,27 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
         ImmutableList.of(
             // First, try to remove most functions.
             //   Remove functions, 60-150 rounds for 10-15k nodes in input, 500-800 nodes remain.
-            new FunctionStrategy(pConfig, pLogger, 5, 0),
-            new BlankNodeStrategy(pLogger, 5, 0),
+            new FunctionStrategy(pConfig, pLogger, 5, true),
+            new BlankNodeStrategy(pLogger, 2, true),
+            new DummyStrategy(pLogger),
+            new FunctionStrategy(pConfig, pLogger, 100, false, "main"),
             new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
 
             //   1. Remove unneeded assumes and statements.
-            // First, remove statements if possible
-            new StatementNodeStrategy(pLogger, 5, 1),
-            new DummyStrategy(pLogger),
-            // Second, remove AssumeEdges if possible
-            new SimpleAssumeEdgeStrategy(pLogger, 5, 1),
-            new DummyStrategy(pLogger),
-            // Then remove blank edges
-            new BlankNodeStrategy(pLogger, 5, 0),
-            new DummyStrategy(pLogger),
+            new CycleStrategy(pLogger),
             //   TODO remove remained branches with (declarations and) a return statement
 
             // some thread creating statements could be gone now
             // so some functions may become deletable
-            new FunctionStrategy(pConfig, pLogger, 50, 1, "main"),
+            new FunctionStrategy(pConfig, pLogger, 100, false, "main"),
 
             //   2. Remove loops on nodes (edges from node to itself).
-            new NodeWithLoopStrategy(pLogger, 5, 0),
+            new NodeWithLoopStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
             //   Now we can remove delooped blank edges.
-            new BlankNodeStrategy(pLogger, 5, 0),
+            new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
 
             //   3. Remove unneeded declarations. TODO *unneeded*
@@ -76,20 +70,20 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             //            new DummyStrategy(pLogger),
 
             //   4. Some branching might have become easier.
-            new SimpleAssumeEdgeStrategy(pLogger, 10, 1),
+            new SimpleAssumeEdgeStrategy(pLogger, 5, false),
             new DummyStrategy(pLogger),
-            new BlankNodeStrategy(pLogger, 5, 0),
+            new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
 
             //   5. Linearize loops: instead branching
             //   insert loop body branch and "exit" branch successively,
             //   as if loop is "executed" once.
-            new LoopAssumeEdgeStrategy(pLogger, 5, 0),
+            new LoopAssumeEdgeStrategy(pLogger, 3, true),
             new DummyStrategy(pLogger),
 
             // Third, remove functions-spoilers: they just call another function
             // It seems it does not change result, so try to remove all in one round
-            new SpoilerFunctionStrategy(pConfig, pLogger, 5, 0),
+            new SpoilerFunctionStrategy(pConfig, pLogger, 7, true),
             //            new DummyStrategy(pLogger),
 
             // And last: remove global declarations,

@@ -21,18 +21,17 @@ package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
-import org.sosy_lab.cpachecker.cfa.model.ADeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class DeclarationStrategy extends SingleNodeStrategy {
 
-  public DeclarationStrategy(LogManager pLogger, int pRate, int pStartDepth) {
-    super(pLogger, pRate, pStartDepth, "Declaration edges");
+  public DeclarationStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Declaration edges");
   }
 
   @Override
   protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
-    return super.canRemove(pParseResult, pNode)
-        && pNode.getLeavingEdge(0) instanceof ADeclarationEdge;
+    return false;
   }
+
 }

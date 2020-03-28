@@ -52,6 +52,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private int batchSize = -1;
   private int batchCount = -1;
   private final String objectsDescription;
+  private final boolean tryAllAtFirst;
 
   protected class OnePassMutationStatistics extends AbstractMutationStatistics {
     // cfa objects for strategy to deal with
@@ -60,8 +61,10 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     protected final StatInt objectsRemainedAfterPass;
     // cfa objects to mutate in last seen cfa (appeared because of other strategies)
     protected final StatInt objectsForNextPass;
+    private final String strategyClassName;
 
-    public OnePassMutationStatistics() {
+    public OnePassMutationStatistics(String pName) {
+      strategyClassName = pName;
       objectsBeforePass = new StatInt(StatKind.SUM, objectsDescription + " in CFA before pass");
       objectsRemainedAfterPass =
           new StatInt(StatKind.SUM, objectsDescription + " remained in CFA after pass");
@@ -70,9 +73,11 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
-      super.printStatistics(pOut, pResult, pReached);
       StatisticsWriter.writingStatisticsTo(pOut)
           .beginLevel()
+          .put(getName(), "")
+          .put(rounds)
+          .put(rollbacks)
           .putIfUpdatedAtLeastOnce(objectsBeforePass)
           .putIfUpdatedAtLeastOnce(objectsRemainedAfterPass)
           .putIfUpdatedAtLeastOnce(objectsForNextPass)
@@ -80,18 +85,19 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
     @Override
     public @Nullable String getName() {
-      return this.toString();
+      return strategyClassName;
     }
   }
 
   public GenericCFAMutationStrategy(
-      LogManager pLogger, int pRate, int pStartDepth, String pObjectsDescription) {
+      LogManager pLogger, int pRate, boolean ptryAllAtFirst, String pObjectsDescription) {
     super(pLogger);
     assert pRate >= 0;
     rate = pRate;
-    depth = pStartDepth;
+    tryAllAtFirst = ptryAllAtFirst;
+    depth = tryAllAtFirst ? 0 : 1;
     objectsDescription = pObjectsDescription;
-    stats = new OnePassMutationStatistics();
+    stats = new OnePassMutationStatistics(this.getClass().getSimpleName());
   }
 
   protected abstract Collection<ObjectKey> getAllObjects(ParseResult pParseResult);
@@ -133,29 +139,26 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   @Override
   public boolean mutate(ParseResult pParseResult) {
-    stats.rounds.inc();
     currentMutation.clear();
 
-    if (batchNum == batchCount && !goNextLevel(pParseResult)) {
+    if (stats.rounds.getValue() == 0 && !initLevel(pParseResult)) {
       return false;
-    } else {
-      logger.logf(Level.INFO, "Batch number %d / %d", ++batchNum, batchCount);
+    }
+    if (batchNum == batchCount && !nextLevel(pParseResult)) {
+      return false;
     }
 
-    ImmutableCollection<ObjectKey> chosenObjects =
-        ImmutableList.copyOf(getObjects(pParseResult, batchSize));
-    if (chosenObjects.isEmpty()) {
-      if (!goNextLevel(pParseResult)) {
+    ImmutableCollection<ObjectKey> chosenObjects = nextBatch(pParseResult);
+    if (chosenObjects.isEmpty() && !nextLevel(pParseResult)) {
         return false;
-      } else {
-        batchNum++;
-        chosenObjects = ImmutableList.copyOf(getObjects(pParseResult, batchSize));
-        if (chosenObjects.isEmpty()) {
-          return false;
-        }
+    } else if (chosenObjects.isEmpty()) {
+      chosenObjects = nextBatch(pParseResult);
+      if (chosenObjects.isEmpty()) {
+        return false;
       }
     }
 
+    stats.rounds.inc();
     logger.logf(
         Level.INFO,
         "Depth %d, Batch %d. Removed %d objects",
@@ -173,30 +176,28 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     return true;
   }
 
-  private void initBatch(ParseResult pParseResult) {
-    if (depth == 0) {
-      batchCount = 1;
-    } else if (depth == 1) {
-      batchCount = rate;
-    } else {
-      assert false;
-    }
+  private ImmutableCollection<ObjectKey> nextBatch(ParseResult pParseResult) {
+    batchNum++;
+    return ImmutableList.copyOf(getObjects(pParseResult, batchSize));
+  }
 
+  private boolean initLevel(ParseResult pParseResult) {
+    batchCount = tryAllAtFirst ? 1 : rate;
     batchSize = getAllObjects(pParseResult).size();
+    if (batchSize == 0) {
+      return false;
+    }
     ((OnePassMutationStatistics) stats).objectsBeforePass.setNextValue(batchSize);
     ((OnePassMutationStatistics) stats).objectsRemainedAfterPass.setNextValue(batchSize);
-    if (depth == 1) {
+    if (!tryAllAtFirst) {
       batchSize = (batchSize - 1) / rate + 1;
     }
     logger.logf(Level.INFO, "batchsize init %d at depth %d", batchSize, depth);
+    return true;
   }
 
-  private boolean goNextLevel(ParseResult pParseResult) {
-    if (batchSize == -1) {
-      initBatch(pParseResult);
-      batchNum = 0;
-      return true;
-    } else if (batchSize == 1) {
+  private boolean nextLevel(ParseResult pParseResult) {
+    if (batchSize <= 1) {
       for (ObjectKey o : getAllObjects(pParseResult)) {
         logger.logf(Level.INFO, "%s: remained %s", this, o);
       }
@@ -204,9 +205,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
 
     depth++;
-    batchNum = 0;
     batchCount = batchCount * rate;
     batchSize = (batchSize - 1) / rate + 1;
+    batchNum = 0;
 
     logger.logf(Level.INFO, "previous mutations was %d", previousMutations.size());
     previousMutations.clear();
@@ -247,10 +248,10 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     pStatsCollection.add(stats);
-    stats = new OnePassMutationStatistics();
+    stats = new OnePassMutationStatistics(this.getClass().getSimpleName());
     batchSize = -1;
     batchNum = -1;
     batchCount = -1;
-    depth = 1;
+    depth = tryAllAtFirst ? 0 : 1;
   }
 }

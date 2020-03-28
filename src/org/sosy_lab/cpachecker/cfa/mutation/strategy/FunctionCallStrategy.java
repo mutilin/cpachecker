@@ -28,8 +28,8 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class FunctionCallStrategy extends SingleNodeStrategy {
 
-  public FunctionCallStrategy(LogManager pLogger, int step, int pStartDepth) {
-    super(pLogger, step, pStartDepth, "Function call edges");
+  public FunctionCallStrategy(LogManager pLogger, int step, boolean ptryAllAtFirst) {
+    super(pLogger, step, ptryAllAtFirst, "Function call edges");
   }
 
   @Override
