@@ -21,7 +21,6 @@ package org.sosy_lab.cpachecker.cfa;
 
 import com.google.common.collect.Sets;
 import com.google.common.collect.SortedSetMultimap;
-import de.uni_freiburg.informatik.ultimate.smtinterpol.util.IdentityHashSet;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -47,9 +46,11 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.CFATraversal;
+import org.sosy_lab.cpachecker.util.CFATraversal.CFAVisitor;
 import org.sosy_lab.cpachecker.util.CFATraversal.CompositeCFAVisitor;
-import org.sosy_lab.cpachecker.util.CFATraversal.EdgeCollectingCFAVisitor;
+import org.sosy_lab.cpachecker.util.CFATraversal.ForwardingCFAVisitor;
 import org.sosy_lab.cpachecker.util.CFATraversal.NodeCollectingCFAVisitor;
+import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
@@ -84,6 +85,29 @@ public class CFAMutator extends CFACreator {
   private boolean doLastRun = false;
   private boolean wasRollback = false;
   private final AbstractCFAMutationStrategy strategy;
+
+  public static final class IdentityEdgeCollectingCFAVisitor extends ForwardingCFAVisitor {
+
+    private final Set<CFAEdge> visitedEdges = Sets.newIdentityHashSet();
+
+    public IdentityEdgeCollectingCFAVisitor(CFAVisitor pDelegate) {
+      super(pDelegate);
+    }
+
+    public IdentityEdgeCollectingCFAVisitor() {
+      super(new NodeCollectingCFAVisitor());
+    }
+
+    @Override
+    public TraversalProcess visitEdge(CFAEdge pEdge) {
+      visitedEdges.add(pEdge);
+      return super.visitEdge(pEdge);
+    }
+
+    public Set<CFAEdge> getVisitedEdges() {
+      return visitedEdges;
+    }
+  }
 
   private static class CFAMutatorStatistics extends CFACreatorStatistics {
     private final StatTimer mutationTimer = new StatTimer("Time for mutations");
@@ -182,11 +206,10 @@ public class CFAMutator extends CFACreator {
   private void saveBeforePostproccessings() {
     originalNodes = new HashSet<>(parseResult.getCFANodes().values());
 
-    final EdgeCollectingCFAVisitor visitor = new EdgeCollectingCFAVisitor();
+    final IdentityEdgeCollectingCFAVisitor visitor = new IdentityEdgeCollectingCFAVisitor();
     parseResult.getFunctions().forEach((k, v) -> CFATraversal.dfs().traverseOnce(v, visitor));
 
-    originalEdges = Sets.newIdentityHashSet();
-    originalEdges.addAll(visitor.getVisitedEdges());
+    originalEdges = visitor.getVisitedEdges();
   }
 
 
@@ -226,7 +249,7 @@ public class CFAMutator extends CFACreator {
     exportIfNeeded();
 
     ((CFAMutatorStatistics) stats).clearingTimer.start();
-    final EdgeCollectingCFAVisitor edgeCollector = new EdgeCollectingCFAVisitor();
+    final IdentityEdgeCollectingCFAVisitor edgeCollector = new IdentityEdgeCollectingCFAVisitor();
     final NodeCollectingCFAVisitor nodeCollector = new NodeCollectingCFAVisitor();
     final CFATraversal.CompositeCFAVisitor visitor =
         new CompositeCFAVisitor(edgeCollector, nodeCollector);
@@ -235,15 +258,12 @@ public class CFAMutator extends CFACreator {
       CFATraversal.dfs().traverse(entryNode, visitor);
     }
 
-    Set<CFAEdge> tmpSet = new IdentityHashSet<>();
-    tmpSet.addAll(edgeCollector.getVisitedEdges());
     final Set<CFAEdge> edgesToRemove =
-        Sets.difference(tmpSet, originalEdges);
-    final Set<CFAEdge> edgesToAdd = Sets.difference(originalEdges, tmpSet);
+        Sets.difference(edgeCollector.getVisitedEdges(), originalEdges);
+    final Set<CFAEdge> edgesToAdd = Sets.difference(originalEdges, edgeCollector.getVisitedEdges());
     final Set<CFANode> nodesToRemove =
-        Sets.difference(new HashSet<>(nodeCollector.getVisitedNodes()), originalNodes);
-    final Set<CFANode> nodesToAdd =
-        Sets.difference(originalNodes, new HashSet<>(nodeCollector.getVisitedNodes()));
+        Sets.difference(nodeCollector.getVisitedNodes(), originalNodes);
+    final Set<CFANode> nodesToAdd = Sets.difference(originalNodes, nodeCollector.getVisitedNodes());
 
     // finally remove nodes and edges added as global decl. and interprocedural
     SortedSetMultimap<String, CFANode> nodes = parseResult.getCFANodes();

@@ -19,11 +19,14 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
@@ -33,8 +36,21 @@ import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
+import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
+import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
+import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
+import org.sosy_lab.cpachecker.util.CFATraversal;
+import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 import org.sosy_lab.cpachecker.util.Pair;
 
 @Options
@@ -46,10 +62,114 @@ public class FunctionStrategy
       description = "Names of functions (separated with space) that should not be deleted from CFA")
   private String whitelist = "main";
 
+  @Option(
+      secure = true,
+      name = "analysis.threadOperationsTransform",
+      description =
+          "Replace thread creation operations with a special function calls"
+              + "so, any analysis can go through the function")
+  private boolean enableThreadOperationsInstrumentation = false;
+
+  @Option(
+      secure = true,
+      name = "cfa.threads.threadCreate",
+      description = "A name of thread_create function")
+  private Set<String> threadCreate = ImmutableSet.of("pthread_create");
+
+  @Option(
+      secure = true,
+      name = "cfa.threads.threadSelfCreate",
+      description = "A name of thread_create_N function")
+  private String threadCreateN = "pthread_create_N";
+
+  @Option(
+      secure = true,
+      name = "cfa.threads.threadJoin",
+      description = "A name of thread_join function")
+  private String threadJoin = "pthread_join";
+
+  @Option(
+      secure = true,
+      name = "cfa.threads.threadSelfJoin",
+      description = "A name of thread_join_N function")
+  private String threadJoinN = "pthread_join_N";
+
+  private class ThreadFinder implements CFATraversal.CFAVisitor {
+    Collection<String> threadedFunctions = new HashSet<>();
+
+    @Override
+    public TraversalProcess visitEdge(CFAEdge pEdge) {
+      if (pEdge instanceof CStatementEdge) {
+        CStatement statement = ((CStatementEdge) pEdge).getStatement();
+        if (statement instanceof CAssignment) {
+          CRightHandSide rhs = ((CAssignment) statement).getRightHandSide();
+          if (rhs instanceof CFunctionCallExpression) {
+            CFunctionCallExpression exp = ((CFunctionCallExpression) rhs);
+            checkFunctionExpression(exp);
+          }
+        } else if (statement instanceof CFunctionCallStatement) {
+          CFunctionCallExpression exp =
+              ((CFunctionCallStatement) statement).getFunctionCallExpression();
+          checkFunctionExpression(exp);
+        }
+      }
+      return TraversalProcess.CONTINUE;
+    }
+
+    @Override
+    public TraversalProcess visitNode(CFANode pNode) {
+      return TraversalProcess.CONTINUE;
+    }
+
+    private void checkFunctionExpression(CFunctionCallExpression exp) {
+      String fName = exp.getFunctionNameExpression().toString();
+      if (threadCreate.contains(fName) || fName.equals(threadCreateN)) {
+        List<CExpression> args = exp.getParameterExpressions();
+        if (args.size() != 4) {
+          throw new UnsupportedOperationException("More arguments expected: " + exp);
+        }
+
+        CExpression calledFunction = args.get(2);
+        CIdExpression functionNameExpression = getFunctionName(calledFunction);
+        String newThreadName = functionNameExpression.getName();
+        threadedFunctions.add(newThreadName);
+      }
+    }
+
+    private CIdExpression getFunctionName(CExpression fName) {
+      if (fName instanceof CIdExpression) {
+        return (CIdExpression) fName;
+      } else if (fName instanceof CUnaryExpression) {
+        return getFunctionName(((CUnaryExpression) fName).getOperand());
+      } else if (fName instanceof CCastExpression) {
+        return getFunctionName(((CCastExpression) fName).getOperand());
+      } else {
+        throw new UnsupportedOperationException(
+            "Unsupported expression in pthread_create: " + fName);
+      }
+    }
+
+    public Collection<String> getThreadedFunctions() {
+      return threadedFunctions;
+    }
+  }
+
   public FunctionStrategy(Configuration pConfig, LogManager pLogger, int pRate, int pStartDepth)
       throws InvalidConfigurationException {
     super(pLogger, pRate, pStartDepth, "Functions");
     pConfig.inject(this);
+  }
+
+  public FunctionStrategy(
+      Configuration pConfig,
+      LogManager pLogger,
+      int pRate,
+      int pStartDepth,
+      final String pWhitelist)
+      throws InvalidConfigurationException {
+    super(pLogger, pRate, pStartDepth, "Functions(2)");
+    pConfig.inject(this);
+    whitelist = pWhitelist;
   }
 
   @Override
@@ -65,9 +185,21 @@ public class FunctionStrategy
             - parseResult.getCFANodes().get(pArg1).size();
       }
     }
+
     List<String> v = List.of(whitelist.split(" "));
     List<String> answer = new ArrayList<>(pParseResult.getFunctions().keySet());
     answer.removeAll(v);
+
+    if (enableThreadOperationsInstrumentation) {
+      final ThreadFinder threadVisitor = new ThreadFinder();
+
+      for (FunctionEntryNode functionStartNode : pParseResult.getFunctions().values()) {
+        CFATraversal.dfs().traverseOnce(functionStartNode, threadVisitor);
+      }
+
+      answer.removeAll(threadVisitor.getThreadedFunctions());
+    }
+
     Collections.sort(answer, new FunctionSize(pParseResult));
     return answer;
   }

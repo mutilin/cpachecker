@@ -27,6 +27,7 @@ import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.FunctionCallCollector;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.AExpression;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
@@ -37,6 +38,7 @@ import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.Triple;
 
@@ -130,6 +132,7 @@ public class SpoilerFunctionStrategy
       CFAEdge leavingEdge = node.getLeavingEdge(0);
       switch (leavingEdge.getEdgeType()) {
         case BlankEdge:
+        case DeclarationEdge:
           continue; // skipping blank edges
         case StatementEdge:
           if (((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall) {
@@ -157,24 +160,15 @@ public class SpoilerFunctionStrategy
     return found;
   }
 
-  private Collection<CFAEdge> getAllCallEdges(ParseResult parseResult) {
-    List<CFAEdge> answer = new ArrayList<>();
-    for (CFANode node : parseResult.getCFANodes().values()) {
-      if (node.getNumLeavingEdges() != 1) {
-        continue;
-      }
-      CFAEdge leavingEdge = node.getLeavingEdge(0);
-      if (leavingEdge instanceof AStatementEdge
-          && ((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall) {
-        answer.add(leavingEdge);
-      }
-    }
-    return answer;
-  }
-
   private Collection<CFAEdge> getAllCallsTo(ParseResult parseResult, String pFunctionName) {
     Collection<CFAEdge> calls = new ArrayList<>();
-    for (CFAEdge callEdge : getAllCallEdges(parseResult)) {
+
+    final FunctionCallCollector fCallCollector = new FunctionCallCollector();
+    for (FunctionEntryNode startingNode : parseResult.getFunctions().values()) {
+      CFATraversal.dfs().traverseOnce(startingNode, fCallCollector);
+    }
+
+    for (CFAEdge callEdge : fCallCollector.getFunctionCalls()) {
       AFunctionDeclaration d =
           ((AFunctionCall) ((AStatementEdge) callEdge).getStatement())
               .getFunctionCallExpression()

@@ -49,8 +49,20 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // Second, mutate remained functions somehow.
 
             //   1. Remove unneeded assumes and statements.
-            new CycleStrategy(pLogger),
-            //   TODO remove remained branches with a return statement
+            // First, remove statements if possible
+            new StatementNodeStrategy(pLogger, 5, 1),
+            new DummyStrategy(pLogger),
+            // Second, remove AssumeEdges if possible
+            new SimpleAssumeEdgeStrategy(pLogger, 5, 1),
+            new DummyStrategy(pLogger),
+            // Then remove blank edges
+            new BlankNodeStrategy(pLogger, 5, 0),
+            new DummyStrategy(pLogger),
+            //   TODO remove remained branches with (declarations and) a return statement
+
+            // some thread creating statements could be gone now
+            // so some functions may become deletable
+            new FunctionStrategy(pConfig, pLogger, 50, 1, "main"),
 
             //   2. Remove loops on nodes (edges from node to itself).
             new NodeWithLoopStrategy(pLogger, 5, 0),
@@ -60,11 +72,16 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new DummyStrategy(pLogger),
 
             //   3. Remove unneeded declarations. TODO *unneeded*
-            new DeclarationStrategy(pLogger, 5, 0),
+            //            new DeclarationStrategy(pLogger, 5, 0),
+            //            new DummyStrategy(pLogger),
+
+            //   4. Some branching might have become easier.
+            new SimpleAssumeEdgeStrategy(pLogger, 10, 1),
             new DummyStrategy(pLogger),
-            new CycleStrategy(pLogger),
+            new BlankNodeStrategy(pLogger, 5, 0),
             new DummyStrategy(pLogger),
-            //   4. Linearize loops: instead branching
+
+            //   5. Linearize loops: instead branching
             //   insert loop body branch and "exit" branch successively,
             //   as if loop is "executed" once.
             new LoopAssumeEdgeStrategy(pLogger, 5, 0),
@@ -73,11 +90,12 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // Third, remove functions-spoilers: they just call another function
             // It seems it does not change result, so try to remove all in one round
             new SpoilerFunctionStrategy(pConfig, pLogger, 5, 0),
-            new DummyStrategy(pLogger),
+            //            new DummyStrategy(pLogger),
 
-            // And last: remove global declarations, certainly of already removed functions.
-            // TODO declarations of global variables and types
-            new GlobalDeclarationStrategy(pLogger, 5, 1),
+            // And last: remove global declarations,
+            // certainly of already removed and not called functions.
+            // TODO declarations of global variables
+            //            new GlobalDeclarationStrategy(pLogger, 5, 0),
             new DummyStrategy(pLogger));
     strategies = strategiesList.iterator();
     currentStrategy = strategies.next();
