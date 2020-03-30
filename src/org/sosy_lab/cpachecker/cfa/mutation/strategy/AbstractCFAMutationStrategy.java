@@ -46,9 +46,8 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public abstract class AbstractCFAMutationStrategy implements StatisticsProvider {
 
   protected final LogManager logger;
-  protected AbstractMutationStatistics stats = new AbstractMutationStatistics();
 
-  protected class AbstractMutationStatistics implements Statistics {
+  public static class AbstractMutationStatistics implements Statistics {
     protected final StatCounter rounds = new StatCounter("rounds");
     protected final StatCounter rollbacks = new StatCounter("rollbacks");
     @Override
@@ -75,9 +74,7 @@ public abstract class AbstractCFAMutationStrategy implements StatisticsProvider 
   public abstract void rollback(ParseResult parseResult);
 
   @Override
-  public void collectStatistics(Collection<Statistics> pStatsCollection) {
-    pStatsCollection.add(stats);
-  }
+  public abstract void collectStatistics(Collection<Statistics> pStatsCollection);
 
   @Override
   public String toString() {

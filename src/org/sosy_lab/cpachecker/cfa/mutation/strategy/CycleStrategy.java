@@ -35,8 +35,9 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public class CycleStrategy extends AbstractCFAMutationStrategy {
   private CycleStatistics thisCycle = new CycleStatistics(1);
   private final AbstractCFAMutationStrategy strategy;
+  private CycleStrategyStatistics stats;
 
-  private class CycleStatistics extends AbstractMutationStatistics {
+  private static class CycleStatistics extends AbstractMutationStatistics {
     private final long cycle;
     private final Collection<Statistics> statsOfUsedStrategy = new ArrayList<>();
 
@@ -45,7 +46,7 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
     }
   }
 
-  private class CycleStrategyStatistics extends AbstractMutationStatistics {
+  private static class CycleStrategyStatistics extends AbstractMutationStatistics {
     private final StatCounter cycles = new StatCounter("cycles");
     private final List<CycleStatistics> cycleStats = new ArrayList<>();
 
@@ -106,9 +107,9 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
       return false;
     } else {
       strategy.collectStatistics(thisCycle.statsOfUsedStrategy);
-      ((CycleStrategyStatistics) stats).cycleStats.add(thisCycle);
-      ((CycleStrategyStatistics) stats).cycles.inc();
-      thisCycle = new CycleStatistics(((CycleStrategyStatistics) stats).cycles.getUpdateCount());
+      stats.cycleStats.add(thisCycle);
+      stats.cycles.inc();
+      thisCycle = new CycleStatistics(stats.cycles.getUpdateCount());
       return mutate(pParseResult);
     }
   }
@@ -122,14 +123,14 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
 
   @Override
   public String toString() {
-    return super.toString() + ", " + ((CycleStrategyStatistics) stats).cycles + " cycles";
+    return super.toString() + ", " + stats.cycles + " cycles";
   }
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     if (thisCycle.rounds.getUpdateCount() > 0) {
       strategy.collectStatistics(thisCycle.statsOfUsedStrategy);
-      ((CycleStrategyStatistics) stats).cycleStats.add(thisCycle);
+      stats.cycleStats.add(thisCycle);
     }
     pStatsCollection.add(stats);
 

@@ -20,6 +20,7 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.UnmodifiableIterator;
 import java.util.Collection;
 import java.util.logging.Level;
@@ -34,18 +35,25 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
   protected final ImmutableList<AbstractCFAMutationStrategy> strategiesList;
   protected UnmodifiableIterator<AbstractCFAMutationStrategy> strategies;
   protected AbstractCFAMutationStrategy currentStrategy;
+  private final AbstractMutationStatistics stats;
 
   public CompositeStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
-    super(pLogger);
-    strategiesList =
+    this(
+        pLogger,
         ImmutableList.of(
             // First, try to remove most functions.
             //   Remove functions, 60-150 rounds for 10-15k nodes in input, 500-800 nodes remain.
             new FunctionStrategy(pConfig, pLogger, 5, true),
             new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
-            new FunctionStrategy(pConfig, pLogger, 100, false, "main"),
+            new FunctionStrategy(
+                pConfig,
+                pLogger,
+                100,
+                false,
+                ImmutableSet.of(
+                    "main")),
             new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
@@ -56,7 +64,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
 
             // some thread creating statements could be gone now
             // so some functions may become deletable
-            new FunctionStrategy(pConfig, pLogger, 100, false, "main"),
+            new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
 
             //   2. Remove loops on nodes (edges from node to itself).
             new NodeWithLoopStrategy(pLogger, 2, true),
@@ -90,9 +98,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // certainly of already removed and not called functions.
             // TODO declarations of global variables
             //            new GlobalDeclarationStrategy(pLogger, 5, 0),
-            new DummyStrategy(pLogger));
-    strategies = strategiesList.iterator();
-    currentStrategy = strategies.next();
+            new DummyStrategy(pLogger)));
   }
 
   public CompositeStrategy(
@@ -101,6 +107,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     strategiesList = pStrategiesList;
     strategies = strategiesList.iterator();
     currentStrategy = strategies.next();
+    stats = new AbstractMutationStatistics();
   }
 
   @Override
@@ -111,12 +118,13 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     boolean answer = currentStrategy.mutate(parseResult);
     while (!answer) {
       logger.logf(
-          Level.INFO,
-          "Round %d. Mutation strategy %s finished in %d rounds with %d rollbacks.",
+          Level.FINE,
+          "Round %d. Mutation strategy %s finished.",
           stats.rounds.getValue(),
-          currentStrategy,
-          currentStrategy.stats.rounds.getValue(),
-          currentStrategy.stats.rollbacks.getValue());
+          currentStrategy
+      // currentStrategy.stats.rounds.getValue(),
+      // currentStrategy.stats.rollbacks.getValue()
+      );
       if (!strategies.hasNext()) {
         return answer;
       }

@@ -19,7 +19,6 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -35,64 +34,6 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
-
-class Chain extends ArrayDeque<CFANode> {
-
-  private static final long serialVersionUID = -1849261707800370541L;
-
-  public CFAEdge getEnteringEdge() {
-    CFANode firstNode = peekFirst();
-    if (firstNode == null) {
-      return null;
-    }
-    assert firstNode.getNumEnteringEdges() == 1;
-    return firstNode.getEnteringEdge(0);
-  }
-
-  public CFANode getPredecessor() {
-    CFAEdge e = getEnteringEdge();
-    if (e == null) {
-      return null;
-    }
-    return e.getPredecessor();
-  }
-
-  public CFAEdge getLeavingEdge() {
-    CFANode lastNode = peekLast();
-    if (lastNode == null) {
-      return null;
-    }
-    assert lastNode.getNumLeavingEdges() == 1;
-    return lastNode.getLeavingEdge(0);
-  }
-
-  public CFANode getSuccessor() {
-    CFAEdge e = getLeavingEdge();
-    if (e == null) {
-      return null;
-    }
-    return e.getSuccessor();
-  }
-
-  public String getDescription() {
-    String desc;
-    StringBuilder sb = new StringBuilder();
-    for (CFANode n : this) {
-      desc = n.getEnteringEdge(0).getDescription();
-      if (!desc.isEmpty()) {
-        sb.append("\n").append(desc);
-      }
-    }
-    desc = getLeavingEdge().getDescription();
-    if (!desc.isEmpty()) {
-      sb.append("\n").append(desc);
-    }
-    if (sb.length() > 0) {
-      sb.deleteCharAt(0);
-    }
-    return sb.toString();
-  }
-}
 
 public class ChainStrategy extends GenericCFAMutationStrategy<Chain, Chain> {
 

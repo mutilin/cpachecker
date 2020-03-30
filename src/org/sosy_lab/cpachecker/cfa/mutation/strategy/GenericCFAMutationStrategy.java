@@ -51,10 +51,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private int batchNum = -1;
   private int batchSize = -1;
   private int batchCount = -1;
-  private final String objectsDescription;
   private final boolean tryAllAtFirst;
+  private final String objectsDescription;
 
-  protected class OnePassMutationStatistics extends AbstractMutationStatistics {
+  private OnePassMutationStatistics stats;
+
+  protected static class OnePassMutationStatistics extends AbstractMutationStatistics {
     // cfa objects for strategy to deal with
     protected final StatInt objectsBeforePass;
     // cfa objects remained because they can't be mutated out or because strategy ran out of rounds
@@ -63,13 +65,13 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     protected final StatInt objectsForNextPass;
     private final String strategyClassName;
 
-    public OnePassMutationStatistics(String pName) {
+    public OnePassMutationStatistics(String pName, String pObjectsDescription) {
       strategyClassName = pName;
-      objectsBeforePass = new StatInt(StatKind.SUM, objectsDescription + " in CFA before pass");
+      objectsBeforePass = new StatInt(StatKind.SUM, pObjectsDescription + " in CFA before pass");
       objectsRemainedAfterPass =
-          new StatInt(StatKind.SUM, objectsDescription + " remained in CFA after pass");
+          new StatInt(StatKind.SUM, pObjectsDescription + " remained in CFA after pass");
       objectsForNextPass =
-          new StatInt(StatKind.SUM, objectsDescription + " can be tried in new CFA");
+          new StatInt(StatKind.SUM, pObjectsDescription + " can be tried in new CFA");
     }
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
@@ -97,7 +99,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     tryAllAtFirst = ptryAllAtFirst;
     depth = tryAllAtFirst ? 0 : 1;
     objectsDescription = pObjectsDescription;
-    stats = new OnePassMutationStatistics(this.getClass().getSimpleName());
+    stats = new OnePassMutationStatistics(this.getClass().getSimpleName(), pObjectsDescription);
   }
 
   protected abstract Collection<ObjectKey> getAllObjects(ParseResult pParseResult);
@@ -137,6 +139,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   protected abstract void returnObject(ParseResult pParseResult, RollbackInfo pRollbackInfo);
 
+  @SuppressWarnings("unchecked")
   @Override
   public boolean mutate(ParseResult pParseResult) {
     currentMutation.clear();
@@ -170,7 +173,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       currentMutation.push(getRollbackInfo(pParseResult, object));
       removeObject(pParseResult, object);
     }
-    ((OnePassMutationStatistics) stats)
+    stats
         .objectsRemainedAfterPass.setNextValue(-currentMutation.size());
     previousMutations.addAll(chosenObjects);
     return true;
@@ -181,14 +184,15 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     return ImmutableList.copyOf(getObjects(pParseResult, batchSize));
   }
 
+  @SuppressWarnings("unchecked")
   private boolean initLevel(ParseResult pParseResult) {
     batchCount = tryAllAtFirst ? 1 : rate;
     batchSize = getAllObjects(pParseResult).size();
     if (batchSize == 0) {
       return false;
     }
-    ((OnePassMutationStatistics) stats).objectsBeforePass.setNextValue(batchSize);
-    ((OnePassMutationStatistics) stats).objectsRemainedAfterPass.setNextValue(batchSize);
+    stats.objectsBeforePass.setNextValue(batchSize);
+    stats.objectsRemainedAfterPass.setNextValue(batchSize);
     if (!tryAllAtFirst) {
       batchSize = (batchSize - 1) / rate + 1;
     }
@@ -219,7 +223,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   public void rollback(ParseResult pParseResult) {
     logger.logf(Level.INFO, "rollbacked %d", currentMutation.size());
     stats.rollbacks.inc();
-    ((OnePassMutationStatistics) stats)
+    stats
         .objectsRemainedAfterPass.setNextValue(currentMutation.size());
     Iterator<RollbackInfo> it = currentMutation.iterator();
     while (it.hasNext()) {
@@ -227,11 +231,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
   }
 
+  @SuppressWarnings("unchecked")
   @Override
   public void makeAftermath(ParseResult pParseResult) {
     Collection<ObjectKey> objects = getAllObjects(pParseResult);
     objects.removeIf(o -> !canRemove(pParseResult, o));
-    ((OnePassMutationStatistics) stats).objectsForNextPass.setNextValue(objects.size());
+    stats.objectsForNextPass.setNextValue(objects.size());
   }
 
   @Override
@@ -240,15 +245,15 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         + "("
         + rate
         + "), before: "
-        + ((OnePassMutationStatistics) stats).objectsBeforePass.getValueSum()
+        + stats.objectsBeforePass.getValueSum()
         + ", after: "
-        + ((OnePassMutationStatistics) stats).objectsRemainedAfterPass.getValueSum();
+        + stats.objectsRemainedAfterPass.getValueSum();
   }
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     pStatsCollection.add(stats);
-    stats = new OnePassMutationStatistics(this.getClass().getSimpleName());
+    stats = new OnePassMutationStatistics(this.getClass().getSimpleName(), objectsDescription);
     batchSize = -1;
     batchNum = -1;
     batchCount = -1;

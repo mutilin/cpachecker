@@ -59,8 +59,8 @@ public class FunctionStrategy
   @Option(
       secure = true,
       name = "mutations.functionsWhitelist",
-      description = "Names of functions (separated with space) that should not be deleted from CFA")
-  private String whitelist = "main";
+    description = "Names of functions (separated with comma) that should not be deleted from CFA")
+  private Set<String> whitelist = ImmutableSet.of("main");
 
   @Option(
       secure = true,
@@ -82,17 +82,13 @@ public class FunctionStrategy
       description = "A name of thread_create_N function")
   private String threadCreateN = "pthread_create_N";
 
-  @Option(
-      secure = true,
-      name = "cfa.threads.threadJoin",
-      description = "A name of thread_join function")
-  private String threadJoin = "pthread_join";
-
-  @Option(
-      secure = true,
-      name = "cfa.threads.threadSelfJoin",
-      description = "A name of thread_join_N function")
-  private String threadJoinN = "pthread_join_N";
+  /*
+   * @Option( secure = true, name = "cfa.threads.threadJoin", description =
+   * "A name of thread_join function") private String threadJoin = "pthread_join";
+   * 
+   * @Option( secure = true, name = "cfa.threads.threadSelfJoin", description =
+   * "A name of thread_join_N function") private String threadJoinN = "pthread_join_N";
+   */
 
   private class ThreadFinder implements CFATraversal.CFAVisitor {
     Collection<String> threadedFunctions = new HashSet<>();
@@ -166,7 +162,7 @@ public class FunctionStrategy
       LogManager pLogger,
       int pRate,
       boolean ptryAllAtFirst,
-      final String pWhitelist)
+      final Set<String> pWhitelist)
       throws InvalidConfigurationException {
     super(pLogger, pRate, ptryAllAtFirst, "Functions");
     pConfig.inject(this);
@@ -187,9 +183,8 @@ public class FunctionStrategy
       }
     }
 
-    List<String> v = List.of(whitelist.split(" "));
     List<String> answer = new ArrayList<>(pParseResult.getFunctions().keySet());
-    answer.removeAll(v);
+    answer.removeAll(whitelist);
 
     if (enableThreadOperationsInstrumentation) {
       final ThreadFinder threadVisitor = new ThreadFinder();
