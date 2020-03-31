@@ -118,8 +118,10 @@ public class CFAMutator extends CFACreator {
         new StatCounter("Unsuccessful rounds (count of rollbacks)");
     private long originalNodesCount;
     private long originalEdgesCount;
+    private int originalGlobals;
     private long remainedNodesCount;
     private long remainedEdgesCount;
+    private int remainedGlobals;
     private final Collection<Statistics> strategyStats = new ArrayList<>();
 
     private CFAMutatorStatistics(LogManager pLogger) {
@@ -135,11 +137,13 @@ public class CFAMutator extends CFACreator {
           .put(clearingTimer)
           .put("Initial nodes count", originalNodesCount)
           .put("Initial edges count", originalEdgesCount)
+          .put("Initial globals count", originalGlobals)
           .put(mutationRound)
           .put(mutationsDone)
           .put(rollbacksDone)
           .put("Nodes remained", remainedNodesCount)
           .put("Edges remained", remainedEdgesCount)
+          .put("Globals remained", remainedGlobals)
           .endLevel();
       for (Statistics st : strategyStats) {
         st.printStatistics(out, pResult, pReached);
@@ -173,6 +177,7 @@ public class CFAMutator extends CFACreator {
 
       ((CFAMutatorStatistics) stats).originalNodesCount = originalNodes.size();
       ((CFAMutatorStatistics) stats).originalEdgesCount = originalEdges.size();
+      ((CFAMutatorStatistics) stats).originalGlobals = parseResult.getGlobalDeclarations().size();
       return parseResult;
     }
 
@@ -195,6 +200,7 @@ public class CFAMutator extends CFACreator {
     if (doLastRun) {
       ((CFAMutatorStatistics) stats).remainedNodesCount = originalNodes.size();
       ((CFAMutatorStatistics) stats).remainedEdgesCount = originalEdges.size();
+      ((CFAMutatorStatistics) stats).remainedGlobals = parseResult.getGlobalDeclarations().size();
       strategy.makeAftermath(parseResult);
       strategy.collectStatistics(((CFAMutatorStatistics) stats).strategyStats);
     }
@@ -298,8 +304,10 @@ public class CFAMutator extends CFACreator {
 
   private void exportIfNeeded() {
     // TODO export with suffix or to different subdirs
-    if (exportOriginal && ((CFAMutatorStatistics) stats).mutationRound.getValue() == 0) {
-      exportCFA(lastCFA);
+    if (((CFAMutatorStatistics) stats).mutationRound.getValue() == 0) {
+      if (exportOriginal) {
+        exportCFA(lastCFA);
+      }
     } else if (exportRounds > 0) {
       long suf = ((CFAMutatorStatistics) stats).mutationRound.getValue() / exportRounds;
       if (suf * exportRounds == ((CFAMutatorStatistics) stats).mutationRound.getValue()) {

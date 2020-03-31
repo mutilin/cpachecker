@@ -20,7 +20,6 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.UnmodifiableIterator;
 import java.util.Collection;
 import java.util.logging.Level;
@@ -47,14 +46,8 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new FunctionStrategy(pConfig, pLogger, 5, true),
             new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
-            new FunctionStrategy(
-                pConfig,
-                pLogger,
-                100,
-                false,
-                ImmutableSet.of(
-                    "main")),
-            new DummyStrategy(pLogger),
+            // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
+            // new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
 
@@ -64,7 +57,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
 
             // some thread creating statements could be gone now
             // so some functions may become deletable
-            new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
+            // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
 
             //   2. Remove loops on nodes (edges from node to itself).
             new NodeWithLoopStrategy(pLogger, 2, true),
@@ -73,9 +66,9 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
 
-            //   3. Remove unneeded declarations. TODO *unneeded*
-            //            new DeclarationStrategy(pLogger, 5, 0),
-            //            new DummyStrategy(pLogger),
+            //   3. Remove unneeded declarations.
+            new DeclarationStrategy(pLogger, 2, true),
+            new DummyStrategy(pLogger),
 
             //   4. Some branching might have become easier.
             new SimpleAssumeEdgeStrategy(pLogger, 5, false),
@@ -84,7 +77,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new DummyStrategy(pLogger),
 
             //   5. Linearize loops: instead branching
-            //   insert loop body branch and "exit" branch successively,
+            //   insert "loop-body" branch and "exit" branch successively,
             //   as if loop is "executed" once.
             new LoopAssumeEdgeStrategy(pLogger, 3, true),
             new DummyStrategy(pLogger),
@@ -97,7 +90,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // And last: remove global declarations,
             // certainly of already removed and not called functions.
             // TODO declarations of global variables
-            //            new GlobalDeclarationStrategy(pLogger, 5, 0),
+            //            new GlobalDeclarationStrategy(pLogger, 5, true),
             new DummyStrategy(pLogger)));
   }
 

@@ -3411,9 +3411,9 @@ mutations.exportOriginal = false
 # divisible by given number.
 mutations.exportRounds = 0
 
-# Names of functions (separated with space) that should not be deleted from
+# Names of functions (separated with comma) that should not be deleted from
 # CFA
-mutations.functionsWhitelist = "main"
+mutations.functionsWhitelist = {"main"}
 
 # When checking for the overflow property, use this configuration file
 # instead of the current one.
