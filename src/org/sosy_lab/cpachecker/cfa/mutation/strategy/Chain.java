@@ -20,6 +20,7 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import java.util.ArrayDeque;
+import java.util.Iterator;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
@@ -78,5 +79,41 @@ public class Chain extends ArrayDeque<CFANode> {
       sb.deleteCharAt(0);
     }
     return sb.toString();
+  }
+
+  @Override
+  public int hashCode() {
+    int result = 37;
+    result += peekFirst() == null ? 0 : peekFirst().hashCode();
+    result *= 37;
+    result += peekLast() == null ? 0 : peekLast().hashCode();
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object pObj) {
+    if (this == pObj) {
+      return true;
+    }
+
+    if (pObj == null) {
+      return false;
+    }
+
+    if (!(pObj instanceof Chain)) {
+      return false;
+    }
+
+    Chain other = (Chain) pObj;
+
+    Iterator<CFANode> it = this.iterator();
+    Iterator<CFANode> that = other.iterator();
+    while (it.hasNext() && that.hasNext()) {
+      if (!it.next().equals(that.next())) {
+        return false;
+      }
+    }
+
+    return !it.hasNext() && !that.hasNext();
   }
 }

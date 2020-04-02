@@ -114,9 +114,18 @@ public class DeclarationStrategy extends SingleNodeStrategy {
       }
 
       for (CExpression exp : exps) {
-        if (CFAUtils.getVariableNamesOfExpression(exp).contains(name)) {
-          found = true;
-          return TraversalProcess.ABORT;
+        try {
+          if (CFAUtils.getVariableNamesOfExpression(exp).contains(name)) {
+            found = true;
+            return TraversalProcess.ABORT;
+          }
+        } catch (NullPointerException e) {
+          logger.logfUserException(
+              Level.WARNING,
+              e,
+              "No declaration found for a variable on edge %s with expressions %s",
+              edge,
+              exps);
         }
       }
       return TraversalProcess.CONTINUE;

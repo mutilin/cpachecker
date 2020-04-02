@@ -21,7 +21,13 @@ package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
+import java.io.IOException;
 import java.io.PrintStream;
+import java.io.Writer;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -32,6 +38,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.sosy_lab.common.io.IO;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
@@ -44,6 +51,10 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     extends AbstractCFAMutationStrategy {
 
+  private Collection<ObjectKey> objectsBefore;
+  private Collection<ObjectKey> objectsAppeared = new HashSet<>();
+  private Collection<ObjectKey> objectsAfter;
+
   private Deque<RollbackInfo> currentMutation = new ArrayDeque<>();
   private final Set<ObjectKey> previousMutations = new HashSet<>();
   private final int rate;
@@ -55,23 +66,32 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private final String objectsDescription;
 
   private OnePassMutationStatistics stats;
+  private boolean exportObjectsEveryRound = false;
+  private Path exportFile = Paths.get("output/functions.txt");
 
   protected static class OnePassMutationStatistics extends AbstractMutationStatistics {
     // cfa objects for strategy to deal with
     protected final StatInt objectsBeforePass;
     // cfa objects remained because they can't be mutated out or because strategy ran out of rounds
+    protected final StatInt objectsAppearedDuringPass;
+    // cfa objects remained because they can't be mutated out or because strategy ran out of rounds
     protected final StatInt objectsRemainedAfterPass;
+    private StatInt objectsAppearedAfterPass;
     // cfa objects to mutate in last seen cfa (appeared because of other strategies)
     protected final StatInt objectsForNextPass;
     private final String strategyClassName;
 
     public OnePassMutationStatistics(String pName, String pObjectsDescription) {
       strategyClassName = pName;
-      objectsBeforePass = new StatInt(StatKind.SUM, pObjectsDescription + " in CFA before pass");
+      objectsBeforePass =
+          new StatInt(StatKind.SUM, pObjectsDescription + " were in CFA before pass");
+      objectsAppearedDuringPass =
+          new StatInt(StatKind.SUM, pObjectsDescription + " appeared during pass");
       objectsRemainedAfterPass =
-          new StatInt(StatKind.SUM, pObjectsDescription + " remained in CFA after pass");
-      objectsForNextPass =
-          new StatInt(StatKind.SUM, pObjectsDescription + " can be tried in new CFA");
+          new StatInt(StatKind.SUM, pObjectsDescription + " remained after pass");
+      objectsAppearedAfterPass =
+          new StatInt(StatKind.SUM, pObjectsDescription + " appeared just after pass");
+      objectsForNextPass = new StatInt(StatKind.SUM, pObjectsDescription + " to mutate next time");
     }
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
@@ -81,7 +101,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
           .put(rounds)
           .put(rollbacks)
           .putIfUpdatedAtLeastOnce(objectsBeforePass)
+          .putIfUpdatedAtLeastOnce(objectsAppearedDuringPass)
           .putIfUpdatedAtLeastOnce(objectsRemainedAfterPass)
+          .putIfUpdatedAtLeastOnce(objectsAppearedAfterPass)
           .putIfUpdatedAtLeastOnce(objectsForNextPass)
           .endLevel();
     }
@@ -157,25 +179,48 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     } else if (chosenObjects.isEmpty()) {
       chosenObjects = nextBatch(pParseResult);
       if (chosenObjects.isEmpty()) {
+        countRemained(pParseResult);
         return false;
       }
     }
 
     stats.rounds.inc();
-    logger.logf(
-        Level.INFO,
-        "Depth %d, Batch %d. Removed %d objects",
-        depth,
-        batchNum,
-        chosenObjects.size());
+
+    final StringBuilder sb = new StringBuilder();
+    sb.append("Round ").append(stats.rounds.getValue()).append(". ");
+    sb.append("Depth ").append(depth).append(", batch ").append(batchNum).append(". ");
+    sb.append("Removing ").append(chosenObjects.size()).append(" ").append(objectsDescription);
+    if (exportObjectsEveryRound) {
+      sb.append(".\n");
+    }
+    logger.log(Level.INFO, sb.toString());
 
     for (ObjectKey object : chosenObjects) {
-      currentMutation.push(getRollbackInfo(pParseResult, object));
+      if (!objectsBefore.contains(object)) {
+        objectsAppeared.add(object);
+      }
+      RollbackInfo ri = getRollbackInfo(pParseResult, object);
+      if (exportObjectsEveryRound) {
+        sb.append("removing ").append(object).append("\n");
+        sb.append("(rollback info: ").append(ri).append(")\n");
+      }
+      currentMutation.push(ri);
       removeObject(pParseResult, object);
     }
-    stats
-        .objectsRemainedAfterPass.setNextValue(-currentMutation.size());
     previousMutations.addAll(chosenObjects);
+
+    if (exportObjectsEveryRound) {
+      try {
+        try (Writer writer =
+            IO.openOutputFile(exportFile, Charset.defaultCharset(), StandardOpenOption.APPEND)) {
+          writer.write(sb.toString());
+        }
+      } catch (IOException e) {
+        logger.logUserException(Level.WARNING, e, "Could not write info from strategy.");
+        assert false;
+      }
+    }
+
     return true;
   }
 
@@ -187,12 +232,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @SuppressWarnings("unchecked")
   private boolean initLevel(ParseResult pParseResult) {
     batchCount = tryAllAtFirst ? 1 : rate;
-    batchSize = getAllObjects(pParseResult).size();
+    objectsBefore = getAllObjects(pParseResult);
+    batchSize = objectsBefore.size();
     if (batchSize == 0) {
       return false;
     }
     stats.objectsBeforePass.setNextValue(batchSize);
-    stats.objectsRemainedAfterPass.setNextValue(batchSize);
     if (!tryAllAtFirst) {
       batchSize = (batchSize - 1) / rate + 1;
     }
@@ -202,9 +247,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   private boolean nextLevel(ParseResult pParseResult) {
     if (batchSize <= 1) {
-      for (ObjectKey o : getAllObjects(pParseResult)) {
-        logger.logf(Level.INFO, "%s: remained %s", this, o);
-      }
+      countRemained(pParseResult);
       return false;
     }
 
@@ -219,15 +262,57 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     return true;
   }
 
+  private void countRemained(ParseResult pParseResult) {
+    int rem = 0;
+    int app = 0;
+    objectsAfter = getAllObjects(pParseResult);
+    for (ObjectKey o : objectsAfter) {
+      if (objectsBefore.contains(o)) {
+        logger.logf(Level.INFO, "remained after pass: %s", o);
+        rem++;
+      } else {
+        logger.logf(Level.INFO, "appeared after pass: %s", o);
+        objectsAppeared.add(o);
+        app++;
+      }
+    }
+    stats.objectsRemainedAfterPass.setNextValue(rem + app);
+    if (app > 0) {
+      stats.objectsAppearedAfterPass.setNextValue(app);
+    }
+  }
+
   @Override
   public void rollback(ParseResult pParseResult) {
-    logger.logf(Level.INFO, "rollbacked %d", currentMutation.size());
     stats.rollbacks.inc();
-    stats
-        .objectsRemainedAfterPass.setNextValue(currentMutation.size());
+
+    final StringBuilder sb = new StringBuilder();
+    sb.append("Round ").append(stats.rounds.getValue()).append(". ");
+    sb.append("Rollback ").append(stats.rollbacks.getValue()).append(". ");
+    sb.append("Returning ").append(currentMutation.size()).append(" ").append(objectsDescription);
+    if (exportObjectsEveryRound) {
+      sb.append(".\n");
+    }
+    logger.log(Level.INFO, sb.toString());
+
     Iterator<RollbackInfo> it = currentMutation.iterator();
     while (it.hasNext()) {
-      returnObject(pParseResult, it.next());
+      final RollbackInfo ri = it.next();
+      if (exportObjectsEveryRound) {
+        sb.append("returning ").append(ri).append("\n");
+      }
+      returnObject(pParseResult, ri);
+    }
+
+    if (exportObjectsEveryRound) {
+      try {
+        try (Writer writer =
+            IO.openOutputFile(exportFile, Charset.defaultCharset(), StandardOpenOption.APPEND)) {
+          writer.write(sb.toString());
+        }
+      } catch (IOException e) {
+        logger.logUserException(Level.WARNING, e, "Could not write info from strategy.");
+      }
     }
   }
 
@@ -235,19 +320,13 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @Override
   public void makeAftermath(ParseResult pParseResult) {
     Collection<ObjectKey> objects = getAllObjects(pParseResult);
-    objects.removeIf(o -> !canRemove(pParseResult, o));
+    objects.removeIf(o -> objectsAfter.contains(o) && !objectsAppeared.contains(o));
     stats.objectsForNextPass.setNextValue(objects.size());
   }
 
   @Override
   public String toString() {
-    return this.getClass().getSimpleName()
-        + "("
-        + rate
-        + "), before: "
-        + stats.objectsBeforePass.getValueSum()
-        + ", after: "
-        + stats.objectsRemainedAfterPass.getValueSum();
+    return this.getClass().getSimpleName() + "(" + rate + ")";
   }
 
   @Override

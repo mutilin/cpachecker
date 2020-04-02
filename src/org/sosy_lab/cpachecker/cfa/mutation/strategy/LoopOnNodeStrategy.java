@@ -29,10 +29,10 @@ import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 
-public class NodeWithLoopStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
+public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
-  public NodeWithLoopStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
-    super(pLogger, pRate, ptryAllAtFirst, "Nodes with loops");
+  public LoopOnNodeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
+    super(pLogger, pRate, ptryAllAtFirst, "Loops on nodes");
   }
 
   @Override

@@ -34,7 +34,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
   protected final ImmutableList<AbstractCFAMutationStrategy> strategiesList;
   protected UnmodifiableIterator<AbstractCFAMutationStrategy> strategies;
   protected AbstractCFAMutationStrategy currentStrategy;
-  private final AbstractMutationStatistics stats;
+  private AbstractMutationStatistics stats;
 
   public CompositeStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
@@ -50,31 +50,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
-
-            //   1. Remove unneeded assumes and statements.
             new CycleStrategy(pLogger),
-            //   TODO remove remained branches with (declarations and) a return statement
-
-            // some thread creating statements could be gone now
-            // so some functions may become deletable
-            // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
-
-            //   2. Remove loops on nodes (edges from node to itself).
-            new NodeWithLoopStrategy(pLogger, 2, true),
-            new DummyStrategy(pLogger),
-            //   Now we can remove delooped blank edges.
-            new BlankNodeStrategy(pLogger, 2, true),
-            new DummyStrategy(pLogger),
-
-            //   3. Remove unneeded declarations.
-            new DeclarationStrategy(pLogger, 2, true),
-            new DummyStrategy(pLogger),
-
-            //   4. Some branching might have become easier.
-            new SimpleAssumeEdgeStrategy(pLogger, 5, false),
-            new DummyStrategy(pLogger),
-            new BlankNodeStrategy(pLogger, 2, true),
-            new DummyStrategy(pLogger),
 
             //   5. Linearize loops: instead branching
             //   insert "loop-body" branch and "exit" branch successively,
@@ -150,5 +126,9 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     for (AbstractCFAMutationStrategy str : strategiesList) {
       str.collectStatistics(pStatsCollection);
     }
+
+    strategies = strategiesList.iterator();
+    currentStrategy = strategies.next();
+    stats = new AbstractMutationStatistics();
   }
 }
