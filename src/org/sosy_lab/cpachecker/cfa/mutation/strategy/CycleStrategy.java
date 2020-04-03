@@ -117,6 +117,9 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
   public boolean mutate(ParseResult pParseResult) {
     if (strategy.mutate(pParseResult)) {
       stats.rounds.inc();
+      if (thisCycle.rounds.getValue() == 0) {
+        stats.cycles.inc();
+      }
       thisCycle.rounds.inc();
       return true;
     }
@@ -130,8 +133,7 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
       strategy.makeAftermath(pParseResult);
       strategy.collectStatistics(thisCycle.statsOfUsedStrategy);
       stats.cycleStats.add(thisCycle);
-      stats.cycles.inc();
-      thisCycle = new CycleStatistics(stats.cycles.getUpdateCount() + 1);
+      thisCycle = new CycleStatistics(stats.cycles.getUpdateCount());
       return mutate(pParseResult);
     }
   }

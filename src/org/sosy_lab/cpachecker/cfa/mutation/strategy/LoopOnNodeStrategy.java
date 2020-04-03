@@ -35,18 +35,15 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     super(pLogger, pRate, ptryAllAtFirst, "Loops on nodes");
   }
 
-  @Override
-  protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
-    return super.canRemove(pParseResult, pNode)
-        && pNode.getNumLeavingEdges() == 1
-        && pNode.hasEdgeTo(pNode);
+  protected boolean canRemove(CFANode pNode) {
+    return pNode.getNumLeavingEdges() == 1 && pNode.hasEdgeTo(pNode);
   }
 
   @Override
   protected Collection<CFANode> getAllObjects(ParseResult pParseResult) {
     Collection<CFANode> answer = new ArrayList<>();
     for (CFANode node : pParseResult.getCFANodes().values()) {
-      if (canRemove(pParseResult, node)) {
+      if (canRemove(node)) {
         answer.add(node);
       }
     }

@@ -177,8 +177,7 @@ public class GlobalDeclarationStrategy
     super(pLogger, pAtATime, ptryAllAtFirst, "Global declarations");
   }
 
-  @Override
-  protected boolean canRemove(ParseResult pParseResult, Pair<ADeclaration, String> p) {
+  private boolean canRemove(Pair<ADeclaration, String> p) {
     final String first = p.getFirst().toString().replaceAll("\\s+", " ").replaceAll(" ;", ";");
     final String second =
         p.getSecond()
@@ -187,11 +186,6 @@ public class GlobalDeclarationStrategy
             .replaceAll("\\(void\\)", "\\(\\)")
             .replaceAll(" ,", ",")
             .replaceAll(" \\)", "\\)");
-
-    if (!super.canRemove(pParseResult, p)) {
-      logger.logf(Level.INFO, "can not remove %s", second);
-      return false;
-    }
 
     CDeclaration decl = (CDeclaration) p.getFirst();
     String name = decl.getName();
@@ -296,7 +290,7 @@ public class GlobalDeclarationStrategy
 
     List<Pair<ADeclaration, String>> answer = new ArrayList<>();
     for (Pair<ADeclaration, String> p : pParseResult.getGlobalDeclarations()) {
-      if (canRemove(pParseResult, p)) {
+      if (canRemove(p)) {
         answer.add(0, p);
       }
     }

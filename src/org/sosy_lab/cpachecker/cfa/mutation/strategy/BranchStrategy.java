@@ -45,8 +45,6 @@ public class BranchStrategy
   protected Collection<Pair<CFANode, Chain>> getAllObjects(ParseResult pParseResult) {
     Collection<Pair<CFANode, Chain>> answer = new ArrayList<>();
 
-    final ChainStrategy cs = new ChainStrategy(logger, 0, false);
-
     for (CFANode node : pParseResult.getCFANodes().values()) {
       if (node.getNumLeavingEdges() != 2) {
         continue;
@@ -55,14 +53,8 @@ public class BranchStrategy
       CFANode s0 = node.getLeavingEdge(0).getSuccessor();
       CFANode s1 = node.getLeavingEdge(1).getSuccessor();
 
-      Chain chain0 = new Chain();
-      if (s0.getNumEnteringEdges() == 1 && s0.getNumLeavingEdges() == 1) {
-        chain0 = cs.getChainWith(s0);
-      }
-      Chain chain1 = new Chain();
-      if (s1.getNumEnteringEdges() == 1 && s1.getNumLeavingEdges() == 1) {
-        chain1 = cs.getChainWith(s1);
-      }
+      Chain chain0 = ChainVisitor.getChainWith(s0);
+      Chain chain1 = ChainVisitor.getChainWith(s1);
 
       if (chain0.isEmpty() && chain1.isEmpty()) {
         continue;
@@ -105,7 +97,7 @@ public class BranchStrategy
     int found = 0;
 
     for (Pair<CFANode, Chain> p : getAllObjects(pParseResult)) {
-      if (!canRemove(pParseResult, p)) {
+      if (alreadyTried(p)) {
         continue;
       }
 

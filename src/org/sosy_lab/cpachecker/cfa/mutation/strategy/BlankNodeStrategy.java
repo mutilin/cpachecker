@@ -20,7 +20,6 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
@@ -31,7 +30,7 @@ public class BlankNodeStrategy extends SingleNodeStrategy {
   }
 
   @Override
-  protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
-    return super.canRemove(pParseResult, pNode) && pNode.getLeavingEdge(0) instanceof BlankEdge;
+  protected boolean canRemove(CFANode pNode) {
+    return super.canRemove(pNode) && pNode.getLeavingEdge(0) instanceof BlankEdge;
   }
 }

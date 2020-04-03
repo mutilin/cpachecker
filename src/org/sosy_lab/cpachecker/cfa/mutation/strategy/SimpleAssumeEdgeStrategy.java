@@ -92,7 +92,7 @@ public class SimpleAssumeEdgeStrategy
 
     int found = 0;
     for (Pair<AssumeEdge, AssumeEdge> pair : getAllObjects(pParseResult)) {
-      if (!canRemove(pParseResult, pair)) {
+      if (alreadyTried(pair)) {
         continue;
       }
 

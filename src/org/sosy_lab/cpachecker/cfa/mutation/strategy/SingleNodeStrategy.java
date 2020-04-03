@@ -47,12 +47,7 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
   }
 
   // can delete node with its only leaving edge and reconnect entering edge instead
-  @Override
-  protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
-    if (!super.canRemove(pParseResult, pNode)) {
-      return false;
-    }
-
+  protected boolean canRemove(CFANode pNode) {
     if (pNode instanceof FunctionEntryNode
         || pNode instanceof FunctionExitNode
         || pNode instanceof CFATerminationNode) {
@@ -76,7 +71,7 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
   protected Collection<CFANode> getAllObjects(ParseResult parseResult) {
     List<CFANode> answer = new ArrayList<>();
     for (CFANode node : parseResult.getCFANodes().values()) {
-      if (canRemove(parseResult, node)) {
+      if (canRemove(node)) {
         answer.add(node);
       }
     }
@@ -90,7 +85,7 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
 
     int found = 0;
     for (CFANode node : getAllObjects(parseResult)) {
-      if (!canRemove(parseResult, node) || succs.contains(node)) {
+      if (alreadyTried(node) || succs.contains(node)) {
         continue;
       }
 

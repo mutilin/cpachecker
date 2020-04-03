@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
-import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.AExpressionStatement;
 import org.sosy_lab.cpachecker.cfa.ast.AVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
@@ -137,8 +136,8 @@ public class DeclarationStrategy extends SingleNodeStrategy {
   }
 
   @Override
-  protected boolean canRemove(ParseResult pParseResult, CFANode pNode) {
-    if (!super.canRemove(pParseResult, pNode)) {
+  protected boolean canRemove(CFANode pNode) {
+    if (!super.canRemove(pNode)) {
       return false;
     }
     CFAEdge edge = pNode.getLeavingEdge(0);

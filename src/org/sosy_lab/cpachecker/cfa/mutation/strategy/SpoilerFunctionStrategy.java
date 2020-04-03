@@ -66,11 +66,7 @@ public class SpoilerFunctionStrategy
     return answer;
   }
 
-  @Override
   protected boolean canRemove(ParseResult parseResult, String pObject) {
-    if (!super.canRemove(parseResult, pObject)) {
-      return false;
-    }
     // can't remove function that is not called (e.g. main)
     if (getAllCallsTo(parseResult, pObject).isEmpty()) {
       return false;

@@ -44,6 +44,7 @@ import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatInt;
 import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
@@ -52,10 +53,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     extends AbstractCFAMutationStrategy {
 
   private Collection<ObjectKey> objectsBefore;
-  private Collection<ObjectKey> objectsAppeared = new HashSet<>();
-  private Collection<ObjectKey> objectsAfter;
 
   private Deque<RollbackInfo> currentMutation = new ArrayDeque<>();
+  private final Set<ObjectKey> previousPasses = new HashSet<>();
   private final Set<ObjectKey> previousMutations = new HashSet<>();
   private final int rate;
   private int depth;
@@ -73,24 +73,21 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     // cfa objects for strategy to deal with
     protected final StatInt objectsBeforePass;
     // cfa objects remained because they can't be mutated out or because strategy ran out of rounds
-    protected final StatInt objectsAppearedDuringPass;
+    protected final StatCounter objectsAppearedDuringPass;
     // cfa objects remained because they can't be mutated out or because strategy ran out of rounds
     protected final StatInt objectsRemainedAfterPass;
-    private StatInt objectsAppearedAfterPass;
+    protected final StatCounter objectsAppearedAfterPass;
     // cfa objects to mutate in last seen cfa (appeared because of other strategies)
     protected final StatInt objectsForNextPass;
     private final String strategyClassName;
 
     public OnePassMutationStatistics(String pName, String pObjectsDescription) {
       strategyClassName = pName;
-      objectsBeforePass =
-          new StatInt(StatKind.SUM, pObjectsDescription + " were in CFA before pass");
-      objectsAppearedDuringPass =
-          new StatInt(StatKind.SUM, pObjectsDescription + " appeared during pass");
+      objectsBeforePass = new StatInt(StatKind.SUM, pObjectsDescription + " found before pass");
+      objectsAppearedDuringPass = new StatCounter(pObjectsDescription + " appeared during pass");
       objectsRemainedAfterPass =
           new StatInt(StatKind.SUM, pObjectsDescription + " remained after pass");
-      objectsAppearedAfterPass =
-          new StatInt(StatKind.SUM, pObjectsDescription + " appeared just after pass");
+      objectsAppearedAfterPass = new StatCounter(pObjectsDescription + " appeared just after pass");
       objectsForNextPass = new StatInt(StatKind.SUM, pObjectsDescription + " to mutate next time");
     }
     @Override
@@ -98,12 +95,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       StatisticsWriter.writingStatisticsTo(pOut)
           .beginLevel()
           .put(getName(), "")
-          .put(rounds)
-          .put(rollbacks)
+          .putIfUpdatedAtLeastOnce(rounds)
+          .putIf(rounds.getValue() > 0, rollbacks)
           .putIfUpdatedAtLeastOnce(objectsBeforePass)
           .putIfUpdatedAtLeastOnce(objectsAppearedDuringPass)
-          .putIfUpdatedAtLeastOnce(objectsRemainedAfterPass)
           .putIfUpdatedAtLeastOnce(objectsAppearedAfterPass)
+          .putIfUpdatedAtLeastOnce(objectsRemainedAfterPass)
           .putIfUpdatedAtLeastOnce(objectsForNextPass)
           .endLevel();
     }
@@ -131,7 +128,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
     int found = 0;
     for (ObjectKey object : getAllObjects(pParseResult)) {
-      if (!canRemove(pParseResult, object)) {
+      if (alreadyTried(object)) {
         continue;
       }
       //      for (ObjectKey alreadyChosen : result) {
@@ -150,9 +147,8 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     return result;
   }
 
-  protected boolean canRemove(
-      @SuppressWarnings("unused") ParseResult pParseResult, ObjectKey pObject) {
-    return !previousMutations.contains(pObject);
+  protected boolean alreadyTried(ObjectKey pObject) {
+    return previousPasses.contains(pObject) || previousMutations.contains(pObject);
   }
 
   protected abstract RollbackInfo getRollbackInfo(ParseResult pParseResult, ObjectKey pObject);
@@ -197,7 +193,8 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
     for (ObjectKey object : chosenObjects) {
       if (!objectsBefore.contains(object)) {
-        objectsAppeared.add(object);
+        stats.objectsAppearedDuringPass.inc();
+        objectsBefore.add(object);
       }
       RollbackInfo ri = getRollbackInfo(pParseResult, object);
       if (exportObjectsEveryRound) {
@@ -233,6 +230,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private boolean initLevel(ParseResult pParseResult) {
     batchCount = tryAllAtFirst ? 1 : rate;
     objectsBefore = getAllObjects(pParseResult);
+    objectsBefore.removeAll(previousPasses);
     batchSize = objectsBefore.size();
     if (batchSize == 0) {
       return false;
@@ -263,23 +261,18 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   }
 
   private void countRemained(ParseResult pParseResult) {
-    int rem = 0;
-    int app = 0;
-    objectsAfter = getAllObjects(pParseResult);
+    Collection<ObjectKey> objectsAfter = getAllObjects(pParseResult);
+    objectsAfter.removeAll(previousPasses);
     for (ObjectKey o : objectsAfter) {
       if (objectsBefore.contains(o)) {
         logger.logf(Level.INFO, "remained after pass: %s", o);
-        rem++;
+        previousPasses.add(o);
       } else {
         logger.logf(Level.INFO, "appeared after pass: %s", o);
-        objectsAppeared.add(o);
-        app++;
+        stats.objectsAppearedAfterPass.inc();
       }
     }
-    stats.objectsRemainedAfterPass.setNextValue(rem + app);
-    if (app > 0) {
-      stats.objectsAppearedAfterPass.setNextValue(app);
-    }
+    stats.objectsRemainedAfterPass.setNextValue(objectsAfter.size());
   }
 
   @Override
@@ -320,7 +313,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @Override
   public void makeAftermath(ParseResult pParseResult) {
     Collection<ObjectKey> objects = getAllObjects(pParseResult);
-    objects.removeIf(o -> objectsAfter.contains(o) && !objectsAppeared.contains(o));
+    objects.removeIf(o -> previousPasses.contains(o));
     stats.objectsForNextPass.setNextValue(objects.size());
   }
 

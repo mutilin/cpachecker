@@ -57,7 +57,6 @@ public class LoopAssumeEdgeStrategy
         continue;
       }
 
-      ChainStrategy cs = new ChainStrategy(logger, 0, false);
       Chain chain = null;
       // continue if the only entering chain does not start on node
       if (backwardEnteringEdges.size() == 1) {
@@ -67,7 +66,7 @@ public class LoopAssumeEdgeStrategy
             || onlyBackwardPredecessor.getNumLeavingEdges() != 1) {
           continue;
         }
-        chain = cs.getChainWith(onlyBackwardPredecessor);
+        chain = ChainVisitor.getChainWith(onlyBackwardPredecessor);
         if (chain.getPredecessor() == node) {
           answer.add(chain);
         }
@@ -78,7 +77,7 @@ public class LoopAssumeEdgeStrategy
       // try chains on assume edges
       CFANode successor = node.getLeavingEdge(0).getSuccessor();
       if (successor.getNumEnteringEdges() == 1 && successor.getNumLeavingEdges() == 1) {
-        chain = cs.getChainWith(successor);
+        chain = ChainVisitor.getChainWith(successor);
         if (chain.getSuccessor() != node) {
           chain = null;
         }
@@ -87,7 +86,7 @@ public class LoopAssumeEdgeStrategy
       Chain otherChain = null;
       successor = node.getLeavingEdge(1).getSuccessor();
       if (successor.getNumEnteringEdges() == 1 && successor.getNumLeavingEdges() == 1) {
-        otherChain = cs.getChainWith(successor);
+        otherChain = ChainVisitor.getChainWith(successor);
         if (otherChain.getSuccessor() != node) {
           otherChain = null;
         }
