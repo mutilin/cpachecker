@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -52,7 +53,7 @@ public class SpoilerFunctionStrategy
       Configuration pConfig, LogManager pLogger, int pRate, boolean ptryAllAtFirst)
       throws InvalidConfigurationException {
     super(pLogger, pRate, ptryAllAtFirst, "Spoiler functions");
-    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, false);
+    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, false, ImmutableSet.of("main"));
   }
 
   @Override
@@ -69,6 +70,7 @@ public class SpoilerFunctionStrategy
   protected boolean canRemove(ParseResult parseResult, String pObject) {
     // can't remove function that is not called (e.g. main)
     if (getAllCallsTo(parseResult, pObject).isEmpty()) {
+      logger.logf(Level.FINE, "No calls to %s", pObject);
       return false;
     }
     // can remove this function only if it calls another function
@@ -83,7 +85,7 @@ public class SpoilerFunctionStrategy
     CFAEdge innerCall = getOnlyCallIn(parseResult, pFunctionName);
     logger.logf(
         Level.INFO,
-        "spoiler calls %s",
+        "spoilered callee is %s",
         ((AFunctionCall) ((AStatementEdge) innerCall).getStatement()).getFunctionCallExpression());
 
     for (CFAEdge outerCall : fullInfo.getThird()) {
@@ -127,31 +129,33 @@ public class SpoilerFunctionStrategy
       }
       CFAEdge leavingEdge = node.getLeavingEdge(0);
       switch (leavingEdge.getEdgeType()) {
-        case BlankEdge:
-        case DeclarationEdge:
-          continue; // skipping blank edges
         case StatementEdge:
           if (((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall) {
             if (found != null) { // if more than one call
+              logger.logf(Level.FINE, "Found another call %s", leavingEdge);
               return null;
             }
             found = leavingEdge;
-            continue;
+            logger.logf(Level.FINE, "Found call %s", found);
           }
-          return null;
+          continue;
         case ReturnStatementEdge:
           AExpression expr = ((AReturnStatementEdge) leavingEdge).getExpression().orNull();
           if (expr != null && expr instanceof AFunctionCallExpression) {
             if (found != null) { // if more than one call
+              logger.logf(Level.FINE, "Found another call %s", leavingEdge);
               return null;
             }
             found = leavingEdge;
-            continue;
+            logger.logf(Level.FINE, "Found call %s", found);
           }
-          return null;
+          continue;
         default:
-          return null;
+          continue;
       }
+    }
+    if (found == null) {
+      logger.logf(Level.FINE, "No inner call found");
     }
     return found;
   }

@@ -61,12 +61,10 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // Third, remove functions-spoilers: they just call another function
             // It seems it does not change result, so try to remove all in one round
             new SpoilerFunctionStrategy(pConfig, pLogger, 7, true),
-            //            new DummyStrategy(pLogger),
+            new DummyStrategy(pLogger),
 
-            // And last: remove global declarations,
-            // certainly of already removed and not called functions.
-            // TODO declarations of global variables
-            //            new GlobalDeclarationStrategy(pLogger, 5, true),
+            // And last: remove unneeded global declarations
+            new GlobalDeclarationStrategy(pLogger, 5, true),
             new DummyStrategy(pLogger)));
   }
 
