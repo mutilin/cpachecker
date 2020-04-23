@@ -58,8 +58,11 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new LoopAssumeEdgeStrategy(pLogger, 3, true),
             new DummyStrategy(pLogger),
 
+            // Replaces threading with plain calls
+            new ThreadCreateStrategy(pConfig, pLogger, 5, true),
+            new DummyStrategy(pLogger),
+
             // Third, remove functions-spoilers: they just call another function
-            // It seems it does not change result, so try to remove all in one round
             new SpoilerFunctionStrategy(pConfig, pLogger, 7, true),
             new DummyStrategy(pLogger),
 

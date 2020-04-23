@@ -122,7 +122,7 @@ public class DeclarationStrategy extends SingleNodeStrategy {
           logger.logfUserException(
               Level.WARNING,
               e,
-              "No declaration found for a variable on edge %s with expressions %s",
+              "No declaration found for a name on edge %s with expressions %s",
               edge,
               exps);
         }

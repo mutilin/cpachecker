@@ -297,7 +297,7 @@ public class GlobalDeclarationStrategy
 
     @Override
     public Void visit(CCompositeType pCompositeType) {
-      logger.logf(Level.INFO, "name of composite type %s saved", pCompositeType.getName());
+      // logger.logf(Level.INFO, "name of composite type %s saved", pCompositeType.getName());
       if (compositeTypes.add(pCompositeType.getName())) {
         for (CCompositeTypeMemberDeclaration member : pCompositeType.getMembers()) {
           member.getType().accept(this);
@@ -308,7 +308,7 @@ public class GlobalDeclarationStrategy
 
     @Override
     public Void visit(CElaboratedType pElaboratedType) {
-      logger.logf(Level.INFO, "name of elaborated type %s saved", pElaboratedType.getName());
+      // logger.logf(Level.INFO, "name of elaborated type %s saved", pElaboratedType.getName());
       if (elaboratedTypes.add(pElaboratedType.getName())) {
         @Nullable CComplexType type = pElaboratedType.getRealType();
         if (type != null) {
@@ -388,7 +388,7 @@ public class GlobalDeclarationStrategy
 
     @Override
     public Boolean visit(CComplexTypeDeclaration pDecl) {
-      logger.logf(Level.INFO, "declaration: %s\nof complex type: %s", pDecl, pDecl.getType());
+      // logger.logf(Level.INFO, "declaration: %s\nof complex type: %s", pDecl, pDecl.getType());
       return pDecl.getType().accept(this);
     }
 
@@ -437,7 +437,7 @@ public class GlobalDeclarationStrategy
       if (type != null) {
         assert type.accept(this);
       } else {
-        logger.logf(Level.WARNING, "elaborated type %s has no real type", pElaboratedType);
+        logger.logf(Level.FINE, "elaborated type %s has no real type", pElaboratedType);
       }
       return true;
     }
@@ -540,10 +540,17 @@ public class GlobalDeclarationStrategy
     while (globals.hasPrevious()) {
       Pair<ADeclaration, String> pair = globals.previous();
       CDeclaration decl = (CDeclaration) pair.getFirst();
-      logger.logf(Level.INFO, "decl %s\nname %s\ntype %s", decl, decl.getName(), decl.getType());
-      if (!decl.accept(isNameSaved)) {
+      boolean isNeeded = decl.accept(isNameSaved);
+      if (!isNeeded) {
         answer.add(pair);
       }
+      logger.logf(
+          Level.FINE,
+          "Global declaration %s:\n%s\nname: %s\ntype: %s",
+          (isNeeded ? "remaines" : "added for removing"),
+          decl,
+          decl.getName(),
+          decl.getType());
     }
 
     return answer;

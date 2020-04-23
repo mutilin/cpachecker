@@ -34,6 +34,8 @@ import org.sosy_lab.cpachecker.cfa.ast.AExpression;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.model.AReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -73,8 +75,26 @@ public class SpoilerFunctionStrategy
       logger.logf(Level.FINE, "No calls to %s", pObject);
       return false;
     }
-    // can remove this function only if it calls another function
-    return getOnlyCallIn(parseResult, pObject) != null;
+
+    // can remove this function only if it calls any function once
+    // what TODO with recursion?
+    CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pObject);
+    if (innerCallEdge == null) {
+      return false;
+    }
+
+    CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
+    logger.logf(Level.FINE, "spoilered callee is %s", innerCall.getFunctionCallExpression());
+    List<CExpression> params = innerCall.getFunctionCallExpression().getParameterExpressions();
+    if (!params.isEmpty()) {
+      // TODO args replacing
+      // Simple case: if inner call uses only constants and spoilers' args
+      // as its actual parameters, subst spoilers' actual parameters where needed.
+      // For now there can be no parameters.
+      logger.log(Level.FINE, "Can't remove spoiler because of parameters.");
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -82,16 +102,17 @@ public class SpoilerFunctionStrategy
     logger.logf(Level.INFO, "removing %s as spoiler function", pFunctionName);
     Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> fullInfo =
         getRollbackInfo(parseResult, pFunctionName);
-    CFAEdge innerCall = getOnlyCallIn(parseResult, pFunctionName);
-    logger.logf(
-        Level.INFO,
-        "spoilered callee is %s",
-        ((AFunctionCall) ((AStatementEdge) innerCall).getStatement()).getFunctionCallExpression());
+    CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pFunctionName);
+    CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
+    logger.logf(Level.INFO, "spoilered callee is %s", innerCall.getFunctionCallExpression());
+    List<CExpression> iParams = innerCall.getFunctionCallExpression().getParameterExpressions();
+    assert iParams.isEmpty() : "TODO args replacing";
 
-    for (CFAEdge outerCall : fullInfo.getThird()) {
-      CFAEdge newEdge = dupEdge(innerCall, outerCall.getPredecessor(), outerCall.getSuccessor());
-      logger.logf(Level.INFO, "replacing call %s as %s", outerCall, newEdge);
-      disconnectEdge(outerCall);
+    for (CFAEdge outerCallEdge : fullInfo.getThird()) {
+      CFAEdge newEdge =
+          dupEdge(innerCallEdge, outerCallEdge.getPredecessor(), outerCallEdge.getSuccessor());
+      logger.logf(Level.INFO, "replacing call %s as %s", outerCallEdge, newEdge);
+      disconnectEdge(outerCallEdge);
       connectEdge(newEdge);
     }
     functionRemover.removeObject(parseResult, pFunctionName);
@@ -160,7 +181,7 @@ public class SpoilerFunctionStrategy
     return found;
   }
 
-  private Collection<CFAEdge> getAllCallsTo(ParseResult parseResult, String pFunctionName) {
+  public static Collection<CFAEdge> getAllCallsTo(ParseResult parseResult, String pFunctionName) {
     Collection<CFAEdge> calls = new ArrayList<>();
 
     final FunctionCallCollector fCallCollector = new FunctionCallCollector();
