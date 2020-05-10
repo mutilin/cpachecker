@@ -135,15 +135,24 @@ public class BranchStrategy
     CFANode branchingPoint = pObject.getFirst();
     Chain pChain = pObject.getSecond();
 
-    logger.logf(Level.INFO, "removing branching on node %s with chain %s", branchingPoint, pChain);
 
     CFAEdge edgeToChain = pChain.getEnteringEdge();
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
     CFANode successor = leavingEdge.getSuccessor();
 
+    logger.logf(Level.INFO, "removing branching on node %s with chain %s", branchingPoint, pChain);
+    logger.logf(Level.INFO, "\ttochain %s", edgeToChain);
+    logger.logf(Level.INFO, "\tleaving %s", leavingEdge);
+
     disconnectEdgeFromNode(leavingEdge, successor);
 
+    CFANode lastNode = pChain.getLast();
+    for (CFAEdge edgeFromChain : CFAUtils.leavingEdges(lastNode)) {
+      disconnectEdgeFromNode(edgeFromChain, edgeFromChain.getSuccessor());
+    }
+
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
+      logger.logf(Level.INFO, "\tentering %s", enteringEdge);
       CFANode predecessor = enteringEdge.getPredecessor();
       disconnectEdgeFromNode(enteringEdge, predecessor);
       connectEdge(dupEdge(enteringEdge, successor));
@@ -152,11 +161,6 @@ public class BranchStrategy
     removeNodeFromParseResult(pParseResult, branchingPoint);
     for (CFANode node : pChain) {
       removeNodeFromParseResult(pParseResult, node);
-    }
-
-    CFANode lastNode = pChain.getLast();
-    for (CFAEdge edgeFromChain : CFAUtils.leavingEdges(lastNode)) {
-      disconnectEdgeFromNode(edgeFromChain, edgeFromChain.getSuccessor());
     }
   }
 
@@ -171,7 +175,11 @@ public class BranchStrategy
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
     CFANode successor = leavingEdge.getSuccessor();
 
+    logger.logf(Level.INFO, "\ttochain %s", edgeToChain);
+    logger.logf(Level.INFO, "\tleaving %s", leavingEdge);
+
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
+      logger.logf(Level.INFO, "\tentering %s", enteringEdge);
       CFANode predecessor = enteringEdge.getPredecessor();
       disconnectEdge(predecessor.getEdgeTo(successor));
       connectEdgeToNode(enteringEdge, predecessor);

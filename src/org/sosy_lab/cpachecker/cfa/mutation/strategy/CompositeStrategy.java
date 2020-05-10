@@ -59,8 +59,8 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             new DummyStrategy(pLogger),
 
             // Replaces threading with plain calls
-            new ThreadCreateStrategy(pConfig, pLogger, 5, true),
-            new DummyStrategy(pLogger),
+            // new ThreadCreateStrategy(pConfig, pLogger, 5, true),
+            // new DummyStrategy(pLogger),
 
             // Third, remove functions-spoilers: they just call another function
             new SpoilerFunctionStrategy(pConfig, pLogger, 7, true),
