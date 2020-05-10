@@ -60,8 +60,7 @@ public class CFAMutator extends CFACreator {
   @Option(
       secure = true,
       name = "mutations.count",
-      description =
-          "With this option set to positive integer, count of runs will be limited by given number.")
+      description = "Max count of mutation rounds if set to nonegative integer.")
   private int runMutationsCount = -1;
 
   @Option(

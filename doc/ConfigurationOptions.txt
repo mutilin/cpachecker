@@ -3384,9 +3384,8 @@ mpv.partitionOperator = no default value
 mpv.propertySeparator = FILE
   enum:     [FILE, AUTOMATON]
 
-# With this option set to positive integer, count of runs will be limited by
-# given number.
-mutations.count = 0
+# Max count of mutation rounds if set to nonegative integer.
+mutations.count = -1
 
 # With this option set to true, original CFA will be exported as well.
 mutations.exportOriginal = false

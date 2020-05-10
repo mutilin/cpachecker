@@ -36,11 +36,14 @@ import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.model.AReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.Triple;
@@ -104,13 +107,24 @@ public class SpoilerFunctionStrategy
         getRollbackInfo(parseResult, pFunctionName);
     CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pFunctionName);
     CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
+    // remove left side if it was an assignment
+    if (innerCall instanceof CFunctionCallAssignmentStatement) {
+      innerCall =
+          new CFunctionCallStatement(
+              innerCall.getFileLocation(), innerCall.getFunctionCallExpression());
+    }
     logger.logf(Level.INFO, "spoilered callee is %s", innerCall.getFunctionCallExpression());
     List<CExpression> iParams = innerCall.getFunctionCallExpression().getParameterExpressions();
     assert iParams.isEmpty() : "TODO args replacing";
 
     for (CFAEdge outerCallEdge : fullInfo.getThird()) {
       CFAEdge newEdge =
-          dupEdge(innerCallEdge, outerCallEdge.getPredecessor(), outerCallEdge.getSuccessor());
+          new CStatementEdge(
+              innerCallEdge.getRawStatement(),
+              innerCall,
+              innerCallEdge.getFileLocation(),
+              outerCallEdge.getPredecessor(),
+              outerCallEdge.getSuccessor());
       logger.logf(Level.INFO, "replacing call %s as %s", outerCallEdge, newEdge);
       disconnectEdge(outerCallEdge);
       connectEdge(newEdge);

@@ -59,6 +59,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private final Set<ObjectKey> previousMutations = new HashSet<>();
   private final int rate;
   private int depth;
+  private int levelSize = -1;
   private int batchNum = -1;
   private int batchSize = -1;
   private int batchCount = -1;
@@ -170,9 +171,10 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
 
     ImmutableCollection<ObjectKey> chosenObjects = nextBatch(pParseResult);
-    if (chosenObjects.isEmpty() && !nextLevel(pParseResult)) {
+    if (chosenObjects.isEmpty()) {
+      if (!nextLevel(pParseResult)) {
         return false;
-    } else if (chosenObjects.isEmpty()) {
+      }
       chosenObjects = nextBatch(pParseResult);
       if (chosenObjects.isEmpty()) {
         countRemained(pParseResult);
@@ -231,15 +233,14 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     batchCount = tryAllAtFirst ? 1 : rate;
     objectsBefore = getAllObjects(pParseResult);
     objectsBefore.removeAll(previousPasses);
-    batchSize = objectsBefore.size();
-    if (batchSize == 0) {
+    levelSize = objectsBefore.size();
+    if (levelSize == 0) {
       return false;
     }
-    stats.objectsBeforePass.setNextValue(batchSize);
-    if (!tryAllAtFirst) {
-      batchSize = (batchSize - 1) / rate + 1;
-    }
-    logger.logf(Level.INFO, "batchsize init %d at depth %d", batchSize, depth);
+    stats.objectsBeforePass.setNextValue(levelSize);
+    batchSize = tryAllAtFirst ? levelSize : (levelSize - 1) / rate + 1;
+    logger.logf(
+        Level.INFO, "batchsize init %d at depth %d with levelsize=%d", batchSize, depth, levelSize);
     return true;
   }
 
@@ -250,8 +251,8 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
 
     depth++;
-    batchCount = batchCount * rate;
     batchSize = (batchSize - 1) / rate + 1;
+    batchCount = (levelSize - 1) / batchSize + 1;
     batchNum = 0;
 
     logger.logf(Level.INFO, "previous mutations was %d", previousMutations.size());
@@ -326,9 +327,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     pStatsCollection.add(stats);
     stats = new OnePassMutationStatistics(this.getClass().getSimpleName(), objectsDescription);
-    batchSize = -1;
-    batchNum = -1;
-    batchCount = -1;
+    levelSize = batchSize = batchNum = batchCount = -1;
     depth = tryAllAtFirst ? 0 : 1;
   }
 }
