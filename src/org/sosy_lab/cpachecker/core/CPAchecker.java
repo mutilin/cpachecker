@@ -504,6 +504,10 @@ public class CPAchecker {
     Throwable originalThrowable = null;
     Throwable currentThrowable = null;
 
+    MainCPAStatistics totalStats = null;
+    CFA lastCFA = null;
+    ConfigurableProgramAnalysis lastCPA = null;
+
     MainCPAStatistics stats = null;
     Algorithm algorithm = null;
     ReachedSet reached = null;
@@ -511,6 +515,14 @@ public class CPAchecker {
     Result result = Result.NOT_YET_STARTED;
     String violatedPropertyDescription = "";
     Specification specification = null;
+
+    try {
+      totalStats = new MainCPAStatistics(config, logger, shutdownNotifier);
+      totalStats.setCFACreator(cfaCreator);
+    } catch (InvalidConfigurationException e) {
+      logger.logUserException(Level.SEVERE, e, "Invalid configuration");
+      return new CPAcheckerResult(result, violatedPropertyDescription, reached, cfa, totalStats);
+    }
 
     for (int mutationRound = 0; true; mutationRound++) {
       final ShutdownRequestListener interruptThreadOnShutdown = interruptCurrentThreadOnShutdown();
@@ -532,6 +544,7 @@ public class CPAchecker {
         stats = new MainCPAStatistics(config, logger, shutdownNotifier);
 
         // create reached set, cpa, algorithm
+        totalStats.creationTime.start();
         stats.creationTime.start();
         reached = factory.createReachedSet();
 
@@ -547,10 +560,12 @@ public class CPAchecker {
           if (cfa == null) {
             break;
           }
+          lastCFA = cfa;
           GlobalInfo.getInstance().storeCFA(cfa);
           shutdownNotifier.shutdownIfNecessary();
 
           ConfigurableProgramAnalysis cpa;
+          totalStats.cpaCreationTime.start();
           stats.cpaCreationTime.start();
           try {
             specification =
@@ -558,9 +573,11 @@ public class CPAchecker {
                     properties, specificationFiles, cfa, config, logger, shutdownNotifier);
             cpa = factory.createCPA(cfa, specification);
           } finally {
+            totalStats.cpaCreationTime.stop();
             stats.cpaCreationTime.stop();
           }
           stats.setCPA(cpa);
+          lastCPA = cpa;
 
           if (cpa instanceof StatisticsProvider) {
             ((StatisticsProvider) cpa).collectStatistics(stats.getSubStatistics());
@@ -594,6 +611,7 @@ public class CPAchecker {
 
         printConfigurationWarnings();
 
+        totalStats.creationTime.stop();
         stats.creationTime.stop();
         shutdownNotifier.shutdownIfNecessary();
 
@@ -605,6 +623,7 @@ public class CPAchecker {
         AlgorithmStatus status = runAlgorithm(algorithm, reached, stats);
 
         if (status.wasPropertyChecked()) {
+          totalStats.resultAnalysisTime.start();
           stats.resultAnalysisTime.start();
           Collection<Property> violatedProperties = reached.getViolatedProperties();
           if (!violatedProperties.isEmpty()) {
@@ -621,6 +640,7 @@ public class CPAchecker {
               result = Result.TRUE;
             }
           }
+          totalStats.resultAnalysisTime.stop();
           stats.resultAnalysisTime.stop();
         } else {
           result = Result.DONE;
@@ -713,6 +733,7 @@ public class CPAchecker {
         }
       }
     }
+
     if (currentResult != null) {
       logger.log(Level.INFO, "Mutations ended.");
       logger.log(Level.INFO, "Verification result:");
@@ -724,11 +745,11 @@ public class CPAchecker {
       if (originalThrowable != null) {
         logger.logUserException(Level.INFO, originalThrowable, null);
       }
-    } else {
-      currentResult =
-          new CPAcheckerResult(result, violatedPropertyDescription, reached, cfa, stats);
     }
-    return currentResult;
+
+    totalStats.setCFA(lastCFA);
+    totalStats.setCPA(lastCPA);
+    return new CPAcheckerResult(result, violatedPropertyDescription, reached, lastCFA, totalStats);
   }
 
   private Path checkIfOneValidFile(List<String> fileDenotation)

@@ -155,6 +155,7 @@ class MainCPAStatistics implements Statistics {
   private final Timer analysisTime = new Timer();
   final Timer resultAnalysisTime = new Timer();
 
+  private long startAnalysisCpuTime;
   private long programCpuTime;
   private long analysisCpuTime = 0;
 
@@ -218,11 +219,11 @@ class MainCPAStatistics implements Statistics {
   void startAnalysisTimer() {
     analysisTime.start();
     try {
-      analysisCpuTime = ProcessCpuTime.read();
+      startAnalysisCpuTime = ProcessCpuTime.read();
     } catch (JMException e) {
       logger.logDebugException(e, "Querying cpu time failed");
       // user was already warned
-      analysisCpuTime = -1;
+      startAnalysisCpuTime = -1;
     }
     /*
      * Google App Engine does not allow to use classes from the package java.lang.management.
@@ -232,7 +233,7 @@ class MainCPAStatistics implements Statistics {
     catch (NoClassDefFoundError e) {
       logger.logDebugException(e, "Querying cpu time failed");
       logger.log(Level.WARNING, "Google App Engine does not support measuring the cpu time.");
-      analysisCpuTime = -1;
+      startAnalysisCpuTime = -1;
     }
   }
 
@@ -246,8 +247,8 @@ class MainCPAStatistics implements Statistics {
       if (programCpuTime >= 0) {
         programCpuTime = stopCpuTime - programCpuTime;
       }
-      if (analysisCpuTime >= 0) {
-        analysisCpuTime = stopCpuTime - analysisCpuTime;
+      if (startAnalysisCpuTime >= 0) {
+        analysisCpuTime += stopCpuTime - startAnalysisCpuTime;
       }
 
     } catch (JMException e) {
@@ -539,12 +540,16 @@ class MainCPAStatistics implements Statistics {
       StatisticsUtils.writeOutputFiles(cfaCreatorStatistics, logger, result, reached);
     }
     out.println("Time for Analysis:            " + analysisTime);
-    out.println("CPU time for analysis:        " + TimeSpan.ofNanos(analysisCpuTime).formatAs(TimeUnit.SECONDS));
+    out.println(
+        "CPU time for analysis:        "
+            + TimeSpan.ofNanos(analysisCpuTime).formatAs(TimeUnit.SECONDS));
     if (resultAnalysisTime.getNumberOfIntervals() > 0) {
       out.println("Time for analyzing result:    " + resultAnalysisTime);
     }
     out.println("Total time for CPAchecker:    " + programTime);
-    out.println("Total CPU time for CPAchecker:" + TimeSpan.ofNanos(programCpuTime).formatAs(TimeUnit.SECONDS));
+    out.println(
+        "Total CPU time for CPAchecker:"
+            + TimeSpan.ofNanos(programCpuTime).formatAs(TimeUnit.SECONDS));
     out.println("Time for statistics:          " + statisticsTime);
   }
 

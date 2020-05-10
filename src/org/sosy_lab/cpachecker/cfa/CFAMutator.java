@@ -62,7 +62,7 @@ public class CFAMutator extends CFACreator {
       name = "mutations.count",
       description =
           "With this option set to positive integer, count of runs will be limited by given number.")
-  private int runMutationsCount = 0;
+  private int runMutationsCount = -1;
 
   @Option(
       secure = true,
@@ -188,7 +188,7 @@ public class CFAMutator extends CFACreator {
       return null;
     }
 
-    if (runMutationsCount > 0
+    if (runMutationsCount >= 0
         && ((CFAMutatorStatistics) stats).mutationRound.getValue() == runMutationsCount) {
       doLastRun = true;
     } else {
@@ -232,13 +232,20 @@ public class CFAMutator extends CFACreator {
   }
 
   private boolean mutate() {
+    boolean res;
     ((CFAMutatorStatistics) stats).mutationRound.inc();
-    if (strategy.mutate(parseResult)) {
-      saveBeforePostproccessings();
-      return true;
-    } else {
-      return false;
+
+    try {
+      res = strategy.mutate(parseResult);
+    } catch (Throwable e) {
+      exportCFA(lastCFA);
+      throw e;
     }
+
+    if (res) {
+      saveBeforePostproccessings();
+    }
+    return res;
   }
 
   // undo last mutation
@@ -247,7 +254,12 @@ public class CFAMutator extends CFACreator {
     assert !doLastRun;
     wasRollback = true;
     clearAfterPostprocessings();
-    strategy.rollback(parseResult);
+    try {
+      strategy.rollback(parseResult);
+    } catch (Throwable e) {
+      exportCFA(lastCFA);
+      throw e;
+    }
     saveBeforePostproccessings();
   }
 
