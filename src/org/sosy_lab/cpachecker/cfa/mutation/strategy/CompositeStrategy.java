@@ -44,6 +44,13 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // First, try to remove most functions.
             //   Remove functions, 60-150 rounds for 10-15k nodes in input, 500-800 nodes remain.
             new FunctionStrategy(pConfig, pLogger, 5, true),
+            new GlobalDeclarationStrategy(pLogger, 5, true),
+
+            new BranchStrategy(pLogger, 5, false),
+            new DummyStrategy(pLogger),
+            new SimpleAssumeEdgeStrategy(pLogger, 5, false),
+            new DummyStrategy(pLogger),
+
             new BlankNodeStrategy(pLogger, 2, true),
             new DummyStrategy(pLogger),
             // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),

@@ -135,14 +135,20 @@ public class BranchStrategy
     CFANode branchingPoint = pObject.getFirst();
     Chain pChain = pObject.getSecond();
 
-
+    logger.logf(
+        Level.INFO,
+        "removing branching on node %s:%s with chain %s",
+        branchingPoint.getFunctionName(),
+        branchingPoint,
+        pChain);
     CFAEdge edgeToChain = pChain.getEnteringEdge();
-    CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
-    CFANode successor = leavingEdge.getSuccessor();
-
-    logger.logf(Level.INFO, "removing branching on node %s with chain %s", branchingPoint, pChain);
     logger.logf(Level.INFO, "\ttochain %s", edgeToChain);
+    for (CFAEdge e : CFAUtils.enteringEdges(edgeToChain.getPredecessor())) {
+      logger.logf(Level.INFO, "\t\tinb4: %s", e);
+    }
+    CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
     logger.logf(Level.INFO, "\tleaving %s", leavingEdge);
+    CFANode successor = leavingEdge.getSuccessor();
 
     disconnectEdgeFromNode(leavingEdge, successor);
 
