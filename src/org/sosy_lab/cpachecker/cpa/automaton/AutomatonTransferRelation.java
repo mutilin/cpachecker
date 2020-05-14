@@ -52,14 +52,18 @@ import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
+import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
+import org.sosy_lab.cpachecker.core.defaults.AbstractCPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonExpression.ResultValue;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState.AutomatonUnknownState;
+import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
 import org.sosy_lab.cpachecker.cpa.threading.ThreadingState;
 import org.sosy_lab.cpachecker.cpa.threading.ThreadingTransferRelation;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.statistics.StatIntHist;
 import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer.TimerWrapper;
@@ -425,10 +429,12 @@ class AutomatonTransferRelation implements TransferRelation {
             List<AbstractState> statesOtherToCurrent = new ArrayList<>(otherStates);
             statesOtherToCurrent.remove(unknownState);
             statesOtherToCurrent.add(lUnknownState);
+
             Collection<? extends AbstractState> successors =
                 getFollowStates(
                     unknownState.getPreviousState(),
-                    statesOtherToCurrent,
+                    replacePredicateStates(statesOtherToCurrent),
+                    //statesOtherToCurrent,
                     pCfaEdge,
                     true,
                     pPrecision);
@@ -462,8 +468,43 @@ class AutomatonTransferRelation implements TransferRelation {
     for (List<AbstractState> otherStates : strengtheningCombinations) {
       successors.addAll(
           getFollowStates(
-              lUnknownState.getPreviousState(), otherStates, pCfaEdge, true, pPrecision));
+              lUnknownState.getPreviousState(),
+              replacePredicateStates(otherStates),
+              //otherStates,
+              pCfaEdge,
+              true,
+              pPrecision));
     }
+
+    // todo: this method executes actions (eg. modify) on other CPAs, so
+    //  since we passed copies earlier, it should be executed once more on real ones
+    getFollowStates(
+        lUnknownState.getPreviousState(),
+        pOtherElements,
+        //otherStates,
+        pCfaEdge,
+        true,
+        pPrecision);
+
     return successors;
+  }
+
+  private static List<AbstractState> replacePredicateStates(List<AbstractState> states){
+    List<AbstractState> newList = new ArrayList<>();
+
+    for (AbstractState s : states) {
+      if (s instanceof PredicateAbstractState) {
+        PredicateAbstractState pas = PredicateAbstractState.getPredicateState(s);
+        PredicateAbstractState newPas =
+            pas.isAbstractionState()
+            ? PredicateAbstractState.copyAbsState(pas)
+            : PredicateAbstractState.copyNonAbsState(pas);
+        newList.add(newPas);
+      } else {
+        newList.add(s);
+      }
+    }
+
+    return newList;
   }
 }

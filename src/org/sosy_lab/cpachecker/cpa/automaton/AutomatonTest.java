@@ -26,6 +26,7 @@ package org.sosy_lab.cpachecker.cpa.automaton;
 import static com.google.common.truth.Truth.assertThat;
 
 import com.google.common.collect.ImmutableMap;
+import java.io.Console;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import org.junit.Test;
 import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.ConfigurationBuilder;
 import org.sosy_lab.common.io.IO;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.util.test.CPATestRunner;
@@ -240,15 +242,36 @@ public class AutomatonTest {
   public void set_variable_correct() throws Exception {
     Map<String, String> prop =
         ImmutableMap.of(
-            "CompositeCPA.cpas",
-            "cpa.location.LocationCPA, cpa.callstack.CallstackCPA, cpa.functionpointer.FunctionPointerCPA, cpa.value.ValueAnalysisCPA, cpa.predicate.PredicateCPA, cpa.automaton.ObserverAutomatonCPA",
-            "cpa.automaton.inputFile",
+            //"CompositeCPA.cpas",
+            //"cpa.location.LocationCPA, cpa.callstack.CallstackCPA, cpa.functionpointer.FunctionPointerCPA, cpa.value.ValueAnalysisCPA, cpa.predicate.PredicateCPA, cpa.automaton.ControlAutomatonCPA",
+            //"cpa.automaton.inputFile",
+            "specification",
             "test/config/automata/set_variable.spc",
+            //"cpa.automaton.inputFile",
+            //"test/config/automata/ldv/mutex.spc",
             "cpa.automaton.dotExportFile",
-            OUTPUT_FILE);
+            OUTPUT_FILE,
+            "solver.solver",
+            "SMTInterpol",
+            "cpa.predicate.encodeBitvectorAs",
+            "INTEGER");
 
-    TestResults results = CPATestRunner.run(prop, "test/programs/simple/set_correct.c");
+    prop = ImmutableMap.<String, String>builder()
+        .putAll(prop)
+        .put("cpa.predicate.encodeFloatAs", "INTEGER")
+        .put("cpa.predicate.targetStateSatCheck", "true")
+        .put("cpa.predicate.useMemoryRegions", "true")
+        .build();
+
+    Configuration config = TestDataTools.configurationForTest()
+        .loadFromFile("config/predicateAnalysis-PredAbsRefiner-ABEl.properties")
+        .setOptions(prop)
+        .build();
+
+    TestResults results = CPATestRunner.run(config, "test/programs/simple/set_correct.c");
+    //TestResults results = CPATestRunner.run(prop, "test/programs/ldv-automata/mutex/mutex_test_false_1.c");
     results.assertIsSafe();
+    System.out.println(results.getLog());
   }
 
   @Test
@@ -260,10 +283,26 @@ public class AutomatonTest {
             "cpa.automaton.inputFile",
             "test/config/automata/set_variable.spc",
             "cpa.automaton.dotExportFile",
-            OUTPUT_FILE);
+            OUTPUT_FILE,
+            "solver.solver",
+            "SMTInterpol",
+            "cpa.predicate.encodeBitvectorAs",
+            "INTEGER");
 
-    TestResults results = CPATestRunner.run(prop, "test/programs/simple/set_incorrect.c");
+    prop = ImmutableMap.<String, String>builder()
+        .putAll(prop)
+        .put("cpa.predicate.encodeFloatAs", "INTEGER")
+        .put("cpa.predicate.useMemoryRegions", "true")
+        .build();
+
+    //TestResults results = CPATestRunner.run(prop, "test/programs/simple/set_incorrect.c");
+    TestResults results = CPATestRunner.run(prop, "test/programs/ldv-automata/mutex/mutex_test_true_1.c");
     results.assertIsUnsafe();
+  }
+
+  @Test
+  public void formula_test() throws Exception{
+
   }
 
   @Test

@@ -315,6 +315,8 @@ public class CtoFormulaConverter {
           return FormulaType.getSinglePrecisionFloatingPointType();
         case DOUBLE:
           return FormulaType.getDoublePrecisionFloatingPointType();
+        case BOOL:
+          return FormulaType.BooleanType;
         default:
           break;
       }

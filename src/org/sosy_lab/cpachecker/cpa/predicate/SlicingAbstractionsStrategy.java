@@ -26,7 +26,7 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.getPredicateState;
-import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkAbstractionState;
+import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.copyAbsState;
 import static org.sosy_lab.cpachecker.cpa.predicate.SlicingAbstractionsUtils.buildPathFormula;
 
 import com.google.common.collect.ImmutableList;
@@ -206,11 +206,7 @@ public class SlicingAbstractionsStrategy extends RefinementStrategy implements S
     checkState(forkedStateMap != null);
 
     PredicateAbstractState original = getPredicateState(s);
-    PredicateAbstractState copiedPredicateState = mkAbstractionState(
-        original.getPathFormula(),
-        original.getAbstractionFormula(),
-        original.getAbstractionLocationsOnPath()
-    );
+    PredicateAbstractState copiedPredicateState = copyAbsState(original);
     boolean stateChanged = impact.strengthenStateWithInterpolant(
                                                        itp, s, lastAbstraction);
     // we only split if the state has actually changed

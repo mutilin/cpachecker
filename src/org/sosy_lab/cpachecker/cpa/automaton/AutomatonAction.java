@@ -29,13 +29,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
+import org.sosy_lab.cpachecker.cfa.CParser;
+import org.sosy_lab.cpachecker.cfa.parser.Scope;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractQueryableState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonExpression.ResultValue;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonVariable.AutomatonIntVariable;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonVariable.AutomatonSetVariable;
+import org.sosy_lab.cpachecker.cpa.composite.CompositeCPA;
+import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
+import org.sosy_lab.cpachecker.cpa.predicate.PredicateCPA;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
+import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 
 /**
  * Implements an Action with side-effects that has no return value.
@@ -222,10 +229,18 @@ abstract class AutomatonAction {
   static class CPAModification extends AutomatonAction {
     private final String cpaName;
     private final String modificationString;
+    private final CParser cparser;
+    private final Scope scope;
 
-    public CPAModification(String pCPAName, String pModification) {
+    public CPAModification(
+        String pCPAName,
+        String pModification,
+        CParser pCparser,
+        Scope pScope) {
       cpaName = pCPAName;
       modificationString = pModification;
+      cparser = pCparser;
+      scope = pScope;
     }
     @Override
     boolean canExecuteOn(AutomatonExpressionArguments pArgs) {
@@ -250,10 +265,16 @@ abstract class AutomatonAction {
         pArgs.getLogger().log(Level.WARNING, "Modification String \"" + modificationString + "\" could not be processed (Variable not found).");
         return new ResultValue<>("Modification String \"" + modificationString + "\" could not be processed (Variable not found).", "AutomatonActionExpr.CPAModification");
       }
+      boolean found = false;
       for (AbstractState ae : pArgs.getAbstractStates()) {
         if (ae instanceof AbstractQueryableState) {
           AbstractQueryableState aqe = (AbstractQueryableState) ae;
           if (aqe.getCPAName().equals(cpaName)) {
+            found = true;
+            if (aqe instanceof PredicateAbstractState){
+              ((PredicateAbstractState) aqe).setCParserAndScope(cparser, scope);
+            }
+
             try {
               aqe.modifyProperty(processedModificationString);
             } catch (InvalidQueryException e) {
@@ -265,7 +286,11 @@ abstract class AutomatonAction {
           }
         }
       }
-      return new ResultValue<>("Did not find an element of the CPA \"" + cpaName + "\" to be modified.", "AutomatonActionExpr.CPAModification");
+      if (!found){
+        return new ResultValue<>("Did not find an element of the CPA \"" + cpaName + "\" to be modified.", "AutomatonActionExpr.CPAModification");
+      }
+
+      return defaultResultValue;
     }
 
     @Override

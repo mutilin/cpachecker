@@ -94,7 +94,7 @@ import org.sosy_lab.cpachecker.util.expressions.ExpressionTrees;
 import org.sosy_lab.cpachecker.util.expressions.LeafExpression;
 import org.sosy_lab.cpachecker.util.expressions.Simplifier;
 
-class CParserUtils {
+public class CParserUtils {
 
   private static final String CPACHECKER_TMP_PREFIX = "__CPAchecker_TMP";
 
@@ -103,7 +103,7 @@ class CParserUtils {
     return parse(addFunctionDeclaration(pSource), parser, scope);
   }
 
-  static List<CStatement> parseListOfStatements(String pSource, CParser parser, Scope scope)
+  public static List<CStatement> parseListOfStatements(String pSource, CParser parser, Scope scope)
       throws InvalidAutomatonException {
     return parseBlockOfStatements(addFunctionDeclaration(pSource), parser, scope);
   }

@@ -25,13 +25,17 @@
 package org.sosy_lab.cpachecker.cpa.predicate;
 
 import static com.google.common.collect.FluentIterable.from;
+import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkNonAbstractionState;
 import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkNonAbstractionStateWithNewPathFormula;
 
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
+import org.eclipse.cdt.internal.core.model.Enumerator;
 import org.sosy_lab.common.collect.PersistentMap;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
@@ -138,6 +142,24 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
         }
       } catch (SolverException e) {
         throw new CPATransferException("Solver failed during successor generation", e);
+      }
+
+      if (element.getErrorPathFormula() != null){
+        PredicateAbstractState errorState = mkNonAbstractionState(
+            element.getErrorPathFormula(),
+            element.getAbstractionFormula(),
+            element.getAbstractionLocationsOnPath(),
+            true,
+            null);
+
+        PredicateAbstractState normalState = mkNonAbstractionState(
+            pathFormula,
+            element.getAbstractionFormula(),
+            element.getAbstractionLocationsOnPath(),
+            false,
+            null);
+
+        return Lists.newArrayList(errorState, normalState);
       }
 
       return Collections.singleton(
@@ -474,8 +496,12 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
       Integer newLocInstance = abstractionLocations.getOrDefault(loc, 0) + 1;
       abstractionLocations = abstractionLocations.putAndCopy(loc, newLocInstance);
 
-      return PredicateAbstractState.mkAbstractionState(newPathFormula,
-          abs, abstractionLocations);
+      return PredicateAbstractState.mkAbstractionState(
+          newPathFormula,
+          abs,
+          abstractionLocations,
+          pElement.isTarget(),
+          pElement.getErrorPathFormula());
     }
   }
 

@@ -208,8 +208,12 @@ public class PredicatePrecisionAdjustment implements PrecisionAdjustment {
     abstractionLocations = abstractionLocations.putAndCopy(loc, newLocInstance);
 
     PredicateAbstractState state =
-        PredicateAbstractState.mkAbstractionState(newPathFormula,
-            newAbstractionFormula, abstractionLocations);
+        PredicateAbstractState.mkAbstractionState(
+            newPathFormula,
+            newAbstractionFormula,
+            abstractionLocations,
+            element.isTarget(),
+            element.getErrorPathFormula());
     return Optional.of(PrecisionAdjustmentResult.create(
         state, precision, PrecisionAdjustmentResult.Action.CONTINUE));
   }
