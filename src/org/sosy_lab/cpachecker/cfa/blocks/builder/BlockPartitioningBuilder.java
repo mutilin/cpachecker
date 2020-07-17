@@ -45,10 +45,16 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerPrecision;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
+import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.CFAUtils;
+import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 /**
  * Helper class can build a <code>BlockPartitioning</code> from a partition of a program's CFA into blocks.
@@ -63,15 +69,18 @@ public class BlockPartitioningBuilder {
   protected final Map<CFANode, Set<CFANode>> returnNodesMap = new HashMap<>();
   protected final Map<CFANode, Set<FunctionEntryNode>> innerFunctionCallsMap = new HashMap<>();
   protected final Map<CFANode, Set<CFANode>> blockNodesMap = new HashMap<>();
+  protected final Map<CFANode, Set<MemoryLocation>> knownMemoryLocations = new HashMap<>();
 
   protected final LockTransferRelation lTransfer;
+  protected final PointerTransferRelation pTransfer;
 
   public BlockPartitioningBuilder() {
-    this(null);
+    this(null, null);
   }
 
-  public BlockPartitioningBuilder(LockTransferRelation t) {
+  public BlockPartitioningBuilder(LockTransferRelation t, PointerTransferRelation p) {
     lTransfer = t;
+    pTransfer = p;
   }
 
   public BlockPartitioning build(CFA cfa) {
@@ -89,6 +98,7 @@ public class BlockPartitioningBuilder {
       referencedVariables.put(head, collectReferencedVariables(body));
       innerFunctionCalls.put(head, collectInnerFunctionCalls(body));
       locks.put(head, collectInnerLocks(body));
+      knownMemoryLocations.put(head, collectMemoryLocations(body));
     }
 
     // then get directly called functions and sum up all indirectly called functions
@@ -108,14 +118,17 @@ public class BlockPartitioningBuilder {
       Collection<Iterable<ReferencedVariable>> variables = new ArrayList<>();
       Collection<Iterable<CFANode>> blockNodes = new ArrayList<>();
       Collection<Iterable<LockIdentifier>> blockLocks = new ArrayList<>();
+      Collection<Iterable<MemoryLocation>> blockMemory = new ArrayList<>();
       Set<CFANode> directNodes = blockNodesMap.get(callNode);
       blockNodes.add(directNodes);
       variables.add(referencedVariablesMap.get(callNode));
       blockLocks.add(locks.get(callNode));
+      blockMemory.add(knownMemoryLocations.get(callNode));
       for (FunctionEntryNode calledFunction : blockFunctionCalls.get(callNode)) {
         blockNodes.add(functions.get(calledFunction));
         variables.add(referencedVariables.get(calledFunction));
         blockLocks.add(locks.get(calledFunction));
+        blockMemory.add(knownMemoryLocations.get(calledFunction));
       }
 
       blocks.add(
@@ -124,7 +137,8 @@ public class BlockPartitioningBuilder {
               entry.getValue(),
               returnNodesMap.get(callNode),
               Iterables.concat(blockNodes),
-              Iterables.concat(blockLocks)));
+              Iterables.concat(blockLocks),
+              Iterables.concat(blockMemory)));
     }
 
     return new BlockPartitioning(blocks, cfa.getMainFunction());
@@ -206,6 +220,27 @@ public class BlockPartitioningBuilder {
       for (int i = 0; i < node.getNumLeavingEdges(); i++) {
         CFAEdge e = node.getLeavingEdge(i);
         result.addAll(lTransfer.getAffectedLocks(e));
+      }
+    }
+    return result;
+  }
+
+  private Set<MemoryLocation> collectMemoryLocations(Set<CFANode> pNodes) {
+    Set<MemoryLocation> result = new HashSet<>();
+    PointerState fstate = PointerState.INITIAL_STATE;
+    for (CFANode node : pNodes) {
+      for (int i = 0; i < node.getNumLeavingEdges(); ++i) {
+        CFAEdge e = node.getLeavingEdge(i);
+        try {
+          for (AbstractState state : pTransfer
+              .getAbstractSuccessorsForEdge(fstate, new PointerPrecision(), e)) {
+            result.addAll(((PointerState) state).getKnownLocations());
+          }
+        } catch (CPATransferException pE) {
+          pE.printStackTrace();
+        } catch (InterruptedException pE) {
+          pE.printStackTrace();
+        }
       }
     }
     return result;

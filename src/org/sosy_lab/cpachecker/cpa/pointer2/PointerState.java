@@ -29,6 +29,7 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Collections;
 import java.util.Map;
+import java.util.HashMap;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
@@ -38,13 +39,14 @@ import org.sosy_lab.cpachecker.cpa.pointer2.util.ExplicitLocationSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetBot;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetTop;
+import org.sosy_lab.cpachecker.util.refinement.ForgetfulState;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 /**
  * Instances of this class are pointer states that are used as abstract elements
  * in the pointer CPA.
  */
-public class PointerState implements AbstractState {
+public class PointerState implements AbstractState, ForgetfulState<PointerInformation> {
 
   /**
    * The initial empty pointer state.
@@ -54,13 +56,13 @@ public class PointerState implements AbstractState {
   /**
    * The points-to map of the state.
    */
-  private final PersistentSortedMap<MemoryLocation, LocationSet> pointsToMap;
+  private PersistentSortedMap<MemoryLocation, LocationSet> pointsToMap;
 
   /**
    * Creates a new pointer state with an empty initial points-to map.
     */
   private PointerState() {
-    pointsToMap = PathCopyingPersistentTreeMap.<MemoryLocation, LocationSet>of();
+    pointsToMap = PathCopyingPersistentTreeMap.of();
   }
 
   /**
@@ -247,4 +249,39 @@ public class PointerState implements AbstractState {
     return pointsToMap.toString();
   }
 
+  public static PointerState copyOf(PointerState pState) {
+    return new PointerState(PathCopyingPersistentTreeMap.copyOf(pState.pointsToMap));
+  }
+
+  @Override
+  public PointerInformation forget(MemoryLocation pPtr) {
+    Map<MemoryLocation, LocationSet> map = new HashMap<>();
+    map.put(pPtr, pointsToMap.get(pPtr));
+    PersistentSortedMap<MemoryLocation, LocationSet> toForget = PathCopyingPersistentTreeMap.copyOf(map);
+    PointerInformation forgotten = new PointerInformation(toForget);
+    pointsToMap = pointsToMap.removeAndCopy(pPtr);
+    return forgotten;
+  }
+
+  @Override
+  public void remember(MemoryLocation location, PointerInformation forgottenInformation) {
+    Map<MemoryLocation, LocationSet> map = forgottenInformation.getForgottenInfo();
+    LocationSet previousPointsToSet = getPointsToSet(location);
+    LocationSet newPointsToSet = previousPointsToSet.addElements(map.get(location));
+    pointsToMap = pointsToMap.putAndCopy(location, newPointsToSet);
+  }
+
+  @Override
+  public Set<MemoryLocation> getTrackedMemoryLocations() {
+    return pointsToMap.keySet();
+  }
+
+  public static boolean isFictionalPointer(MemoryLocation ptr) {
+    return ptr.getIdentifier().contains("##");
+  }
+
+  @Override
+  public int getSize() {
+    return pointsToMap.size();
+  }
 }

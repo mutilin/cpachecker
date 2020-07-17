@@ -99,7 +99,6 @@ public class BAMSubgraphIterator implements PathIterator {
         // processed.forEach(s -> toCallerStatesIterator.remove(s));
         // processed.clear();
         // }
-
       }
 
       if (nextParent == null) {
