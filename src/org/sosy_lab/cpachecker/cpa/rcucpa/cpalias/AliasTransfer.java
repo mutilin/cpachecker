@@ -28,11 +28,11 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
-import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
@@ -250,7 +250,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       logger.log(Level.ALL, "ALIAS: OK declaration");
       //ic.clear(functionName);
       CVariableDeclaration var = (CVariableDeclaration) pCdecl;
-      AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, functionName, 0);
+      AbstractIdentifier ail = ic.createIdentifier(var, 0);
       if (ail.isPointer()) {
         logger.log(Level.ALL, "ALIAS: Pointer declaration");
         CInitializer init = var.getInitializer();

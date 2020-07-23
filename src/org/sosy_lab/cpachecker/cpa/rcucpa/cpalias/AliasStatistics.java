@@ -23,11 +23,9 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
-import com.google.common.collect.FluentIterable;
-import java.io.IOException;
+import static com.google.common.collect.FluentIterable.from;
+
 import java.io.PrintStream;
-import java.io.Writer;
-import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
@@ -38,12 +36,10 @@ import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.FileOption.Type;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
-import org.sosy_lab.common.io.MoreFiles;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
-import static com.google.common.collect.FluentIterable.from;
 
 @Options(prefix = "cpa.rcucpa")
 public class AliasStatistics implements Statistics {
@@ -63,18 +59,10 @@ public class AliasStatistics implements Statistics {
       rcuPointers.addAll(p.getRcuPtrs());
     }
 
-    exportAsPrecision(rcuPointers);
+    // TODO Where is write here?
+    // exportAsPrecision(rcuPointers);
     out.append("RCU Pointers found: " + rcuPointers.size());
     out.append("RCU pointers saved to: " + path.toString());
-  }
-
-  private void exportAsPrecision(Set<AbstractIdentifier> rcuPointers) {
-    try {
-      Writer w = MoreFiles.openOutputFile(path, Charset.defaultCharset());
-
-    } catch (IOException e) {
-
-    }
   }
 
   @Nullable

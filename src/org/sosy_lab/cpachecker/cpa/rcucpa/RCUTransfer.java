@@ -35,7 +35,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.Stack;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.FileOption;
@@ -61,7 +60,6 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
-import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -339,7 +337,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
     if (pDeclaration != null && pDeclaration instanceof CVariableDeclaration) {
       CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
-      AbstractIdentifier ail = IdentifierCreator.createIdentifier(var, pFunctionName, 0);
+      AbstractIdentifier ail = localIc.createIdentifier(var, 0);
 
       if (ail != null && ail.isPointer()) {
         if (rcuPointers.contains(LocationIdentifierConverter.toLocation(ail))) {

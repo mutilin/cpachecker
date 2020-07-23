@@ -122,13 +122,14 @@ public class BlockPartitioningBuilder {
       Set<CFANode> directNodes = blockNodesMap.get(callNode);
       blockNodes.add(directNodes);
       variables.add(referencedVariablesMap.get(callNode));
-      blockLocks.add(locks.get(callNode));
-      blockMemory.add(knownMemoryLocations.get(callNode));
+      // TODO How it is possible to miss a key?
+      blockLocks.add(locks.getOrDefault(callNode, ImmutableSet.of()));
+      blockMemory.add(knownMemoryLocations.getOrDefault(callNode, ImmutableSet.of()));
       for (FunctionEntryNode calledFunction : blockFunctionCalls.get(callNode)) {
         blockNodes.add(functions.get(calledFunction));
         variables.add(referencedVariables.get(calledFunction));
-        blockLocks.add(locks.get(calledFunction));
-        blockMemory.add(knownMemoryLocations.get(calledFunction));
+        blockLocks.add(locks.getOrDefault(calledFunction, ImmutableSet.of()));
+        blockMemory.add(knownMemoryLocations.getOrDefault(calledFunction, ImmutableSet.of()));
       }
 
       blocks.add(
@@ -226,6 +227,9 @@ public class BlockPartitioningBuilder {
   }
 
   private Set<MemoryLocation> collectMemoryLocations(Set<CFANode> pNodes) {
+    if (pTransfer == null) {
+      return ImmutableSet.of();
+    }
     Set<MemoryLocation> result = new HashSet<>();
     PointerState fstate = PointerState.INITIAL_STATE;
     for (CFANode node : pNodes) {

@@ -434,12 +434,23 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private PointerState handleAssignment(
-      PointerState pState, CExpression pLeftHandSide, CRightHandSide pRightHandSide)
+      PointerState pState,
+      CExpression pLeftHandSide,
+      CRightHandSide pRightHandSide)
+      throws UnrecognizedCodeException {
+    return handleAssignment(pState, pLeftHandSide, asLocations(pRightHandSide, pState, 1));
+  }
+
+  private PointerState handleAssignment(
+      PointerState pState,
+      CExpression pLeftHandSide,
+      LocationSet pRightHandSide)
       throws UnrecognizedCodeException {
     // TODO 0 or 1?
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
-    if (useFakeLocs && asLocations(pRightHandSide, pState, 1).isBot() && locations instanceof
-        ExplicitLocationSet && !pState.getKnownLocations().contains(locations)) {
+    // TODO Warning: contains is wrong
+    if (useFakeLocs && pRightHandSide.isBot() && locations instanceof
+    ExplicitLocationSet && !pState.getKnownLocations().contains(locations)) {
       MemoryLocation loc = ((ExplicitLocationSet) locations).iterator().next();
       CVariableDeclaration decl =
           new CVariableDeclaration(FileLocation.DUMMY, true, CStorageClass.AUTO,
@@ -447,14 +458,14 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               loc.getIdentifier(), loc.getIdentifier(), null);
       pState = handleDeclaration(pState, decl);
     }
-    return handleAssignment(pState, pLeftHandSide, pRightHandSide);
+    return handleAssignment(pState, locations, pRightHandSide);
   }
 
   private PointerState handleAssignment(
-      PointerState pState, CExpression pLeftHandSide, LocationSet pRightHandSide)
-      throws UnrecognizedCodeException {
+      PointerState pState,
+      LocationSet locationSet,
+      LocationSet pRightHandSide) {
 
-    LocationSet locationSet = asLocations(pLeftHandSide, pState);
     final Iterable<MemoryLocation> locations;
     if (locationSet.isTop()) {
       locations = pState.getKnownLocations();

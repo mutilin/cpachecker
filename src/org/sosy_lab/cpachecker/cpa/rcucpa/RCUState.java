@@ -23,10 +23,10 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
-import com.google.common.base.Preconditions;
-import com.google.common.collect.FluentIterable;
 import static com.google.common.collect.FluentIterable.from;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
@@ -34,14 +34,14 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.HashMap;
 import java.util.Map.Entry;
 import java.util.Set;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
-import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
+import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
@@ -49,8 +49,8 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
-public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState, CompatibleNode,
-                                 LocalInfoProvider, AliasInfoProvider {
+public class RCUState implements LatticeAbstractState<RCUState>,
+    CompatibleNode, LocalInfoProvider, AliasInfoProvider {
   private final Multimap<AbstractIdentifier, AbstractIdentifier> rcuRelations;
   private final Set<AbstractIdentifier> outdatedRCU;
   private final Set<AbstractIdentifier> localAgain;
@@ -167,11 +167,6 @@ public class RCUState implements LatticeAbstractState<RCUState>, CompatibleState
 
   @Override
   public CompatibleState prepareToStore() {
-    return this;
-  }
-
-  @Override
-  public CompatibleNode getTreeNode() {
     return this;
   }
 
