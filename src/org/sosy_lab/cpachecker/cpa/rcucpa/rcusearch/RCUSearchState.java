@@ -24,28 +24,29 @@
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
 import com.google.common.collect.ImmutableSet;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractWrapperState;
+import java.util.TreeSet;
+import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperState;
+import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.cpa.pointer2.PointerDomain;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
+import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-public class RCUSearchState implements AbstractWrapperState {
+public class RCUSearchState extends AbstractSingleWrapperState
+    implements LatticeAbstractState<RCUSearchState> {
+  private static final long serialVersionUID = 1L;
   private final Set<MemoryLocation> rcuPointers;
-  private final PointerState pointerState;
 
   public RCUSearchState(Set<MemoryLocation> pointers, PointerState pPointerState) {
+    super(pPointerState);
     rcuPointers = ImmutableSet.copyOf(pointers);
-    pointerState = pPointerState;
   }
 
   public RCUSearchState() {
-    rcuPointers = ImmutableSet.of();
-    pointerState = PointerState.INITIAL_STATE;
+    this(ImmutableSet.of(), PointerState.INITIAL_STATE);
   }
 
   public Set<MemoryLocation> getRcuPointers() {
@@ -66,7 +67,7 @@ public class RCUSearchState implements AbstractWrapperState {
     if (!rcuPointers.equals(that.rcuPointers)) {
       return false;
     }
-    if (!pointerState.equals(that.pointerState)) {
+    if (!super.equals(that.getWrappedState())) {
       return false;
     }
 
@@ -76,27 +77,60 @@ public class RCUSearchState implements AbstractWrapperState {
   @Override
   public int hashCode() {
     int result = rcuPointers.hashCode();
-    result = 31 * result + pointerState.hashCode();
+    result = 31 * result + super.hashCode();
     return result;
   }
 
   @Override
   public String toString() {
     return rcuPointers.toString() + (rcuPointers.isEmpty() ? " EMPTY" : " NOT EMPTY") + " # " +
-        pointerState.getPointsToMap();
-  }
-
-  @Override
-  public Iterable<AbstractState> getWrappedStates() {
-    return Collections.singleton(pointerState);
+        ((PointerState) getWrappedState()).getPointsToMap();
   }
 
   public static RCUSearchState copyOf(RCUSearchState pState) {
-    return new RCUSearchState(ImmutableSet.copyOf(pState.rcuPointers),
-                              PointerState.copyOf(pState.pointerState));
+    return new RCUSearchState(
+        pState.rcuPointers,
+        (PointerState) pState.getWrappedState());
   }
 
   public Map<MemoryLocation, Set<MemoryLocation>> getPointsTo() {
-    return PointerStatistics.replaceTopsAndBots(pointerState.getPointsToMap());
+    return PointerStatistics
+        .replaceTopsAndBots(((PointerState) getWrappedState()).getPointsToMap());
+  }
+
+  @Override
+  public RCUSearchState join(RCUSearchState pOther) throws CPAException, InterruptedException {
+    Set<MemoryLocation> pointers = new TreeSet<>(rcuPointers);
+    pointers.addAll(pOther.getRcuPointers());
+
+    PointerState pointerState1 = (PointerState) getWrappedState();
+    PointerState pointerState2 = (PointerState) pOther.getWrappedState();
+
+    PointerDomain pDomain = PointerDomain.INSTANCE;
+    PointerState result = (PointerState) pDomain.join(pointerState1, pointerState2);
+
+    if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
+      return this;
+    } else if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
+      return pOther;
+    } else {
+      return new RCUSearchState(pointers, result);
+    }
+  }
+
+  @Override
+  public boolean isLessOrEqual(RCUSearchState pOther) throws CPAException, InterruptedException {
+    if (this == pOther) {
+      return true;
+    }
+
+    PointerState pState1 = (PointerState) getWrappedState();
+    PointerState pState2 = (PointerState) pOther.getWrappedState();
+
+    return pOther
+        .getRcuPointers()
+        .containsAll(
+            this.getRcuPointers())
+        && PointerDomain.INSTANCE.isLessOrEqual(pState2, pState1);
   }
 }

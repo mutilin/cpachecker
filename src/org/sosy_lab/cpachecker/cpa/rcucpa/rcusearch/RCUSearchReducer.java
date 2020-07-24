@@ -23,9 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
-import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
@@ -48,23 +47,23 @@ public class RCUSearchReducer implements Reducer {
   public AbstractState getVariableReducedState(
       AbstractState expandedState, Block context, CFANode callNode) throws InterruptedException {
     PointerState wrappedState = (PointerState) ((RCUSearchState) expandedState)
-        .getWrappedStates().iterator().next();
+        .getWrappedState();
     PointerState pointerState = (PointerState) pointerReducer.getVariableReducedState(wrappedState,
                                                                                   context, callNode);
-    return new RCUSearchState(new HashSet<>(), pointerState);
+    return new RCUSearchState(new TreeSet<>(), pointerState);
   }
 
   @Override
   public AbstractState getVariableExpandedState(
       AbstractState rootState, Block reducedContext, AbstractState reducedState)
       throws InterruptedException {
-    Set<MemoryLocation> expandedSet = new HashSet<>(((RCUSearchState) rootState).getRcuPointers());
+    Set<MemoryLocation> expandedSet = new TreeSet<>(((RCUSearchState) rootState).getRcuPointers());
     expandedSet.addAll(((RCUSearchState) reducedState).getRcuPointers());
 
     PointerState rootPointerState = (PointerState) ((RCUSearchState) rootState)
-        .getWrappedStates().iterator().next();
+        .getWrappedState();
     PointerState reducedPointerState = (PointerState) ((RCUSearchState) reducedState)
-        .getWrappedStates().iterator().next();
+        .getWrappedState();
     PointerState expandedPointerState = (PointerState) pointerReducer.getVariableExpandedState
         (rootPointerState, reducedContext, reducedPointerState);
 

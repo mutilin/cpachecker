@@ -24,7 +24,6 @@
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
-import org.sosy_lab.cpachecker.exceptions.CPAException;
 
 public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   @Override
@@ -57,7 +56,7 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   }
 
   @Override
-  public boolean isLessOrEqual(LockStateRCU other) throws CPAException, InterruptedException {
+  public boolean isLessOrEqual(LockStateRCU other) {
     return readLockCount <= other.readLockCount;
   }
 

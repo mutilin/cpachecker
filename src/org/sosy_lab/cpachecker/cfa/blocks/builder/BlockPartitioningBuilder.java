@@ -241,9 +241,9 @@ public class BlockPartitioningBuilder {
             result.addAll(((PointerState) state).getKnownLocations());
           }
         } catch (CPATransferException pE) {
-          pE.printStackTrace();
+          continue;
         } catch (InterruptedException pE) {
-          pE.printStackTrace();
+          continue;
         }
       }
     }

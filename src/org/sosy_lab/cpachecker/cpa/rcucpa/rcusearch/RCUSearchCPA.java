@@ -34,6 +34,7 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
 import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
+import org.sosy_lab.cpachecker.core.defaults.DelegateAbstractDomain;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
@@ -52,7 +53,6 @@ import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnalysisWithBAM,
                                                          StatisticsProvider, WrapperCPA {
 
-  private final LogManager logger;
   private final RCUSearchStatistics statistics;
   private final PointerCPA pointerCPA;
   private final RCUSearchReducer reducer;
@@ -62,16 +62,20 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   private boolean useFakeLocs = true;
 
   RCUSearchCPA (Configuration config, LogManager pLogger) throws InvalidConfigurationException {
-    super("JOIN", "SEP", new RCUSearchDomain(), new RCUSearchTransfer(config, pLogger));
-    logger = pLogger;
-    statistics = new RCUSearchStatistics(config, logger);
-
-    PointerOptions options = new PointerOptions();
+    super(
+        "JOIN",
+        "SEP",
+        DelegateAbstractDomain.<RCUSearchState>getInstance(),
+        new RCUSearchTransfer(config, pLogger));
     config.inject(this);
-    pointerCPA = new PointerCPA(options);
+    statistics = new RCUSearchStatistics(config, pLogger);
+
+    pointerCPA = new PointerCPA(new PointerOptions());
     RCUSearchTransfer transfer = (RCUSearchTransfer) this.getTransferRelation();
-    transfer.setPointerTransfer(pointerCPA.getTransferRelation());
-    ((PointerTransferRelation) transfer.getPointerTransfer()).setUseFakeLocs(useFakeLocs);
+    PointerTransferRelation pointerTransfer =
+        (PointerTransferRelation) pointerCPA.getTransferRelation();
+    transfer.setPointerTransfer(pointerTransfer);
+    pointerTransfer.setUseFakeLocs(useFakeLocs);
     reducer = new RCUSearchReducer((PointerReducer) pointerCPA.getReducer());
   }
 

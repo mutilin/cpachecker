@@ -74,44 +74,61 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 @Options(prefix = "cpa.rcucpa")
 public class RCUTransfer extends SingleEdgeTransferRelation{
 
-  @Option(name = "readLock", secure = true, description = "Name of a function responsible for "
-      + "acquiring the RCU read lock")
+  @Option(
+    name = "readLock",
+    secure = true,
+    description = "Name of a function responsible for " + "acquiring the RCU read lock")
   private String readLockName = "ldv_rcu_read_lock";
 
-  @Option(name = "readUnlock", secure = true, description = "Name of a function responsible for "
-      + "releasing the RCU read lock")
+  @Option(
+    name = "readUnlock",
+    secure = true,
+    description = "Name of a function responsible for " + "releasing the RCU read lock")
   private String readUnlockName = "ldv_rcu_read_unlock";
 
-  @Option(name = "sync", secure = true, description = "Name of a function responsible for "
-      + "the handling of a grace period")
+  @Option(
+    name = "sync",
+    secure = true,
+    description = "Name of a function responsible for " + "the handling of a grace period")
   private String sync = "ldv_synchronize_rcu";
 
-  @Option(name = "assign", secure = true, description = "Name of a function responsible for "
-      + "assignment to RCU pointers")
+  @Option(
+    name = "assign",
+    secure = true,
+    description = "Name of a function responsible for " + "assignment to RCU pointers")
   private String assign = "ldv_rcu_assign_pointer";
 
-  @Option(name = "deref", secure = true, description = "Name of a function responsible for "
-      + "dereferences of RCU pointers")
+  @Option(
+    name = "deref",
+    secure = true,
+    description = "Name of a function responsible for " + "dereferences of RCU pointers")
   private String deref = "ldv_rcu_dereference";
 
-  @Option(name = "fictReadLock", secure = true, description = "Name of a function marking a call "
-      + "to a fictional read lock of RCU pointer")
+  @Option(
+    name = "fictReadLock",
+    secure = true,
+    description = "Name of a function marking a call " + "to a fictional read lock of RCU pointer")
   private String fictReadLock = "ldv_rlock_rcu";
 
-  @Option(name = "fictReadUnlock", secure = true, description = "Name of a function marking a call "
-      + "to a fictional read unlock of RCU pointer")
+  @Option(
+    name = "fictReadUnlock",
+    secure = true,
+    description = "Name of a function marking a call "
+        + "to a fictional read unlock of RCU pointer")
   private String fictReadUnlock = "ldv_runlock_rcu";
 
-  @Option(name = "fictWriteLock", secure = true, description = "Name of a function marking a call "
-      + "to a fictional write lock of RCU pointer")
+  @Option(
+    name = "fictWriteLock",
+    secure = true,
+    description = "Name of a function marking a call " + "to a fictional write lock of RCU pointer")
   private String fictWriteLock = "ldv_wlock_rcu";
 
-  @Option(name = "fictWriteUnlock", secure = true, description = "Name of a function marking a "
-      + "call to a fictional write unlock of RCU pointer")
+  @Option(
+    name = "fictWriteUnlock",
+    secure = true,
+    description = "Name of a function marking a "
+        + "call to a fictional write unlock of RCU pointer")
   private String fictWriteUnlock = "ldv_wunlock_rcu";
-
-  @Option(name = "free", secure = true, description = "Name of a free function")
-  private String free = "ldv_free";
 
   @Option(name = "rcuPointersFile", secure = true, description = "Name of a file containing RCU "
       + "pointers")
@@ -188,29 +205,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     logger.log(Level.ALL, "RESULT: " + result);
     return Collections.singleton(result);
   }
-/*
-  private RCUState handleFunctionReturn(String pFunctionName, RCUState pState) {
-    boolean rcuRelevant = pFunctionName.contains(readLockName);
-    rcuRelevant |= pFunctionName.contains(readUnlockName);
-    rcuRelevant |= pFunctionName.equals(fictReadLock);
-    rcuRelevant |= pFunctionName.equals(fictReadUnlock);
-    rcuRelevant |= pFunctionName.equals(fictWriteLock);
-    rcuRelevant |= pFunctionName.equals(fictWriteUnlock);
-    rcuRelevant |= pFunctionName.equals(sync);
-    rcuRelevant |= pFunctionName.equals(assign);
-    rcuRelevant |= pFunctionName.equals(deref);
-    rcuRelevant |= pFunctionName.equals(free);
 
-    if (!rcuRelevant) {
-      logger.log(Level.ALL, "POPPING STATE. FUNC: " + pFunctionName);
-      RCUState result = stateStack.pop();
-      logger.log(Level.ALL, "State: " + result);
-      return result;
-    } else {
-      return pState;
-    }
-  }
-*/
   private RCUState handleAssignment(CExpression left, CExpression right,
                                     String functionName,
                                     RCUState state,
@@ -295,12 +290,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
         result = handleAssignment(rcuPtr, ptr, pFunctionName, state, true, true);
 
-      }/* else if ( ! fName.equals(free) && ! fName.equals(deref)){
-        logger.log(Level.ALL, "1 PUSHING STATE. FUNC: " + fName);
-        RCUState toPush = RCUState.copyOf(state);
-        logger.log(Level.ALL, "State: " + toPush);
-        stateStack.push(toPush);
-      }*/
+      }
     }
     return result;
   }

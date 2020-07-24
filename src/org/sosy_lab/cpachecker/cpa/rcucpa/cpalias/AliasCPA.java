@@ -26,10 +26,9 @@ package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.cpachecker.cfa.CFA;
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
 import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
@@ -51,16 +50,12 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
     return AutomaticCPAFactory.forType(AliasCPA.class);
   }
 
-  private final CFA cfa;
-  private final LogManager log;
   private final AliasStatistics stats;
 
-  protected AliasCPA(Configuration config, LogManager log, CFA cfa)
+  protected AliasCPA(Configuration config, LogManager log)
       throws InvalidConfigurationException {
     super("JOIN", "SEP", DelegateAbstractDomain.<AliasState>getInstance(),
           new AliasTransfer(config, log));
-    this.log = log;
-    this.cfa = cfa;
     this.stats = new AliasStatistics();
   }
 

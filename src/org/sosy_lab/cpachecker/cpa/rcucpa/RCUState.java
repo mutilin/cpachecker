@@ -44,7 +44,6 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
-import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
@@ -94,7 +93,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   }
 
   @Override
-  public boolean isLessOrEqual(RCUState other) throws CPAException, InterruptedException {
+  public boolean isLessOrEqual(RCUState other) {
     if (!lockState.isLessOrEqual(other.lockState)) {
       return false;
     }
@@ -155,13 +154,6 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   @Override
   public boolean isCompatibleWith(CompatibleState state) {
     Preconditions.checkArgument(state instanceof RCUState);
-    /* System.out.println("TOP_COMP");
-    System.out.println("This state:");
-    System.out.println(this);
-    System.out.println();
-    System.out.println("Other state:");
-    System.out.println((RCUState) state);
-    System.out.println(); */
     return lockState.isCompatible(((RCUState) state).lockState);
   }
 
@@ -173,18 +165,11 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   @Override
   public int compareTo(CompatibleState o) {
     // TODO: implement this
-    try {
-      if (this.isLessOrEqual((RCUState) o)) {
-        return 0;
-      } else {
-        return 1;
-      }
-    } catch (CPAException pE) {
-      pE.printStackTrace();
-    } catch (InterruptedException pE) {
-      pE.printStackTrace();
+    if (this.isLessOrEqual((RCUState) o)) {
+      return 0;
+    } else {
+      return 1;
     }
-    return -1;
   }
 
   @Override
@@ -234,7 +219,8 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
     RCUState rcuState = (RCUState) pO;
 
-    if (!rcuRelations.equals(rcuState.rcuRelations)) {
+    // Problems with equals of Multimap
+    if (!rcuRelations.asMap().equals(rcuState.rcuRelations.asMap())) {
       return false;
     }
     if (!outdatedRCU.equals(rcuState.outdatedRCU)) {

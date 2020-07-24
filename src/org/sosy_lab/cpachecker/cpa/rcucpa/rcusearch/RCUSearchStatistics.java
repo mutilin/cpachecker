@@ -23,10 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import java.io.IOException;
@@ -37,11 +35,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
@@ -55,7 +52,6 @@ import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
-import org.sosy_lab.cpachecker.cpa.location.LocationState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -63,11 +59,6 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcusearch")
 public class RCUSearchStatistics implements Statistics {
-
-  @Option(secure = true, name = "input", description = "name of a file that holds the Points-To "
-      + "information")
-  @FileOption(Type.OPTIONAL_INPUT_FILE)
-  private Path input = Paths.get("PointsToMap");
 
   @Option(secure = true, name = "output", description = "name of a file to hold information about"
       + " RCU pointers and their aliases")
@@ -87,15 +78,17 @@ public class RCUSearchStatistics implements Statistics {
   public void printStatistics(
       PrintStream out, Result result, UnmodifiableReachedSet reached) {
 
-    Set<MemoryLocation> allRcuPointers = new HashSet<>();
-    Map<MemoryLocation, Set<MemoryLocation>> allPointsTo = new HashMap<>();
+    Set<MemoryLocation> allRcuPointers = new TreeSet<>();
+    Map<MemoryLocation, Set<MemoryLocation>> allPointsTo = new TreeMap<>();
+
+    // TODO: BAM specifics?
     for (AbstractState state : reached) {
       RCUSearchState searchState = AbstractStates.extractStateByType(state, RCUSearchState.class);
       if (searchState != null) {
         allRcuPointers.addAll(searchState.getRcuPointers());
         Map<MemoryLocation, Set<MemoryLocation>> bufPT = searchState.getPointsTo();
         for (MemoryLocation key : bufPT.keySet()) {
-          allPointsTo.putIfAbsent(key, new HashSet<>());
+          allPointsTo.putIfAbsent(key, new TreeSet<>());
           allPointsTo.get(key).addAll(bufPT.get(key));
         }
       }
@@ -105,7 +98,7 @@ public class RCUSearchStatistics implements Statistics {
 
     logger.log(Level.ALL, "RCU pointers in the last state: " + allRcuPointers);
 
-    Set<MemoryLocation> rcuAndAliases = new HashSet<>(allRcuPointers);
+    Set<MemoryLocation> rcuAndAliases = new TreeSet<>(allRcuPointers);
 
     for (MemoryLocation pointer : allRcuPointers) {
       if (!aliases.containsKey(pointer)) {
@@ -156,7 +149,7 @@ public class RCUSearchStatistics implements Statistics {
         Set<MemoryLocation> commonElems;
         for (MemoryLocation other : pointsTo.keySet()) {
           if (!other.equals(pointer)) {
-            commonElems = new HashSet<>(pointsTo.get(other));
+            commonElems = new TreeSet<>(pointsTo.get(other));
             commonElems.retainAll(pointerPointTo);
             if (!commonElems.isEmpty()) {
               aliases.put(pointer, other);
@@ -178,59 +171,4 @@ public class RCUSearchStatistics implements Statistics {
     }
     return result;
   }
-  /*
-  private Map<MemoryLocation, Set<MemoryLocation>> parseFile(Path input, LogManager logger) {
-    Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
-
-    JsonIterator.setMode(DecodingMode.REFLECTION_MODE);
-
-    try {
-      byte[] encoded = Files.readAllBytes(input);
-      String str = new String(encoded, Charset.defaultCharset());
-
-      JsonIterator iter = JsonIterator.parse(str);
-      Map<String, Any> contents = iter.readAny().asMap();
-
-      for (String key : contents.keySet()) {
-        List<Any> idList = contents.get(key).asList();
-        MemoryLocation loc;
-        String fname = null, id = null;
-        Long offset = null;
-        Set<MemoryLocation> set = new HashSet<>();
-
-        for (Any elem : idList) {
-          Map<String, Any> mapElem = elem.asMap();
-          if (mapElem.containsKey("functionname")) {
-            fname = mapElem.get("functionname").toString();
-          }
-          if (mapElem.containsKey("identifier")) {
-            id = mapElem.get("identifier").toString();
-          }
-          if (mapElem.containsKey("offset")) {
-            offset = mapElem.get("offset").toLong();
-          }
-
-          if (fname != null && offset != null) {
-            loc = MemoryLocation.valueOf(fname, id, offset);
-          } else if (offset != null) {
-            loc = MemoryLocation.valueOf(id, offset);
-          } else if (fname != null){
-            loc = MemoryLocation.valueOf(fname, id);
-          } else {
-            loc = MemoryLocation.valueOf(id);
-          }
-
-          set.add(loc);
-        }
-
-        MemoryLocation locKey = MemoryLocation.valueOf(key);
-        result.put(locKey, set);
-      }
-
-    } catch (IOException pE) {
-      logger.log(Level.WARNING, pE.getMessage());
-    }
-    return result;
-  }
-  */
 }

@@ -90,7 +90,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       case DeclarationEdge:
         logger.log(Level.ALL, "ALIAS: Declaration");
         CDeclaration cdecl = ((CDeclarationEdge) cfaEdge).getDeclaration();
-        handleDeclaration(result, cdecl, ic, cfaEdge.getPredecessor().getFunctionName());
+        handleDeclaration(result, cdecl, ic);
         break;
       case StatementEdge:
         logger.log(Level.ALL, "ALIAS: Statement");
@@ -224,7 +224,8 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
     for (int i = 0; i < formParams.size(); ++i) {
       //ic.clearDereference();
-      form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic, fd.getName());
+      ic.setCurrentFunction(fd.getName());
+      form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic);
       if (form != null && form.isPointer()) {
         logger.log(Level.ALL, "ALIAS: Pointer in formal parameters");
         //ic.clearDereference();
@@ -245,7 +246,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
   }
 
   private AbstractIdentifier handleDeclaration(AliasState pResult, CDeclaration pCdecl,
-                                               IdentifierCreator ic, String functionName) {
+      IdentifierCreator ic) {
     if (pCdecl != null && pCdecl instanceof CVariableDeclaration) {
       logger.log(Level.ALL, "ALIAS: OK declaration");
       //ic.clear(functionName);
