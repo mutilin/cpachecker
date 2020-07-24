@@ -24,8 +24,8 @@
 package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -36,12 +36,10 @@ import org.sosy_lab.cpachecker.core.defaults.DelegateAbstractDomain;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
-import org.sosy_lab.cpachecker.core.interfaces.MergeOperator;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
-import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 
 public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis,
                                                      StatisticsProvider {
@@ -60,25 +58,15 @@ public class AliasCPA extends AbstractCPA implements ConfigurableProgramAnalysis
   }
 
   @Override
-  public MergeOperator getMergeOperator() {
-    return buildMergeOperator("JOIN");
-  }
-
-  @Override
-  public StopOperator getStopOperator() {
-    return buildStopOperator("SEP");
-  }
-
-  @Override
   public AbstractState getInitialState(
       CFANode node, StateSpacePartition partition) throws InterruptedException {
-    return new AliasState(new HashMap<>(), new HashMap<>(), new HashSet<>());
+    return new AliasState(new TreeMap<>(), new TreeMap<>(), new TreeSet<>());
   }
 
   @Override
   public Precision getInitialPrecision(CFANode node, StateSpacePartition partition)
       throws InterruptedException {
-    return new AliasPrecision(new HashSet<>());
+    return new AliasPrecision();
   }
 
   @Override

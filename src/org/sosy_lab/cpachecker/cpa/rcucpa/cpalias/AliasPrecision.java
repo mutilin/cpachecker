@@ -23,24 +23,21 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.cpalias;
 
-import com.google.common.base.Preconditions;
 import java.util.Set;
+import java.util.TreeSet;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
-class AliasPrecision implements Precision {
-  private final Set<AbstractIdentifier> rcuPtrs;
+class AliasPrecision extends TreeSet<AbstractIdentifier> implements Precision {
 
-  AliasPrecision(Set<AbstractIdentifier> pRcu) {
-    rcuPtrs = pRcu;
+  public AliasPrecision(Set<AbstractIdentifier> pRcu) {
+    super(pRcu);
   }
 
-  Set<AbstractIdentifier> getRcuPtrs() {
-    return rcuPtrs;
+  public AliasPrecision() {
+    super();
   }
 
-  void addRcuPtrs(Precision precision) {
-    Preconditions.checkArgument(precision instanceof AliasPrecision);
-    rcuPtrs.addAll(((AliasPrecision) precision).getRcuPtrs());
-  }
+  private static final long serialVersionUID = 1L;
+
 }

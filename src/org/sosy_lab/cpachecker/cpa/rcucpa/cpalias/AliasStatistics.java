@@ -28,9 +28,9 @@ import static com.google.common.collect.FluentIterable.from;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.FileOption.Type;
@@ -53,10 +53,10 @@ public class AliasStatistics implements Statistics {
   public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
     List<AliasPrecision> precisions = from(reached.getPrecisions()).filter(AliasPrecision.class)
         .toList();
-    Set<AbstractIdentifier> rcuPointers = new HashSet<>();
+    Set<AbstractIdentifier> rcuPointers = new TreeSet<>();
 
     for (AliasPrecision p : precisions) {
-      rcuPointers.addAll(p.getRcuPtrs());
+      rcuPointers.addAll(p);
     }
 
     // TODO Where is write here?

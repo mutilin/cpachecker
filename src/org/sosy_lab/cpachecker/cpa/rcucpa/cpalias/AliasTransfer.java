@@ -85,6 +85,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
     IdentifierCreator ic = new IdentifierCreator(cfaEdge.getPredecessor().getFunctionName());
     AliasState result = (AliasState) state;
+    // TODO: Clone state and precision?
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
@@ -104,14 +105,8 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         handleFunctionCall(result, fce, ic, cfaEdge.getPredecessor().getFunctionName(), precision);
         break;
       case CallToReturnEdge:
-        logger.log(Level.ALL, "ALIAS: CallToRet");
-        break;
       case FunctionReturnEdge:
-        logger.log(Level.ALL, "ALIAS: FuncRet");
-        break;
       case ReturnStatementEdge:
-        logger.log(Level.ALL, "ALIAS: RetSt");
-        break;
       case AssumeEdge:
       case BlankEdge:
         break;
@@ -159,8 +154,8 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       // p = rcu_dereference(gp);
       CFunctionDeclaration fd = fca.getRightHandSide().getDeclaration();
       if (fd != null && fd.getName().contains(deref)) {
-        addToRCU(pResult, ail);
-        ((AliasPrecision) precision).addRcuPtrs(pResult.getPrecision());
+        pResult.addToRCU(ail, logger);
+        ((AliasPrecision) precision).addAll(pResult.getPrecision());
       }
     }
   }
@@ -179,7 +174,7 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         pResult.clearPointsTo(ail);
       }
       addToAlias(pResult, ail, air);
-      addPointsTo(pResult, ail, air);
+      pResult.addPointsTo(ail, air, logger);
     }
   }
 
@@ -192,16 +187,6 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
     }
   }
 
-  private void addPointsTo(AliasState pResult, AbstractIdentifier pAil, AbstractIdentifier pAir) {
-    pResult.addPointsTo(pAil, pAir, logger);
-  }
-
-  private void addToRCU(AliasState pResult, AbstractIdentifier pId) {
-    logger.log(Level.ALL, "Contents of the state: " + pResult.getContents());
-    AliasState.addToRCU(pResult, pId, logger);
-  }
-
-
   private void handleFunctionCall(AliasState pResult, CFunctionCallExpression pRhs,
                                   IdentifierCreator ic, String functionName, Precision precision) {
     CFunctionDeclaration fd = pRhs.getDeclaration();
@@ -212,24 +197,24 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
 
     AbstractIdentifier form;
     AbstractIdentifier fact;
+    String fName;
 
     if (fd != null) {
       //ic.clear(fd.getName());
+      fName = fd.getName();
       logger.log(Level.ALL,
-          "ALIAS: Function call for function: " + functionName + " " + fd.getName());
+          "ALIAS: Function call for function: " + functionName + " " + fName);
     } else {
       logger.log(Level.ALL, "ALIAS: Function call for function without declaration: " + pRhs
           .getFunctionNameExpression().toString());
+      fName = "Function without declaration";
     }
 
+    ic.setCurrentFunction(fName);
     for (int i = 0; i < formParams.size(); ++i) {
-      //ic.clearDereference();
-      ic.setCurrentFunction(fd.getName());
       form = handleDeclaration(pResult, formParams.get(i).asVariableDeclaration(), ic);
       if (form != null && form.isPointer()) {
         logger.log(Level.ALL, "ALIAS: Pointer in formal parameters");
-        //ic.clearDereference();
-        //ic.clear(functionName);
         fact = factParams.get(i).accept(ic);
         if (flowSense) {
           pResult.clearAlias(form);
@@ -237,9 +222,9 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
         addToAlias(pResult, form, fact);
         //TODO: add pointsTO?
         // rcu_assign_pointer(gp, p); || rcu_dereference(gp);
-        if (fd.getName().contains(assign) || fd.getName().contains(deref)) {
-          addToRCU(pResult, fact);
-          ((AliasPrecision) precision).addRcuPtrs(pResult.getPrecision());
+        if (fName.contains(assign) || fName.contains(deref)) {
+          pResult.addToRCU(fact, logger);
+          ((AliasPrecision) precision).addAll(pResult.getPrecision());
         }
       }
     }
@@ -255,12 +240,11 @@ public class AliasTransfer extends SingleEdgeTransferRelation {
       if (ail.isPointer()) {
         logger.log(Level.ALL, "ALIAS: Pointer declaration");
         CInitializer init = var.getInitializer();
-        AbstractIdentifier air;
         if (init != null) {
           if (init instanceof CInitializerExpression) {
-            air = ((CInitializerExpression) init).getExpression().accept(ic);
+            AbstractIdentifier air = ((CInitializerExpression) init).getExpression().accept(ic);
             addToAlias(pResult, ail, air);
-            addPointsTo(pResult, ail, air);
+            pResult.addPointsTo(ail, air, logger);
           }
         } else {
           pResult.addAlias(ail, null, logger);
