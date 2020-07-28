@@ -26,37 +26,73 @@ package org.sosy_lab.cpachecker.cpa.rcucpa;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 
 public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
-  @Override
-  public LockStateRCU join(LockStateRCU other) {
-    int minReadLock;
-    if (this.readLockCount < other.readLockCount){
-      minReadLock = this.readLockCount;
-    } else {
-      minReadLock = other.readLockCount;
-    }
-    HeldLock lock;
-    boolean hasRead, hasWrite, noLock;
-    hasRead = this.lockType == HeldLock.READ_LOCK || other.lockType == HeldLock.READ_LOCK;
-    hasWrite = this.lockType == HeldLock.WRITE_LOCK || other.lockType == HeldLock.WRITE_LOCK;
-    noLock = this.lockType == HeldLock.NO_LOCK || other.lockType == HeldLock.NO_LOCK;
-
-    if (hasWrite && !noLock) {
-      lock = HeldLock.WRITE_LOCK;
-    } else if (hasRead && !noLock) {
-      lock = HeldLock.READ_LOCK;
-    } else {
-      lock = HeldLock.NO_LOCK;
-    }
-    return new LockStateRCU(lock, minReadLock);
+  public enum HeldLock {
+    NO_LOCK,
+    READ_LOCK,
+    WRITE_LOCK
   }
+
+  private final HeldLock lockType;
+  private final int readLockCount;
 
   private LockStateRCU(HeldLock lock, int readCount) {
     lockType = lock;
     readLockCount = readCount;
   }
 
+  LockStateRCU() {
+    this(HeldLock.NO_LOCK, 0);
+  }
+
+  LockStateRCU markRead() {
+    return new LockStateRCU(HeldLock.READ_LOCK, readLockCount);
+  }
+
+  LockStateRCU markWrite() {
+    return new LockStateRCU(HeldLock.WRITE_LOCK, readLockCount);
+  }
+
+  LockStateRCU clearLock() {
+    return new LockStateRCU(HeldLock.NO_LOCK, readLockCount);
+  }
+
+  LockStateRCU incRCURead() {
+    return new LockStateRCU(lockType, readLockCount + 1);
+  }
+
+  LockStateRCU decRCURead() {
+    return new LockStateRCU(lockType, readLockCount - 1);
+  }
+
+  @Override
+  public String toString() {
+    return "\n Lock Type: " + lockType.name() + "\n Read Lock Count: " + readLockCount;
+  }
+
+  public static LockStateRCU copyOf(LockStateRCU other) {
+    return new LockStateRCU(other.lockType, other.readLockCount);
+  }
+
+  @Override
+  public LockStateRCU join(LockStateRCU other) {
+    int minReadLock = Math.min(this.readLockCount, other.readLockCount);
+    HeldLock lock;
+
+    if (this.lockType == HeldLock.NO_LOCK || other.lockType == HeldLock.NO_LOCK) {
+      lock = HeldLock.NO_LOCK;
+    } else {
+      if (this.lockType == HeldLock.WRITE_LOCK || other.lockType == HeldLock.WRITE_LOCK) {
+        lock = HeldLock.WRITE_LOCK;
+      } else {
+        lock = HeldLock.READ_LOCK;
+      }
+    }
+    return new LockStateRCU(lock, minReadLock);
+  }
+
   @Override
   public boolean isLessOrEqual(LockStateRCU other) {
+    // TODO Locks?
     return readLockCount <= other.readLockCount;
   }
 
@@ -71,6 +107,13 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
   }
 
   @Override
+  public int hashCode() {
+    int result = lockType.hashCode();
+    result = 31 * result + readLockCount;
+    return result;
+  }
+
+  @Override
   public boolean equals(Object pO) {
     if (this == pO) {
       return true;
@@ -80,64 +123,6 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     }
 
     LockStateRCU that = (LockStateRCU) pO;
-
-    if (readLockCount != that.readLockCount) {
-      return false;
-    }
-    if (lockType != that.lockType) {
-      return false;
-    }
-
-    return true;
+    return readLockCount == that.readLockCount && lockType == that.lockType;
   }
-
-  @Override
-  public int hashCode() {
-    int result = lockType.hashCode();
-    result = 31 * result + readLockCount;
-    return result;
-  }
-
-  public enum HeldLock {
-    NO_LOCK, READ_LOCK, WRITE_LOCK
-  }
-
-  private HeldLock lockType;
-  private int readLockCount;
-
-  LockStateRCU() {
-    readLockCount = 0;
-    lockType = HeldLock.NO_LOCK;
-  }
-
-  void markRead() {
-    lockType = HeldLock.READ_LOCK;
-  }
-
-  void markWrite() {
-    lockType = HeldLock.WRITE_LOCK;
-  }
-
-  void clearLock() {
-    lockType = HeldLock.NO_LOCK;
-  }
-
-  void incRCURead() {
-    ++readLockCount;
-  }
-
-  void decRCURead() {
-    --readLockCount;
-  }
-
-  @Override
-  public String toString() {
-    return "\n Lock Type: " + lockType.name() +
-            "\n Read Lock Count: " + readLockCount;
-  }
-
-  public static LockStateRCU copyOf(LockStateRCU other) {
-    return new LockStateRCU(other.lockType, other.readLockCount);
-  }
-
 }

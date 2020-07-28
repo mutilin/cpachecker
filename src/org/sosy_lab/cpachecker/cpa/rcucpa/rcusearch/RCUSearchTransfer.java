@@ -72,6 +72,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
 
   private LogManager logger;
   private PointerTransferRelation pointerTransfer;
+  private RCUSearchStatistics stats;
 
   RCUSearchTransfer(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = pLogger;
@@ -83,6 +84,8 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
 
+    stats.transferTimer.start();
+    stats.rcuSearchTimer.start();
     RCUSearchState oldRcuSearchState = (RCUSearchState) state;
     Set<MemoryLocation> oldPointers = oldRcuSearchState.getRcuPointers();
     Set<MemoryLocation> newPointers = new TreeSet<>();
@@ -124,21 +127,25 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     // TODO: Not sure why, but we need to leave only new pointers
     newPointers.removeAll(oldPointers);
     // pointerTransfer.setUseFakeLocs(!new_res.isEmpty());
+    stats.rcuSearchTimer.stop();
 
+    stats.pointerTimer.start();
     PointerState oldPointerState =
         (PointerState) oldRcuSearchState.getWrappedState();
     Collection<? extends AbstractState> states =
         pointerTransfer.getAbstractSuccessorsForEdge(oldPointerState, precision, cfaEdge);
     assert states.size() == 1;
     PointerState pointerState = (PointerState) states.iterator().next();
+    stats.pointerTimer.stop();
 
     RCUSearchState successor;
 
     if (newPointers.equals(oldPointers) && pointerState.equals(oldPointerState)) {
       successor = oldRcuSearchState;
     } else {
-      successor = new RCUSearchState(newPointers, pointerState);
+      successor = new RCUSearchState(ImmutableSet.copyOf(newPointers), pointerState);
     }
+    stats.transferTimer.stop();
 
     return Collections.singleton(successor);
   }
@@ -156,7 +163,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
           (CFunctionCallAssignmentStatement) expr);
     } else {
       logger.log(Level.ALL, "ORDINARY CALL: " + expr);
-      return ImmutableSet.of();
+      return new TreeSet<>();
     }
   }
 
@@ -189,6 +196,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     AbstractIdentifier id = expression.accept(identifierCreator);
     MemoryLocation location = LocationIdentifierConverter.toLocation(id);
     Set<MemoryLocation> knownLocations = pointerState.getKnownLocations();
+
     if (knownLocations.contains(location)) {
       pRcuPointers.add(location);
     } else {
@@ -222,7 +230,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
       return handleFunctionCallExpression(pFunctionName, state, ((CFunctionCallStatement)
           statement).getFunctionCallExpression());
     }
-    return ImmutableSet.of();
+    return new TreeSet<>();
   }
 
   private Set<MemoryLocation> handleFunctionCallAssignmentStatement(
@@ -249,7 +257,8 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     return pRcuPointers;
   }
 
-  void setPointerTransfer(PointerTransferRelation pPointerTransfer) {
+  void initialize(PointerTransferRelation pPointerTransfer, RCUSearchStatistics pStats) {
     pointerTransfer = pPointerTransfer;
+    stats = pStats;
   }
 }

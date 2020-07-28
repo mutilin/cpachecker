@@ -38,11 +38,11 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 public class RCUSearchState extends AbstractSingleWrapperState
     implements LatticeAbstractState<RCUSearchState> {
   private static final long serialVersionUID = 1L;
-  private final Set<MemoryLocation> rcuPointers;
+  private final ImmutableSet<MemoryLocation> rcuPointers;
 
-  public RCUSearchState(Set<MemoryLocation> pointers, PointerState pPointerState) {
+  public RCUSearchState(ImmutableSet<MemoryLocation> pointers, PointerState pPointerState) {
     super(pPointerState);
-    rcuPointers = ImmutableSet.copyOf(pointers);
+    rcuPointers = pointers;
   }
 
   public RCUSearchState() {
@@ -114,7 +114,7 @@ public class RCUSearchState extends AbstractSingleWrapperState
     } else if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
       return pOther;
     } else {
-      return new RCUSearchState(pointers, result);
+      return new RCUSearchState(ImmutableSet.copyOf(pointers), result);
     }
   }
 

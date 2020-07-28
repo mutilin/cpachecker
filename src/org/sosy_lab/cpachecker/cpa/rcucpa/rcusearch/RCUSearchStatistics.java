@@ -56,6 +56,8 @@ import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
+import org.sosy_lab.cpachecker.util.statistics.StatTimer;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 @Options(prefix = "cpa.rcusearch")
 public class RCUSearchStatistics implements Statistics {
@@ -66,6 +68,9 @@ public class RCUSearchStatistics implements Statistics {
   private Path output = Paths.get("RCUPointers");
 
   private final LogManager logger;
+  final StatTimer transferTimer = new StatTimer("Overall time for transfer relation");
+  final StatTimer rcuSearchTimer = new StatTimer("Time for RCU search part");
+  final StatTimer pointerTimer = new StatTimer("Time for pointer analysis");
 
   RCUSearchStatistics(Configuration config, LogManager pLogger) throws
                                                                  InvalidConfigurationException {
@@ -109,14 +114,17 @@ public class RCUSearchStatistics implements Statistics {
         rcuAndAliases.addAll(buf);
       }
     }
-    try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
-      Gson builder = new Gson();
-      java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>(){
-      }.getType();
-      builder.toJson(rcuAndAliases, type, writer);
-      logger.log(Level.INFO, "Ended dump of RCU-aliases in file " + output);
-    } catch (IOException pE) {
-      logger.log(Level.WARNING, pE.getMessage());
+    if (output != null) {
+      // May be disabled
+      try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
+        Gson builder = new Gson();
+        java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {
+        }.getType();
+        builder.toJson(rcuAndAliases, type, writer);
+        logger.log(Level.INFO, "Ended dump of RCU-aliases in file " + output);
+      } catch (IOException pE) {
+        logger.log(Level.WARNING, pE.getMessage());
+      }
     }
     String info = "";
     info += "Number of RCU pointers:        " + allRcuPointers.size() + "\n";
@@ -124,7 +132,14 @@ public class RCUSearchStatistics implements Statistics {
     info += "Number of fictional pointers:  " + getFictionalPointersNumber(rcuAndAliases) + "\n";
     out.append(info);
     logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
-
+    StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(out);
+    writer.beginLevel()
+        .put(transferTimer)
+        .beginLevel()
+        .put(rcuSearchTimer)
+        .put(pointerTimer)
+        .endLevel()
+        .endLevel();
   }
 
   @Nullable

@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
@@ -32,9 +33,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.FileOption;
@@ -146,7 +146,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   }
 
   private Set<MemoryLocation> parseFile(Path pInput) {
-    Set<MemoryLocation> result = new HashSet<>();
+    Set<MemoryLocation> result = new TreeSet<>();
     try (Reader reader = Files.newBufferedReader(pInput, Charset.defaultCharset())) {
       Gson builder = new Gson();
       java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {}.getType();
@@ -191,9 +191,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         result = handleFunctionCallStatement(callExpression, result, cfaEdge.getPredecessor().getFunctionName());
         break;
       case FunctionReturnEdge:
-        // result = handleFunctionReturn(((CFunctionReturnEdge) cfaEdge).getPredecessor().getFunctionName(), result);
       case ReturnStatementEdge:
-        break;
       case CallToReturnEdge:
       case AssumeEdge:
       case BlankEdge:
@@ -203,13 +201,13 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     }
 
     logger.log(Level.ALL, "RESULT: " + result);
-    return Collections.singleton(result);
+    return ImmutableSet.of(result);
   }
 
   private RCUState handleAssignment(CExpression left, CExpression right,
                                     String functionName,
                                     RCUState state,
-                                    boolean twoSided, boolean invalidates) {
+      boolean rcuAssign) {
     IdentifierCreator localIc = new IdentifierCreator(functionName);
     AbstractIdentifier rcuPtr, ptr;
     RCUState result = state;
@@ -237,11 +235,11 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       result = addTmpMappingIfNecessary(rcuPtr, ptr, result);
       result = addTmpMappingIfNecessary(ptr, rcuPtr, result);
 
-      if (invalidates) {
+      if (rcuAssign) {
         result = result.addToOutdated(leftPtr);
       }
       result = result.addToRelations(leftPtr, rightPtr);
-      if (twoSided) {
+      if (rcuAssign) {
         result = result.addToRelations(rightPtr, leftPtr);
       }
       if (!leftPtr.equals(rcuPtr)) {
@@ -288,7 +286,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         CExpression rcuPtr = pCallExpression.getParameterExpressions().get(0);
         CExpression ptr = pCallExpression.getParameterExpressions().get(1);
 
-        result = handleAssignment(rcuPtr, ptr, pFunctionName, state, true, true);
+        result = handleAssignment(rcuPtr, ptr, pFunctionName, state, true);
 
       }
     }
@@ -302,7 +300,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
     if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
       return handleAssignment(assignment.getLeftHandSide(), assignment.getFunctionCallExpression()
-          .getParameterExpressions().get(0), functionName, pResult, false, false);
+          .getParameterExpressions()
+          .get(0), functionName, pResult, false);
     }
     return pResult;
   }
@@ -315,7 +314,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     if (leftHandSide instanceof CPointerExpression || leftHandSide instanceof CFieldReference ||
         rightHandSide instanceof CPointerExpression || rightHandSide instanceof CFieldReference) {
       return handleAssignment(leftHandSide, rightHandSide, functionName,
-          pResult, false, false);
+          pResult,
+          false);
     }
     return pResult;
   }
@@ -337,8 +337,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
                 ((CInitializerExpression) initializer).getExpression().accept(localIc);
             pResult = addTmpMappingIfNecessary(ail, init, pResult);
             pResult = pResult.addToRelations(ail, init);
-          } else {
-            pResult = pResult.addToRelations(ail, null);
           }
         }
       }

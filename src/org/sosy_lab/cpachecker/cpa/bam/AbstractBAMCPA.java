@@ -74,6 +74,9 @@ public abstract class AbstractBAMCPA extends AbstractSingleWrapperCPA {
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path exportBlocksPath = Paths.get("block_cfa.dot");
 
+  @Option(secure = true, description = "export reached set")
+  private boolean exportReachedSet = true;
+
   @Option(secure = true,
       description = "This flag determines which precisions should be updated during refinement. "
       + "We can choose between the minimum number of states and all states that are necessary "
@@ -193,7 +196,9 @@ public abstract class AbstractBAMCPA extends AbstractSingleWrapperCPA {
         : "exporting ARGs should only be done at this place, when using BAM.";
     pStatsCollection.add(stats);
     pStatsCollection.add(argStats);
-    pStatsCollection.add(exporter);
+    if (exportReachedSet) {
+      pStatsCollection.add(exporter);
+    }
     pStatsCollection.add(getData().getCache());
     super.collectStatistics(pStatsCollection);
   }

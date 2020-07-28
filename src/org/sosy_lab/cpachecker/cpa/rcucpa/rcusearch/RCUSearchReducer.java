@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
+import com.google.common.collect.ImmutableSet;
 import java.util.Set;
 import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
@@ -50,7 +51,7 @@ public class RCUSearchReducer implements Reducer {
         .getWrappedState();
     PointerState pointerState = (PointerState) pointerReducer.getVariableReducedState(wrappedState,
                                                                                   context, callNode);
-    return new RCUSearchState(new TreeSet<>(), pointerState);
+    return new RCUSearchState(ImmutableSet.of(), pointerState);
   }
 
   @Override
@@ -67,7 +68,7 @@ public class RCUSearchReducer implements Reducer {
     PointerState expandedPointerState = (PointerState) pointerReducer.getVariableExpandedState
         (rootPointerState, reducedContext, reducedPointerState);
 
-    return new RCUSearchState(expandedSet, expandedPointerState);
+    return new RCUSearchState(ImmutableSet.copyOf(expandedSet), expandedPointerState);
   }
 
   @Override

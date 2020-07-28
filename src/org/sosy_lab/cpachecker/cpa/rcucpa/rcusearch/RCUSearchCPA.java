@@ -74,7 +74,7 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
     RCUSearchTransfer transfer = (RCUSearchTransfer) this.getTransferRelation();
     PointerTransferRelation pointerTransfer =
         (PointerTransferRelation) pointerCPA.getTransferRelation();
-    transfer.setPointerTransfer(pointerTransfer);
+    transfer.initialize(pointerTransfer, statistics);
     pointerTransfer.setUseFakeLocs(useFakeLocs);
     reducer = new RCUSearchReducer((PointerReducer) pointerCPA.getReducer());
   }
