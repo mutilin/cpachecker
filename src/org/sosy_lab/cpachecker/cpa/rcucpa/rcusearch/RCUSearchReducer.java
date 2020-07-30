@@ -39,36 +39,67 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public class RCUSearchReducer implements Reducer {
   private final PointerReducer pointerReducer;
+  private final RCUSearchStatistics stats;
 
-  RCUSearchReducer(PointerReducer pPointerReducer) {
+  RCUSearchReducer(PointerReducer pPointerReducer, RCUSearchStatistics pStats) {
     pointerReducer = pPointerReducer;
+    stats = pStats;
   }
 
   @Override
   public AbstractState getVariableReducedState(
       AbstractState expandedState, Block context, CFANode callNode) throws InterruptedException {
-    PointerState wrappedState = (PointerState) ((RCUSearchState) expandedState)
-        .getWrappedState();
+    stats.reducerTimer.start();
+    RCUSearchState rcuState = (RCUSearchState) expandedState;
+    PointerState wrappedState = (PointerState) rcuState.getWrappedState();
+
+    stats.pointerReducerTimer.start();
     PointerState pointerState = (PointerState) pointerReducer.getVariableReducedState(wrappedState,
                                                                                   context, callNode);
-    return new RCUSearchState(ImmutableSet.of(), pointerState);
+    stats.pointerReducerTimer.stop();
+
+    stats.rcuSearchReducerTimer.start();
+    RCUSearchState result;
+    if (rcuState.getRcuPointers().isEmpty() && pointerState.equals(wrappedState)) {
+      result = rcuState;
+    } else {
+      result = new RCUSearchState(ImmutableSet.of(), pointerState);
+    }
+    stats.rcuSearchReducerTimer.stop();
+    stats.reducerTimer.stop();
+    return result;
   }
 
   @Override
   public AbstractState getVariableExpandedState(
       AbstractState rootState, Block reducedContext, AbstractState reducedState)
       throws InterruptedException {
-    Set<MemoryLocation> expandedSet = new TreeSet<>(((RCUSearchState) rootState).getRcuPointers());
-    expandedSet.addAll(((RCUSearchState) reducedState).getRcuPointers());
 
-    PointerState rootPointerState = (PointerState) ((RCUSearchState) rootState)
-        .getWrappedState();
-    PointerState reducedPointerState = (PointerState) ((RCUSearchState) reducedState)
-        .getWrappedState();
+    stats.reducerTimer.start();
+
+    RCUSearchState rcuRoot = (RCUSearchState) rootState;
+    RCUSearchState rcuReduced = (RCUSearchState) reducedState;
+    Set<MemoryLocation> expandedSet = new TreeSet<>(rcuRoot.getRcuPointers());
+    expandedSet.addAll(rcuReduced.getRcuPointers());
+
+    stats.pointerReducerTimer.start();
+    PointerState rootPointerState = (PointerState) rcuRoot.getWrappedState();
+    PointerState reducedPointerState = (PointerState) rcuReduced.getWrappedState();
     PointerState expandedPointerState = (PointerState) pointerReducer.getVariableExpandedState
         (rootPointerState, reducedContext, reducedPointerState);
+    stats.pointerReducerTimer.stop();
 
-    return new RCUSearchState(ImmutableSet.copyOf(expandedSet), expandedPointerState);
+    stats.rcuSearchReducerTimer.start();
+    RCUSearchState result;
+    if (expandedSet.equals(rcuRoot.getRcuPointers())
+        && expandedPointerState.equals(rootPointerState)) {
+      result = rcuRoot;
+    } else {
+      result = new RCUSearchState(ImmutableSet.copyOf(expandedSet), expandedPointerState);
+    }
+    stats.rcuSearchReducerTimer.stop();
+    stats.reducerTimer.stop();
+    return result;
   }
 
   @Override

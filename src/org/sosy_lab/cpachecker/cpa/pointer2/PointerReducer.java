@@ -27,7 +27,6 @@ import org.sosy_lab.common.time.Timer;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
-import org.sosy_lab.cpachecker.core.defaults.GenericReducer;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
@@ -49,7 +48,6 @@ public class PointerReducer implements Reducer {
         clonedState.forget(ptr);
       }
     }
-    // System.out.println("RRR: " + callNode.describeFileLocation());
     reduceTime.stop();
     return clonedState;
   }
@@ -61,9 +59,10 @@ public class PointerReducer implements Reducer {
     expandTime.start();
     PointerState clonedState = PointerState.copyOf((PointerState) rootState);
     for (MemoryLocation ptr : ((PointerState) reducedState).getTrackedMemoryLocations()) {
-        clonedState = clonedState.addPointsToInformation(ptr, ((PointerState) reducedState).getPointsToMap().get(ptr));
+      clonedState =
+          clonedState
+              .addPointsToInformation(ptr, ((PointerState) reducedState).getPointsToSet(ptr));
     }
-    // System.out.println("EEE: " + reducedContext.getCallNode().describeFileLocation());
     expandTime.stop();
     return clonedState;
   }

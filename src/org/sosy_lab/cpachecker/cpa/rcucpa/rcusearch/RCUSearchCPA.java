@@ -76,7 +76,7 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
         (PointerTransferRelation) pointerCPA.getTransferRelation();
     transfer.initialize(pointerTransfer, statistics);
     pointerTransfer.setUseFakeLocs(useFakeLocs);
-    reducer = new RCUSearchReducer((PointerReducer) pointerCPA.getReducer());
+    reducer = new RCUSearchReducer((PointerReducer) pointerCPA.getReducer(), statistics);
   }
 
   public static CPAFactory factory() {

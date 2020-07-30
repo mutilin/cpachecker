@@ -24,7 +24,6 @@
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
 import java.util.Map.Entry;
-
 import org.sosy_lab.cpachecker.core.interfaces.AbstractDomain;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
@@ -41,10 +40,21 @@ public enum PointerDomain implements AbstractDomain {
     PointerState state1 = (PointerState) pState1;
     PointerState state2 = (PointerState) pState2;
     PointerState result = state2;
+
+    if (state1 == state2) {
+      return state2;
+    }
+
+    if (state1.equals(state2)) {
+      return state2;
+    }
+
+    result = result.addAsTop(state1.getTopSet());
+
     for (Entry<MemoryLocation, LocationSet> pointsToEntry : state1.getPointsToMap().entrySet()) {
       result = result.addPointsToInformation(pointsToEntry.getKey(), pointsToEntry.getValue());
     }
-    if (result.equals(state2)) {
+    if (result == state2) {
       return state2;
     }
     if (result.equals(state1)) {
@@ -60,6 +70,9 @@ public enum PointerDomain implements AbstractDomain {
     }
     PointerState state1 = (PointerState) pState1;
     PointerState state2 = (PointerState) pState2;
+    if (state2.getSize() < state1.getSize()) {
+      return false;
+    }
     for (Entry<MemoryLocation, LocationSet> pointsToEntry : state1.getPointsToMap().entrySet()) {
       LocationSet rightSide = state2.getPointsToSet(pointsToEntry.getKey());
       if (!rightSide.containsAll(pointsToEntry.getValue())) {

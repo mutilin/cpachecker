@@ -62,6 +62,38 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 @Options(prefix = "cpa.rcusearch")
 public class RCUSearchStatistics implements Statistics {
 
+  public static class RCUSearchStateStatistics {
+
+    final StatTimer equalsTimer = new StatTimer("Overall time for equals check");
+    final StatTimer joinTimer = new StatTimer("Time for join states");
+    final StatTimer joinPointerTimer = new StatTimer("Time for join pointer states");
+    final StatTimer lessOrEqualsTimer = new StatTimer("Time for isLessOrEquals");
+    final StatTimer lessOrEqualsPointerTimer =
+        new StatTimer("Time for isLessOrEquals of pointer states");
+
+    private final static RCUSearchStateStatistics instance = new RCUSearchStateStatistics();
+
+    private RCUSearchStateStatistics() {
+    }
+
+    public void printStatistics(StatisticsWriter writer) {
+      writer.beginLevel()
+          .put(equalsTimer)
+          .put(joinTimer)
+          .beginLevel()
+          .put(joinPointerTimer)
+          .endLevel()
+          .put(lessOrEqualsTimer)
+          .beginLevel()
+          .put(lessOrEqualsPointerTimer)
+          .endLevel();
+    }
+
+    public static RCUSearchStateStatistics getInstance() {
+      return instance;
+    }
+  }
+
   @Option(secure = true, name = "output", description = "name of a file to hold information about"
       + " RCU pointers and their aliases")
   @FileOption(Type.OUTPUT_FILE)
@@ -71,6 +103,9 @@ public class RCUSearchStatistics implements Statistics {
   final StatTimer transferTimer = new StatTimer("Overall time for transfer relation");
   final StatTimer rcuSearchTimer = new StatTimer("Time for RCU search part");
   final StatTimer pointerTimer = new StatTimer("Time for pointer analysis");
+  final StatTimer reducerTimer = new StatTimer("Overall time for reducer");
+  final StatTimer rcuSearchReducerTimer = new StatTimer("Time for RCU search part");
+  final StatTimer pointerReducerTimer = new StatTimer("Time for pointer analysis");
 
   RCUSearchStatistics(Configuration config, LogManager pLogger) throws
                                                                  InvalidConfigurationException {
@@ -139,7 +174,14 @@ public class RCUSearchStatistics implements Statistics {
         .put(rcuSearchTimer)
         .put(pointerTimer)
         .endLevel()
-        .endLevel();
+        .put(reducerTimer)
+        .beginLevel()
+        .put(rcuSearchReducerTimer)
+        .put(pointerReducerTimer)
+        .endLevel()
+        .endLevel()
+        .spacer();
+    RCUSearchStateStatistics.getInstance().printStatistics(writer);
   }
 
   @Nullable

@@ -32,6 +32,7 @@ import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerDomain;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
+import org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch.RCUSearchStatistics.RCUSearchStateStatistics;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
@@ -55,23 +56,28 @@ public class RCUSearchState extends AbstractSingleWrapperState
 
   @Override
   public boolean equals(Object pO) {
-    if (this == pO) {
+    RCUSearchStateStatistics.getInstance().equalsTimer.start();
+    try {
+      if (this == pO) {
+        return true;
+      }
+      if (pO == null || getClass() != pO.getClass()) {
+        return false;
+      }
+
+      RCUSearchState that = (RCUSearchState) pO;
+
+      if (!rcuPointers.equals(that.rcuPointers)) {
+        return false;
+      }
+      if (!super.equals(that.getWrappedState())) {
+        return false;
+      }
+
       return true;
+    } finally {
+      RCUSearchStateStatistics.getInstance().equalsTimer.stop();
     }
-    if (pO == null || getClass() != pO.getClass()) {
-      return false;
-    }
-
-    RCUSearchState that = (RCUSearchState) pO;
-
-    if (!rcuPointers.equals(that.rcuPointers)) {
-      return false;
-    }
-    if (!super.equals(that.getWrappedState())) {
-      return false;
-    }
-
-    return true;
   }
 
   @Override
@@ -84,7 +90,7 @@ public class RCUSearchState extends AbstractSingleWrapperState
   @Override
   public String toString() {
     return rcuPointers.toString() + (rcuPointers.isEmpty() ? " EMPTY" : " NOT EMPTY") + " # " +
-        ((PointerState) getWrappedState()).getPointsToMap();
+        ((PointerState) getWrappedState()).prepareOriginMap();
   }
 
   public static RCUSearchState copyOf(RCUSearchState pState) {
@@ -95,26 +101,33 @@ public class RCUSearchState extends AbstractSingleWrapperState
 
   public Map<MemoryLocation, Set<MemoryLocation>> getPointsTo() {
     return PointerStatistics
-        .replaceTopsAndBots(((PointerState) getWrappedState()).getPointsToMap());
+        .replaceTopsAndBots(((PointerState) getWrappedState()).prepareOriginMap());
   }
 
   @Override
   public RCUSearchState join(RCUSearchState pOther) throws CPAException, InterruptedException {
-    Set<MemoryLocation> pointers = new TreeSet<>(rcuPointers);
-    pointers.addAll(pOther.getRcuPointers());
+    RCUSearchStateStatistics.getInstance().joinTimer.start();
+    try {
+      Set<MemoryLocation> pointers = new TreeSet<>(rcuPointers);
+      pointers.addAll(pOther.getRcuPointers());
 
-    PointerState pointerState1 = (PointerState) getWrappedState();
-    PointerState pointerState2 = (PointerState) pOther.getWrappedState();
+      PointerState pointerState1 = (PointerState) getWrappedState();
+      PointerState pointerState2 = (PointerState) pOther.getWrappedState();
 
-    PointerDomain pDomain = PointerDomain.INSTANCE;
-    PointerState result = (PointerState) pDomain.join(pointerState1, pointerState2);
+      PointerDomain pDomain = PointerDomain.INSTANCE;
+      RCUSearchStateStatistics.getInstance().joinPointerTimer.start();
+      PointerState result = (PointerState) pDomain.join(pointerState1, pointerState2);
+      RCUSearchStateStatistics.getInstance().joinPointerTimer.stop();
 
-    if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
-      return this;
-    } else if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
-      return pOther;
-    } else {
-      return new RCUSearchState(ImmutableSet.copyOf(pointers), result);
+      if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
+        return this;
+      } else if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
+        return pOther;
+      } else {
+        return new RCUSearchState(ImmutableSet.copyOf(pointers), result);
+      }
+    } finally {
+      RCUSearchStateStatistics.getInstance().joinTimer.stop();
     }
   }
 
@@ -127,10 +140,20 @@ public class RCUSearchState extends AbstractSingleWrapperState
     PointerState pState1 = (PointerState) getWrappedState();
     PointerState pState2 = (PointerState) pOther.getWrappedState();
 
-    return pOther
+    RCUSearchStateStatistics.getInstance().lessOrEqualsTimer.start();
+    boolean b =
+        pOther
         .getRcuPointers()
         .containsAll(
-            this.getRcuPointers())
-        && PointerDomain.INSTANCE.isLessOrEqual(pState2, pState1);
+                this.getRcuPointers());
+
+    if (b) {
+      RCUSearchStateStatistics.getInstance().lessOrEqualsPointerTimer.start();
+      b = PointerDomain.INSTANCE.isLessOrEqual(pState2, pState1);
+      RCUSearchStateStatistics.getInstance().lessOrEqualsPointerTimer.stop();
+    }
+
+    RCUSearchStateStatistics.getInstance().lessOrEqualsTimer.stop();
+    return b;
   }
 }

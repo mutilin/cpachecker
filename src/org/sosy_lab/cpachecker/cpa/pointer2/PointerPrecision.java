@@ -24,25 +24,21 @@
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
 import java.nio.file.Path;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.TreeSet;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-public class PointerPrecision implements Precision {
-  private final Set<MemoryLocation> trackedPointers;
+public class PointerPrecision extends TreeSet<MemoryLocation> implements Precision {
+
+  private static final long serialVersionUID = 2830901363814181199L;
 
   PointerPrecision(Path filename) {
-    trackedPointers = new HashSet<>();
+    super();
     // TODO: extract JSON parsing into class, apply the method to parsing a file
   }
 
   public PointerPrecision() {
-    trackedPointers = new HashSet<>();
+    super();
   }
 
-  public Set<MemoryLocation> getTrackedPointers() {
-    return trackedPointers;
-  }
 }

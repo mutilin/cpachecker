@@ -446,17 +446,27 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       CExpression pLeftHandSide,
       LocationSet pRightHandSide)
       throws UnrecognizedCodeException {
-    // TODO 0 or 1?
+
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
-    // TODO Warning: contains is wrong
-    if (useFakeLocs && pRightHandSide.isBot() && locations instanceof
-    ExplicitLocationSet && !pState.getKnownLocations().contains(locations)) {
-      MemoryLocation loc = ((ExplicitLocationSet) locations).iterator().next();
-      CVariableDeclaration decl =
-          new CVariableDeclaration(FileLocation.DUMMY, true, CStorageClass.AUTO,
-                                  pLeftHandSide.getExpressionType(), loc.getIdentifier(),
-              loc.getIdentifier(), loc.getIdentifier(), null);
-      pState = handleDeclaration(pState, decl);
+    if (useFakeLocs && pRightHandSide.isBot() && locations instanceof ExplicitLocationSet) {
+      for (MemoryLocation loc : ((ExplicitLocationSet) locations)) {
+        if (!pState.getKnownLocations().contains(loc)) {
+          CVariableDeclaration decl =
+              new CVariableDeclaration(
+                  FileLocation.DUMMY,
+                  true,
+                  CStorageClass.AUTO,
+                  pLeftHandSide.getExpressionType(),
+                  loc.getIdentifier(),
+                  loc.getIdentifier(),
+                  loc.getIdentifier(),
+                  null);
+          pState = handleDeclaration(pState, decl);
+        } else {
+          pState = handleAssignment(pState, loc, pRightHandSide);
+        }
+      }
+      return pState;
     }
     return handleAssignment(pState, locations, pRightHandSide);
   }
@@ -669,8 +679,8 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
             MemoryLocation memoryLocation =
                 fieldReferenceToMemoryLocation(pIastFieldReference);
             if (pIastFieldReference.isPointerDereference()) {
-              if (pState.getPointsToMap().containsKey(memoryLocation)) {
-                return pState.getPointsToMap().get(memoryLocation);
+                  if (pState.getTrackedMemoryLocations().contains(memoryLocation)) {
+                        return pState.getPointsToSet(memoryLocation);
               }
             }
             return toLocationSet(Collections.singleton(memoryLocation));
