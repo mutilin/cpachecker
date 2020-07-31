@@ -216,8 +216,11 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
     ptr = right.accept(localIc);
 
-    if (rcuPointers.contains(LocationIdentifierConverter.toLocation(rcuPtr)) ||
-        rcuPointers.contains(LocationIdentifierConverter.toLocation(ptr))) {
+    MemoryLocation rcuLoc = LocationIdentifierConverter.toLocation(rcuPtr);
+    MemoryLocation loc = LocationIdentifierConverter.toLocation(ptr);
+
+    if ((rcuLoc != null && rcuPointers.contains(rcuLoc))
+        || (loc != null && rcuPointers.contains(loc))) {
 
       logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
       logger.log(Level.ALL, "State: " + state);

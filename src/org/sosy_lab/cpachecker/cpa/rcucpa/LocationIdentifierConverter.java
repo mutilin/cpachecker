@@ -76,7 +76,7 @@ public class LocationIdentifierConverter {
         }
       }
     }
-    System.out.println("TOLOC: Weird: " + id + " " + id.getClass());
+    // Mostly constant identifiers or specific binary identifiers
     return null;
   }
 }
