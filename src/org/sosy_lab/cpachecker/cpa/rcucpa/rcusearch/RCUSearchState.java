@@ -70,7 +70,13 @@ public class RCUSearchState extends AbstractSingleWrapperState
       if (!rcuPointers.equals(that.rcuPointers)) {
         return false;
       }
-      if (!super.equals(that.getWrappedState())) {
+      // Not super.equals!
+      PointerState thisState = (PointerState) getWrappedState();
+      PointerState otherState = (PointerState) that.getWrappedState();
+      RCUSearchStateStatistics.getInstance().equalsPointerTimer.start();
+      boolean b = thisState.equals(otherState);
+      RCUSearchStateStatistics.getInstance().equalsPointerTimer.stop();
+      if (!b) {
         return false;
       }
 
@@ -119,9 +125,9 @@ public class RCUSearchState extends AbstractSingleWrapperState
       PointerState result = (PointerState) pDomain.join(pointerState1, pointerState2);
       RCUSearchStateStatistics.getInstance().joinPointerTimer.stop();
 
-      if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
+      if (pointers.equals(rcuPointers) && result == pointerState1) {
         return this;
-      } else if (pointers.equals(rcuPointers) && result.equals(pointerState1)) {
+      } else if (pointers.equals(rcuPointers) && result == pointerState2) {
         return pOther;
       } else {
         return new RCUSearchState(ImmutableSet.copyOf(pointers), result);
@@ -149,7 +155,7 @@ public class RCUSearchState extends AbstractSingleWrapperState
 
     if (b) {
       RCUSearchStateStatistics.getInstance().lessOrEqualsPointerTimer.start();
-      b = PointerDomain.INSTANCE.isLessOrEqual(pState2, pState1);
+      b = PointerDomain.INSTANCE.isLessOrEqual(pState1, pState2);
       RCUSearchStateStatistics.getInstance().lessOrEqualsPointerTimer.stop();
     }
 

@@ -62,7 +62,7 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
    */
   private PersistentSortedMap<MemoryLocation, ExplicitLocationSet> pointsToMap;
 
-  private final SortedSet<MemoryLocation> topLocations;
+  private SortedSet<MemoryLocation> topLocations;
 
   /**
    * Creates a new pointer state with an empty initial points-to map.
@@ -145,6 +145,7 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
     LocationSet previousPointsToSet = getPointsToSet(pSource);
     LocationSet newSet = previousPointsToSet.addElements(pTargets);
     if (newSet == previousPointsToSet) {
+      // Including top
       return this;
     }
     assert newSet instanceof ExplicitLocationSet;
@@ -158,21 +159,34 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
       return this;
     }
     SortedSet<MemoryLocation> newSet = new TreeSet<>(topLocations);
-    newSet.add(pSource);
-    return new PointerState(pointsToMap.removeAndCopy(pSource), newSet);
+    if (newSet.add(pSource)) {
+      return new PointerState(pointsToMap.removeAndCopy(pSource), newSet);
+    } else {
+      // Need to return the same object
+      return new PointerState(pointsToMap.removeAndCopy(pSource), topLocations);
+    }
   }
 
   public PointerState addAsTop(Set<MemoryLocation> pSources) {
-    if (topLocations.containsAll(pSources) || pSources.isEmpty()) {
+    if (topLocations == pSources || pSources.isEmpty()) {
       return this;
     }
     SortedSet<MemoryLocation> newSet = new TreeSet<>(topLocations);
-    newSet.addAll(pSources);
     PersistentSortedMap<MemoryLocation, ExplicitLocationSet> result = pointsToMap;
+    boolean modified = false;
+
     for (MemoryLocation loc : pSources) {
-      result = pointsToMap.removeAndCopy(loc);
+      if (newSet.add(loc)) {
+        modified = true;
+        result = pointsToMap.removeAndCopy(loc);
+      }
     }
-    return new PointerState(result, newSet);
+    if (!modified) {
+      // Do not check result==pointsToMap!
+      return this;
+    } else {
+      return new PointerState(result, newSet);
+    }
   }
 
   /**
@@ -297,7 +311,8 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
   }
 
   public Set<MemoryLocation> getTopSet() {
-    return ImmutableSet.copyOf(this.topLocations);
+    // Avoid immutable to be able to check on equality
+    return this.topLocations;
   }
 
   @Override
@@ -306,8 +321,29 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
       return true;
     }
     if (pO instanceof PointerState) {
-      return topLocations.equals(((PointerState) pO).topLocations)
-          && pointsToMap.equals(((PointerState) pO).pointsToMap);
+      PointerState other = ((PointerState) pO);
+      if (topLocations.size() != other.topLocations.size() || pointsToMap.size() != other.pointsToMap.size()) {
+        return false;
+      }
+      boolean a = topLocations == other.topLocations;
+      boolean b = pointsToMap == other.pointsToMap;
+
+      if (a && b) {
+        return true;
+      }
+      if (!a) {
+        a = topLocations.equals(other.topLocations);
+        if (a) {
+          topLocations = other.topLocations;
+        }
+      }
+      if (a && !b) {
+        b = pointsToMap.equals(other.pointsToMap);
+        if (b) {
+          pointsToMap = other.pointsToMap;
+          return true;
+        }
+      }
     }
     return false;
   }
@@ -326,6 +362,16 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
     return new PointerState(
         PathCopyingPersistentTreeMap.copyOf(pState.pointsToMap),
         new TreeSet<>(pState.topLocations));
+  }
+
+  // Testing speed up
+  public PointerState forgetToState(MemoryLocation pPtr) {
+    SortedSet<MemoryLocation> newSet = topLocations;
+    if (topLocations.contains(pPtr)) {
+      newSet = new TreeSet<>(topLocations);
+      newSet.remove(pPtr);
+    }
+    return new PointerState(pointsToMap.removeAndCopy(pPtr), newSet);
   }
 
   @Override

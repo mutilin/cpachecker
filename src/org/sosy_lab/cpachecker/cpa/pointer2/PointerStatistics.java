@@ -78,7 +78,7 @@ public class PointerStatistics implements Statistics {
     String stats = "Common part" + '\n';
 
     if (ptState != null) {
-      Map<MemoryLocation, LocationSet> locationSetMap = ptState.getPointsToMap();
+      Map<MemoryLocation, LocationSet> locationSetMap = ptState.prepareOriginMap();
 
       if (locationSetMap != null) {
 

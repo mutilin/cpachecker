@@ -65,6 +65,7 @@ public class RCUSearchStatistics implements Statistics {
   public static class RCUSearchStateStatistics {
 
     final StatTimer equalsTimer = new StatTimer("Overall time for equals check");
+    final StatTimer equalsPointerTimer = new StatTimer("Time for pointer equals check");
     final StatTimer joinTimer = new StatTimer("Time for join states");
     final StatTimer joinPointerTimer = new StatTimer("Time for join pointer states");
     final StatTimer lessOrEqualsTimer = new StatTimer("Time for isLessOrEquals");
@@ -79,6 +80,9 @@ public class RCUSearchStatistics implements Statistics {
     public void printStatistics(StatisticsWriter writer) {
       writer.beginLevel()
           .put(equalsTimer)
+          .beginLevel()
+          .put(equalsPointerTimer)
+          .endLevel()
           .put(joinTimer)
           .beginLevel()
           .put(joinPointerTimer)

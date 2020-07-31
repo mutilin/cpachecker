@@ -23,6 +23,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
+import java.util.TreeSet;
 import org.sosy_lab.common.time.Timer;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -41,11 +42,12 @@ public class PointerReducer implements Reducer {
   public AbstractState getVariableReducedState(
       AbstractState expandedState, Block context, CFANode callNode) throws InterruptedException {
     reduceTime.start();
-    PointerState clonedState = PointerState.copyOf((PointerState) expandedState);
-    for (MemoryLocation ptr : clonedState.getTrackedMemoryLocations()) {
+    PointerState clonedState = (PointerState) expandedState;
+    // Avoid ConcurrentModification
+    for (MemoryLocation ptr : new TreeSet<>(clonedState.getTrackedMemoryLocations())) {
       if (!(PointerState.isFictionalPointer(ptr) || ptr.isGlobal()) &&
           !context.getMemoryLocations().contains(ptr)) {
-        clonedState.forget(ptr);
+        clonedState = clonedState.forgetToState(ptr);
       }
     }
     reduceTime.stop();
@@ -57,7 +59,7 @@ public class PointerReducer implements Reducer {
       AbstractState rootState, Block reducedContext, AbstractState reducedState)
       throws InterruptedException {
     expandTime.start();
-    PointerState clonedState = PointerState.copyOf((PointerState) rootState);
+    PointerState clonedState = (PointerState) rootState;
     for (MemoryLocation ptr : ((PointerState) reducedState).getTrackedMemoryLocations()) {
       clonedState =
           clonedState
