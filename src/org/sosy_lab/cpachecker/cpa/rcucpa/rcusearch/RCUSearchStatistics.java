@@ -23,8 +23,6 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Multimap;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import java.io.IOException;
@@ -35,9 +33,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.logging.Level;
 import javax.annotation.Nullable;
@@ -53,9 +49,14 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
-import org.sosy_lab.cpachecker.cpa.pointer2.PointerStatistics;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.ExplicitLocationSet;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetBot;
+import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetTop;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
@@ -111,6 +112,9 @@ public class RCUSearchStatistics implements Statistics {
   final StatTimer rcuSearchReducerTimer = new StatTimer("Time for RCU search part");
   final StatTimer pointerReducerTimer = new StatTimer("Time for pointer analysis");
 
+  final StatInt rcuPointers = new StatInt(StatKind.SUM, "Number of RCU pointers");
+  final StatInt rcuAliases = new StatInt(StatKind.SUM, "Number of RCU aliases");
+
   RCUSearchStatistics(Configuration config, LogManager pLogger) throws
                                                                  InvalidConfigurationException {
     logger = pLogger;
@@ -122,37 +126,18 @@ public class RCUSearchStatistics implements Statistics {
   public void printStatistics(
       PrintStream out, Result result, UnmodifiableReachedSet reached) {
 
-    Set<MemoryLocation> allRcuPointers = new TreeSet<>();
-    Map<MemoryLocation, Set<MemoryLocation>> allPointsTo = new TreeMap<>();
+    Set<MemoryLocation> rcuAndAliases = new TreeSet<>();
 
     // TODO: BAM specifics?
     for (AbstractState state : reached) {
       RCUSearchState searchState = AbstractStates.extractStateByType(state, RCUSearchState.class);
       if (searchState != null) {
-        allRcuPointers.addAll(searchState.getRcuPointers());
-        Map<MemoryLocation, Set<MemoryLocation>> bufPT = searchState.getPointsTo();
-        for (MemoryLocation key : bufPT.keySet()) {
-          allPointsTo.putIfAbsent(key, new TreeSet<>());
-          allPointsTo.get(key).addAll(bufPT.get(key));
-        }
+        rcuAndAliases.addAll(searchState.getRcuPointers());
+        PointerState pState = (PointerState) searchState.getWrappedState();
+        rcuAndAliases.addAll(getAliases(pState, searchState.getRcuPointers()));
       }
     }
 
-    Multimap<MemoryLocation, MemoryLocation> aliases = getAliases(allPointsTo);
-
-    logger.log(Level.ALL, "RCU pointers in the last state: " + allRcuPointers);
-
-    Set<MemoryLocation> rcuAndAliases = new TreeSet<>(allRcuPointers);
-
-    for (MemoryLocation pointer : allRcuPointers) {
-      if (!aliases.containsKey(pointer)) {
-        logger.log(Level.WARNING, "No RCU pointer <" + pointer.toString() + "> in aliases");
-      } else {
-        Collection<MemoryLocation> buf = aliases.get(pointer);
-        logger.log(Level.ALL, "Aliases for RCU pointer " + pointer + ": " + buf);
-        rcuAndAliases.addAll(buf);
-      }
-    }
     if (output != null) {
       // May be disabled
       try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
@@ -166,13 +151,14 @@ public class RCUSearchStatistics implements Statistics {
       }
     }
     String info = "";
-    info += "Number of RCU pointers:        " + allRcuPointers.size() + "\n";
-    info += "Number of RCU aliases:         " + (rcuAndAliases.size() - allRcuPointers.size()) + "\n";
     info += "Number of fictional pointers:  " + getFictionalPointersNumber(rcuAndAliases) + "\n";
     out.append(info);
     logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
     StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(out);
     writer.beginLevel()
+        .put(rcuPointers)
+        .put(rcuAliases)
+        .spacer()
         .put(transferTimer)
         .beginLevel()
         .put(rcuSearchTimer)
@@ -194,33 +180,28 @@ public class RCUSearchStatistics implements Statistics {
     return "RCU Search";
   }
 
-  private Multimap<MemoryLocation, MemoryLocation> getAliases(Map<MemoryLocation,
-                                                                     Set<MemoryLocation>> pointsTo) {
-    Multimap<MemoryLocation, MemoryLocation> aliases = HashMultimap.create();
-    for (MemoryLocation pointer : pointsTo.keySet()) {
-      Set<MemoryLocation> pointerPointTo = pointsTo.get(pointer);
-      if (pointerPointTo.contains(PointerStatistics.getReplLocSetTop())) {
+  private Collection<MemoryLocation>
+      getAliases(PointerState pState, Set<MemoryLocation> targetPointers) {
+
+    rcuPointers.setNextValue(targetPointers.size());
+    Collection<MemoryLocation> result = new TreeSet<>();
+    Set<MemoryLocation> overallLocations = pState.getTrackedMemoryLocations();
+
+    for (MemoryLocation pointer : targetPointers) {
+      LocationSet pointerPointTo = pState.getPointsToSet(pointer);
+      if (pointerPointTo == LocationSetTop.INSTANCE) {
         // pointer can point anywhere
-        aliases.putAll(pointer, pointsTo.keySet());
-        for (MemoryLocation other : pointsTo.keySet()) {
-          // logger.log(Level.ALL, "Adding ", pointer, " to ", other, " as an alias");
-          aliases.put(other, pointer);
-        }
-      } else if (!pointerPointTo.contains(PointerStatistics.getReplLocSetBot())) {
-        Set<MemoryLocation> commonElems;
-        for (MemoryLocation other : pointsTo.keySet()) {
-          if (!other.equals(pointer)) {
-            commonElems = new TreeSet<>(pointsTo.get(other));
-            commonElems.retainAll(pointerPointTo);
-            if (!commonElems.isEmpty()) {
-              aliases.put(pointer, other);
-              aliases.put(other, pointer);
-            }
-          }
+        result.addAll(overallLocations);
+        break;
+      } else if (pointerPointTo != LocationSetBot.INSTANCE) {
+        for (MemoryLocation other : (ExplicitLocationSet) pointerPointTo) {
+          result.add(other);
         }
       }
     }
-    return aliases;
+
+    rcuAliases.setNextValue(result.size());
+    return result;
   }
 
   private int getFictionalPointersNumber(Set<MemoryLocation> ptrs) {

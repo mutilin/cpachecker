@@ -153,8 +153,6 @@ public class CompositeCPA implements StatisticsProvider, WrapperCPA,
   private final CFA cfa;
   private final CompositeOptions options;
 
-  private final CompositeStatistics statistics;
-
   private CompositeCPA(
       CFA pCfa,
       ImmutableList<ConfigurableProgramAnalysis> cpas,
@@ -162,7 +160,6 @@ public class CompositeCPA implements StatisticsProvider, WrapperCPA,
     this.cfa = pCfa;
     this.cpas = cpas;
     this.options = pOptions;
-    this.statistics = new CompositeStatistics();
   }
 
   @Override
@@ -291,8 +288,6 @@ public class CompositeCPA implements StatisticsProvider, WrapperCPA,
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
-    pStatsCollection.add(statistics);
-
     for (ConfigurableProgramAnalysis cpa: cpas) {
       if (cpa instanceof StatisticsProvider) {
         ((StatisticsProvider)cpa).collectStatistics(pStatsCollection);
