@@ -180,7 +180,11 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   public int compareTo(CompatibleState o) {
     // TODO: implement this
     if (this.isLessOrEqual((RCUState) o)) {
-      return 0;
+      if (this.equals(o)) {
+        return 0;
+      } else {
+        return -1;
+      }
     } else {
       return 1;
     }
