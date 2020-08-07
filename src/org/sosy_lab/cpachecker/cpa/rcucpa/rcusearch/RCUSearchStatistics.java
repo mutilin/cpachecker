@@ -194,8 +194,12 @@ public class RCUSearchStatistics implements Statistics {
         result.addAll(overallLocations);
         break;
       } else if (pointerPointTo != LocationSetBot.INSTANCE) {
-        for (MemoryLocation other : (ExplicitLocationSet) pointerPointTo) {
-          result.add(other);
+        for (MemoryLocation rcuLoc : (ExplicitLocationSet) pointerPointTo) {
+          for (MemoryLocation other : overallLocations) {
+            if (pState.mayPointTo(other, rcuLoc)) {
+              result.add(other);
+            }
+          }
         }
       }
     }

@@ -516,11 +516,16 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     MemoryLocation location = toLocation(pDeclaration);
     CType declarationType = pDeclaration.getType();
     if (initializer != null) {
-      return handleWithInitializer(pState, location, declarationType, initializer);
+      return handleWithInitializer(
+          pState,
+          location,
+          declarationType,
+          initializer,
+          getFakeInitializer(pDeclaration));
     } else if (useFakeLocs && declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
       initializer = getFakeInitializer(pDeclaration);
-      return handleWithInitializer(pState, location, declarationType, initializer);
+      return handleWithInitializer(pState, location, declarationType, initializer, null);
     }
     return pState;
   }
@@ -540,7 +545,11 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private PointerState handleWithInitializer(
-      PointerState pState, MemoryLocation pLeftHandSide, CType pType, CInitializer pInitializer)
+      PointerState pState,
+      MemoryLocation pLeftHandSide,
+      CType pType,
+      CInitializer pInitializer,
+      CInitializer pFakeInitializer)
       throws UnrecognizedCodeException {
     if (pInitializer instanceof CInitializerList
         && pType.getCanonicalType() instanceof CCompositeType) {
@@ -560,34 +569,40 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
                     current,
                     toLocation(compositeType, memberDecl),
                     memberDecl.getType(),
-                    initializer);
+                    initializer,
+                    null);
           }
         }
         return current;
       }
     }
-    LocationSet rhs =
-        pInitializer.accept(
-            new CInitializerVisitor<LocationSet, UnrecognizedCodeException>() {
+    CInitializerVisitor<LocationSet, UnrecognizedCodeException> visitor =
+        new CInitializerVisitor<LocationSet, UnrecognizedCodeException>() {
 
-              @Override
-              public LocationSet visit(CInitializerExpression pInitializerExpression)
-                  throws UnrecognizedCodeException {
-                return asLocations(pInitializerExpression.getExpression(), pState, 1);
-              }
+          @Override
+          public LocationSet visit(CInitializerExpression pInitializerExpression)
+              throws UnrecognizedCodeException {
+            return asLocations(pInitializerExpression.getExpression(), pState, 1);
+          }
 
-              @Override
-              public LocationSet visit(CInitializerList pInitializerList)
-                  throws UnrecognizedCodeException {
-                return LocationSetTop.INSTANCE;
-              }
+          @Override
+          public LocationSet visit(CInitializerList pInitializerList)
+              throws UnrecognizedCodeException {
+            return LocationSetTop.INSTANCE;
+          }
 
-              @Override
-              public LocationSet visit(CDesignatedInitializer pCStructInitializerPart)
-                  throws UnrecognizedCodeException {
-                return LocationSetTop.INSTANCE;
-              }
-            });
+          @Override
+          public LocationSet visit(CDesignatedInitializer pCStructInitializerPart)
+              throws UnrecognizedCodeException {
+            return LocationSetTop.INSTANCE;
+          }
+        };
+
+    LocationSet rhs = pInitializer.accept(visitor);
+
+    if (rhs == LocationSetBot.INSTANCE && pFakeInitializer != null) {
+      rhs = pFakeInitializer.accept(visitor);
+    }
 
     return handleAssignment(pState, pLeftHandSide, rhs);
   }
