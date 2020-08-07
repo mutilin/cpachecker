@@ -62,6 +62,7 @@ import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.cpa.rcucpa.RCUState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
+import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -433,6 +434,8 @@ public class UsageProcessor {
         return;
       } else {
 
+        Iterable<AbstractState> itStates =
+            AbstractStates.asIterable(pChild).filter(instanceOf(LocalInfoProvider.class));
         boolean isLocal = false;
         boolean isGlobal = false;
 
@@ -447,7 +450,13 @@ public class UsageProcessor {
             } else if (type == DataType.LOCAL) {
               isLocal = true;
             }
+            for (AbstractState state : itStates) {
+              isLocal |= ((LocalInfoProvider) state).isLocal(gcId);
+            }
           }
+        }
+        for (AbstractState state : itStates) {
+          isLocal |= ((LocalInfoProvider) state).isLocal(gId);
         }
         if (isLocal && !isGlobal) {
           logger.log(

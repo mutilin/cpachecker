@@ -516,12 +516,16 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     MemoryLocation location = toLocation(pDeclaration);
     CType declarationType = pDeclaration.getType();
     if (initializer != null) {
+      CInitializer fakeInitializer = null;
+      if (declarationType instanceof CPointerType) {
+        fakeInitializer = getFakeInitializer(pDeclaration);
+      }
       return handleWithInitializer(
           pState,
           location,
           declarationType,
           initializer,
-          getFakeInitializer(pDeclaration));
+          fakeInitializer);
     } else if (useFakeLocs && declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
       initializer = getFakeInitializer(pDeclaration);

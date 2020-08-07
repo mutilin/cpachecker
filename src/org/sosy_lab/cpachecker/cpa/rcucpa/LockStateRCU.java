@@ -96,6 +96,14 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     return readLockCount <= other.readLockCount;
   }
 
+  public int compareTo(LockStateRCU other) {
+    int res = lockType.compareTo(other.lockType);
+    if (res != 0) {
+      return res;
+    }
+    return readLockCount - other.readLockCount;
+  }
+
   boolean isCompatible(LockStateRCU other) {
     boolean first = this.lockType == HeldLock.READ_LOCK &&
                     this.readLockCount > 0

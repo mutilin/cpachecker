@@ -178,16 +178,57 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
   @Override
   public int compareTo(CompatibleState o) {
-    // TODO: implement this
-    if (this.isLessOrEqual((RCUState) o)) {
-      if (this.equals(o)) {
-        return 0;
-      } else {
-        return -1;
-      }
-    } else {
+    Preconditions.checkArgument(o instanceof RCUState);
+    RCUState other = (RCUState) o;
+    int res = lockState.compareTo(other.lockState);
+    if (res != 0) {
+      return res;
+    }
+    if (equals(o)) {
+      return 0;
+    }
+    res = rcuRelations.size() - other.rcuRelations.size();
+    if (res != 0) {
+      return res;
+    }
+    if (rcuRelations.entries().containsAll(other.rcuRelations.entries())) {
       return 1;
     }
+    if (other.rcuRelations.entries().containsAll(rcuRelations.entries())) {
+      return -1;
+    }
+    res = outdatedRCU.size() - other.outdatedRCU.size();
+    if (res != 0) {
+      return res;
+    }
+    if (outdatedRCU.containsAll(other.outdatedRCU)) {
+      return 1;
+    }
+    if (other.outdatedRCU.containsAll(outdatedRCU)) {
+      return -1;
+    }
+    res = localAgain.size() - other.localAgain.size();
+    if (res != 0) {
+      return res;
+    }
+    if (localAgain.containsAll(other.localAgain)) {
+      return 1;
+    }
+    if (other.localAgain.containsAll(localAgain)) {
+      return -1;
+    }
+    res = temporaryIds.size() - other.temporaryIds.size();
+    if (res != 0) {
+      return res;
+    }
+    if (temporaryIds.entrySet().containsAll(other.temporaryIds.entrySet())) {
+      return 1;
+    }
+    if (other.temporaryIds.entrySet().containsAll(temporaryIds.entrySet())) {
+      return -1;
+    }
+    // TODO: No ideas
+    return toString().compareTo(other.toString());
   }
 
   @Override
