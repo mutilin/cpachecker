@@ -43,14 +43,13 @@ import org.sosy_lab.cpachecker.cpa.pointer2.util.ExplicitLocationSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSet;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetBot;
 import org.sosy_lab.cpachecker.cpa.pointer2.util.LocationSetTop;
-import org.sosy_lab.cpachecker.util.refinement.ForgetfulState;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 /**
  * Instances of this class are pointer states that are used as abstract elements
  * in the pointer CPA.
  */
-public class PointerState implements AbstractState, ForgetfulState<PointerInformation> {
+public class PointerState implements AbstractState {
 
   /**
    * The initial empty pointer state.
@@ -364,8 +363,7 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
         new TreeSet<>(pState.topLocations));
   }
 
-  // Testing speed up
-  public PointerState forgetToState(MemoryLocation pPtr) {
+  public PointerState forget(MemoryLocation pPtr) {
     SortedSet<MemoryLocation> newSet = topLocations;
     if (topLocations.contains(pPtr)) {
       newSet = new TreeSet<>(topLocations);
@@ -374,39 +372,6 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
     return new PointerState(pointsToMap.removeAndCopy(pPtr), newSet);
   }
 
-  @Override
-  public PointerInformation forget(MemoryLocation pPtr) {
-    Map<MemoryLocation, LocationSet> map = new TreeMap<>();
-    map.put(pPtr, pointsToMap.get(pPtr));
-    if (topLocations.contains(pPtr)) {
-      map.put(pPtr, LocationSetTop.INSTANCE);
-      topLocations.remove(pPtr);
-    }
-    PersistentSortedMap<MemoryLocation, LocationSet> toForget = PathCopyingPersistentTreeMap.copyOf(map);
-    PointerInformation forgotten = new PointerInformation(toForget);
-    pointsToMap = pointsToMap.removeAndCopy(pPtr);
-    return forgotten;
-  }
-
-  @Override
-  public void remember(MemoryLocation location, PointerInformation forgottenInformation) {
-    Map<MemoryLocation, LocationSet> map = forgottenInformation.getForgottenInfo();
-    LocationSet previousPointsToSet = getPointsToSet(location);
-    if (previousPointsToSet == LocationSetTop.INSTANCE) {
-      return;
-    }
-    LocationSet forgottenSet = map.get(location);
-    if (forgottenSet == LocationSetTop.INSTANCE) {
-      pointsToMap = pointsToMap.removeAndCopy(location);
-      topLocations.add(location);
-      return;
-    }
-    LocationSet newPointsToSet = previousPointsToSet.addElements(forgottenSet);
-    assert newPointsToSet instanceof ExplicitLocationSet;
-    pointsToMap = pointsToMap.putAndCopy(location, (ExplicitLocationSet) newPointsToSet);
-  }
-
-  @Override
   public Set<MemoryLocation> getTrackedMemoryLocations() {
     return Sets.union(pointsToMap.keySet(), topLocations);
   }
@@ -415,7 +380,6 @@ public class PointerState implements AbstractState, ForgetfulState<PointerInform
     return ptr.getIdentifier().contains("##");
   }
 
-  @Override
   public int getSize() {
     return pointsToMap.size() + topLocations.size();
   }

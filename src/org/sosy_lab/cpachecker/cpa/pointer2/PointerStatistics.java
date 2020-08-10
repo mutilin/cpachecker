@@ -35,11 +35,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 import javax.annotation.Nullable;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -141,21 +141,22 @@ public class PointerStatistics implements Statistics {
 
   public static Map<MemoryLocation, Set<MemoryLocation>> replaceTopsAndBots(Map<MemoryLocation,
                                                               LocationSet> pPointsTo) {
-    Map<MemoryLocation, Set<MemoryLocation>> result = new HashMap<>();
-    for (MemoryLocation key : pPointsTo.keySet()) {
-      LocationSet locationSet = pPointsTo.get(key);
+    Map<MemoryLocation, Set<MemoryLocation>> result = new TreeMap<>();
+    for (Entry<MemoryLocation, LocationSet> entry : pPointsTo.entrySet()) {
+      LocationSet locationSet = entry.getValue();
+      Set<MemoryLocation> set;
+
       if (locationSet instanceof LocationSetBot) {
-        result.put(key, Collections.singleton(replLocSetBot));
+        set = Collections.singleton(replLocSetBot);
       } else if (locationSet instanceof LocationSetTop) {
-        result.put(key, Collections.singleton(replLocSetTop));
+        set = Collections.singleton(replLocSetTop);
       } else {
-        Set<MemoryLocation> buf = new HashSet<>();
-        Iterator<MemoryLocation> iter = ((ExplicitLocationSet) locationSet).iterator();
-        while (iter.hasNext()) {
-          buf.add(iter.next());
+        set = new TreeSet<>();
+        for (MemoryLocation loc : (ExplicitLocationSet) locationSet) {
+          set.add(loc);
         }
-        result.put(key, buf);
       }
+      result.put(entry.getKey(), set);
     }
 
     return result;

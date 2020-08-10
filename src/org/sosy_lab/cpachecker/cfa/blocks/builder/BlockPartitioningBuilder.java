@@ -45,10 +45,10 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.core.defaults.SingletonPrecision;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
-import org.sosy_lab.cpachecker.cpa.pointer2.PointerPrecision;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -237,7 +237,7 @@ public class BlockPartitioningBuilder {
         CFAEdge e = node.getLeavingEdge(i);
         try {
           for (AbstractState state : pTransfer
-              .getAbstractSuccessorsForEdge(fstate, new PointerPrecision(), e)) {
+              .getAbstractSuccessorsForEdge(fstate, SingletonPrecision.getInstance(), e)) {
             result.addAll(((PointerState) state).getKnownLocations());
           }
         } catch (CPATransferException pE) {

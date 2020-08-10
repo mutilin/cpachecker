@@ -36,7 +36,6 @@ import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysisWithBAM;
-import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
@@ -79,7 +78,6 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
 
   private final Statistics statistics;
   private final Reducer reducer;
-  private final Path path;
 
   /**
    * Gets a factory for creating PointerCPAs.
@@ -103,17 +101,11 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
                                         PointerTransferRelation.INSTANCE, reducer);
     TransferRelation tr = PointerTransferRelation.INSTANCE;
     ((PointerTransferRelation)tr).setUseFakeLocs(options.useFakeLocs);
-    path = options.path;
   }
 
   @Override
   public AbstractState getInitialState(CFANode pNode, StateSpacePartition pPartition) {
     return PointerState.INITIAL_STATE;
-  }
-
-  @Override
-  public Precision getInitialPrecision(CFANode node, StateSpacePartition partition) {
-    return new PointerPrecision(path);
   }
 
   @Override

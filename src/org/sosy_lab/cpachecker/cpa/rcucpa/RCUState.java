@@ -253,7 +253,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   @Override
   public boolean cover(CompatibleNode node) {
     // TODO: possible optimization
-    return false;
+    return equals(node);
   }
 
   @Override

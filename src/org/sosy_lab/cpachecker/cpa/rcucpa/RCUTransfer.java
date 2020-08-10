@@ -155,7 +155,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     } catch (IOException pE) {
       logger.log(Level.WARNING, pE.getMessage());
     }
-    logger.log(Level.WARNING, "result contents: " + result);
+    logger.log(Level.INFO, "result contents: " + result);
     return result;
   }
 
@@ -164,8 +164,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       AbstractState state, Precision precision, CFAEdge cfaEdge)
       throws CPATransferException, InterruptedException {
     RCUState result = (RCUState) state;
-
-    logger.log(Level.ALL, "EDGE: " + cfaEdge + " " + cfaEdge.getEdgeType());
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
@@ -200,7 +198,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         throw new UnrecognizedCFAEdgeException(cfaEdge);
     }
 
-    logger.log(Level.ALL, "RESULT: " + result);
     return ImmutableSet.of(result);
   }
 
@@ -222,8 +219,6 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     if ((rcuLoc != null && rcuPointers.contains(rcuLoc))
         || (loc != null && rcuPointers.contains(loc))) {
 
-      logger.log(Level.ALL, "ASSIGN: " + rcuPtr + " " + ptr);
-      logger.log(Level.ALL, "State: " + state);
       AbstractIdentifier nonTemporaryId = result.getNonTemporaryId(rcuPtr);
       AbstractIdentifier leftPtr = rcuPtr;
       if (nonTemporaryId != null) {
