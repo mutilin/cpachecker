@@ -23,8 +23,6 @@
  */
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 //import com.jsoniter.DecodingMode;
 //import com.jsoniter.JsonIterator;
 import java.io.IOException;
@@ -41,6 +39,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import javax.annotation.Nullable;
+import org.sosy_lab.common.JSON;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
@@ -108,10 +107,7 @@ public class PointerStatistics implements Statistics {
 
         if (!noOutput) {
           try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
-            Gson builder = new Gson();
-            java.lang.reflect.Type type = new TypeToken<Map<MemoryLocation, Set<MemoryLocation>>>(){}
-            .getType();
-            builder.toJson(pointsTo, type, writer);
+            JSON.writeJSONString(pointsTo, writer);
           } catch (IOException pE) {
             stats += "  IOError: " + pE.getMessage() + '\n';
           }

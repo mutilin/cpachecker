@@ -24,10 +24,8 @@
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
 import com.google.common.collect.ImmutableSet;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -36,6 +34,8 @@ import java.util.Collection;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.logging.Level;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.FileOption;
 import org.sosy_lab.common.configuration.FileOption.Type;
@@ -147,10 +147,21 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
   private Set<MemoryLocation> parseFile(Path pInput) {
     Set<MemoryLocation> result = new TreeSet<>();
-    try (Reader reader = Files.newBufferedReader(pInput, Charset.defaultCharset())) {
-      Gson builder = new Gson();
-      java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {}.getType();
-      result.addAll(builder.fromJson(reader, type));
+    try (BufferedReader reader = Files.newBufferedReader(pInput, Charset.defaultCharset())) {
+      String line;
+      Pattern locationPattern = Pattern.compile("^(.*)::(.*)$");
+
+      while ((line = reader.readLine()) != null) {
+        Matcher matcher = locationPattern.matcher(line);
+        if (matcher.find()) {
+          String func = matcher.group(1);
+          String id = matcher.group(2);
+          result.add(MemoryLocation.valueOf(func, id));
+        } else {
+          // global identifier
+          result.add(MemoryLocation.valueOf(line));
+        }
+      }
       logger.log(Level.INFO, "Finished reading from file " + input);
     } catch (IOException pE) {
       logger.log(Level.WARNING, pE.getMessage());

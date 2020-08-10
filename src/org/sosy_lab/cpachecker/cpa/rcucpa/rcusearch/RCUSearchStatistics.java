@@ -23,8 +23,6 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa.rcusearch;
 
-import com.google.common.reflect.TypeToken;
-import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Writer;
@@ -141,10 +139,9 @@ public class RCUSearchStatistics implements Statistics {
     if (output != null) {
       // May be disabled
       try (Writer writer = Files.newBufferedWriter(output, Charset.defaultCharset())) {
-        Gson builder = new Gson();
-        java.lang.reflect.Type type = new TypeToken<Set<MemoryLocation>>() {
-        }.getType();
-        builder.toJson(rcuAndAliases, type, writer);
+        for (MemoryLocation loc : rcuAndAliases) {
+          writer.write(loc.toString() + "\n");
+        }
         logger.log(Level.INFO, "Ended dump of RCU-aliases in file " + output);
       } catch (IOException pE) {
         logger.log(Level.WARNING, pE.getMessage());
