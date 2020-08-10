@@ -122,12 +122,8 @@ public class PointerStatistics implements Statistics {
       out.append("  Last state of PointerCPA is not of PointerState class");
     }
 
-    stats += "\n  Time for edge handling:         " + transfer.handlingTime + '\n';
+    stats += "\n  Time for transfer relation:         " + transfer.transferTime + '\n';
     stats += "  Time for equality checks:       " + transfer.equalityTime + '\n';
-    stats += "  Time for determining pointsTo:  " + PointerTransferRelation.pointsToTime + '\n';
-    stats += "  Time for strengthen operator:   " + PointerTransferRelation.strengthenTime + '\n';
-
-    stats += "BAM Part" + '\n';
     stats += "  Reduce time:  " + reducer.reduceTime + '\n';
     stats += "  Expand time:  " + reducer.expandTime + '\n';
 
