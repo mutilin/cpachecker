@@ -35,6 +35,7 @@ import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -279,34 +280,19 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
     RCUState rcuState = (RCUState) pO;
 
-    // TODO: Problems with equals of Multimap
-    if (!rcuRelations.asMap().equals(rcuState.rcuRelations.asMap())) {
-      return false;
-    }
-    if (!outdatedRCU.equals(rcuState.outdatedRCU)) {
-      return false;
-    }
-    if (!localAgain.equals(rcuState.localAgain)) {
-      return false;
-    }
-    if (!lockState.equals(rcuState.lockState)) {
-      return false;
-    }
-    if (!temporaryIds.equals(rcuState.temporaryIds)) {
-      return false;
-    }
-
-    return true;
+    // Problems with equals of Multimap
+    return Objects.equals(rcuRelations.asMap(), rcuState.rcuRelations.asMap())
+        && Objects.equals(
+            outdatedRCU,
+            rcuState.outdatedRCU)
+        && Objects.equals(localAgain, rcuState.localAgain)
+        && Objects.equals(lockState, rcuState.lockState)
+        && Objects.equals(temporaryIds, rcuState.temporaryIds);
   }
 
   @Override
   public int hashCode() {
-    int result = rcuRelations.hashCode();
-    result = 31 * result + outdatedRCU.hashCode();
-    result = 31 * result + localAgain.hashCode();
-    result = 31 * result + lockState.hashCode();
-    result = 31 * result + temporaryIds.hashCode();
-    return result;
+    return Objects.hash(rcuRelations, outdatedRCU, localAgain, lockState, temporaryIds);
   }
 
   @Override

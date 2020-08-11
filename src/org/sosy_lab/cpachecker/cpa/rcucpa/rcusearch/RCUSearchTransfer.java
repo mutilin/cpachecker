@@ -77,6 +77,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   RCUSearchTransfer(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = pLogger;
     config.inject(this);
+    pointerTransfer = PointerTransferRelation.INSTANCE;
   }
 
   @Override
@@ -90,8 +91,6 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     Set<MemoryLocation> oldPointers = oldRcuSearchState.getRcuPointers();
     Set<MemoryLocation> newPointers = new TreeSet<>();
 
-    logger.log(Level.ALL, "EDGE TYPE: " + cfaEdge.getEdgeType());
-    logger.log(Level.ALL, "EDGE CONT: " + cfaEdge.getRawStatement());
     switch(cfaEdge.getEdgeType()) {
       case StatementEdge:
         newPointers =

@@ -23,9 +23,9 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
-import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import java.util.Objects;
 
-public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
+public class LockStateRCU {
   public enum HeldLock {
     NO_LOCK,
     READ_LOCK,
@@ -69,11 +69,6 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     return "\n Lock Type: " + lockType.name() + "\n Read Lock Count: " + readLockCount;
   }
 
-  public static LockStateRCU copyOf(LockStateRCU other) {
-    return new LockStateRCU(other.lockType, other.readLockCount);
-  }
-
-  @Override
   public LockStateRCU join(LockStateRCU other) {
     int minReadLock = Math.min(this.readLockCount, other.readLockCount);
     HeldLock lock;
@@ -90,10 +85,8 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
     return new LockStateRCU(lock, minReadLock);
   }
 
-  @Override
   public boolean isLessOrEqual(LockStateRCU other) {
-    // TODO Locks?
-    return readLockCount <= other.readLockCount;
+    return readLockCount <= other.readLockCount && lockType == other.lockType;
   }
 
   public int compareTo(LockStateRCU other) {
@@ -116,9 +109,7 @@ public class LockStateRCU implements LatticeAbstractState<LockStateRCU>{
 
   @Override
   public int hashCode() {
-    int result = lockType.hashCode();
-    result = 31 * result + readLockCount;
-    return result;
+    return Objects.hash(lockType, readLockCount);
   }
 
   @Override

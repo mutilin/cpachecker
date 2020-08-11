@@ -28,8 +28,6 @@ import java.util.Collections;
 import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
-import org.sosy_lab.common.configuration.Option;
-import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
@@ -49,7 +47,6 @@ import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA.PointerOptions;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerReducer;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 
-@Options
 public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnalysisWithBAM,
                                                          StatisticsProvider, WrapperCPA {
 
@@ -57,26 +54,20 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   private final PointerCPA pointerCPA;
   private final RCUSearchReducer reducer;
 
-  @Option(name = "cpa.pointer2.useFakeLocs", secure = true, description = "whether to use the fake locations "
-        + "during analysis (more precise, but also slower)")
-  private boolean useFakeLocs = true;
-
   RCUSearchCPA (Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super(
         "JOIN",
         "SEP",
         DelegateAbstractDomain.<RCUSearchState>getInstance(),
         new RCUSearchTransfer(config, pLogger));
-    config.inject(this);
     statistics = new RCUSearchStatistics(config, pLogger);
 
-    pointerCPA = new PointerCPA(new PointerOptions());
-    RCUSearchTransfer transfer = (RCUSearchTransfer) this.getTransferRelation();
-    PointerTransferRelation pointerTransfer =
-        (PointerTransferRelation) pointerCPA.getTransferRelation();
-    transfer.initialize(pointerTransfer, statistics);
-    pointerTransfer.setUseFakeLocs(useFakeLocs);
+    PointerOptions options = new PointerOptions();
+    config.inject(options);
+    pointerCPA = new PointerCPA(options);
     reducer = new RCUSearchReducer((PointerReducer) pointerCPA.getReducer(), statistics);
+    ((RCUSearchTransfer) getTransferRelation())
+        .initialize((PointerTransferRelation) pointerCPA.getTransferRelation(), statistics);
   }
 
   public static CPAFactory factory() {

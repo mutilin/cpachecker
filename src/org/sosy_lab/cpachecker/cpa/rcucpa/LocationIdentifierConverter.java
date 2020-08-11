@@ -33,10 +33,6 @@ import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public class LocationIdentifierConverter {
-  public static AbstractIdentifier toId(MemoryLocation location) {
-    return null;
-  }
-
   public static MemoryLocation toLocation(AbstractIdentifier id) {
     if (id instanceof LocalVariableIdentifier) {
       LocalVariableIdentifier lvid = (LocalVariableIdentifier) id;
