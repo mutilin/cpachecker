@@ -63,6 +63,9 @@ public class PointerState implements AbstractState {
 
   private SortedSet<MemoryLocation> topLocations;
 
+  // Lazy initialization
+  private ImmutableSet<MemoryLocation> knownLocations = null;
+
   /**
    * Creates a new pointer state with an empty initial points-to map.
     */
@@ -273,7 +276,13 @@ public class PointerState implements AbstractState {
    * @return all locations known to the state.
    */
   public Set<MemoryLocation> getKnownLocations() {
-    return ImmutableSet.copyOf(
+
+    if (knownLocations != null) {
+      return knownLocations;
+    }
+    knownLocations =
+        ImmutableSet
+            .copyOf(
         Iterables.concat(
             topLocations,
             pointsToMap.keySet(),
@@ -290,10 +299,11 @@ public class PointerState implements AbstractState {
       }
 
     })));
+    return knownLocations;
   }
 
   public boolean isKnownLocation(MemoryLocation pLoc) {
-    return pointsToMap.containsKey(pLoc);
+    return getKnownLocations().contains(pLoc);
   }
 
   /**

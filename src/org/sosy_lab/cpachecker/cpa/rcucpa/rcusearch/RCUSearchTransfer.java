@@ -200,9 +200,8 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     IdentifierCreator identifierCreator = new IdentifierCreator(pFunctionName);
     AbstractIdentifier id = expression.accept(identifierCreator);
     MemoryLocation location = LocationIdentifierConverter.toLocation(id);
-    Set<MemoryLocation> knownLocations = pointerState.getKnownLocations();
 
-    if (knownLocations.contains(location)) {
+    if (pointerState.isKnownLocation(location)) {
       pRcuPointers.add(location);
     } else {
       identifierCreator.setCurrentFunction("");
