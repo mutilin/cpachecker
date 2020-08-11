@@ -292,6 +292,10 @@ public class PointerState implements AbstractState {
     })));
   }
 
+  public boolean isKnownLocation(MemoryLocation pLoc) {
+    return pointsToMap.containsKey(pLoc);
+  }
+
   /**
    * Gets the points-to map of this state.
    *

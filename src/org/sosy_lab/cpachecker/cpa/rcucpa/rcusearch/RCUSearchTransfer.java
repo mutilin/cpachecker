@@ -133,6 +133,12 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
         (PointerState) oldRcuSearchState.getWrappedState();
     Collection<? extends AbstractState> states =
         pointerTransfer.getAbstractSuccessorsForEdge(oldPointerState, precision, cfaEdge);
+    if (states.size() == 0) {
+      // Infeasible assumption
+      stats.pointerTimer.stop();
+      stats.transferTimer.stop();
+      return ImmutableSet.of();
+    }
     assert states.size() == 1;
     PointerState pointerState = (PointerState) states.iterator().next();
     stats.pointerTimer.stop();

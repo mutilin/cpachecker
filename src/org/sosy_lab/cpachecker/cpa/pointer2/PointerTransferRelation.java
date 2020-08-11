@@ -442,7 +442,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     LocationSet locations = asLocations(pLeftHandSide, pState, 0);
     if (useFakeLocs && pRightHandSide.isBot() && locations instanceof ExplicitLocationSet) {
       for (MemoryLocation loc : ((ExplicitLocationSet) locations)) {
-        if (!pState.getKnownLocations().contains(loc)) {
+        if (!pState.isKnownLocation(loc)) {
           CVariableDeclaration decl =
               new CVariableDeclaration(
                   FileLocation.DUMMY,
