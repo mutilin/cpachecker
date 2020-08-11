@@ -82,14 +82,7 @@ public class ConstantIdentifier implements AbstractIdentifier {
 
   @Override
   public boolean isPointer() {
-    // CPAlias is not interested in constants
-    // For CPALockator isPointer() == isDereferenced()
-    return false;
-  }
-
-  @Override
-  public GeneralIdentifier getGeneralId() {
-    return null;
+    return isDereferenced();
   }
 
   @Override

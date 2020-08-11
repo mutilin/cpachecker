@@ -96,7 +96,7 @@ public class RCUSearchState extends AbstractSingleWrapperState
   @Override
   public String toString() {
     return rcuPointers.toString() + (rcuPointers.isEmpty() ? " EMPTY" : " NOT EMPTY") + " # " +
-        ((PointerState) getWrappedState()).prepareOriginMap();
+        ((PointerState) getWrappedState()).getPointsToMap();
   }
 
   public static RCUSearchState copyOf(RCUSearchState pState) {
@@ -107,7 +107,7 @@ public class RCUSearchState extends AbstractSingleWrapperState
 
   public Map<MemoryLocation, Set<MemoryLocation>> getPointsTo() {
     return PointerStatistics
-        .replaceTopsAndBots(((PointerState) getWrappedState()).prepareOriginMap());
+        .replaceTopsAndBots(((PointerState) getWrappedState()).getPointsToMap());
   }
 
   @Override

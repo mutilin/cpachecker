@@ -93,7 +93,6 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
    * @param options the configured options.
    */
   public PointerCPA(PointerOptions options) {
-    // add wrappers for merge and stop operators to measure time
     super(options.merge, "SEP", PointerDomain.INSTANCE, PointerTransferRelation.INSTANCE);
     reducer = new PointerReducer();
     statistics = new PointerStatistics(options.noOutput, options.path,

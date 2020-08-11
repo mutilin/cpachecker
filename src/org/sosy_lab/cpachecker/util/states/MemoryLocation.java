@@ -37,7 +37,6 @@ import java.util.OptionalLong;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentMap;
-import org.sosy_lab.cpachecker.cpa.pointer2.PointerState;
 
 /**
 * This class describes a location in the memory.
@@ -214,10 +213,5 @@ public class MemoryLocation implements Comparable<MemoryLocation>, Serializable 
         .compare(identifier, other.identifier)
         .compare(offset, other.offset, Ordering.natural().nullsFirst())
         .result();
-  }
-
-  public boolean isGlobal() {
-    return (functionName == null || functionName.isEmpty())
-            && !PointerState.isFictionalPointer(this);
   }
 }

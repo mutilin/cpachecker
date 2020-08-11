@@ -33,6 +33,7 @@ import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.LinkedListMultimap;
 import com.google.common.collect.Multimap;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -40,10 +41,10 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.cpa.usage.AliasInfoProvider;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
-import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
-import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
+import org.sosy_lab.cpachecker.cpa.usage.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
@@ -261,7 +262,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   public boolean isLocal(GeneralIdentifier id) {
     if (!localAgain.isEmpty()) {
       FluentIterable<GeneralIdentifier> genIds =
-          from(localAgain).transform(AbstractIdentifier::getGeneralId);
+          from(localAgain).filter(SingleIdentifier.class).transform(SingleIdentifier::getGeneralId);
       if (genIds.anyMatch(i -> i.equals(id))) {
         return true;
       }
@@ -296,7 +297,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   }
 
   @Override
-  public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
+  public Collection<AbstractIdentifier> getAllPossibleAliases(AbstractIdentifier id) {
     Set<AbstractIdentifier> result = new TreeSet<>();
 
     if (id instanceof SingleIdentifier) {
@@ -319,11 +320,6 @@ public class RCUState implements LatticeAbstractState<RCUState>,
     }
 
     return result;
-  }
-
-  @Override
-  public Set<AbstractIdentifier> getUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
-    return ImmutableSet.of();
   }
 
   RCUState incRCURead() {

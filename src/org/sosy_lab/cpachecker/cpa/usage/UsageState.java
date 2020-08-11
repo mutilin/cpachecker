@@ -28,7 +28,8 @@ import static com.google.common.collect.FluentIterable.from;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
-import java.util.Collections;
+import com.google.common.collect.ImmutableSet;
+import java.util.Collection;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
@@ -37,7 +38,6 @@ import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithEdge;
-import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
@@ -202,30 +202,27 @@ public class UsageState extends AbstractSingleWrapperState
 
 
   @Override
-  public Set<AbstractIdentifier> getAllPossibleIds(AbstractIdentifier id) {
+  public Set<AbstractIdentifier> getAllPossibleAliases(AbstractIdentifier id) {
     AbstractIdentifier newId = getLinksIfNecessary(id);
     if (newId != id) {
-      return Collections.singleton(newId);
+      return ImmutableSet.of(newId);
     } else {
-      return Collections.emptySet();
+      return ImmutableSet.of();
     }
   }
 
-  // TODO Not quite sure the difference and meaning
-
   @Override
-  public Set<AbstractIdentifier> getUnnecessaryIds(AbstractIdentifier pIdentifier, Set<AbstractIdentifier> pSet) {
+  public void filterAliases(AbstractIdentifier pIdentifier, Collection<AbstractIdentifier> pSet) {
     AbstractIdentifier newId = getLinksIfNecessary(pIdentifier);
     if (newId != pIdentifier) {
-      return Collections.singleton(pIdentifier);
-    } else {
-      return Collections.emptySet();
+      pSet.remove(pIdentifier);
     }
   }
 
   @Override
   public UsageState join(UsageState pOther) {
     stats.joinTimer.start();
+
     ImmutableMap.Builder<AbstractIdentifier, AbstractIdentifier> newRelation =
         ImmutableMap.builder();
     newRelation.putAll(variableBindingRelation);

@@ -44,7 +44,6 @@ import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.NoException;
 
-
 public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentifier, NoException> {
   protected int dereference;
   protected String function;
@@ -189,9 +188,9 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
     } else if (id1 instanceof SingleIdentifier && id2 instanceof SingleIdentifier) {
       SingleIdentifier s1 = (SingleIdentifier) id1;
       SingleIdentifier s2 = (SingleIdentifier) id2;
-      if (s1.isDereferenced() && !s2.isDereferenced()) {
+      if (s1.isPointer() && !s2.isPointer()) {
         main = s1;
-      } else if (s1.isDereferenced() && !s2.isDereferenced()) {
+      } else if (s1.isPointer() && !s2.isPointer()) {
         main = s2;
       } else if (s1.getType().getClass() == CSimpleType.class
           && s2.getType().getClass() != CSimpleType.class) {
@@ -217,5 +216,4 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
   protected AbstractIdentifier visitDefault(CExpression pExp) {
     return new ConstantIdentifier(pExp.toASTString(), dereference);
   }
-
 }

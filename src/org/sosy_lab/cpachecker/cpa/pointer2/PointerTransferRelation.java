@@ -690,8 +690,9 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
             MemoryLocation memoryLocation =
                 fieldReferenceToMemoryLocation(pIastFieldReference);
             if (pIastFieldReference.isPointerDereference()) {
-                  if (pState.getTrackedMemoryLocations().contains(memoryLocation)) {
-                        return pState.getPointsToSet(memoryLocation);
+                  LocationSet set = pState.getPointsToSet(memoryLocation);
+                  if (set != LocationSetBot.INSTANCE) {
+                    return set;
               }
             }
             return toLocationSet(Collections.singleton(memoryLocation));

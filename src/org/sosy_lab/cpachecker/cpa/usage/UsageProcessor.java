@@ -23,17 +23,15 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage;
 
-import static com.google.common.base.Predicates.instanceOf;
-
 import de.uni_freiburg.informatik.ultimate.smtinterpol.util.IdentityHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -61,8 +59,6 @@ import org.sosy_lab.cpachecker.cpa.callstack.CallstackState;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.cpa.rcucpa.RCUState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
-import org.sosy_lab.cpachecker.cpa.usage.refinement.AliasInfoProvider;
-import org.sosy_lab.cpachecker.cpa.usage.refinement.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -355,47 +351,29 @@ public class UsageProcessor {
   private void
       createUsages(AbstractIdentifier pId, CFANode pNode, AbstractState pChild, Access pAccess) {
 
-    // Find aliases
-    // TODO where is binding?
-
+    // TODO looks like a hack
     if (pId instanceof SingleIdentifier) {
       SingleIdentifier singleId = (SingleIdentifier) pId;
       if (singleId.getName().contains("CPAchecker_TMP")) {
         RCUState rcuState = AbstractStates.extractStateByType(pChild, RCUState.class);
-        AbstractIdentifier buf = null;
         if (rcuState != null) {
-          logger.log(Level.ALL, "ASK: Asking RCUState for mapping of tmpVar");
-          buf = rcuState.getNonTemporaryId(singleId);
-        } else {
-          logger.log(Level.ALL, "ASK: RCUState is null");
-        }
-        if (buf != null) {
-          logger.log(Level.ALL, "SUBST: " + singleId + " with " + buf);
-          singleId = (SingleIdentifier) buf;
-        } else {
-          logger.log(Level.ALL, "NO SUBST: " + singleId);
+          singleId = (SingleIdentifier) rcuState.getNonTemporaryId(singleId);
         }
       }
     }
 
-    Iterable<AbstractState> providers =
-        AbstractStates.asIterable(pChild).filter(instanceOf(AliasInfoProvider.class));
-    Set<AbstractIdentifier> aliases = new HashSet<>();
-    Set<AbstractIdentifier> unnecessary = new HashSet<>();
+    Iterable<AliasInfoProvider> providers =
+        AbstractStates.asIterable(pChild).filter(AliasInfoProvider.class);
+    Set<AbstractIdentifier> aliases = new TreeSet<>();
 
     aliases.add(pId);
-    logger.log(Level.ALL, "ALIAS: ", aliases);
-    for (AbstractState provider : providers) {
-      aliases.addAll(((AliasInfoProvider) provider).getAllPossibleIds(pId));
-    }
-    logger.log(Level.ALL, "ALIAS: ", aliases);
-
-    for (AbstractState provider : providers) {
-      unnecessary.addAll(((AliasInfoProvider) provider).getUnnecessaryIds(pId, aliases));
+    for (AliasInfoProvider provider : providers) {
+      aliases.addAll(provider.getAllPossibleAliases(pId));
     }
 
-    aliases.removeAll(unnecessary);
-    logger.log(Level.ALL, "ALIAS: ", aliases);
+    for (AliasInfoProvider provider : providers) {
+      provider.filterAliases(pId, aliases);
+    }
 
     for (AbstractIdentifier aliasId : aliases) {
       createUsageAndAdd(aliasId, pNode, pChild, pAccess);
@@ -434,8 +412,8 @@ public class UsageProcessor {
         return;
       } else {
 
-        Iterable<AbstractState> itStates =
-            AbstractStates.asIterable(pChild).filter(instanceOf(LocalInfoProvider.class));
+        Iterable<LocalInfoProvider> itStates =
+            AbstractStates.asIterable(pChild).filter(LocalInfoProvider.class);
         boolean isLocal = false;
         boolean isGlobal = false;
 
@@ -450,13 +428,13 @@ public class UsageProcessor {
             } else if (type == DataType.LOCAL) {
               isLocal = true;
             }
-            for (AbstractState state : itStates) {
-              isLocal |= ((LocalInfoProvider) state).isLocal(gcId);
+            for (LocalInfoProvider state : itStates) {
+              isLocal |= state.isLocal(gcId);
             }
           }
         }
-        for (AbstractState state : itStates) {
-          isLocal |= ((LocalInfoProvider) state).isLocal(gId);
+        for (LocalInfoProvider state : itStates) {
+          isLocal |= state.isLocal(gId);
         }
         if (isLocal && !isGlobal) {
           logger.log(

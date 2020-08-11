@@ -76,11 +76,6 @@ public class BinaryIdentifier implements AbstractIdentifier {
   }
 
   @Override
-  public GeneralIdentifier getGeneralId() {
-    return null;
-  }
-
-  @Override
   public BinaryIdentifier cloneWithDereference(int pDereference) {
     return new BinaryIdentifier(id1, id2, pDereference);
   }

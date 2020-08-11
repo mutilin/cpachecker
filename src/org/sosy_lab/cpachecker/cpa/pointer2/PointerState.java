@@ -27,14 +27,9 @@ import com.google.common.base.Function;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Sets;
 import java.util.Collections;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentSortedMap;
@@ -59,9 +54,7 @@ public class PointerState implements AbstractState {
   /**
    * The points-to map of the state.
    */
-  private PersistentSortedMap<MemoryLocation, ExplicitLocationSet> pointsToMap;
-
-  private SortedSet<MemoryLocation> topLocations;
+  private PersistentSortedMap<MemoryLocation, LocationSet> pointsToMap;
 
   // Lazy initialization
   private ImmutableSet<MemoryLocation> knownLocations = null;
@@ -70,8 +63,7 @@ public class PointerState implements AbstractState {
    * Creates a new pointer state with an empty initial points-to map.
     */
   private PointerState() {
-    pointsToMap = PathCopyingPersistentTreeMap.of();
-    topLocations = new TreeSet<>();
+    pointsToMap = PathCopyingPersistentTreeMap.<MemoryLocation, LocationSet>of();
   }
 
   /**
@@ -79,11 +71,8 @@ public class PointerState implements AbstractState {
    *
    * @param pPointsToMap the points-to map of this state.
    */
-  private PointerState(
-      PersistentSortedMap<MemoryLocation, ExplicitLocationSet> pPointsToMap,
-      SortedSet<MemoryLocation> pTop) {
+  private PointerState(PersistentSortedMap<MemoryLocation, LocationSet> pPointsToMap) {
     this.pointsToMap = pPointsToMap;
-    this.topLocations = pTop;
   }
 
   /**
@@ -101,10 +90,7 @@ public class PointerState implements AbstractState {
       return this;
     }
     LocationSet newPointsToSet = previousPointsToSet.addElement(pTarget);
-    assert newPointsToSet instanceof ExplicitLocationSet;
-    return new PointerState(
-        pointsToMap.putAndCopy(pSource, (ExplicitLocationSet) newPointsToSet),
-        topLocations);
+    return new PointerState(pointsToMap.putAndCopy(pSource, newPointsToSet));
   }
 
   /**
@@ -122,10 +108,7 @@ public class PointerState implements AbstractState {
       return this;
     }
     LocationSet newPointsToSet = previousPointsToSet.addElements(pTargets);
-    assert newPointsToSet instanceof ExplicitLocationSet;
-    return new PointerState(
-        pointsToMap.putAndCopy(pSource, (ExplicitLocationSet) newPointsToSet),
-        topLocations);
+    return new PointerState(pointsToMap.putAndCopy(pSource, newPointsToSet));
   }
 
   /**
@@ -141,54 +124,13 @@ public class PointerState implements AbstractState {
     if (pTargets.isBot()) {
       return this;
     }
-    if (pTargets.isTop()) {
-      return addAsTop(pSource);
-    }
     LocationSet previousPointsToSet = getPointsToSet(pSource);
     LocationSet newSet = previousPointsToSet.addElements(pTargets);
     if (newSet == previousPointsToSet) {
       // Including top
       return this;
     }
-    assert newSet instanceof ExplicitLocationSet;
-    return new PointerState(
-        pointsToMap.putAndCopy(pSource, (ExplicitLocationSet) newSet),
-        topLocations);
-  }
-
-  public PointerState addAsTop(MemoryLocation pSource) {
-    if (topLocations.contains(pSource)) {
-      return this;
-    }
-    SortedSet<MemoryLocation> newSet = new TreeSet<>(topLocations);
-    if (newSet.add(pSource)) {
-      return new PointerState(pointsToMap.removeAndCopy(pSource), newSet);
-    } else {
-      // Need to return the same object
-      return new PointerState(pointsToMap.removeAndCopy(pSource), topLocations);
-    }
-  }
-
-  public PointerState addAsTop(Set<MemoryLocation> pSources) {
-    if (topLocations == pSources || pSources.isEmpty()) {
-      return this;
-    }
-    SortedSet<MemoryLocation> newSet = new TreeSet<>(topLocations);
-    PersistentSortedMap<MemoryLocation, ExplicitLocationSet> result = pointsToMap;
-    boolean modified = false;
-
-    for (MemoryLocation loc : pSources) {
-      if (newSet.add(loc)) {
-        modified = true;
-        result = pointsToMap.removeAndCopy(loc);
-      }
-    }
-    if (!modified) {
-      // Do not check result==pointsToMap!
-      return this;
-    } else {
-      return new PointerState(result, newSet);
-    }
+    return new PointerState(pointsToMap.putAndCopy(pSource, newSet));
   }
 
   /**
@@ -198,9 +140,6 @@ public class PointerState implements AbstractState {
    * @return the points-to set of the given identifier.
    */
   public LocationSet getPointsToSet(MemoryLocation pSource) {
-    if (topLocations.contains(pSource)) {
-      return LocationSetTop.INSTANCE;
-    }
     LocationSet result = this.pointsToMap.get(pSource);
     if (result == null) {
       return LocationSetBot.INSTANCE;
@@ -284,7 +223,6 @@ public class PointerState implements AbstractState {
         ImmutableSet
             .copyOf(
         Iterables.concat(
-            topLocations,
             pointsToMap.keySet(),
             FluentIterable.from(pointsToMap.values())
                 .transformAndConcat(
@@ -315,19 +253,6 @@ public class PointerState implements AbstractState {
     return Collections.unmodifiableMap(this.pointsToMap);
   }
 
-  public Map<MemoryLocation, LocationSet> prepareOriginMap() {
-    Map<MemoryLocation, LocationSet> newMap = new TreeMap<>(pointsToMap);
-    for (MemoryLocation loc : topLocations) {
-      newMap.put(loc, LocationSetTop.INSTANCE);
-    }
-    return Collections.unmodifiableMap(newMap);
-  }
-
-  public Set<MemoryLocation> getTopSet() {
-    // Avoid immutable to be able to check on equality
-    return this.topLocations;
-  }
-
   @Override
   public boolean equals(Object pO) {
     if (this == pO) {
@@ -335,27 +260,12 @@ public class PointerState implements AbstractState {
     }
     if (pO instanceof PointerState) {
       PointerState other = ((PointerState) pO);
-      if (topLocations.size() != other.topLocations.size() || pointsToMap.size() != other.pointsToMap.size()) {
-        return false;
-      }
-      boolean a = topLocations == other.topLocations;
-      boolean b = pointsToMap == other.pointsToMap;
-
-      if (a && b) {
+      if (pointsToMap == other.pointsToMap) {
         return true;
       }
-      if (!a) {
-        a = topLocations.equals(other.topLocations);
-        if (a) {
-          topLocations = other.topLocations;
-        }
-      }
-      if (a && !b) {
-        b = pointsToMap.equals(other.pointsToMap);
-        if (b) {
-          pointsToMap = other.pointsToMap;
-          return true;
-        }
+      if (pointsToMap.equals(other.pointsToMap)) {
+        pointsToMap = other.pointsToMap;
+        return true;
       }
     }
     return false;
@@ -363,31 +273,20 @@ public class PointerState implements AbstractState {
 
   @Override
   public int hashCode() {
-    return Objects.hash(pointsToMap, topLocations);
+    return pointsToMap.hashCode();
   }
 
   @Override
   public String toString() {
-    return pointsToMap.toString() + ",\n Top: " + topLocations;
-  }
-
-  public static PointerState copyOf(PointerState pState) {
-    return new PointerState(
-        PathCopyingPersistentTreeMap.copyOf(pState.pointsToMap),
-        new TreeSet<>(pState.topLocations));
+    return pointsToMap.toString();
   }
 
   public PointerState forget(MemoryLocation pPtr) {
-    SortedSet<MemoryLocation> newSet = topLocations;
-    if (topLocations.contains(pPtr)) {
-      newSet = new TreeSet<>(topLocations);
-      newSet.remove(pPtr);
-    }
-    return new PointerState(pointsToMap.removeAndCopy(pPtr), newSet);
+    return new PointerState(pointsToMap.removeAndCopy(pPtr));
   }
 
   public Set<MemoryLocation> getTrackedMemoryLocations() {
-    return Sets.union(pointsToMap.keySet(), topLocations);
+    return pointsToMap.keySet();
   }
 
   public static boolean isFictionalPointer(MemoryLocation ptr) {
@@ -395,6 +294,6 @@ public class PointerState implements AbstractState {
   }
 
   public int getSize() {
-    return pointsToMap.size() + topLocations.size();
+    return pointsToMap.size();
   }
 }

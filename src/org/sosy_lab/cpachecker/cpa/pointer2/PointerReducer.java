@@ -45,8 +45,9 @@ public class PointerReducer implements Reducer {
     PointerState clonedState = (PointerState) expandedState;
     // Avoid ConcurrentModification
     for (MemoryLocation ptr : new TreeSet<>(clonedState.getTrackedMemoryLocations())) {
-      if (!(PointerState.isFictionalPointer(ptr) || ptr.isGlobal()) &&
-          !context.getMemoryLocations().contains(ptr)) {
+      if (!PointerState.isFictionalPointer(ptr)
+          && !ptr.isOnFunctionStack()
+          && !context.getMemoryLocations().contains(ptr)) {
         clonedState = clonedState.forget(ptr);
       }
     }

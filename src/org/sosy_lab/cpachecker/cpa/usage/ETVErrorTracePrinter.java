@@ -135,9 +135,6 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
 
       createVisualization(id, pPair.getFirst(), writer);
       createVisualization(id, pPair.getSecond(), writer);
-
-
-
       if (!singleFileOutput) {
         writer.close();
       }
@@ -198,7 +195,7 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
     }
     writer.write("\n");
 
-    logger.log(Level.ALL, "USAGE: ", usage);
+    logger.log(Level.ALL, "Print usage: ", usage);
   }
 
   private void printCountStatistics(

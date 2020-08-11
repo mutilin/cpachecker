@@ -77,7 +77,7 @@ public class PointerStatistics implements Statistics {
     String stats = "Common part" + '\n';
 
     if (ptState != null) {
-      Map<MemoryLocation, LocationSet> locationSetMap = ptState.prepareOriginMap();
+      Map<MemoryLocation, LocationSet> locationSetMap = ptState.getPointsToMap();
 
       if (locationSetMap != null) {
 
@@ -87,15 +87,15 @@ public class PointerStatistics implements Statistics {
         int fictionalKeys = 0;
         int fictionalValues = 0;
 
-        for (MemoryLocation key : pointsTo.keySet()) {
-          Set<MemoryLocation> buf = pointsTo.get(key);
+        for (Entry<MemoryLocation, Set<MemoryLocation>> entry : pointsTo.entrySet()) {
+          Set<MemoryLocation> buf = entry.getValue();
           values += buf.size();
           for (MemoryLocation location : buf) {
             if (PointerState.isFictionalPointer(location)) {
               ++fictionalValues;
             }
           }
-          if (PointerState.isFictionalPointer(key)) {
+          if (PointerState.isFictionalPointer(entry.getKey())) {
             ++fictionalKeys;
           }
         }

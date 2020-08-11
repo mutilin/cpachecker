@@ -41,20 +41,14 @@ public enum PointerDomain implements AbstractDomain {
     PointerState state2 = (PointerState) pState2;
     PointerState result = state2;
 
-    if (state1 == state2) {
-      return state2;
-    }
-
     if (state1.equals(state2)) {
       return state2;
     }
 
-    result = result.addAsTop(state1.getTopSet());
-
     for (Entry<MemoryLocation, LocationSet> pointsToEntry : state1.getPointsToMap().entrySet()) {
       result = result.addPointsToInformation(pointsToEntry.getKey(), pointsToEntry.getValue());
     }
-    if (result == state2) {
+    if (result.equals(state2)) {
       return state2;
     }
     if (result.equals(state1)) {
@@ -73,11 +67,6 @@ public enum PointerDomain implements AbstractDomain {
 
     if (state2.getSize() < state1.getSize()) {
       return false;
-    }
-    if (state1.getTopSet() != state2.getTopSet()) {
-      if (!state2.getTopSet().containsAll(state1.getTopSet())) {
-        return false;
-      }
     }
     for (Entry<MemoryLocation, LocationSet> pointsToEntry : state1.getPointsToMap().entrySet()) {
       LocationSet rightSide = state2.getPointsToSet(pointsToEntry.getKey());

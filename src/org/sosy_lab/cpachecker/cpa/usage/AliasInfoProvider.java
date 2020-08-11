@@ -2,7 +2,7 @@
  * CPAchecker is a tool for configurable software verification.
  *  This file is part of CPAchecker.
  *
- *  Copyright (C) 2007-2017  Dirk Beyer
+ *  Copyright (C) 2007-2018  Dirk Beyer
  *  All rights reserved.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,11 +21,15 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-package org.sosy_lab.cpachecker.cpa.usage.refinement;
+package org.sosy_lab.cpachecker.cpa.usage;
 
-import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
+import java.util.Collection;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
-public interface LocalInfoProvider {
-  boolean isLocal(GeneralIdentifier id);
+public interface AliasInfoProvider {
+  Collection<AbstractIdentifier> getAllPossibleAliases(AbstractIdentifier id);
 
+  @SuppressWarnings("unused")
+  default void filterAliases(AbstractIdentifier pIdentifier, Collection<AbstractIdentifier> pSet) {
+  }
 }
