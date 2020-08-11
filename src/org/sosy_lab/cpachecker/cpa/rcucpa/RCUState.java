@@ -113,28 +113,17 @@ public class RCUState implements LatticeAbstractState<RCUState>,
       return false;
     }
 
-    Set<AbstractIdentifier> sub = new TreeSet<>(rcuRelations.keySet());
-    sub.retainAll(other.rcuRelations.keySet());
-    if (sub.size() < rcuRelations.keySet().size()
-        && sub.size() < other.rcuRelations.keySet().size()) {
+    if (!other.rcuRelations.keySet().containsAll(rcuRelations.keySet())) {
       return false;
     } else {
       // TODO: ...
     }
 
-    sub = new TreeSet<>(outdatedRCU);
-    sub.retainAll(other.outdatedRCU);
-    if (sub.size() < outdatedRCU.size() && sub.size() < other.outdatedRCU.size()) {
+    if (!other.outdatedRCU.containsAll(outdatedRCU)) {
       return false;
     }
 
-    sub = new TreeSet<>(localAgain);
-    sub.retainAll(other.localAgain);
-    if (sub.size() < localAgain.size() && sub.size() < other.localAgain.size()) {
-      return false;
-    }
-
-    return true;
+    return other.localAgain.containsAll(localAgain);
   }
 
   RCUState fillLocal() {
