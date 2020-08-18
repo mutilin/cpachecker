@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.Collections;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 
@@ -40,6 +41,17 @@ import org.sosy_lab.cpachecker.exceptions.CPATransferException;
  * as base class.
  */
 public interface TransferRelation {
+  /**
+   * Reached-set aware transfer relation (NBAM)
+   */
+  interface ReachedSetAware extends TransferRelation {
+    /**
+     * Update current reached set. Always called before {@code getAbstractSuccessors}.
+     *
+     * @param pReachedSet Reached set to use
+     */
+    void updateReachedSet(ReachedSet pReachedSet);
+  }
 
   /**
    * Get all successors of the current abstract state.
