@@ -177,11 +177,11 @@ public abstract class AbstractBAMCPA extends AbstractSingleWrapperCPA {
     return Preconditions.checkNotNull(blockPartitioning);
   }
 
-  LogManager getLogger() {
+  public LogManager getLogger() {
     return logger;
   }
 
-  TimedReducer getReducer() {
+  protected TimedReducer getReducer() {
     try {
       return new TimedReducer(reducerStatistics, getWrappedCpa().getReducer());
     } catch (InvalidConfigurationException e) {

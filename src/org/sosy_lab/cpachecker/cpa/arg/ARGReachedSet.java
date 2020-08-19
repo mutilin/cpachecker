@@ -213,22 +213,38 @@ public class ARGReachedSet {
     Set<ARGState> toWaitlist = removeSubtree0(pState);
 
     for (ARGState waitingState : toWaitlist) {
-      Precision waitingStatePrec = mReached.getPrecision(waitingState);
-      Preconditions.checkState(waitingStatePrec != null);
-
-      for (int i = 0; i < pPrecisions.size(); i++) {
-        Precision adaptedPrec = adaptPrecision(waitingStatePrec, pPrecisions.get(i), pPrecTypes.get(i));
-
-        // adaptedPrec == null, if the precision component was not changed
-        if (adaptedPrec != null ) {
-          waitingStatePrec = adaptedPrec;
-        }
-        Preconditions.checkState(waitingStatePrec != null);
-      }
-
-      mReached.updatePrecision(waitingState, waitingStatePrec);
-      mReached.reAddToWaitlist(waitingState);
+      readdToWaitlist(waitingState, pPrecisions, pPrecTypes);
     }
+  }
+
+  public void remove(AbstractState state) {
+    mReached.remove(state);
+  }
+
+  public void readdToWaitlist(AbstractState s) {
+    mReached.reAddToWaitlist(s);
+  }
+
+  public void readdToWaitlist(
+      ARGState state,
+      List<Precision> precisions,
+      List<Predicate<? super Precision>> precisionTypes) {
+    Precision waitingStatePrec = mReached.getPrecision(state);
+    Preconditions.checkState(waitingStatePrec != null);
+
+    for (int i = 0; i < precisions.size(); i++) {
+      Precision adaptedPrec =
+          adaptPrecision(waitingStatePrec, precisions.get(i), precisionTypes.get(i));
+
+      // adaptedPrec == null, if the precision component was not changed
+      if (adaptedPrec != null) {
+        waitingStatePrec = adaptedPrec;
+      }
+      Preconditions.checkState(waitingStatePrec != null);
+    }
+
+    mReached.updatePrecision(state, waitingStatePrec);
+    mReached.reAddToWaitlist(state);
   }
 
   /**

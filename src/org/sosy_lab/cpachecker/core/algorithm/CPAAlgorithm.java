@@ -58,6 +58,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelation.ReachedSetAware;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGMergeJoinCPAEnabledAnalysis;
@@ -325,6 +326,10 @@ public class CPAAlgorithm implements Algorithm, StatisticsProvider {
       } finally {
         stats.forcedCoveringTimer.stop();
       }
+    }
+
+    if (transferRelation instanceof TransferRelation.ReachedSetAware) {
+      ((ReachedSetAware) transferRelation).updateReachedSet(reachedSet);
     }
 
     stats.transferTimer.start();
