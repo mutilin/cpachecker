@@ -27,7 +27,6 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayDeque;
 import java.util.List;
-import java.util.Stack;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
