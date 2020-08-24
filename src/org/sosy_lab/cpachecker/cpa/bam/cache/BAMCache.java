@@ -44,7 +44,7 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
  * reached-set. The precision is equal to the initial precision of the reached-set. The context is
  * the block where a block-entry equals the initial location of the reached-set.
  */
-public interface BAMCache extends Statistics {
+public interface BAMCache<E> extends Statistics {
 
   /**
    * Store a reached-set in the cache. Returns an entry where the result-states for the reached-set
@@ -52,7 +52,7 @@ public interface BAMCache extends Statistics {
    *
    * @param item reached-set to be inserted into the cache
    */
-  BAMCacheEntry put(AbstractState stateKey, Precision precisionKey, Block context, ReachedSet item);
+  BAMCacheEntry put(AbstractState stateKey, Precision precisionKey, Block context, E item);
 
   /**
    * Return the entry for the given key. The entry is NULL, if there is a cache miss. For a partial
@@ -81,7 +81,7 @@ public interface BAMCache extends Statistics {
     private ARGState rootOfBlock;
 
     protected BAMCacheEntry(ReachedSet pRs) {
-      rs = Preconditions.checkNotNull(pRs);
+      rs = pRs;
     }
 
     public ReachedSet getReachedSet() {

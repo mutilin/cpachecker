@@ -181,7 +181,7 @@ public abstract class AbstractBAMCPA extends AbstractSingleWrapperCPA {
     return logger;
   }
 
-  protected TimedReducer getReducer() {
+  public TimedReducer getReducer() {
     try {
       return new TimedReducer(reducerStatistics, getWrappedCpa().getReducer());
     } catch (InvalidConfigurationException e) {
@@ -199,7 +199,9 @@ public abstract class AbstractBAMCPA extends AbstractSingleWrapperCPA {
     if (exportReachedSet) {
       pStatsCollection.add(exporter);
     }
-    pStatsCollection.add(getData().getCache());
+    if (getData() != null) {
+      pStatsCollection.add(getData().getCache());
+    }
     super.collectStatistics(pStatsCollection);
   }
 

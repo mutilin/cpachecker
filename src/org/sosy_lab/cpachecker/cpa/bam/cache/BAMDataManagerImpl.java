@@ -69,7 +69,7 @@ public class BAMDataManagerImpl implements BAMDataManager {
    * {@link org.sosy_lab.cpachecker.core.algorithm.CPAAlgorithm}
    * invocation.
    * */
-  private final BAMCache bamCache;
+  private final BAMCache<ReachedSet> bamCache;
 
   private final ReachedSetFactory reachedSetFactory;
 
@@ -111,7 +111,7 @@ public class BAMDataManagerImpl implements BAMDataManager {
   private final Set<CFANode> uncachedBlockEntries = new HashSet<>();
 
   public BAMDataManagerImpl(
-      BAMCache pArgCache,
+      BAMCache<ReachedSet> pArgCache,
       ReachedSetFactory pReachedSetFactory,
       LogManager pLogger) {
     bamCache = pArgCache;
@@ -314,7 +314,7 @@ public class BAMDataManagerImpl implements BAMDataManager {
   }
 
   @Override
-  public BAMCache getCache() {
+  public BAMCache<ReachedSet> getCache() {
     return bamCache;
   }
 

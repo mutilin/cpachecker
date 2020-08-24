@@ -337,7 +337,7 @@ class MainCPAStatistics implements Statistics {
       FluentIterable<AbstractState> reachedStates = FluentIterable.from(reached);
 
       // hack to get all reached states for BAM
-      if (cpa instanceof AbstractBAMCPA) {
+      if (cpa instanceof AbstractBAMCPA && ((AbstractBAMCPA) cpa).getData() != null) {
         Collection<ReachedSet> otherReachedSets =
             ((AbstractBAMCPA) cpa).getData().getCache().getAllCachedReachedStates();
         reachedStates = reachedStates.append(FluentIterable.concat(otherReachedSets));

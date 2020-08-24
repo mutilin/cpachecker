@@ -54,12 +54,12 @@ import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer.TimerWra
  * Warning: Although the ARG is flattened at this point, the elements in it have
  * not been expanded due to performance reasons.
  */
-public final class BAMBasedRefiner extends AbstractARGBasedRefiner {
+public class BAMBasedRefiner extends AbstractARGBasedRefiner {
 
   private final AbstractBAMCPA bamCpa;
   private final BAMCPAStatistics stats;
 
-  private BAMBasedRefiner(
+  protected BAMBasedRefiner(
       ARGBasedRefiner pRefiner, ARGCPA pArgCpa, AbstractBAMCPA pBamCpa, LogManager pLogger) {
     super(pRefiner, pArgCpa, pLogger);
 
@@ -86,7 +86,8 @@ public final class BAMBasedRefiner extends AbstractARGBasedRefiner {
   }
 
   @Override
-  protected final CounterexampleInfo performRefinementForPath(
+  protected CounterexampleInfo
+      performRefinementForPath(
       ARGReachedSet pReached, ARGPath pPath) throws CPAException, InterruptedException {
     checkArgument(!(pReached instanceof BAMReachedSet),
         "Wrapping of BAM-based refiners inside BAM-based refiners is not allowed.");
@@ -121,7 +122,8 @@ public final class BAMBasedRefiner extends AbstractARGBasedRefiner {
   }
 
   @Override
-  protected final ARGPath computePath(
+  protected ARGPath
+      computePath(
       ARGState pLastElement, ARGReachedSet pMainReachedSet) throws InterruptedException, CPATransferException {
     assert pMainReachedSet.asReachedSet().contains(pLastElement) : "targetState must be in mainReachedSet.";
     assert BAMReachedSetValidator.validateData(

@@ -94,11 +94,15 @@ public class NBAMReachedSet extends ARGReachedSet.ForwardingARGReachedSet {
 
       if (exCurrent.isBlockEntry()) {
         BlockEntry blockEntry = exCurrent.getBlockEntry();
-        if (cpa.getCacheManager().isCached(blockEntry.block, blockEntry.reducedState,
-            blockEntry.reducedPrecision))
+        if (cpa.getCacheManager()
+            .containsPreciseKey(
+                blockEntry.reducedState,
+                blockEntry.reducedPrecision,
+                blockEntry.block))
         {
-          Entry cacheEntry = cpa.getCacheManager().get(blockEntry.block, blockEntry.reducedState,
-              blockEntry.reducedPrecision);
+          Entry cacheEntry =
+              (Entry) cpa.getCacheManager()
+                  .get(blockEntry.reducedState, blockEntry.reducedPrecision, blockEntry.block);
 
           if (!cacheEntry.getCacheUsages().isEmpty()) {
             for (ARGState c: cacheEntry.getCacheUsages()) {

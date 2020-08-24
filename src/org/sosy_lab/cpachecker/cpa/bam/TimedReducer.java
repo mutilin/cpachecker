@@ -32,7 +32,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer;
 import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer.TimerWrapper;
 
-class TimedReducer implements Reducer {
+public class TimedReducer implements Reducer {
 
   static class ReducerStatistics {
     final ThreadSafeTimerContainer reduceTime =

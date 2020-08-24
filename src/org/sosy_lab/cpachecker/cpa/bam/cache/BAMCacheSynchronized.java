@@ -41,9 +41,9 @@ import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 
 /** A wrapper for a fully synchronized cache access. */
 // TODO we should use more fine-grained locking implementation
-public class BAMCacheSynchronized implements BAMCache {
+public class BAMCacheSynchronized implements BAMCache<ReachedSet> {
 
-  private final BAMCache cache;
+  private final BAMCache<ReachedSet> cache;
   private final StatTimer timer = new StatTimer("Time for cache-access");
 
   public BAMCacheSynchronized(Configuration pConfig, Reducer pReducer, LogManager pLogger)

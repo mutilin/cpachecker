@@ -23,60 +23,44 @@
  */
 package org.sosy_lab.cpachecker.cpa.notbam;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
+import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.bam.cache.AbstractBAMCache;
 import org.sosy_lab.cpachecker.util.Pair;
 
-public class NBAMCacheManager {
-  private static class StateKey {
-    final Block context;
-    final Object stateHash;
+public class NBAMCacheManager extends AbstractBAMCache<AbstractState> {
 
-    StateKey(Block pContext, Object pStateHash) {
-      context = pContext;
-      stateHash = pStateHash;
-    }
-
-    @Override
-    public boolean equals(Object pO) {
-      if (this == pO) {
-        return true;
-      }
-
-      if (pO == null || getClass() != pO.getClass()) {
-        return false;
-      }
-
-      StateKey stateKey = (StateKey) pO;
-      return Objects.equals(context, stateKey.context) &&
-          Objects.equals(stateHash, stateKey.stateHash);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(context, stateHash);
-    }
-  }
-
-
-  public static class Entry {
+  public static class Entry extends BAMCacheEntry {
     public final AbstractState entryState;
     private Set<Pair<AbstractState, Precision>> exitStates = new HashSet<>();
     private Set<ARGState> cacheUsages = new HashSet<>();
 
     private Entry(AbstractState pEntryState) {
+      super(null);
       entryState = pEntryState;
     }
 
-    public Set<Pair<AbstractState, Precision>> getExitStates() {
+    @Override
+    public @Nullable List<AbstractState> getExitStates() {
+      return exitStates.stream().map(p -> p.getFirst()).collect(Collectors.toList());
+    }
+
+    public Set<Pair<AbstractState, Precision>> getExitStatesAndPrecision() {
       return exitStates;
     }
 
@@ -89,43 +73,18 @@ public class NBAMCacheManager {
     }
   }
 
-  private Reducer reducer;
-  private Map<StateKey, Entry> blockCache = new HashMap<>();
   private Map<ARGState, NBAMExtendedState> extendedStates = new HashMap<>();
 
-  public NBAMCacheManager(Reducer pReducer) {
-    reducer = pReducer;
-  }
-
-  public boolean isEmpty() {
-    return blockCache.isEmpty();
-  }
-
-  public boolean isCached(Block block, AbstractState reducedState, Precision reducedPrecision) {
-    StateKey mapKey = new StateKey(block, reducer.getHashCodeForState(reducedState, reducedPrecision));
-
-    return blockCache.containsKey(mapKey);
+  public NBAMCacheManager(Configuration pConfig, Reducer pReducer, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pReducer, pLogger);
   }
 
   public boolean hasCachedExits(Block block, AbstractState reducedState, Precision reducedPrecision) {
-    StateKey mapKey = new StateKey(block, reducer.getHashCodeForState(reducedState, reducedPrecision));
-
-    return blockCache.containsKey(mapKey) && !blockCache.get(mapKey).exitStates.isEmpty();
-  }
-
-  public Entry get(Block block, AbstractState reducedState, Precision reducedPrecision) {
-    Entry ret = blockCache.get(new StateKey(block,
-        reducer.getHashCodeForState(reducedState, reducedPrecision)));
-
-    return Objects.requireNonNull(ret, "Cache entry does not exists");
-  }
-
-  public void create(Block block, AbstractState reducedState, Precision reducedPrecision,
-                     AbstractState entryState)
-  {
-    blockCache.put(new StateKey(block,
-        reducer.getHashCodeForState(reducedState, reducedPrecision)),
-        new Entry(entryState));
+    if (containsPreciseKey(reducedState, reducedPrecision, block)) {
+      return get(reducedState, reducedPrecision, block).getExitStates().isEmpty();
+    }
+    return false;
   }
 
   public NBAMExtendedState extendedState(AbstractState state) {
@@ -133,10 +92,21 @@ public class NBAMCacheManager {
   }
 
   public void replaceState(AbstractState oldState, AbstractState newState) {
-    NBAMExtendedState oldExt = extendedStates.remove((ARGState) oldState);
+    NBAMExtendedState oldExt = extendedStates.remove(oldState);
     if (oldExt != null) {
       // TODO: Is such replacement sufficient?
       extendedStates.put((ARGState) newState, new NBAMExtendedState((ARGState) newState, oldExt));
     }
+  }
+
+  @Override
+  protected BAMCacheEntry getEntry(AbstractState entryState) {
+    return new Entry(entryState);
+  }
+
+  @Override
+  public Collection<ReachedSet> getAllCachedReachedStates() {
+    // TODO Auto-generated method stub
+    return null;
   }
 }

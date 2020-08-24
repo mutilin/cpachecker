@@ -34,6 +34,7 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
+import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Refiner;
 import org.sosy_lab.cpachecker.cpa.arg.ARGBasedRefiner;
 import org.sosy_lab.cpachecker.cpa.arg.ARGCPA;
@@ -78,7 +79,11 @@ public class NBAMBasedRefiner extends AbstractARGBasedRefiner {
     return new NBAMBasedRefiner(pRefiner, argCpa, bamCpa, bamCpa.getLogger());
   }
 
-  private void recurseBlock(List<ARGState> states, ARGState exitState, ARGState entryState) {
+  private void recurseBlock(
+      List<ARGState> states,
+      ARGState exitState,
+      ARGState entryState,
+      ARGReachedSet pReached) {
     ARGState current = exitState;
 
     while (!current.getParents().isEmpty() && !current.equals(entryState)) {
@@ -90,12 +95,16 @@ public class NBAMBasedRefiner extends AbstractARGBasedRefiner {
 
         if (exParent.isBlockEntry()) {
           BlockEntry blockEntry = exParent.getBlockEntry();
-          NBAMCacheManager.Entry cacheEntry = cacheManager
-              .get(blockEntry.block, blockEntry.reducedState, blockEntry.reducedPrecision);
+          Precision prec = pReached.asReachedSet().getPrecision(blockEntry.reducedState);
+
+          NBAMCacheManager.Entry cacheEntry =
+              (Entry) cacheManager
+              .get(blockEntry.reducedState, blockEntry.reducedPrecision, blockEntry.block);
 
           // Find out corresponding block in ARG and expand it:
           recurseBlock(states, (ARGState) exCurrent.getBlockExit().reducedState,
-              (ARGState) cacheEntry.entryState);
+              (ARGState) cacheEntry.entryState,
+              pReached);
         } else {
           // It's already expanded block, copy as-is:
           states.add(new BackwardARGState(current));
@@ -124,7 +133,7 @@ public class NBAMBasedRefiner extends AbstractARGBasedRefiner {
     List<ARGState> states = new ArrayList<>();
 
     Utils.writeArg(pLastElement, Paths.get("output/refined.dot"), pLastElement);
-    recurseBlock(states, pLastElement, null);
+    recurseBlock(states, pLastElement, null, pReached);
 
     // Wire ARG states to each other, keeping in mind that they are in reverse order:
     for (int i = 0; i < states.size() - 1; i++) {

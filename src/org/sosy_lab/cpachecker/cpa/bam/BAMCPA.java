@@ -46,6 +46,7 @@ import org.sosy_lab.cpachecker.core.interfaces.MergeOperator;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.pcc.ProofChecker;
+import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSetFactory;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.bam.cache.BAMCache;
@@ -103,7 +104,7 @@ public class BAMCPA extends AbstractBAMCPA implements StatisticsProvider, ProofC
       this.wrappedProofChecker = null;
     }
 
-    final BAMCache cache;
+    final BAMCache<ReachedSet> cache;
     if (aggressiveCaching) {
       cache = new BAMCacheAggressiveImpl(config, getReducer(), logger);
     } else {

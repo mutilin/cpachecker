@@ -40,7 +40,9 @@ public class BAMDataManagerSynchronized implements BAMDataManager {
   private final BAMDataManager manager;
 
   public BAMDataManagerSynchronized(
-      BAMCache pCache, ReachedSetFactory pReachedsetFactory, LogManager pLogger) {
+      BAMCache<ReachedSet> pCache,
+      ReachedSetFactory pReachedsetFactory,
+      LogManager pLogger) {
     manager = new BAMDataManagerImpl(pCache, pReachedsetFactory, pLogger);
   }
 
@@ -150,7 +152,7 @@ public class BAMDataManagerSynchronized implements BAMDataManager {
   }
 
   @Override
-  public BAMCache getCache() {
+  public BAMCache<ReachedSet> getCache() {
     synchronized (this) {
       return manager.getCache();
     }

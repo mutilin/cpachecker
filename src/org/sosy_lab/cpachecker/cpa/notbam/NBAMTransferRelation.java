@@ -40,6 +40,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.notbam.NBAMCacheManager.Entry;
 import org.sosy_lab.cpachecker.cpa.notbam.NBAMExtendedState.BlockEntry;
 import org.sosy_lab.cpachecker.cpa.notbam.NBAMExtendedState.BlockExit;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -72,9 +73,10 @@ public class NBAMTransferRelation implements TransferRelation.ReachedSetAware {
   @Override
   public Collection<? extends AbstractState> getAbstractSuccessors(
       AbstractState state, Precision precision) throws CPATransferException, InterruptedException {
-    if (reachedSet == null)
+    if (reachedSet == null) {
       throw new IllegalStateException("updateReachedSet() was not called before "
           + "getAbstractSuccessors()");
+    }
 
     final CFANode node = extractLocation(state);
     final ARGState argState = (ARGState) state;
@@ -90,13 +92,13 @@ public class NBAMTransferRelation implements TransferRelation.ReachedSetAware {
       cacheManager.extendedState(state).setBlockEntry(be);
 
       if (cacheManager.hasCachedExits(block, reducedState, reducedPrecision)) {
-//        System.out.println("Cache hit");
-        NBAMCacheManager.Entry cacheEntry = cacheManager.get(block, reducedState, reducedPrecision);
+        NBAMCacheManager.Entry cacheEntry =
+            (Entry) cacheManager.get(reducedState, reducedPrecision, block);
         Set<AbstractState> expandedExits = new HashSet<>();
 
         cacheEntry.getCacheUsages().add(argState);
 
-        for (Pair<AbstractState, Precision> p: cacheEntry.getExitStates()) {
+        for (Pair<AbstractState, Precision> p : cacheEntry.getExitStatesAndPrecision()) {
           AbstractState rs = p.getFirstNotNull();
           Precision rp = p.getSecondNotNull();
           AbstractState expandedState = reducer.getVariableExpandedState(state, block, rs);
@@ -112,11 +114,7 @@ public class NBAMTransferRelation implements TransferRelation.ReachedSetAware {
 
         return expandedExits;
       } else {
-        if (!cacheManager.isEmpty()) {
-//          System.out.println("Cache miss");
-        }
-
-        cacheManager.create(block, reducedState, reducedPrecision, state);
+        cacheManager.put(reducedState, reducedPrecision, block, state);
 
         return getModifiedSuccessors(argState, reducedState, reducedPrecision);
       }
@@ -131,8 +129,9 @@ public class NBAMTransferRelation implements TransferRelation.ReachedSetAware {
       }
 
       BlockEntry blockEntry = cacheManager.extendedState(entryState).getBlockEntry();
-      NBAMCacheManager.Entry cacheEntry = cacheManager.get(blockEntry.block,
-          blockEntry.reducedState, blockEntry.reducedPrecision);
+      NBAMCacheManager.Entry cacheEntry =
+          (Entry) cacheManager
+              .get(blockEntry.reducedState, blockEntry.reducedPrecision, blockEntry.block);
 
       // Attach new state to all existing cache usages:
       for (ARGState cu: cacheEntry.getCacheUsages()) {

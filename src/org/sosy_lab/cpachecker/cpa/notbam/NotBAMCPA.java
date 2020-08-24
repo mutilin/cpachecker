@@ -1,5 +1,6 @@
 package org.sosy_lab.cpachecker.cpa.notbam;
 
+import java.util.Collection;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -10,6 +11,7 @@ import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysisWithBAM;
+import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.bam.AbstractBAMCPA;
 import org.sosy_lab.cpachecker.cpa.bam.cache.BAMDataManager;
@@ -33,13 +35,12 @@ public class NotBAMCPA extends AbstractBAMCPA {
       CFA pCfa) throws InvalidConfigurationException, CPAException
   {
     super(pCpa, config, pLogger, pNotifier, pSpecification, pCfa);
-    config.inject(this);
 
     if (!(pCpa instanceof ConfigurableProgramAnalysisWithBAM)) {
       throw new IllegalArgumentException("Underlying analysis must be BAM capable");
     }
 
-    this.cacheManager = new NBAMCacheManager(getReducer());
+    this.cacheManager = new NBAMCacheManager(config, getReducer(), logger);
     this.transferRelation =
         new NBAMTransferRelation(
             cacheManager,
@@ -63,6 +64,11 @@ public class NotBAMCPA extends AbstractBAMCPA {
 
   public NBAMCacheManager getCacheManager() {
     return cacheManager;
+  }
+
+  @Override
+  public void collectStatistics(Collection<Statistics> pStatsCollection) {
+    // Nothing
   }
 
   @Override

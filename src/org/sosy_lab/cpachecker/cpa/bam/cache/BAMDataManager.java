@@ -115,7 +115,7 @@ public interface BAMDataManager {
   /** Check whether any abstract state was expanded to the given abstract state. */
   boolean hasExpandedState(AbstractState state);
 
-  BAMCache getCache();
+  BAMCache<ReachedSet> getCache();
 
   /** Some benchmarks are complicated and
    *  all intermediate cache entries can not be stored due to large memory consumption,

@@ -36,6 +36,7 @@ import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
+import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.ReachedSetFactory;
 import org.sosy_lab.cpachecker.cpa.bam.cache.BAMCache;
 import org.sosy_lab.cpachecker.cpa.bam.cache.BAMCacheSynchronized;
@@ -56,7 +57,7 @@ public class BAMCPAWithBreakOnMissingBlock extends AbstractBAMCPA {
   )
   private boolean breakForMissingBlock = true;
 
-  private final BAMCache cache;
+  private final BAMCache<ReachedSet> cache;
   private final BAMDataManager data;
 
   private BAMCPAWithBreakOnMissingBlock(
@@ -95,7 +96,7 @@ public class BAMCPAWithBreakOnMissingBlock extends AbstractBAMCPA {
     return new BAMStopOperatorWithBreakOnMissingBlock(getWrappedCpa().getStopOperator());
   }
 
-  public BAMCache getCache() {
+  public BAMCache<ReachedSet> getCache() {
     return cache;
   }
 

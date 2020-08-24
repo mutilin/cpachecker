@@ -38,6 +38,7 @@ import org.sosy_lab.cpachecker.cfa.blocks.BlockPartitioning;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
+import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
@@ -51,7 +52,7 @@ public abstract class ARGSubtreeRemover {
   protected final BlockPartitioning partitioning;
   protected final BAMDataManager data;
   protected final Reducer wrappedReducer;
-  protected final BAMCache bamCache;
+  protected final BAMCache<ReachedSet> bamCache;
   protected final LogManager logger;
   protected final TimerWrapper removeCachedSubtreeTimer;
   protected final boolean doPrecisionRefinementForAllStates;
