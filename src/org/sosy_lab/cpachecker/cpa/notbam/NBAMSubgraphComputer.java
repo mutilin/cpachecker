@@ -87,17 +87,20 @@ public class NBAMSubgraphComputer extends BAMSubgraphComputer {
       }
 
       final Set<BackwardARGState> childrenInSubgraph = new TreeSet<>();
+      boolean isCachedBlock = false;
       for (final ARGState child : currentState.getChildren()) {
         // if a child is not in the subgraph, it does not lead to the target, so ignore it.
         // Because of the ordering, all important children should be finished already.
         if (finishedStates.containsKey(child)) {
           childrenInSubgraph.add(finishedStates.get(child));
         }
+        NBAMExtendedState exChild = cache.extendedState(child);
+        isCachedBlock = exChild.getBlockExit() != null;
       }
 
       NBAMExtendedState exCurrent = cache.extendedState(currentState);
 
-      if (exCurrent.isBlockEntry()) {
+      if (exCurrent.isBlockEntry() && isCachedBlock) {
         BlockEntry blockEntry = exCurrent.getBlockEntry();
         // Precision prec = reachedSet.asReachedSet().getPrecision(blockEntry.reducedState);
 

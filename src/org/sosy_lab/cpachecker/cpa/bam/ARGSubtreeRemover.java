@@ -61,7 +61,11 @@ public abstract class ARGSubtreeRemover {
     partitioning = bamCpa.getBlockPartitioning();
     data = bamCpa.getData();
     wrappedReducer = bamCpa.getReducer();
-    bamCache = bamCpa.getData().getCache();
+    if (data != null) {
+      bamCache = bamCpa.getData().getCache();
+    } else {
+      bamCache = null;
+    }
     logger = bamCpa.getLogger();
     removeCachedSubtreeTimer = pRemoveCachedSubtreeTimer;
     doPrecisionRefinementForAllStates = bamCpa.doPrecisionRefinementForAllStates();
