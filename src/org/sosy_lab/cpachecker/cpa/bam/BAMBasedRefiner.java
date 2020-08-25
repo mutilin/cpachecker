@@ -40,6 +40,8 @@ import org.sosy_lab.cpachecker.cpa.arg.AbstractARGBasedRefiner;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.bam.BAMSubgraphComputer.BackwardARGState;
 import org.sosy_lab.cpachecker.cpa.bam.BAMSubgraphComputer.MissingBlockException;
+import org.sosy_lab.cpachecker.cpa.notbam.NBAMSubgraphComputer;
+import org.sosy_lab.cpachecker.cpa.notbam.NotBAMCPA;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.CPAs;
@@ -126,8 +128,10 @@ public class BAMBasedRefiner extends AbstractARGBasedRefiner {
       computePath(
       ARGState pLastElement, ARGReachedSet pMainReachedSet) throws InterruptedException, CPATransferException {
     assert pMainReachedSet.asReachedSet().contains(pLastElement) : "targetState must be in mainReachedSet.";
-    assert BAMReachedSetValidator.validateData(
-        bamCpa.getData(), bamCpa.getBlockPartitioning(), pMainReachedSet);
+    /*
+     * assert BAMReachedSetValidator.validateData( bamCpa.getData(), bamCpa.getBlockPartitioning(),
+     * pMainReachedSet);
+     */
 
     final TimerWrapper computePathTimer = stats.computePathTimer.getNewTimer();
     final TimerWrapper computeSubtreeTimer = stats.computeSubtreeTimer.getNewTimer();
@@ -139,7 +143,12 @@ public class BAMBasedRefiner extends AbstractARGBasedRefiner {
       Pair<BackwardARGState, BackwardARGState> rootAndTargetOfSubgraph;
       try {
         try {
-          final BAMSubgraphComputer cexSubgraphComputer = new BAMSubgraphComputer(bamCpa, true);
+          final BAMSubgraphComputer cexSubgraphComputer;
+          if (bamCpa instanceof NotBAMCPA) {
+            cexSubgraphComputer = new NBAMSubgraphComputer(bamCpa);
+          } else {
+            cexSubgraphComputer = new BAMSubgraphComputer(bamCpa, true);
+          }
           rootAndTargetOfSubgraph = Preconditions.checkNotNull(
               cexSubgraphComputer.computeCounterexampleSubgraph(pLastElement, pMainReachedSet));
         } catch (MissingBlockException e) {

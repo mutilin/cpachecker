@@ -72,7 +72,9 @@ public abstract class ARGSubtreeRemover {
    * the state itself is updated with the new precision. The sub-class can decide how many
    * other states are updated and whether the cache is touched.
    */
-  abstract void removeSubtree(ARGReachedSet pMainReachedSet, ARGPath pPath,
+  public abstract void removeSubtree(
+      ARGReachedSet pMainReachedSet,
+      ARGPath pPath,
                      ARGState pState, List<Precision> pNewPrecisions,
                      List<Predicate<? super Precision>> pNewPrecisionTypes)
       throws InterruptedException;

@@ -143,8 +143,6 @@ public class NBAMTransferRelation implements TransferRelation.ReachedSetAware {
         Precision expandedPrecision = reducer.getVariableExpandedPrecision(ce.initialPrecision,
             ce.block, precision);
 
-//        System.out.println("Attaching additional state to cache usage: " + ((ARGState) expandedState).getStateId());
-
         NBAMExtendedState richState = cacheManager.extendedState(expandedState);
         richState.markAsAlreadyExpanded();
         richState.setBlockExit(new BlockExit(ce.block, argState, expandedPrecision));

@@ -33,6 +33,8 @@ import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableSubgraphReachedSetVie
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
+import org.sosy_lab.cpachecker.cpa.notbam.NBAMArgSubtreeRemover;
+import org.sosy_lab.cpachecker.cpa.notbam.NotBAMCPA;
 import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer.TimerWrapper;
 
 public class BAMReachedSet extends ARGReachedSet.ForwardingARGReachedSet {
@@ -82,7 +84,9 @@ public class BAMReachedSet extends ARGReachedSet.ForwardingARGReachedSet {
     Preconditions.checkArgument(newPrecisions.size()==pPrecisionTypes.size());
     assert path.getFirstState().getSubgraph().contains(element);
     final ARGSubtreeRemover argSubtreeRemover;
-    if (bamCpa.useCopyOnWriteRefinement()) {
+    if (bamCpa instanceof NotBAMCPA) {
+      argSubtreeRemover = new NBAMArgSubtreeRemover(bamCpa, removeCachedSubtreeTimer);
+    } else if (bamCpa.useCopyOnWriteRefinement()) {
       argSubtreeRemover = new ARGCopyOnWriteSubtreeRemover(bamCpa, removeCachedSubtreeTimer);
     } else {
       argSubtreeRemover = new ARGInPlaceSubtreeRemover(bamCpa, removeCachedSubtreeTimer);

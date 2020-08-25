@@ -64,7 +64,7 @@ public class ARGCopyOnWriteSubtreeRemover extends ARGSubtreeRemover {
   }
 
   @Override
-  void removeSubtree(
+  public void removeSubtree(
       ARGReachedSet pMainReachedSet,
       ARGPath pPath,
       ARGState pState,

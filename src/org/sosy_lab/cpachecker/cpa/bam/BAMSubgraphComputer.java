@@ -64,7 +64,7 @@ public class BAMSubgraphComputer {
   private final boolean useCopyOnWriteRefinement;
   private final boolean cleanupOnMissingBlock;
 
-  BAMSubgraphComputer(AbstractBAMCPA bamCpa, boolean pCleanupOnMissingBlock) {
+  protected BAMSubgraphComputer(AbstractBAMCPA bamCpa, boolean pCleanupOnMissingBlock) {
     this.partitioning = bamCpa.getBlockPartitioning();
     this.reducer = bamCpa.getReducer();
     this.data = bamCpa.getData();
@@ -97,7 +97,8 @@ public class BAMSubgraphComputer {
    *     used multiple times in one path.
    * @throws MissingBlockException for re-computing some blocks
    */
-  Pair<BackwardARGState, BackwardARGState> computeCounterexampleSubgraph(
+  protected Pair<BackwardARGState, BackwardARGState>
+      computeCounterexampleSubgraph(
       final ARGState target, final ARGReachedSet pMainReachedSet)
       throws MissingBlockException, InterruptedException {
     Pair<BackwardARGState, Collection<BackwardARGState>> p =
@@ -127,7 +128,7 @@ public class BAMSubgraphComputer {
    * Compute a subgraph within the given reached set,
    * backwards from target (wrapped by newTreeTarget) towards the root of the reached set.
    * */
-  private BackwardARGState computeCounterexampleSubgraph(
+  protected BackwardARGState computeCounterexampleSubgraph(
       final ARGReachedSet reachedSet, final Collection<BackwardARGState> newTreeTargets)
       throws MissingBlockException, InterruptedException {
     final UnmodifiableReachedSet rs = reachedSet.asReachedSet();
@@ -352,7 +353,7 @@ public class BAMSubgraphComputer {
   }
 
   /** A class to signal a deleted block for re-computation. */
-  static class MissingBlockException extends CPAException {
+  public static class MissingBlockException extends CPAException {
 
     private static final long serialVersionUID = 123L;
 
