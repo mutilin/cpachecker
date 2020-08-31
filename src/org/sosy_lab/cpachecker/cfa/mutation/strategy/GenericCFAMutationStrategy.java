@@ -19,15 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
-import com.google.common.collect.ImmutableCollection;
-import com.google.common.collect.ImmutableList;
-import java.io.IOException;
 import java.io.PrintStream;
-import java.io.Writer;
-import java.nio.charset.Charset;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -38,7 +30,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.sosy_lab.common.io.IO;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
@@ -54,21 +45,30 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   private Collection<ObjectKey> objectsBefore;
 
-  private Deque<RollbackInfo> currentMutation = new ArrayDeque<>();
+  private Deque<ObjectKey> currentMutation = new ArrayDeque<>();
+  private Deque<RollbackInfo> rollbackInfos = new ArrayDeque<>();
   private final Set<ObjectKey> previousPasses = new HashSet<>();
   private final Set<ObjectKey> previousMutations = new HashSet<>();
-  private final int rate;
-  private int depth;
+  private int rate = 0;
+  private int depth = -1;
   private int levelSize = -1;
   private int batchNum = -1;
-  private int batchSize = -1;
   private int batchCount = -1;
+  private int batchSize = -1;
   private final boolean tryAllAtFirst;
   private final String objectsDescription;
-
   private OnePassMutationStatistics stats;
-  private boolean exportObjectsEveryRound = false;
-  private Path exportFile = Paths.get("output/functions.txt");
+  private int pass;
+
+  private enum State {
+    NewLevel,
+    RemoveComplement,
+    RemoveComplementNoRollback,
+    RemoveDelta,
+    RemoveDeltaNoRollback
+  }
+
+  private State state = State.NewLevel;
 
   protected static class OnePassMutationStatistics extends AbstractMutationStatistics {
     // cfa objects for strategy to deal with
@@ -112,14 +112,16 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   }
 
   public GenericCFAMutationStrategy(
-      LogManager pLogger, int pRate, boolean ptryAllAtFirst, String pObjectsDescription) {
+      LogManager pLogger, int pStartRate, String pObjectsDescription) {
     super(pLogger);
-    assert pRate >= 0;
-    rate = pRate;
-    tryAllAtFirst = ptryAllAtFirst;
-    depth = tryAllAtFirst ? 0 : 1;
+    assert pStartRate >= 0;
+    rate = pStartRate;
+    tryAllAtFirst = pStartRate == 1;
     objectsDescription = pObjectsDescription;
-    stats = new OnePassMutationStatistics(this.getClass().getSimpleName(), pObjectsDescription);
+    stats =
+        new OnePassMutationStatistics(
+            this.getClass().getSimpleName() + " 1 pass", pObjectsDescription);
+    pass = 1;
   }
 
   protected abstract Collection<ObjectKey> getAllObjects(ParseResult pParseResult);
@@ -163,101 +165,136 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   public boolean mutate(ParseResult pParseResult) {
     currentMutation.clear();
 
-    if (stats.rounds.getValue() == 0 && !initLevel(pParseResult)) {
-      return false;
-    }
-    if (batchNum == batchCount && !nextLevel(pParseResult)) {
-      return false;
-    }
+    switch (state) {
+      case NewLevel:
+        if (!setLevel(pParseResult)) {
+          return false;
+        }
+        if (rate <= 2) {
+          state = State.RemoveDelta;
+          return mutate(pParseResult);
+        }
+        state = State.RemoveComplement;
+        // $FALL-THROUGH$
 
-    ImmutableCollection<ObjectKey> chosenObjects = nextBatch(pParseResult);
-    if (chosenObjects.isEmpty()) {
-      if (!nextLevel(pParseResult)) {
-        return false;
-      }
-      chosenObjects = nextBatch(pParseResult);
-      if (chosenObjects.isEmpty()) {
-        countRemained(pParseResult);
-        return false;
-      }
+      case RemoveComplement:
+        if (batchNum++ < batchCount) {
+          currentMutation.addAll(getObjects(pParseResult, levelSize - batchSize));
+          logger.logf(
+              Level.INFO,
+              "removing complement %d/%d: %d %s",
+              batchNum,
+              batchCount,
+              currentMutation.size(),
+              objectsDescription);
+          if (!currentMutation.isEmpty()) {
+            state = State.RemoveComplementNoRollback;
+            break;
+          }
+        }
+        batchNum = 0;
+        state = State.RemoveDelta;
+        previousMutations.clear();
+        logger.logf(Level.INFO, "switching to deltas");
+        // $FALL-THROUGH$
+
+      case RemoveDelta:
+        if (batchNum++ < batchCount) {
+          currentMutation.addAll(getObjects(pParseResult, batchSize));
+          logger.logf(
+              Level.INFO,
+              "removing delta %d: %d %s",
+              batchNum,
+              currentMutation.size(),
+              objectsDescription);
+          if (!currentMutation.isEmpty()) {
+            previousMutations.addAll(currentMutation);
+            state = State.RemoveDeltaNoRollback;
+            break;
+          }
+        }
+        state = State.NewLevel;
+        return mutate(pParseResult);
+
+      case RemoveComplementNoRollback:
+        logger.logf(Level.INFO, "complement %d/%d was removed successfully", batchNum, batchCount);
+        rate = 2;
+        state = State.NewLevel;
+        return mutate(pParseResult);
+
+      case RemoveDeltaNoRollback:
+        logger.logf(Level.INFO, "delta %d/%d was removed successfully", batchNum, batchCount);
+        state = --rate < 2 ? State.NewLevel : State.RemoveDelta;
+        return mutate(pParseResult);
     }
 
     stats.rounds.inc();
-
-    final StringBuilder sb = new StringBuilder();
-    sb.append("Round ").append(stats.rounds.getValue()).append(". ");
-    sb.append("Depth ").append(depth).append(", batch ").append(batchNum).append(". ");
-    sb.append("Removing ").append(chosenObjects.size()).append(" ").append(objectsDescription);
-    if (exportObjectsEveryRound) {
-      sb.append(".\n");
-    }
-    logger.log(Level.INFO, sb.toString());
-
-    for (ObjectKey object : chosenObjects) {
-      if (!objectsBefore.contains(object)) {
-        stats.objectsAppearedDuringPass.inc();
-        objectsBefore.add(object);
-      }
-      RollbackInfo ri = getRollbackInfo(pParseResult, object);
-      if (exportObjectsEveryRound) {
-        sb.append("removing ").append(object).append("\n");
-        sb.append("(rollback info: ").append(ri).append(")\n");
-      }
-      currentMutation.push(ri);
+    rollbackInfos.clear();
+    for (ObjectKey object : currentMutation) {
+      final RollbackInfo ri = getRollbackInfo(pParseResult, object);
+      rollbackInfos.push(ri);
+      //      logger.logf(Level.INFO, "removing %s with ri %s", object, ri);
       removeObject(pParseResult, object);
-    }
-    previousMutations.addAll(chosenObjects);
-
-    if (exportObjectsEveryRound) {
-      try {
-        try (Writer writer =
-            IO.openOutputFile(exportFile, Charset.defaultCharset(), StandardOpenOption.APPEND)) {
-          writer.write(sb.toString());
-        }
-      } catch (IOException e) {
-        logger.logUserException(Level.WARNING, e, "Could not write info from strategy.");
-        assert false;
-      }
     }
 
     return true;
   }
 
-  private ImmutableCollection<ObjectKey> nextBatch(ParseResult pParseResult) {
-    batchNum++;
-    return ImmutableList.copyOf(getObjects(pParseResult, batchSize));
-  }
-
   @SuppressWarnings("unchecked")
   private boolean initLevel(ParseResult pParseResult) {
-    batchCount = tryAllAtFirst ? 1 : rate;
+    if (rate < 1) {
+      throw new UnsupportedOperationException("Rate must be > 0 but is " + rate);
+    }
+    depth = tryAllAtFirst ? 0 : 1;
+
     objectsBefore = getAllObjects(pParseResult);
     objectsBefore.removeAll(previousPasses);
     levelSize = objectsBefore.size();
     if (levelSize == 0) {
       return false;
     }
+
+    batchSize = (levelSize - 1) / rate + 1;
     stats.objectsBeforePass.setNextValue(levelSize);
-    batchSize = tryAllAtFirst ? levelSize : (levelSize - 1) / rate + 1;
-    logger.logf(
-        Level.INFO, "batchsize init %d at depth %d with levelsize=%d", batchSize, depth, levelSize);
     return true;
   }
 
-  private boolean nextLevel(ParseResult pParseResult) {
-    if (batchSize <= 1) {
+  private boolean setLevel(ParseResult pParseResult) {
+    if (depth == -1) {
+      return initLevel(pParseResult);
+    }
+
+    previousMutations.clear();
+    depth++;
+    Collection<ObjectKey> level = getAllObjects(pParseResult);
+    levelSize = level.size();
+    for (ObjectKey o : level) {
+      if (!objectsBefore.contains(o)) {
+        stats.objectsAppearedDuringPass.inc();
+      }
+    }
+
+    if (batchSize <= 1 || levelSize == 0) {
       countRemained(pParseResult);
       return false;
     }
 
-    depth++;
-    batchSize = (batchSize - 1) / rate + 1;
-    batchCount = (levelSize - 1) / batchSize + 1;
-    batchNum = 0;
+    if (rate < 2) {
+      rate = 2;
+    } else {
+      rate *= 2;
+    }
 
-    logger.logf(Level.INFO, "previous mutations was %d", previousMutations.size());
-    previousMutations.clear();
-    logger.logf(Level.INFO, "batch size updated %d x %d at depth %d", batchSize, batchCount, depth);
+    if (rate >= levelSize) {
+      batchSize = 1;
+      rate = levelSize;
+    } else {
+      batchSize = (levelSize - 1) / rate + 1;
+    }
+    batchNum = 0;
+    batchCount = rate;
+
+    logger.logf(Level.INFO, "new level: %d deltas of size %d at depth %d", rate, batchSize, depth);
     return true;
   }
 
@@ -280,34 +317,32 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   public void rollback(ParseResult pParseResult) {
     stats.rollbacks.inc();
 
-    final StringBuilder sb = new StringBuilder();
-    sb.append("Round ").append(stats.rounds.getValue()).append(". ");
-    sb.append("Rollback ").append(stats.rollbacks.getValue()).append(". ");
-    sb.append("Returning ").append(currentMutation.size()).append(" ").append(objectsDescription);
-    if (exportObjectsEveryRound) {
-      sb.append(".\n");
+    switch (state) {
+      case RemoveComplementNoRollback:
+        state = State.RemoveComplement;
+        previousMutations.clear();
+        int count = 0;
+        for (final ObjectKey object : currentMutation) {
+          if (++count > batchSize) {
+            break;
+          }
+          previousMutations.add(object);
+        }
+        break;
+      case RemoveDeltaNoRollback:
+        state = State.RemoveDelta;
+        break;
+      default:
+        throw new UnsupportedOperationException("" + state);
     }
-    logger.log(Level.INFO, sb.toString());
 
-    Iterator<RollbackInfo> it = currentMutation.iterator();
+    Iterator<RollbackInfo> it = rollbackInfos.iterator();
     while (it.hasNext()) {
       final RollbackInfo ri = it.next();
-      if (exportObjectsEveryRound) {
-        sb.append("returning ").append(ri).append("\n");
-      }
+      //      logger.logf(Level.INFO, "returning ri %s", ri);
       returnObject(pParseResult, ri);
     }
 
-    if (exportObjectsEveryRound) {
-      try {
-        try (Writer writer =
-            IO.openOutputFile(exportFile, Charset.defaultCharset(), StandardOpenOption.APPEND)) {
-          writer.write(sb.toString());
-        }
-      } catch (IOException e) {
-        logger.logUserException(Level.WARNING, e, "Could not write info from strategy.");
-      }
-    }
   }
 
   @SuppressWarnings("unchecked")
@@ -320,14 +355,16 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   @Override
   public String toString() {
-    return this.getClass().getSimpleName() + "(" + rate + ")";
+    return this.getClass().getSimpleName() + "(" + pass + " pass, depth " + depth + ")";
   }
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     pStatsCollection.add(stats);
-    stats = new OnePassMutationStatistics(this.getClass().getSimpleName(), objectsDescription);
-    levelSize = batchSize = batchNum = batchCount = -1;
-    depth = tryAllAtFirst ? 0 : 1;
+    stats =
+        new OnePassMutationStatistics(
+            this.getClass().getSimpleName() + " " + ++pass + " pass", objectsDescription);
+    levelSize = batchSize = batchNum = batchCount = depth = -1;
+    rate = tryAllAtFirst ? 1 : 2;
   }
 }

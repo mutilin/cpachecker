@@ -85,7 +85,7 @@ public class FunctionStrategy
   /*
    * @Option( secure = true, name = "cfa.threads.threadJoin", description =
    * "A name of thread_join function") private String threadJoin = "pthread_join";
-   * 
+   *
    * @Option( secure = true, name = "cfa.threads.threadSelfJoin", description =
    * "A name of thread_join_N function") private String threadJoinN = "pthread_join_N";
    */
@@ -150,10 +150,9 @@ public class FunctionStrategy
     }
   }
 
-  public FunctionStrategy(
-      Configuration pConfig, LogManager pLogger, int pRate, boolean ptryAllAtFirst)
+  public FunctionStrategy(Configuration pConfig, LogManager pLogger, int pRate)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, ptryAllAtFirst, "Functions");
+    super(pLogger, pRate, "Functions");
     pConfig.inject(this);
   }
 
@@ -161,10 +160,9 @@ public class FunctionStrategy
       Configuration pConfig,
       LogManager pLogger,
       int pRate,
-      boolean ptryAllAtFirst,
       final Set<String> pWhitelist)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, ptryAllAtFirst, "Functions");
+    super(pLogger, pRate, "Functions");
     pConfig.inject(this);
     whitelist = pWhitelist;
   }
@@ -210,7 +208,7 @@ public class FunctionStrategy
   @Override
   protected void removeObject(ParseResult pParseResult, String functionName) {
     logger.logf(
-        Level.INFO,
+        Level.FINE,
         "removing %s (entry is %s, %d nodes)",
         functionName,
         pParseResult.getFunctions().get(functionName),
@@ -224,7 +222,7 @@ public class FunctionStrategy
       ParseResult pParseResult, Pair<FunctionEntryNode, SortedSet<CFANode>> pRollbackInfo) {
     String functionName = pRollbackInfo.getFirst().getFunctionName();
     logger.logf(
-        Level.INFO,
+        Level.FINE,
         "returning %s (entry is %s, %d nodes)",
         functionName,
         pRollbackInfo.getFirst(),

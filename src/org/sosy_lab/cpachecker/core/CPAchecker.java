@@ -712,9 +712,9 @@ public class CPAchecker {
           || (originalThrowable != null && currentThrowable == null)
           || (originalThrowable != null
               && currentThrowable != null
-              && !originalThrowable.getMessage().equals(currentThrowable.getMessage()))) {
+              && !originalThrowable.getClass().equals(currentThrowable.getClass()))) {
 
-        logger.log(Level.INFO, "Result changed, mutation rollback.");
+        logger.log(Level.INFO, "Result has changed, mutation rollback.");
         logger.logf(Level.INFO, "Expected: %s", originalResult.getResultString());
         if (originalThrowable != null) {
           logger.logf(Level.INFO, "With: %s", originalThrowable.getMessage());
@@ -725,8 +725,17 @@ public class CPAchecker {
         }
         ((CFAMutator) cfaCreator).rollback();
 
+      } else if (originalThrowable != null
+          && currentThrowable != null
+          && !originalThrowable.getMessage().equals(currentThrowable.getMessage())) {
+        logger.logf(
+            Level.WARNING,
+            "The result is considered unchanged, but error message is different:\noriginal:%s\ncurrent:%s",
+            originalThrowable.getMessage(),
+            currentThrowable.getMessage());
+
       } else {
-        logger.log(Level.INFO, "Result did not change.");
+        logger.log(Level.INFO, "Result has not changed.");
         logger.logf(Level.FINE, "Got %s", currentResult.getResultString());
         if (currentThrowable != null) {
           logger.logf(Level.FINE, "With %s", currentThrowable.getMessage());

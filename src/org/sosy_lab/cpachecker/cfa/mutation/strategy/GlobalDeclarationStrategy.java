@@ -508,8 +508,8 @@ public class GlobalDeclarationStrategy
     }
   }
 
-  public GlobalDeclarationStrategy(LogManager pLogger, int pAtATime, boolean ptryAllAtFirst) {
-    super(pLogger, pAtATime, ptryAllAtFirst, "Global declarations");
+  public GlobalDeclarationStrategy(LogManager pLogger, int pStartRate) {
+    super(pLogger, pStartRate, "Global declarations");
   }
 
   @Override

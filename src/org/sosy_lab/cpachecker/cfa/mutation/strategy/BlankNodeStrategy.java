@@ -25,8 +25,8 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class BlankNodeStrategy extends SingleNodeStrategy {
 
-  public BlankNodeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
-    super(pLogger, pRate, ptryAllAtFirst, "Blank edges");
+  public BlankNodeStrategy(LogManager pLogger, int pStartRate) {
+    super(pLogger, pStartRate, "Blank edges");
   }
 
   @Override

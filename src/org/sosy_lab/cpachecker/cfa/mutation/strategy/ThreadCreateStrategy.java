@@ -121,9 +121,9 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
     }
   }
 
-  public ThreadCreateStrategy(
-      Configuration pConfig, LogManager pLogger, int pRate, boolean pPtryAllAtFirst) throws InvalidConfigurationException {
-    super(pLogger, pRate, pPtryAllAtFirst, "Thread creations");
+  public ThreadCreateStrategy(Configuration pConfig, LogManager pLogger, int pStartRate)
+      throws InvalidConfigurationException {
+    super(pLogger, pStartRate, "Thread creations");
     pConfig.inject(this);
     if (!enableThreadOperationsInstrumentation) {
       throw new InvalidConfigurationException("ThreadCreateStrategy is useless with disabled thread operations instrumentation");

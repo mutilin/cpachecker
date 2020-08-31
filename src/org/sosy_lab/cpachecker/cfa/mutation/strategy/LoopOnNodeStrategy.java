@@ -31,8 +31,8 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 
 public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
-  public LoopOnNodeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
-    super(pLogger, pRate, ptryAllAtFirst, "Loops on nodes");
+  public LoopOnNodeStrategy(LogManager pLogger, int pRate) {
+    super(pLogger, pRate, "Loops on nodes");
   }
 
   protected boolean canRemove(CFANode pNode) {

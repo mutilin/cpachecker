@@ -37,8 +37,8 @@ import org.sosy_lab.cpachecker.util.Pair;
 public class BranchStrategy
     extends GenericCFAMutationStrategy<Pair<CFANode, Chain>, Pair<CFANode, Chain>> {
 
-  public BranchStrategy(LogManager pLogger, int pRate, boolean pPtryAllAtFirst) {
-    super(pLogger, pRate, pPtryAllAtFirst, "Branches");
+  public BranchStrategy(LogManager pLogger, int pRate) {
+    super(pLogger, pRate, "Branches");
   }
 
   @Override

@@ -25,8 +25,8 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class StatementNodeStrategy extends SingleNodeStrategy {
 
-  public StatementNodeStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
-    super(pLogger, pRate, ptryAllAtFirst, "Statement edges");
+  public StatementNodeStrategy(LogManager pLogger, int pStartRate) {
+    super(pLogger, pStartRate, "Statement edges");
   }
 
   @Override

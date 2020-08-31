@@ -82,25 +82,25 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
             ImmutableList.of(
                 //   1. Remove unneeded assumes and statements.
                 // First, remove statements if possible
-                new StatementNodeStrategy(pLogger, 5, false),
+                new StatementNodeStrategy(pLogger, 2),
                 new DummyStrategy(pLogger),
                 // Second, remove AssumeEdges if possible
-                new SimpleAssumeEdgeStrategy(pLogger, 5, false),
+                new SimpleAssumeEdgeStrategy(pLogger, 2),
                 new DummyStrategy(pLogger),
                 // Then remove blank edges
-                new BlankNodeStrategy(pLogger, 5, true),
+                new BlankNodeStrategy(pLogger, 1),
                 new DummyStrategy(pLogger),
 
                 //   2. Remove loops on nodes (edges from node to itself).
-                new LoopOnNodeStrategy(pLogger, 2, true),
+                new LoopOnNodeStrategy(pLogger, 2),
                 new DummyStrategy(pLogger),
                 //   Now we can remove delooped blank edges.
-                new BlankNodeStrategy(pLogger, 2, true),
+                new BlankNodeStrategy(pLogger, 2),
                 new DummyStrategy(pLogger),
                 //   3. Remove remained branches when both branches are
                 //      chains with end on same node, or either branch
                 //      is a chain ending on exit or termination node.
-                new BranchStrategy(pLogger, 5, false),
+                new BranchStrategy(pLogger, 2),
                 new DummyStrategy(pLogger),
 
                 // some thread creating statements could be gone now
@@ -108,7 +108,7 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
                 // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
 
                 //   4. Remove unneeded declarations.
-                new DeclarationStrategy(pLogger, 2, true),
+                new DeclarationStrategy(pLogger, 1),
                 new DummyStrategy(pLogger)));
     stats = new CycleStrategyStatistics();
   }

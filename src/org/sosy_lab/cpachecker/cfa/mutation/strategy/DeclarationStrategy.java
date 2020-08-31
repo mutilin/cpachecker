@@ -131,8 +131,8 @@ public class DeclarationStrategy extends SingleNodeStrategy {
     }
   }
 
-  public DeclarationStrategy(LogManager pLogger, int pRate, boolean ptryAllAtFirst) {
-    super(pLogger, pRate, ptryAllAtFirst, "Declaration edges");
+  public DeclarationStrategy(LogManager pLogger, int pStartRate) {
+    super(pLogger, pStartRate, "Declaration edges");
   }
 
   @Override

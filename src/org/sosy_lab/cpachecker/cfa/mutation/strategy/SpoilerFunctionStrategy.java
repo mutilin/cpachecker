@@ -54,11 +54,10 @@ public class SpoilerFunctionStrategy
 
   private final FunctionStrategy functionRemover;
 
-  public SpoilerFunctionStrategy(
-      Configuration pConfig, LogManager pLogger, int pRate, boolean ptryAllAtFirst)
+  public SpoilerFunctionStrategy(Configuration pConfig, LogManager pLogger, int pStartRate)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, ptryAllAtFirst, "Spoiler functions");
-    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, false, ImmutableSet.of("main"));
+    super(pLogger, pStartRate, "Spoiler functions");
+    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, ImmutableSet.of("main"));
   }
 
   @Override
