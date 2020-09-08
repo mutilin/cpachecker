@@ -32,9 +32,7 @@ import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
-import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
-import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatInt;
 import org.sosy_lab.cpachecker.util.statistics.StatKind;
@@ -57,7 +55,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private int batchSize = -1;
   private final boolean tryAllAtFirst;
   private final String objectsDescription;
-  private OnePassMutationStatistics stats;
+  private GenericStatistics stats;
   private int pass;
 
   private enum State {
@@ -70,7 +68,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   private State state = State.NewLevel;
 
-  protected static class OnePassMutationStatistics extends AbstractMutationStatistics {
+  protected static class GenericStatistics extends AbstractMutationStatistics {
     // cfa objects for strategy to deal with
     protected final StatInt objectsBeforePass;
     // cfa objects remained because they can't be mutated out or because strategy ran out of rounds
@@ -82,7 +80,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     protected final StatInt objectsForNextPass;
     private final String strategyClassName;
 
-    public OnePassMutationStatistics(String pName, String pObjectsDescription) {
+    public GenericStatistics(String pName, String pObjectsDescription) {
       strategyClassName = pName;
       objectsBeforePass = new StatInt(StatKind.SUM, pObjectsDescription + " found before pass");
       objectsAppearedDuringPass = new StatCounter(pObjectsDescription + " appeared during pass");
@@ -91,13 +89,15 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       objectsAppearedAfterPass = new StatCounter(pObjectsDescription + " appeared just after pass");
       objectsForNextPass = new StatInt(StatKind.SUM, pObjectsDescription + " to mutate next time");
     }
+
     @Override
-    public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
+    public void printStatistics(PrintStream pOut, int indentLevel) {
       StatisticsWriter.writingStatisticsTo(pOut)
-          .beginLevel()
-          .put(getName(), "")
+          .withLevel(indentLevel)
+          .putIf(indentLevel > 0, getName(), "")
           .putIfUpdatedAtLeastOnce(rounds)
           .putIf(rounds.getValue() > 0, rollbacks)
+          .beginLevel()
           .putIfUpdatedAtLeastOnce(objectsBeforePass)
           .putIfUpdatedAtLeastOnce(objectsAppearedDuringPass)
           .putIfUpdatedAtLeastOnce(objectsAppearedAfterPass)
@@ -118,9 +118,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     rate = pStartRate;
     tryAllAtFirst = pStartRate == 1;
     objectsDescription = pObjectsDescription;
-    stats =
-        new OnePassMutationStatistics(
-            this.getClass().getSimpleName() + " 1 pass", pObjectsDescription);
+    stats = new GenericStatistics(this.getClass().getSimpleName(), pObjectsDescription);
     pass = 1;
   }
 
@@ -362,7 +360,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     pStatsCollection.add(stats);
     stats =
-        new OnePassMutationStatistics(
+        new GenericStatistics(
             this.getClass().getSimpleName() + " " + ++pass + " pass", objectsDescription);
     levelSize = batchSize = batchNum = batchCount = depth = -1;
     rate = tryAllAtFirst ? 1 : 2;

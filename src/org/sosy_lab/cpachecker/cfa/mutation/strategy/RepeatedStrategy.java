@@ -26,46 +26,43 @@ import java.util.Collection;
 import java.util.List;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
-import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
+import org.sosy_lab.cpachecker.cfa.mutation.strategy.CompositeStrategy.CompositeStatistics;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
-import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-public class CycleStrategy extends AbstractCFAMutationStrategy {
-  private CycleStatistics thisCycle = new CycleStatistics(1);
+public class RepeatedStrategy extends AbstractCFAMutationStrategy {
+  private OneRepeatStatistics thisCycle = new OneRepeatStatistics(1);
   private final AbstractCFAMutationStrategy strategy;
-  private CycleStrategyStatistics stats;
+  private FullCycleStatistics stats;
 
-  private static class CycleStatistics extends AbstractMutationStatistics {
-    private final long cycle;
-    private final Collection<Statistics> statsOfUsedStrategy = new ArrayList<>();
+  private static class OneRepeatStatistics extends CompositeStatistics {
+    private final int cycle;
 
-    public CycleStatistics(long pCycle) {
+    public OneRepeatStatistics(int pCycle) {
       cycle = pCycle;
     }
   }
 
-  private static class CycleStrategyStatistics extends AbstractMutationStatistics {
+  private static class FullCycleStatistics extends AbstractMutationStatistics {
     private final StatCounter cycles = new StatCounter("cycles");
-    private final List<CycleStatistics> cycleStats = new ArrayList<>();
+    private final List<OneRepeatStatistics> cycleStats = new ArrayList<>();
 
     @Override
-    public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
-      StatisticsWriter w = StatisticsWriter.writingStatisticsTo(pOut);
-      w.beginLevel().put(getName(), "").put(cycles).put(rounds).put(rollbacks);
-      if (cycles.getUpdateCount() > 0) {
-        w.beginLevel();
-        for (CycleStatistics c : cycleStats) {
-          w.put("Cycle " + c.cycle, "").put(c.rounds).put(c.rollbacks).beginLevel();
-          for (Statistics s : c.statsOfUsedStrategy) {
-            s.printStatistics(pOut, pResult, pReached);
-          }
-          w.endLevel();
+    public void printStatistics(PrintStream pOut, int indentLevel) {
+      StatisticsWriter w = StatisticsWriter.writingStatisticsTo(pOut).withLevel(indentLevel);
+      w.put(getName(), "")
+          .put(cycles)
+          .put(rounds)
+          .put(rollbacks)
+          .ifUpdatedAtLeastOnce(cycles)
+          .beginLevel();
+      for (OneRepeatStatistics c : cycleStats) {
+        w.put("Cycle " + c.cycle, "");
+        for (Statistics s : c.getStatistics()) {
+          ((AbstractMutationStatistics) s).printStatistics(pOut, indentLevel + 1);
         }
-        w.endLevel();
       }
-      w.endLevel();
     }
 
     @Override
@@ -74,7 +71,7 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
     }
   }
 
-  public CycleStrategy(LogManager pLogger) {
+  public RepeatedStrategy(LogManager pLogger) {
     super(pLogger);
     strategy =
         new CompositeStrategy(
@@ -110,7 +107,7 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
                 //   4. Remove unneeded declarations.
                 new DeclarationStrategy(pLogger, 1),
                 new DummyStrategy(pLogger)));
-    stats = new CycleStrategyStatistics();
+    stats = new FullCycleStatistics();
   }
 
   @Override
@@ -131,9 +128,9 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
       return false;
     } else {
       strategy.makeAftermath(pParseResult);
-      strategy.collectStatistics(thisCycle.statsOfUsedStrategy);
+      strategy.collectStatistics(thisCycle.getStatistics());
       stats.cycleStats.add(thisCycle);
-      thisCycle = new CycleStatistics(stats.cycles.getUpdateCount());
+      thisCycle = new OneRepeatStatistics((int) stats.cycles.getValue() + 1);
       return mutate(pParseResult);
     }
   }
@@ -153,13 +150,13 @@ public class CycleStrategy extends AbstractCFAMutationStrategy {
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     if (thisCycle.rounds.getUpdateCount() > 0) {
-      strategy.collectStatistics(thisCycle.statsOfUsedStrategy);
+      strategy.collectStatistics(thisCycle.getStatistics());
       stats.cycleStats.add(thisCycle);
     }
     pStatsCollection.add(stats);
 
-    stats = new CycleStrategyStatistics();
-    thisCycle = new CycleStatistics(1);
+    stats = new FullCycleStatistics();
+    thisCycle = new OneRepeatStatistics(1);
   }
 
   @Override

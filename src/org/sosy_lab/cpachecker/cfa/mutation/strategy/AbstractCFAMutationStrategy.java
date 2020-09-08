@@ -50,15 +50,16 @@ public abstract class AbstractCFAMutationStrategy implements StatisticsProvider 
   public static class AbstractMutationStatistics implements Statistics {
     protected final StatCounter rounds = new StatCounter("rounds");
     protected final StatCounter rollbacks = new StatCounter("rollbacks");
+
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
-      StatisticsWriter.writingStatisticsTo(pOut)
-          .beginLevel()
-          .put(getName(), "")
-          .put(rounds)
-          .put(rollbacks)
-          .endLevel();
+      printStatistics(pOut, 0);
     }
+
+    public void printStatistics(PrintStream pOut, int indentLevel) {
+      StatisticsWriter.writingStatisticsTo(pOut).withLevel(indentLevel).put(rounds).put(rollbacks);
+    }
+
     @Override
     public @Nullable String getName() {
       return "Strategy";

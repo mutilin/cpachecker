@@ -77,6 +77,7 @@ import org.sosy_lab.common.log.LoggingOptions;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.cmdline.CmdLineArguments.InvalidCmdlineArgumentException;
 import org.sosy_lab.cpachecker.core.CPAchecker;
+import org.sosy_lab.cpachecker.core.CPAcheckerMutator;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.algorithm.pcc.ProofGenerator;
@@ -157,7 +158,11 @@ public class CPAMain {
       limits = ResourceLimitChecker.fromConfiguration(cpaConfig, logManager, shutdownManager);
       limits.start();
 
-      cpachecker = new CPAchecker(cpaConfig, logManager, shutdownManager);
+      if (options.cfaMutations) {
+        cpachecker = new CPAcheckerMutator(cpaConfig, logManager, shutdownManager);
+      } else {
+        cpachecker = new CPAchecker(cpaConfig, logManager, shutdownManager);
+      }
       if (options.doPCC) {
         proofGenerator = new ProofGenerator(cpaConfig, logManager, shutdownNotifier);
       }
@@ -287,6 +292,14 @@ public class CPAMain {
 
     @Option(secure=true, name = "pcc.proofgen.doPCC", description = "Generate and dump a proof")
     private boolean doPCC = false;
+
+    @Option(
+        secure = true,
+        name = "cfa.mutations",
+        description =
+            "For debugging purposes. Runs analysis multiple times, "
+                + "each time CFA is simplified so that the analysis result does not change.")
+    private boolean cfaMutations = false;
   }
 
   private static void dumpConfiguration(MainOptions options, Configuration config,

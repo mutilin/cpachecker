@@ -141,7 +141,7 @@ public class CFunctionPointerResolver implements StatisticsProvider {
       ImmutableSet.of(
           FunctionSet.USED_IN_CODE, FunctionSet.RETURN_VALUE, FunctionSet.EQ_PARAM_TYPES);
 
-  private static class CFunctionPointerResolverStatistics implements Statistics {
+  public static class CFunctionPointerResolverStatistics implements Statistics {
     private StatInt totalFPs = new StatInt(StatKind.SUM, "Function calls via function pointers");
     private StatInt instrumentedFPs =
         new StatInt(StatKind.SUM, "Instrumented function pointer calls");
@@ -168,8 +168,7 @@ public class CFunctionPointerResolver implements StatisticsProvider {
     }
   }
 
-  private static final CFunctionPointerResolverStatistics stats =
-      new CFunctionPointerResolverStatistics();
+  private final CFunctionPointerResolverStatistics stats = new CFunctionPointerResolverStatistics();
 
   private final TargetFunctionsProvider targetFunctionsProvider;
   private final TargetFunctionsProvider targetParameterFunctionsProvider;
@@ -429,8 +428,6 @@ public class CFunctionPointerResolver implements StatisticsProvider {
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
-    if (!pStatsCollection.contains(stats)) {
-      pStatsCollection.add(stats);
-    }
+    pStatsCollection.add(stats);
   }
 }

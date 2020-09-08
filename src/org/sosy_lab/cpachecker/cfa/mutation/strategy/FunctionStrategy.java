@@ -58,8 +58,8 @@ public class FunctionStrategy
     extends GenericCFAMutationStrategy<String, Pair<FunctionEntryNode, SortedSet<CFANode>>> {
   @Option(
       secure = true,
-      name = "mutations.functionsWhitelist",
-    description = "Names of functions (separated with comma) that should not be deleted from CFA")
+      name = "cfa.mutations.functionsWhitelist",
+      description = "Names of functions (separated with comma) that should not be deleted from CFA")
   private Set<String> whitelist = ImmutableSet.of("main");
 
   @Option(

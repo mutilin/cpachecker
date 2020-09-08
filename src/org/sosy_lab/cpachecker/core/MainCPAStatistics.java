@@ -155,7 +155,6 @@ class MainCPAStatistics implements Statistics {
   private final Timer analysisTime = new Timer();
   final Timer resultAnalysisTime = new Timer();
 
-  private long startAnalysisCpuTime;
   private long programCpuTime;
   private long analysisCpuTime = 0;
 
@@ -219,11 +218,11 @@ class MainCPAStatistics implements Statistics {
   void startAnalysisTimer() {
     analysisTime.start();
     try {
-      startAnalysisCpuTime = ProcessCpuTime.read();
+      analysisCpuTime = ProcessCpuTime.read();
     } catch (JMException e) {
       logger.logDebugException(e, "Querying cpu time failed");
       // user was already warned
-      startAnalysisCpuTime = -1;
+      analysisCpuTime = -1;
     }
     /*
      * Google App Engine does not allow to use classes from the package java.lang.management.
@@ -233,7 +232,7 @@ class MainCPAStatistics implements Statistics {
     catch (NoClassDefFoundError e) {
       logger.logDebugException(e, "Querying cpu time failed");
       logger.log(Level.WARNING, "Google App Engine does not support measuring the cpu time.");
-      startAnalysisCpuTime = -1;
+      analysisCpuTime = -1;
     }
   }
 
@@ -247,8 +246,8 @@ class MainCPAStatistics implements Statistics {
       if (programCpuTime >= 0) {
         programCpuTime = stopCpuTime - programCpuTime;
       }
-      if (startAnalysisCpuTime >= 0) {
-        analysisCpuTime += stopCpuTime - startAnalysisCpuTime;
+      if (analysisCpuTime >= 0) {
+        analysisCpuTime = stopCpuTime - analysisCpuTime;
       }
 
     } catch (JMException e) {

@@ -320,10 +320,6 @@ analysis.replacedFunctionsWithParameters = {"pthread_create"}
 # restart the analysis using a different configuration after unknown result
 analysis.restartAfterUnknown = false
 
-# run analysis each time with slightly mutated cfa, until cfa cannot be
-# mutated
-analysis.runMutations = false
-
 # Use heuristics to select the analysis
 analysis.selectAnalysisHeuristically = false
 
@@ -732,6 +728,25 @@ cfa.initializeAllVariables = false
 # for arrays and structs) in your analysis anyway. this option will otherwise
 # create c code which is not the same as the original one
 cfa.moveDeclarationsToFunctionStart = false
+
+# For debugging purposes. Runs analysis multiple times, each time CFA is
+# simplified so that the analysis result does not change.
+cfa.mutations = false
+
+# How many times the CFA will be mutated and analysed. Negative integer means
+# no limit.
+cfa.mutations.count = -1
+
+# With this option set to true, original CFA will be exported as well.
+cfa.mutations.exportOriginal = false
+
+# With this option set to positive integer, CFA will be exported every round
+# divisible by given number.
+cfa.mutations.exportRounds = 0
+
+# Names of functions (separated with comma) that should not be deleted from
+# CFA
+cfa.mutations.functionsWhitelist = {"main"}
 
 # Export CFA as pixel graphic to the given file name. The suffix is added
 # corresponding to the value of option pixelgraphic.export.formatIf set to
@@ -3273,8 +3288,6 @@ java.version = JavaCore.VERSION_1_7
 # Programming language of the input program. If not given explicitly,
 # auto-detection will occur
 # C, Java, or LLVM IR?
-language = C
-  enum:     [C, JAVA, LLVM]
 language = no default value
   enum:     [C, JAVA, LLVM]
 language = C
@@ -3383,20 +3396,6 @@ mpv.partitionOperator = no default value
 # - AUTOMATON: each automaton represent a single property.
 mpv.propertySeparator = FILE
   enum:     [FILE, AUTOMATON]
-
-# Max count of mutation rounds if set to nonegative integer.
-mutations.count = -1
-
-# With this option set to true, original CFA will be exported as well.
-mutations.exportOriginal = false
-
-# With this option set to positive integer, CFA will be exported every round
-# divisible by given number.
-mutations.exportRounds = 0
-
-# Names of functions (separated with comma) that should not be deleted from
-# CFA
-mutations.functionsWhitelist = {"main"}
 
 # When checking for the overflow property, use this configuration file
 # instead of the current one.

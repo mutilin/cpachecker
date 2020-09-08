@@ -21,6 +21,8 @@ package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.UnmodifiableIterator;
+import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
@@ -34,7 +36,23 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
   protected final ImmutableList<AbstractCFAMutationStrategy> strategiesList;
   protected UnmodifiableIterator<AbstractCFAMutationStrategy> strategies;
   protected AbstractCFAMutationStrategy currentStrategy;
-  private AbstractMutationStatistics stats;
+  private CompositeStatistics stats = new CompositeStatistics();
+
+  protected static class CompositeStatistics extends AbstractMutationStatistics {
+    private final Collection<Statistics> statisticsCollection = new ArrayList<>();
+
+    public Collection<Statistics> getStatistics() {
+      return statisticsCollection;
+    }
+
+    @Override
+    public void printStatistics(PrintStream pOut, int indentLevel) {
+      super.printStatistics(pOut, indentLevel);
+      for (Statistics s : statisticsCollection) {
+        ((AbstractMutationStatistics) s).printStatistics(pOut, indentLevel + 1);
+      }
+    }
+  }
 
   public CompositeStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
@@ -55,7 +73,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
-            new CycleStrategy(pLogger),
+            new RepeatedStrategy(pLogger),
 
             //   5. Linearize loops: instead branching
             //   insert "loop-body" branch and "exit" branch successively,
@@ -82,30 +100,29 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
     strategiesList = pStrategiesList;
     strategies = strategiesList.iterator();
     currentStrategy = strategies.next();
-    stats = new AbstractMutationStatistics();
   }
 
   @Override
   public boolean mutate(ParseResult parseResult) {
-    stats.rounds.inc();
     logger.logf(
-        Level.INFO, "Round %d. Mutation strategy %s", stats.rounds.getValue(), currentStrategy);
+        Level.INFO, "Round %d. Mutation strategy %s", stats.rounds.getValue() + 1, currentStrategy);
     boolean answer = currentStrategy.mutate(parseResult);
     while (!answer) {
       logger.logf(
           Level.FINE,
           "Round %d. Mutation strategy %s finished.",
-          stats.rounds.getValue(),
+          stats.rounds.getValue() + 1,
           currentStrategy
-      // currentStrategy.stats.rounds.getValue(),
-      // currentStrategy.stats.rollbacks.getValue()
-      );
+          );
       if (!strategies.hasNext()) {
         return answer;
       }
       currentStrategy = strategies.next();
       logger.logf(Level.INFO, "Switching strategy to %s", currentStrategy);
       answer = currentStrategy.mutate(parseResult);
+    }
+    if (answer) {
+      stats.rounds.inc();
     }
     return answer;
   }
@@ -130,11 +147,11 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
     pStatsCollection.add(stats);
     for (AbstractCFAMutationStrategy str : strategiesList) {
-      str.collectStatistics(pStatsCollection);
+      str.collectStatistics(stats.statisticsCollection);
     }
 
     strategies = strategiesList.iterator();
     currentStrategy = strategies.next();
-    stats = new AbstractMutationStatistics();
+    stats = new CompositeStatistics();
   }
 }

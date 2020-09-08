@@ -291,14 +291,15 @@ public class CFACreator {
       description =
           "Programming language of the input program. If not given explicitly, "
               + "auto-detection will occur")
+  protected
   // keep option name in sync with {@link CPAMain#language}, value might differ
-  private Language language = Language.C;
+  Language language = Language.C;
 
   protected final LogManager logger;
   private final Parser parser;
   private final ShutdownNotifier shutdownNotifier;
 
-  protected static class CFACreatorStatistics implements Statistics {
+  static class CFACreatorStatistics implements Statistics {
 
     private final Timer parserInstantiationTime = new Timer();
     private final Timer totalTime = new Timer();
@@ -307,10 +308,10 @@ public class CFACreator {
     private final Timer checkTime = new Timer();
     private final Timer processingTime = new Timer();
     private final Timer exportTime = new Timer();
-    private final List<Statistics> statisticsCollection;
+    protected final List<Statistics> statisticsCollection;
     private final LogManager logger;
 
-    protected CFACreatorStatistics(LogManager pLogger) {
+    private CFACreatorStatistics(LogManager pLogger) {
       logger = pLogger;
       statisticsCollection = new ArrayList<>();
     }
@@ -346,7 +347,7 @@ public class CFACreator {
     }
   }
 
-  protected CFACreatorStatistics stats;
+  private final CFACreatorStatistics stats;
   private final Configuration config;
 
   public CFACreator(Configuration config, LogManager logger, ShutdownNotifier pShutdownNotifier)
@@ -357,7 +358,7 @@ public class CFACreator {
     this.config = config;
     this.logger = logger;
     this.shutdownNotifier = pShutdownNotifier;
-    this.stats = createStatistics(logger);
+    this.stats = new CFACreatorStatistics(logger);
 
     stats.parserInstantiationTime.start();
 
@@ -442,9 +443,6 @@ public class CFACreator {
       logger.log(Level.FINE, "Starting parsing of file(s)");
 
       final ParseResult c = parseToCFAs(sourceFiles);
-      if (c == null) {
-        return null;
-      }
 
       logger.log(Level.FINE, "Parser Finished");
 
@@ -468,7 +466,8 @@ public class CFACreator {
     }
   }
 
-  private CFA createCFA(ParseResult pParseResult, FunctionEntryNode pMainFunction) throws InvalidConfigurationException, InterruptedException, ParserException {
+  protected CFA createCFA(ParseResult pParseResult, FunctionEntryNode pMainFunction)
+      throws InvalidConfigurationException, InterruptedException, ParserException {
 
     FunctionEntryNode mainFunction = pMainFunction;
 
@@ -816,8 +815,8 @@ public class CFACreator {
     }
   }
 
-  private FunctionEntryNode getCMainFunction(List<String> sourceFiles,
-      final Map<String, FunctionEntryNode> cfas)
+  protected FunctionEntryNode getCMainFunction(
+      List<String> sourceFiles, final Map<String, FunctionEntryNode> cfas)
       throws InvalidConfigurationException {
 
     // try specified function
@@ -1092,9 +1091,5 @@ v.addInitializer(initializer);
 
   public CFACreatorStatistics getStatistics() {
     return stats;
-  }
-
-  protected CFACreatorStatistics createStatistics(LogManager pLogger) {
-    return new CFACreatorStatistics(pLogger);
   }
 }
