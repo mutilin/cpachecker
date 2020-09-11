@@ -25,7 +25,6 @@ import static org.sosy_lab.common.ShutdownNotifier.interruptCurrentThreadOnShutd
 import com.google.common.base.Joiner;
 import com.google.common.base.VerifyException;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -38,25 +37,36 @@ import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.CFAMutator;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
-import org.sosy_lab.cpachecker.core.algorithm.Algorithm;
-import org.sosy_lab.cpachecker.core.algorithm.Algorithm.AlgorithmStatus;
-import org.sosy_lab.cpachecker.core.algorithm.impact.ImpactAlgorithm;
-import org.sosy_lab.cpachecker.core.algorithm.mpv.MPVAlgorithm;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
-import org.sosy_lab.cpachecker.core.interfaces.Property;
-import org.sosy_lab.cpachecker.core.reachedset.ReachedSet;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.SpecificationProperty;
 import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 
+// @Options(prefix = "cfa.mutations")
 public class CPAcheckerMutator extends CPAchecker {
 
-  private CFAMutator cfaMutator = new CFAMutator(config, logger, shutdownNotifier);
+  //  @Option(
+  //      secure = true,
+  //      name = "expectedResult",
+  //      description = "Correct result of analysis. TRUE or FALSE with violated properties
+  // string.")
+  //  private Result expectedResult = Result.NOT_YET_STARTED;
+  //
+  //  @Option(
+  //      secure = true,
+  //      name = "expectedViolatedProperties",
+  //      description = "Expected violated properties string.")
+  //  private String expectedViolatedProerties = "";
+  //
+  //  private CPAcheckerResult correctResult =
+  //      new CPAcheckerResult(expectedResult, expectedViolatedProerties, null, null, null);
 
   private CPAcheckerResult originalResult = null;
   private Throwable originalThrowable = null;
+
+  private CFAMutator cfaMutator = new CFAMutator(config, logger, shutdownNotifier);
 
   public CPAcheckerMutator(
       Configuration pConfiguration, LogManager pLogManager, ShutdownManager pShutdownManager)
@@ -66,7 +76,7 @@ public class CPAcheckerMutator extends CPAchecker {
     if (runCBMCasExternalTool) {
       throw new InvalidConfigurationException(
           "Cannot use option 'analysis.algorithm.CBMC' along with "
-              + "'cfa.mutations.enable', because CFA will not be constructed.");
+              + "'cfa.mutations', because CFA will not be constructed.");
     }
 
     printConfigurationWarnings();
@@ -92,14 +102,6 @@ public class CPAcheckerMutator extends CPAchecker {
     CFA lastCFA = null;
     ConfigurableProgramAnalysis lastCPA = null;
 
-    MainCPAStatistics stats = null;
-    Algorithm algorithm = null;
-    ReachedSet reached = null;
-    CFA cfa = null;
-    Result result = Result.NOT_YET_STARTED;
-    String violatedPropertyDescription = "";
-    Specification specification = null;
-
     final ShutdownRequestListener interruptThreadOnShutdown = interruptCurrentThreadOnShutdown();
     shutdownNotifier.register(interruptThreadOnShutdown);
 
@@ -117,7 +119,6 @@ public class CPAcheckerMutator extends CPAchecker {
       cfa = null;
       result = Result.NOT_YET_STARTED;
       violatedPropertyDescription = "";
-      specification = null;
 
       currentResult = null;
       currentThrowable = null;
@@ -129,6 +130,7 @@ public class CPAcheckerMutator extends CPAchecker {
         // create reached set, cpa, algorithm
         totalStats.creationTime.start();
         stats.creationTime.start();
+
         reached = factory.createReachedSet();
 
         // instead of cfa=parse(programDenotation,stats); TODO serialisedFile?
@@ -152,85 +154,15 @@ public class CPAcheckerMutator extends CPAchecker {
         GlobalInfo.getInstance().storeCFA(cfa);
         shutdownNotifier.shutdownIfNecessary();
 
-        ConfigurableProgramAnalysis cpa;
-        totalStats.cpaCreationTime.start();
-        stats.cpaCreationTime.start();
-        try {
-          specification =
-              Specification.fromFiles(
-                  properties, specificationFiles, cfa, config, logger, shutdownNotifier);
-          cpa = factory.createCPA(cfa, specification);
-        } finally {
-          totalStats.cpaCreationTime.stop();
-          stats.cpaCreationTime.stop();
-        }
-        stats.setCPA(cpa);
-        lastCPA = cpa;
+        createAlgorithm(properties);
 
-        //        if (cpa instanceof StatisticsProvider) {
-        //          ((StatisticsProvider) cpa).collectStatistics(stats.getSubStatistics());
-        //        }
-
-        GlobalInfo.getInstance().setUpInfoFromCPA(cpa);
-
-        algorithm = factory.createAlgorithm(cpa, cfa, specification);
-
-        if (algorithm instanceof MPVAlgorithm && !stopAfterError) {
-          // sanity check
-          throw new InvalidConfigurationException(
-              "Cannot use option 'analysis.stopAfterError' along with "
-                  + "multi-property verification algorithm. "
-                  + "Please use option 'mpv.findAllViolations' instead");
-        }
-
-        //        if (algorithm instanceof StatisticsProvider) {
-        //          ((StatisticsProvider) algorithm).collectStatistics(stats.getSubStatistics());
-        //        }
-
-        if (algorithm instanceof ImpactAlgorithm) {
-          ImpactAlgorithm mcmillan = (ImpactAlgorithm) algorithm;
-          reached.add(
-              mcmillan.getInitialState(cfa.getMainFunction()),
-              mcmillan.getInitialPrecision(cfa.getMainFunction()));
-        } else {
-          initializeReachedSet(reached, cpa, properties, cfa.getMainFunction(), cfa);
-        }
-
-        totalStats.creationTime.stop();
         stats.creationTime.stop();
+        totalStats.creationTime.stop();
         shutdownNotifier.shutdownIfNecessary();
 
         // now everything necessary has been instantiated: run analysis
-
-        result =
-            Result.UNKNOWN; // set to unknown so that the result is correct in case of exception
-
-        AlgorithmStatus status = runAlgorithm(algorithm, reached, stats);
         // TODO retrieve time for analysis to totalStats
-
-        if (status.wasPropertyChecked()) {
-          totalStats.resultAnalysisTime.start();
-          stats.resultAnalysisTime.start();
-          Collection<Property> violatedProperties = reached.getViolatedProperties();
-          if (!violatedProperties.isEmpty()) {
-            violatedPropertyDescription = Joiner.on(", ").join(violatedProperties);
-
-            if (!status.isPrecise()) {
-              result = Result.UNKNOWN;
-            } else {
-              result = Result.FALSE;
-            }
-          } else {
-            result = analyzeResult(reached, status.isSound());
-            if (unknownAsTrue && result == Result.UNKNOWN) {
-              result = Result.TRUE;
-            }
-          }
-          totalStats.resultAnalysisTime.stop();
-          stats.resultAnalysisTime.stop();
-        } else {
-          result = Result.DONE;
-        }
+        runAnalysis();
 
       } catch (IOException e) {
         logger.logUserException(Level.SEVERE, e, "Could not read file");
