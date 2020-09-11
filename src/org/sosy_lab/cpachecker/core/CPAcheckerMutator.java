@@ -20,7 +20,6 @@
 package org.sosy_lab.cpachecker.core;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.sosy_lab.common.ShutdownNotifier.interruptCurrentThreadOnShutdown;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.VerifyException;
@@ -29,7 +28,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.ShutdownManager;
-import org.sosy_lab.common.ShutdownNotifier.ShutdownRequestListener;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -39,9 +37,7 @@ import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
-import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.SpecificationProperty;
-import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 
 // @Options(prefix = "cfa.mutations")
 public class CPAcheckerMutator extends CPAchecker {
@@ -92,53 +88,27 @@ public class CPAcheckerMutator extends CPAchecker {
 
     MainCPAStatistics totalStats = null;
 
-    final ShutdownRequestListener interruptThreadOnShutdown = interruptCurrentThreadOnShutdown();
-    shutdownNotifier.register(interruptThreadOnShutdown);
-
     try {
       totalStats = new MainCPAStatistics(config, logger, shutdownNotifier);
       // TODO collect all infos
     } catch (InvalidConfigurationException e) {
       logger.logUserException(Level.SEVERE, e, "Invalid configuration");
-      return new CPAcheckerResult(result, violatedPropertyDescription, reached, cfa, totalStats);
+      return new CPAcheckerResult(result, "", null, cfa, stats);
     }
 
     for (int mutationRound = 0; true; mutationRound++) {
       logger.logf(Level.INFO, "Mutation round %d", mutationRound);
 
       try {
-        stats = new MainCPAStatistics(config, logger, shutdownNotifier);
-        algorithm = null;
-        reached = null;
-        cfa = null;
-        result = Result.NOT_YET_STARTED;
-        violatedPropertyDescription = "";
-
-        currentResult = null;
         currentThrowable = null;
+        currentResult = prepareAndRun(programDenotation, properties);
 
-        // create reached set, cpa, algorithm
-        stats.creationTime.start();
-        reached = factory.createReachedSet();
-
-        cfa = parse(programDenotation, stats);
         if (cfa == null) {
           break;
         }
 
-        GlobalInfo.getInstance().storeCFA(cfa);
-        shutdownNotifier.shutdownIfNecessary();
-        createAlgorithm(properties);
-
-        stats.creationTime.stop();
-        shutdownNotifier.shutdownIfNecessary();
-
-        // now everything necessary has been instantiated: run analysis
-        runAnalysis();
-
       } catch (IOException e) {
         logger.logUserException(Level.SEVERE, e, "Could not read file");
-        shutdownNotifier.unregister(interruptThreadOnShutdown);
         break;
 
       } catch (ParserException e) {
@@ -154,12 +124,14 @@ public class CPAcheckerMutator extends CPAchecker {
             "If the error still occurs, please send this error message\n"
                 + "together with the input file to cpachecker-users@googlegroups.com.\n");
         logger.log(Level.INFO, msg);
-        shutdownNotifier.unregister(interruptThreadOnShutdown);
         break;
+
+      } catch (ClassNotFoundException e) {
+        logger
+            .logUserException(Level.SEVERE, e, "Could not read serialized CFA. Class is missing.");
 
       } catch (InvalidConfigurationException e) {
         logger.logUserException(Level.SEVERE, e, "Invalid configuration");
-        shutdownNotifier.unregister(interruptThreadOnShutdown);
         break;
 
       } catch (InterruptedException e) {
@@ -167,7 +139,6 @@ public class CPAcheckerMutator extends CPAchecker {
         // we return normally instead of propagating the exception
         // so we can return the partial result we have so far
         logger.logUserException(Level.WARNING, e, "Analysis interrupted");
-        shutdownNotifier.unregister(interruptThreadOnShutdown);
         break;
 
       } catch (CPAException e) {
@@ -177,23 +148,15 @@ public class CPAcheckerMutator extends CPAchecker {
       } catch (VerifyException | AssertionError e) {
         for (final StackTraceElement ste : e.getStackTrace()) {
           if (ste.getClassName().contains("CFACreator")) {
-            shutdownNotifier.unregister(interruptThreadOnShutdown);
             throw e;
           }
         }
         logger.logUserException(Level.SEVERE, e, null);
         currentThrowable = e;
 
-      } finally {
-        CPAs.closeIfPossible(algorithm, logger);
       }
-
-      currentResult =
-          new CPAcheckerResult(result, violatedPropertyDescription, reached, cfa, stats);
       compareResults(currentResult, currentThrowable);
     }
-
-    shutdownNotifier.unregister(interruptThreadOnShutdown);
 
     if (currentResult != null) {
       // if loop ended not bc of exception // TODO if exception how it prints this.
@@ -212,8 +175,11 @@ public class CPAcheckerMutator extends CPAchecker {
     cfaMutator.collectStatistics(totalStats.getSubStatistics());
     totalStats.setCFA(lastCFA);
     totalStats.setCPA(null);
-    return new CPAcheckerResult(
-        originalResult.getResult(), violatedPropertyDescription, reached, lastCFA, totalStats);
+    if (originalResult != null) {
+      return originalResult.with(lastCFA, totalStats);
+    } else {
+      return new CPAcheckerResult(result, "", reached, lastCFA, totalStats);
+    }
   }
 
   @Override

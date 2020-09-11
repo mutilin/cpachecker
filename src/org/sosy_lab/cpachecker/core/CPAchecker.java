@@ -238,11 +238,9 @@ public class CPAchecker {
   protected final CoreComponentsFactory factory;
 
   protected MainCPAStatistics stats;
-  protected Algorithm algorithm;
-  protected ReachedSet reached;
   protected CFA cfa = null;
-  protected Result result = Result.NOT_YET_STARTED;
-  protected String violatedPropertyDescription = "";
+  protected ReachedSet reached = null;
+  Result result = Result.NOT_YET_STARTED;
 
   // The content of this String is read from a file that is created by the
   // ant task "init".
@@ -334,33 +332,10 @@ public class CPAchecker {
 
   public CPAcheckerResult run(
       List<String> programDenotation, Set<SpecificationProperty> properties) {
-    checkArgument(!programDenotation.isEmpty());
-
-    logger.logf(Level.INFO, "%s (%s) started", getVersion(config), getJavaInformation());
-
-    final ShutdownRequestListener interruptThreadOnShutdown = interruptCurrentThreadOnShutdown();
-    shutdownNotifier.register(interruptThreadOnShutdown);
 
     try {
-      // create reached set, cpa, algorithm
-      stats.creationTime.start();
-      reached = factory.createReachedSet();
 
-      if (runCBMCasExternalTool) {
-        algorithm =
-            new ExternalCBMCAlgorithm(checkIfOneValidFile(programDenotation), config, logger);
-      } else {
-        cfa = parse(programDenotation, stats);
-        GlobalInfo.getInstance().storeCFA(cfa);
-        shutdownNotifier.shutdownIfNecessary();
-        createAlgorithm(properties);
-      }
-
-      stats.creationTime.stop();
-      shutdownNotifier.shutdownIfNecessary();
-
-      // now everything necessary has been instantiated: run analysis
-      runAnalysis();
+      return prepareAndRun(programDenotation, properties);
 
     } catch (IOException e) {
       logger.logUserException(Level.SEVERE, e, "Could not read file");
@@ -390,89 +365,120 @@ public class CPAchecker {
     } catch (CPAException e) {
       logger.logUserException(Level.SEVERE, e, null);
 
+    }
+    return new CPAcheckerResult(result, "", reached, cfa, stats);
+  }
+
+  protected CPAcheckerResult prepareAndRun(List<String> programDenotation, Set<SpecificationProperty> properties)
+      throws CPAException, InterruptedException, InvalidConfigurationException,
+      ClassNotFoundException, IOException, ParserException {
+    checkArgument(!programDenotation.isEmpty());
+
+    logger.logf(Level.INFO, "%s (%s) started", getVersion(config), getJavaInformation());
+
+    final ShutdownRequestListener interruptThreadOnShutdown = interruptCurrentThreadOnShutdown();
+    shutdownNotifier.register(interruptThreadOnShutdown);
+
+    Algorithm algorithm = null;
+    String violatedPropertyDescription = "";
+
+    try {
+      if (runCBMCasExternalTool) {
+        algorithm =
+            new ExternalCBMCAlgorithm(checkIfOneValidFile(programDenotation), config, logger);
+      } else {
+        stats.creationTime.start();
+        reached = factory.createReachedSet();
+
+        cfa = parse(programDenotation, stats);
+        // cfa may be null in case of cfa mutations
+        if (cfa != null) {
+          GlobalInfo.getInstance().storeCFA(cfa);
+          shutdownNotifier.shutdownIfNecessary(); // create CPA
+          ConfigurableProgramAnalysis cpa;
+          Specification specification = null;
+
+          stats.cpaCreationTime.start();
+          try {
+            specification =
+                Specification.fromFiles(
+                    properties,
+                    specificationFiles,
+                    cfa,
+                    config,
+                    logger,
+                    shutdownNotifier);
+            cpa = factory.createCPA(cfa, specification);
+          } finally {
+            stats.cpaCreationTime.stop();
+          }
+          stats.setCPA(cpa);
+
+          if (cpa instanceof StatisticsProvider) {
+            ((StatisticsProvider) cpa).collectStatistics(stats.getSubStatistics());
+          }
+
+          GlobalInfo.getInstance().setUpInfoFromCPA(cpa);
+
+          // create algorithm
+          algorithm = factory.createAlgorithm(cpa, cfa, specification);
+
+          if (algorithm instanceof MPVAlgorithm && !stopAfterError) {
+            // sanity check
+            throw new InvalidConfigurationException(
+                "Cannot use option 'analysis.stopAfterError' along with "
+                    + "multi-property verification algorithm. "
+                    + "Please use option 'mpv.findAllViolations' instead");
+          }
+
+          if (algorithm instanceof StatisticsProvider) {
+            ((StatisticsProvider) algorithm).collectStatistics(stats.getSubStatistics());
+          }
+
+          if (algorithm instanceof ImpactAlgorithm) {
+            ImpactAlgorithm mcmillan = (ImpactAlgorithm) algorithm;
+            reached.add(
+                mcmillan.getInitialState(cfa.getMainFunction()),
+                mcmillan.getInitialPrecision(cfa.getMainFunction()));
+          } else {
+            initializeReachedSet(reached, cpa, properties, cfa.getMainFunction(), cfa);
+          }
+          stats.creationTime.stop();
+          shutdownNotifier.shutdownIfNecessary();
+
+          // now everything necessary has been instantiated: run analysis
+          result = Result.UNKNOWN; // set to unknown so that the result is correct in case of
+                                   // exception
+          AlgorithmStatus status = runAlgorithm(algorithm, reached, stats);
+
+          if (status.wasPropertyChecked()) {
+            stats.resultAnalysisTime.start();
+            Collection<Property> violatedProperties = reached.getViolatedProperties();
+            if (!violatedProperties.isEmpty()) {
+              violatedPropertyDescription = Joiner.on(", ").join(violatedProperties);
+
+              if (!status.isPrecise()) {
+                result = Result.UNKNOWN;
+              } else {
+                result = Result.FALSE;
+              }
+            } else {
+              result = analyzeResult(reached, status.isSound());
+              if (unknownAsTrue && result == Result.UNKNOWN) {
+                result = Result.TRUE;
+              }
+            }
+            stats.resultAnalysisTime.stop();
+          } else {
+            result = Result.DONE;
+          }
+        }
+      }
     } finally {
       CPAs.closeIfPossible(algorithm, logger);
       shutdownNotifier.unregister(interruptThreadOnShutdown);
     }
-
     return new CPAcheckerResult(result, violatedPropertyDescription, reached, cfa, stats);
-  }
-
-  protected void runAnalysis() throws CPAException, InterruptedException {
-
-    result = Result.UNKNOWN; // set to unknown so that the result is correct in case of exception
-    AlgorithmStatus status = runAlgorithm(algorithm, reached, stats);
-
-    if (status.wasPropertyChecked()) {
-      stats.resultAnalysisTime.start();
-      Collection<Property> violatedProperties = reached.getViolatedProperties();
-      if (!violatedProperties.isEmpty()) {
-        violatedPropertyDescription = Joiner.on(", ").join(violatedProperties);
-
-        if (!status.isPrecise()) {
-          result = Result.UNKNOWN;
-        } else {
-          result = Result.FALSE;
-        }
-      } else {
-        result = analyzeResult(reached, status.isSound());
-        if (unknownAsTrue && result == Result.UNKNOWN) {
-          result = Result.TRUE;
-        }
-      }
-      stats.resultAnalysisTime.stop();
-    } else {
-      result = Result.DONE;
-    }
-  }
-
-  protected void createAlgorithm(Set<SpecificationProperty> properties)
-      throws InvalidConfigurationException, CPAException, InterruptedException {
-
-    // create CPA
-    ConfigurableProgramAnalysis cpa;
-    Specification specification = null;
-
-    stats.cpaCreationTime.start();
-    try {
-      specification =
-          Specification.fromFiles(
-              properties, specificationFiles, cfa, config, logger, shutdownNotifier);
-      cpa = factory.createCPA(cfa, specification);
-    } finally {
-      stats.cpaCreationTime.stop();
-    }
-    stats.setCPA(cpa);
-
-    if (cpa instanceof StatisticsProvider) {
-      ((StatisticsProvider) cpa).collectStatistics(stats.getSubStatistics());
-    }
-
-    GlobalInfo.getInstance().setUpInfoFromCPA(cpa);
-
-    // create algorithm
-    algorithm = factory.createAlgorithm(cpa, cfa, specification);
-
-    if (algorithm instanceof MPVAlgorithm && !stopAfterError) {
-      // sanity check
-      throw new InvalidConfigurationException(
-          "Cannot use option 'analysis.stopAfterError' along with "
-              + "multi-property verification algorithm. "
-              + "Please use option 'mpv.findAllViolations' instead");
-    }
-
-    if (algorithm instanceof StatisticsProvider) {
-      ((StatisticsProvider) algorithm).collectStatistics(stats.getSubStatistics());
-    }
-
-    if (algorithm instanceof ImpactAlgorithm) {
-      ImpactAlgorithm mcmillan = (ImpactAlgorithm) algorithm;
-      reached.add(
-          mcmillan.getInitialState(cfa.getMainFunction()),
-          mcmillan.getInitialPrecision(cfa.getMainFunction()));
-    } else {
-      initializeReachedSet(reached, cpa, properties, cfa.getMainFunction(), cfa);
-    }
   }
 
   private Path checkIfOneValidFile(List<String> fileDenotation)

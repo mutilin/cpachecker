@@ -159,4 +159,8 @@ public class CPAcheckerResult {
   public Statistics getStatistics() {
     return stats;
   }
+
+  public CPAcheckerResult with(CFA pCfa, Statistics pStats) {
+    return new CPAcheckerResult(result, violatedPropertyDescription, reached, pCfa, pStats);
+  }
 }
