@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cfa;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Sets;
 import com.google.common.collect.SortedSetMultimap;
 import java.io.IOException;
@@ -184,7 +185,8 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
   public CFA parseFileAndCreateCFA(List<String> sourceFiles)
       throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
 
-    if (sourceFiles != null) {
+    if (parseResult == null) {
+      logger.logf(Level.INFO, "Parsing CFA from file(s) \"%s\"", Joiner.on(", ").join(sourceFiles));
       return super.parseFileAndCreateCFA(sourceFiles);
     }
 
@@ -402,6 +404,9 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
       }
     }
 
+    // TODO print name "cfa creator stats" or something
+    // (it was under CPAchecker general stats category)
+    pStatsCollection.add(creatorStats);
 
     pStatsCollection.add(stats);
   }

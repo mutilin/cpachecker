@@ -37,7 +37,6 @@ import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.CFAMutator;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
-import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.CPAs;
@@ -67,6 +66,7 @@ public class CPAcheckerMutator extends CPAchecker {
   private Throwable originalThrowable = null;
 
   private CFAMutator cfaMutator = new CFAMutator(config, logger, shutdownNotifier);
+  private CFA lastCFA;
 
   public CPAcheckerMutator(
       Configuration pConfiguration, LogManager pLogManager, ShutdownManager pShutdownManager)
@@ -78,14 +78,6 @@ public class CPAcheckerMutator extends CPAchecker {
           "Cannot use option 'analysis.algorithm.CBMC' along with "
               + "'cfa.mutations', because CFA will not be constructed.");
     }
-
-    printConfigurationWarnings();
-    // boolean hasUnused = !config.getUnusedProperties().isEmpty();
-    // boolean hasDeprecated = !config.getDeprecatedProperties().isEmpty();
-
-    // if (hasUnused) {
-    //   throw new InvalidConfigurationException("Configuration has unused properties.");
-    // }
   }
 
   @Override
@@ -99,69 +91,49 @@ public class CPAcheckerMutator extends CPAchecker {
     Throwable currentThrowable = null;
 
     MainCPAStatistics totalStats = null;
-    CFA lastCFA = null;
-    ConfigurableProgramAnalysis lastCPA = null;
 
     final ShutdownRequestListener interruptThreadOnShutdown = interruptCurrentThreadOnShutdown();
     shutdownNotifier.register(interruptThreadOnShutdown);
 
     try {
       totalStats = new MainCPAStatistics(config, logger, shutdownNotifier);
+      // TODO collect all infos
     } catch (InvalidConfigurationException e) {
       logger.logUserException(Level.SEVERE, e, "Invalid configuration");
       return new CPAcheckerResult(result, violatedPropertyDescription, reached, cfa, totalStats);
     }
 
     for (int mutationRound = 0; true; mutationRound++) {
-      stats = null;
-      algorithm = null;
-      reached = null;
-      cfa = null;
-      result = Result.NOT_YET_STARTED;
-      violatedPropertyDescription = "";
-
-      currentResult = null;
-      currentThrowable = null;
-
       logger.logf(Level.INFO, "Mutation round %d", mutationRound);
+
       try {
         stats = new MainCPAStatistics(config, logger, shutdownNotifier);
+        algorithm = null;
+        reached = null;
+        cfa = null;
+        result = Result.NOT_YET_STARTED;
+        violatedPropertyDescription = "";
+
+        currentResult = null;
+        currentThrowable = null;
 
         // create reached set, cpa, algorithm
-        totalStats.creationTime.start();
         stats.creationTime.start();
-
         reached = factory.createReachedSet();
 
-        // instead of cfa=parse(programDenotation,stats); TODO serialisedFile?
-        // stats.setCFACreator(cfaMutator);
-        if (mutationRound == 0) {
-          logger.logf(
-              Level.INFO,
-              "Parsing CFA from file(s) \"%s\"",
-              Joiner.on(", ").join(programDenotation));
-          cfa = cfaMutator.parseFileAndCreateCFA(programDenotation);
-        } else {
-          cfa = cfaMutator.parseFileAndCreateCFA(null);
-        }
-        stats.setCFA(cfa);
-
+        cfa = parse(programDenotation, stats);
         if (cfa == null) {
           break;
         }
-        lastCFA = cfa;
 
         GlobalInfo.getInstance().storeCFA(cfa);
         shutdownNotifier.shutdownIfNecessary();
-
         createAlgorithm(properties);
 
         stats.creationTime.stop();
-        totalStats.creationTime.stop();
         shutdownNotifier.shutdownIfNecessary();
 
         // now everything necessary has been instantiated: run analysis
-        // TODO retrieve time for analysis to totalStats
         runAnalysis();
 
       } catch (IOException e) {
@@ -175,10 +147,12 @@ public class CPAcheckerMutator extends CPAchecker {
         msg.append("Please make sure that the code can be compiled by a compiler.\n");
         if (e.getLanguage() == Language.C) {
           msg.append(
-              "If the code was not preprocessed, please use a C preprocessor\nor specify the -preprocess command-line argument.\n");
+              "If the code was not preprocessed, please use a C preprocessor\n"
+                  + "or specify the -preprocess command-line argument.\n");
         }
         msg.append(
-            "If the error still occurs, please send this error message\ntogether with the input file to cpachecker-users@googlegroups.com.\n");
+            "If the error still occurs, please send this error message\n"
+                + "together with the input file to cpachecker-users@googlegroups.com.\n");
         logger.log(Level.INFO, msg);
         shutdownNotifier.unregister(interruptThreadOnShutdown);
         break;
@@ -237,9 +211,28 @@ public class CPAcheckerMutator extends CPAchecker {
 
     cfaMutator.collectStatistics(totalStats.getSubStatistics());
     totalStats.setCFA(lastCFA);
-    totalStats.setCPA(lastCPA);
+    totalStats.setCPA(null);
     return new CPAcheckerResult(
         originalResult.getResult(), violatedPropertyDescription, reached, lastCFA, totalStats);
+  }
+
+  @Override
+  protected CFA parse(List<String> fileNames, MainCPAStatistics stats)
+      throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
+
+    logger.logf(Level.INFO, "Parsing CFA from file(s) \"%s\"", Joiner.on(", ").join(fileNames));
+
+    CFA cfa = cfaMutator.parseFileAndCreateCFA(fileNames);
+
+    // TODO serialisedFile?
+    // stats.setCFACreator(cfaMutator);
+    stats.setCFA(cfa);
+
+    if (cfa != null) {
+      lastCFA = cfa;
+    }
+
+    return cfa;
   }
 
   @SuppressWarnings("null")

@@ -328,6 +328,8 @@ public class CPAchecker {
         new CoreComponentsFactory(
             pConfiguration, pLogManager, shutdownNotifier, new AggregatedReachedSets());
     stats = new MainCPAStatistics(config, logger, shutdownNotifier);
+
+    printConfigurationWarnings();
   }
 
   public CPAcheckerResult run(
@@ -347,15 +349,12 @@ public class CPAchecker {
       if (runCBMCasExternalTool) {
         algorithm =
             new ExternalCBMCAlgorithm(checkIfOneValidFile(programDenotation), config, logger);
-
       } else {
         cfa = parse(programDenotation, stats);
         GlobalInfo.getInstance().storeCFA(cfa);
         shutdownNotifier.shutdownIfNecessary();
         createAlgorithm(properties);
       }
-
-      printConfigurationWarnings();
 
       stats.creationTime.stop();
       shutdownNotifier.shutdownIfNecessary();
@@ -494,7 +493,7 @@ public class CPAchecker {
     return file;
   }
 
-  private CFA parse(List<String> fileNames, MainCPAStatistics stats)
+  protected CFA parse(List<String> fileNames, MainCPAStatistics stats)
       throws InvalidConfigurationException, IOException, ParserException, InterruptedException,
           ClassNotFoundException {
 

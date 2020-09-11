@@ -1877,9 +1877,6 @@ cpa.predicate.abstractions.file = "abstractions.txt"
 # (signature, not name!).
 cpa.predicate.addRangeConstraintsForNondet = false
 
-# apply only if state is not true (relevant)
-cpa.predicate.applyOptimization = no default value
-
 # Check satisfiability for plain conjunction of edge and assumptions.
 cpa.predicate.assumptionStrengtheningSatCheck = false
 
@@ -1974,9 +1971,6 @@ cpa.predicate.deferUntypedAllocations = true
 cpa.predicate.direction = FORWARD
   enum:     [FORWARD, BACKWARD]
 
-# do not consider abstraction from inference objects
-cpa.predicate.emptyAbstraction = no default value
-
 # Enable the possibility to precompute explicit abstraction locations.
 cpa.predicate.enableBlockreducer = false
 
@@ -2026,9 +2020,6 @@ cpa.predicate.handlePointerAliasing = true
 # of the char array with the contents of the string literal instead of just
 # assigning a fresh non-det address to it
 cpa.predicate.handleStringLiteralInitializers = false
-
-# reset shared variables values
-cpa.predicate.havocAbstraction2 = no default value
 
 # Allows to ignore Concat and Extract Calls when Bitvector theory was
 # replaced with Integer or Rational.
@@ -2477,9 +2468,6 @@ cpa.predicate.useParameterVariablesForGlobals = false
 # that is capable of quantifiers (e.g. Z3 or PRINCESS).
 cpa.predicate.useQuantifiersOnArrays = false
 
-# Use undefined assignments (havoc abstraction)
-cpa.predicate.useUndefFunctions = no default value
-
 # Do not follow states which can not syntactically lead to a target location
 cpa.property_reachability.noFollowBackwardsUnreachable = true
 
@@ -2794,14 +2782,6 @@ cpa.threading.useClonedFunctions = true
 # local access locks are used to avoid expensive interleaving, if a thread
 # only reads and writes its own variables.
 cpa.threading.useLocalAccessLocks = true
-
-# Instead of updating precision and arg we say that the refinement was not
-# successful after N times of refining. A real error state is not necessary
-# to be found. Use 0 for unlimited refinements (default).
-cpa.threadmodular.refinement.stopAfterNRefinements = no default value
-
-# apply projections only if the state is relevant
-cpa.threadmodular.relevanceOptimization = no default value
 
 # which merge operator to use for UninitializedVariablesCPA?
 cpa.uninitvars.merge = "sep"
