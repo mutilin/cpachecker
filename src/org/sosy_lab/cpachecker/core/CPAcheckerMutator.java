@@ -35,6 +35,7 @@ import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.CFAMutator;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
+import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.SpecificationProperty;
@@ -60,9 +61,8 @@ public class CPAcheckerMutator extends CPAchecker {
 
   private CPAcheckerResult originalResult = null;
   private Throwable originalThrowable = null;
-
+  private final MainCPAStatistics firstStats;
   private CFAMutator cfaMutator = new CFAMutator(config, logger, shutdownNotifier);
-  private CFA lastCFA;
 
   public CPAcheckerMutator(
       Configuration pConfiguration, LogManager pLogManager, ShutdownManager pShutdownManager)
@@ -74,6 +74,8 @@ public class CPAcheckerMutator extends CPAchecker {
           "Cannot use option 'analysis.algorithm.CBMC' along with "
               + "'cfa.mutations', because CFA will not be constructed.");
     }
+
+    firstStats = stats;
   }
 
   @Override
@@ -83,24 +85,24 @@ public class CPAcheckerMutator extends CPAchecker {
 
     logger.logf(Level.INFO, "%s (%s) started", getVersion(config), getJavaInformation());
 
+    CPAcheckerResult lastResult = null;
     CPAcheckerResult currentResult = null;
     Throwable currentThrowable = null;
-
-    MainCPAStatistics totalStats = null;
-
-    try {
-      totalStats = new MainCPAStatistics(config, logger, shutdownNotifier);
-      // TODO collect all infos
-    } catch (InvalidConfigurationException e) {
-      logger.logUserException(Level.SEVERE, e, "Invalid configuration");
-      return new CPAcheckerResult(result, "", null, cfa, stats);
-    }
 
     for (int mutationRound = 0; true; mutationRound++) {
       logger.logf(Level.INFO, "Mutation round %d", mutationRound);
 
       try {
+        lastResult = currentResult;
+        currentResult = null;
         currentThrowable = null;
+        result = Result.NOT_YET_STARTED;
+        if (mutationRound == 0) {
+          stats.setCFACreator(cfaMutator);
+        } else {
+          stats = new MainCPAStatistics(config, logger, shutdownNotifier);
+        }
+
         currentResult = prepareAndRun(programDenotation, properties);
 
         if (cfa == null) {
@@ -127,8 +129,8 @@ public class CPAcheckerMutator extends CPAchecker {
         break;
 
       } catch (ClassNotFoundException e) {
-        logger
-            .logUserException(Level.SEVERE, e, "Could not read serialized CFA. Class is missing.");
+        logger.logUserException(
+            Level.SEVERE, e, "Could not read serialized CFA. Class is missing.");
 
       } catch (InvalidConfigurationException e) {
         logger.logUserException(Level.SEVERE, e, "Invalid configuration");
@@ -153,33 +155,41 @@ public class CPAcheckerMutator extends CPAchecker {
         }
         logger.logUserException(Level.SEVERE, e, null);
         currentThrowable = e;
+      }
 
+      // if we catch an exception to investigate, restore result
+      if (currentResult == null) {
+        currentResult = new CPAcheckerResult(result, "", reached, cfa, stats);
       }
       compareResults(currentResult, currentThrowable);
     }
 
-    if (currentResult != null) {
-      // if loop ended not bc of exception // TODO if exception how it prints this.
-      logger.log(Level.INFO, "Mutations ended.");
-      logger.log(Level.INFO, "Verification result:");
-      if (originalResult != null) {
-        logger.log(Level.INFO, originalResult.getResultString());
-      } else {
-        logger.log(Level.INFO, "null result"); // TODO wha
-      }
-      if (originalThrowable != null) {
-        logger.logUserException(Level.INFO, originalThrowable, null);
-      }
+    // if loop ends because of an exception, currentResult is still null
+    if (currentResult == null) {
+      return new CPAcheckerResult(result, "", reached, cfa, stats);
     }
 
-    cfaMutator.collectStatistics(totalStats.getSubStatistics());
-    totalStats.setCFA(lastCFA);
-    totalStats.setCPA(null);
-    if (originalResult != null) {
-      return originalResult.with(lastCFA, totalStats);
-    } else {
-      return new CPAcheckerResult(result, "", reached, lastCFA, totalStats);
+    logger.log(Level.INFO, "Mutations ended.");
+    logger.log(Level.INFO, "Verification result:", originalResult.getResultString());
+    if (originalThrowable != null) {
+      logger.logUserException(Level.INFO, originalThrowable, null);
     }
+
+    // lastResult is not null because cfa can not be null at mutationRound==0
+    @SuppressWarnings("null")
+    MainCPAStatistics lastStats = (MainCPAStatistics) lastResult.getStatistics();
+    CFA lastCFA = lastResult.getCfa();
+
+    return originalResult.with(lastCFA, totalStats(lastStats));
+  }
+
+  private Statistics totalStats(MainCPAStatistics lastStats) {
+    // TODO
+    lastStats.getSubStatistics().clear();
+    firstStats.getSubStatistics().clear();
+    lastStats.getSubStatistics().add(firstStats);
+    cfaMutator.collectStatistics(lastStats.getSubStatistics());
+    return lastStats;
   }
 
   @Override
@@ -193,28 +203,30 @@ public class CPAcheckerMutator extends CPAchecker {
     // TODO serialisedFile?
     // stats.setCFACreator(cfaMutator);
     stats.setCFA(cfa);
-
-    if (cfa != null) {
-      lastCFA = cfa;
-    }
-
     return cfa;
   }
 
   @SuppressWarnings("null")
   private void compareResults(CPAcheckerResult currentResult, Throwable currentThrowable) {
-    // TODO in DD there are three results: success fail unknown,
-    // if im tracking exception success = remained cfa is ok*, rollback
-    // and unknown (any failure/exception other than original) = idk, rollback
-    // TODO the * logic
 
-    boolean differentResult = false;
-    if (originalResult != null) {
-      differentResult =
+    if (originalResult == null) {
+      if (currentResult.getCfa() == null) {
+        throw new IllegalStateException("CFA is null at initial aanlysis run.");
+      }
+      // init originals
+      originalResult = currentResult;
+      originalThrowable = currentThrowable;
+      logger.logf(Level.INFO, "original result: %s", originalResult.getResultString());
+      if (originalThrowable != null) {
+        logger.logf(Level.INFO, "original exception: %s", originalThrowable);
+      }
+      return;
+    }
+
+    boolean differentResult =
         originalResult.getResult() != currentResult.getResult()
             || (originalResult.getResult() == Result.FALSE
                 && !originalResult.getResultString().equals(currentResult.getResultString()));
-    }
 
     boolean ot = originalThrowable != null;
     boolean ct = currentThrowable != null;
@@ -223,16 +235,8 @@ public class CPAcheckerMutator extends CPAchecker {
     boolean differentThrowableMessages =
         ot && ct && !originalThrowable.getMessage().equals(currentThrowable.getMessage());
 
-    if (originalResult == null) {
-      // init originals
-      originalResult = currentResult;
-      originalThrowable = currentThrowable;
-      logger.logf(Level.INFO, "original result: %s", originalResult.getResultString());
-      if (originalThrowable != null) {
-        logger.logf(Level.INFO, "original exception: %s", originalThrowable);
-      }
 
-    } else if (differentResult || ot != ct || differentThrowableClass) {
+    if (differentResult || ot != ct || differentThrowableClass) {
       // result changed
       logger.log(Level.INFO, "Result has changed, mutation rollback.");
       if (!ot) {
@@ -251,7 +255,7 @@ public class CPAcheckerMutator extends CPAchecker {
       // error message changed
       logger.logf(
           Level.WARNING,
-          "The result is considered unchanged, but error message is different:\noriginal:%s\ncurrent:%s",
+          "The result is considered unchanged, but error message is different:\noriginal: %s\ncurrent:  %s",
           originalThrowable.getMessage(),
           currentThrowable.getMessage());
 

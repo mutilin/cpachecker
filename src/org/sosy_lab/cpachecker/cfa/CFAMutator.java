@@ -43,7 +43,6 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.mutation.strategy.AbstractCFAMutationStrategy;
 import org.sosy_lab.cpachecker.cfa.mutation.strategy.CompositeStrategy;
-import org.sosy_lab.cpachecker.cfa.postprocessing.function.CFunctionPointerResolver.CFunctionPointerResolverStatistics;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
@@ -59,7 +58,6 @@ import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsUtils;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
-import org.sosy_lab.cpachecker.util.variableclassification.VariableClassificationBuilder.VariableClassificationStatistics;
 
 @Options(prefix = "cfa.mutations")
 public class CFAMutator extends CFACreator implements StatisticsProvider {
@@ -383,30 +381,23 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
+    // some stats are added every round, let only first remain
     CFACreatorStatistics creatorStats = this.getStatistics();
     Iterator<Statistics> it = creatorStats.statisticsCollection.iterator();
-    boolean vc = false, fpr = false;
+    Set<Class<? extends Statistics>> subStats = new HashSet<>();
 
     while (it.hasNext()) {
       Statistics s = it.next();
-      if (s instanceof VariableClassificationStatistics) {
-        if (vc) {
-          it.remove();
-        } else {
-          vc = true;
-        }
-      } else if (s instanceof CFunctionPointerResolverStatistics) {
-        if (fpr) {
-          it.remove();
-        } else {
-          fpr = true;
-        }
+      if (subStats.contains(s.getClass())) {
+        it.remove();
+      } else {
+        subStats.add(s.getClass());
       }
     }
 
     // TODO print name "cfa creator stats" or something
     // (it was under CPAchecker general stats category)
-    pStatsCollection.add(creatorStats);
+    // pStatsCollection.add(creatorStats);
 
     pStatsCollection.add(stats);
   }

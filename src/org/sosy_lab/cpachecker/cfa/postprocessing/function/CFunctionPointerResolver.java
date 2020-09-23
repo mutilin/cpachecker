@@ -141,7 +141,7 @@ public class CFunctionPointerResolver implements StatisticsProvider {
       ImmutableSet.of(
           FunctionSet.USED_IN_CODE, FunctionSet.RETURN_VALUE, FunctionSet.EQ_PARAM_TYPES);
 
-  public static class CFunctionPointerResolverStatistics implements Statistics {
+  private static class CFunctionPointerResolverStatistics implements Statistics {
     private StatInt totalFPs = new StatInt(StatKind.SUM, "Function calls via function pointers");
     private StatInt instrumentedFPs =
         new StatInt(StatKind.SUM, "Instrumented function pointer calls");
