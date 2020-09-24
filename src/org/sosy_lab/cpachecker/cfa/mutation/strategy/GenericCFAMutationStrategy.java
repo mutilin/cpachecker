@@ -25,7 +25,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
@@ -43,8 +42,8 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   private Collection<ObjectKey> objectsBefore;
 
-  private Deque<ObjectKey> currentMutation = new ArrayDeque<>();
-  private Deque<RollbackInfo> rollbackInfos = new ArrayDeque<>();
+  private final Deque<ObjectKey> currentMutation = new ArrayDeque<>();
+  private final Deque<RollbackInfo> rollbackInfos = new ArrayDeque<>();
   private final Set<ObjectKey> previousPasses = new HashSet<>();
   private final Set<ObjectKey> previousMutations = new HashSet<>();
   private int rate = 0;
@@ -124,10 +123,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   protected abstract Collection<ObjectKey> getAllObjects(ParseResult pParseResult);
 
-  protected Collection<ObjectKey> getObjects(ParseResult pParseResult, int count) {
+  protected Collection<ObjectKey> getObjects(ParseResult pParseResult, int maxLimit) {
     List<ObjectKey> result = new ArrayList<>();
 
-    int found = 0;
     for (ObjectKey object : getAllObjects(pParseResult)) {
       if (alreadyTried(object)) {
         continue;
@@ -140,7 +138,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
       result.add(object);
 
-      if (++found >= count) {
+      if (result.size() >= maxLimit) {
         break;
       }
     }
@@ -179,7 +177,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         if (batchNum++ < batchCount) {
           currentMutation.addAll(getObjects(pParseResult, levelSize - batchSize));
           logger.logf(
-              Level.INFO,
+              Level.FINE,
               "removing complement %d/%d: %d %s",
               batchNum,
               batchCount,
@@ -193,7 +191,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         batchNum = 0;
         state = State.RemoveDelta;
         previousMutations.clear();
-        logger.logf(Level.INFO, "switching to deltas");
+        logger.logf(Level.FINE, "switching to deltas");
         // $FALL-THROUGH$
 
       case RemoveDelta:
@@ -215,13 +213,13 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         return mutate(pParseResult);
 
       case RemoveComplementNoRollback:
-        logger.logf(Level.INFO, "complement %d/%d was removed successfully", batchNum, batchCount);
+        logger.logf(Level.FINE, "complement %d/%d was removed successfully", batchNum, batchCount);
         rate = 2;
         state = State.NewLevel;
         return mutate(pParseResult);
 
       case RemoveDeltaNoRollback:
-        logger.logf(Level.INFO, "delta %d/%d was removed successfully", batchNum, batchCount);
+        logger.logf(Level.FINE, "delta %d/%d was removed successfully", batchNum, batchCount);
         state = --rate < 2 ? State.NewLevel : State.RemoveDelta;
         return mutate(pParseResult);
     }
@@ -273,7 +271,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     }
 
     if (batchSize <= 1 || levelSize == 0) {
-      countRemained(pParseResult);
+      countRemained(level);
       return false;
     }
 
@@ -292,20 +290,20 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     batchNum = 0;
     batchCount = rate;
 
-    logger.logf(Level.INFO, "new level: %d deltas of size %d at depth %d", rate, batchSize, depth);
+    logger.logf(Level.FINE, "new level: %d deltas of size %d at depth %d", rate, batchSize, depth);
     return true;
   }
 
-  private void countRemained(ParseResult pParseResult) {
-    Collection<ObjectKey> objectsAfter = getAllObjects(pParseResult);
-    objectsAfter.removeAll(previousPasses);
+  private void countRemained(Collection<ObjectKey> objectsAfter) {
     for (ObjectKey o : objectsAfter) {
-      if (objectsBefore.contains(o)) {
-        logger.logf(Level.INFO, "remained after pass: %s", o);
-        previousPasses.add(o);
-      } else {
-        logger.logf(Level.INFO, "appeared after pass: %s", o);
-        stats.objectsAppearedAfterPass.inc();
+      if (!previousPasses.contains(o)) {
+        if (objectsBefore.contains(o)) {
+          logger.logf(Level.FINE, "remained after pass: %s", o);
+          previousPasses.add(o);
+        } else {
+          logger.logf(Level.FINE, "appeared after pass: %s", o);
+          stats.objectsAppearedAfterPass.inc();
+        }
       }
     }
     stats.objectsRemainedAfterPass.setNextValue(objectsAfter.size());
@@ -334,9 +332,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         throw new UnsupportedOperationException("" + state);
     }
 
-    Iterator<RollbackInfo> it = rollbackInfos.iterator();
-    while (it.hasNext()) {
-      final RollbackInfo ri = it.next();
+    for (final RollbackInfo ri : rollbackInfos) {
       //      logger.logf(Level.INFO, "returning ri %s", ri);
       returnObject(pParseResult, ri);
     }
