@@ -19,14 +19,17 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class BlankNodeStrategy extends SingleNodeStrategy {
 
-  public BlankNodeStrategy(LogManager pLogger, int pStartRate) {
-    super(pLogger, pStartRate, "Blank edges");
+  public BlankNodeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Blank edges");
   }
 
   @Override

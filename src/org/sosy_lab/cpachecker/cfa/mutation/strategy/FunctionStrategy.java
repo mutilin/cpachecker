@@ -150,19 +150,18 @@ public class FunctionStrategy
     }
   }
 
-  public FunctionStrategy(Configuration pConfig, LogManager pLogger, int pRate)
+  public FunctionStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, "Functions");
+    super(pConfig, pLogger, "Functions");
     pConfig.inject(this);
   }
 
   public FunctionStrategy(
       Configuration pConfig,
       LogManager pLogger,
-      int pRate,
       final Set<String> pWhitelist)
       throws InvalidConfigurationException {
-    super(pLogger, pRate, "Functions");
+    super(pConfig, pLogger, "Functions");
     pConfig.inject(this);
     whitelist = pWhitelist;
   }
@@ -199,22 +198,16 @@ public class FunctionStrategy
   }
 
   @Override
-  protected Pair<FunctionEntryNode, SortedSet<CFANode>> getRollbackInfo(ParseResult pParseResult, String pObject) {
-    return Pair.of(
-        pParseResult.getFunctions().get(pObject),
-        new TreeSet<>(pParseResult.getCFANodes().get(pObject)));
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, String functionName) {
+  protected Pair<FunctionEntryNode, SortedSet<CFANode>> removeObject(
+      ParseResult pParseResult, String functionName) {
+    FunctionEntryNode entry = pParseResult.getFunctions().get(functionName);
+    SortedSet<CFANode> nodes = new TreeSet<>(pParseResult.getCFANodes().get(functionName));
     logger.logf(
-        Level.FINE,
-        "removing %s (entry is %s, %d nodes)",
-        functionName,
-        pParseResult.getFunctions().get(functionName),
-        pParseResult.getCFANodes().get(functionName).size());
+        Level.FINE, "removing %s (entry is %s, %d nodes)", functionName, entry, nodes.size());
     pParseResult.getCFANodes().removeAll(functionName);
     pParseResult.getFunctions().remove(functionName);
+
+    return Pair.of(entry, nodes);
   }
 
   @Override

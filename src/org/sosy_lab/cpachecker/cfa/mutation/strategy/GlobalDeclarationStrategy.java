@@ -26,6 +26,8 @@ import java.util.List;
 import java.util.ListIterator;
 import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.ADeclaration;
@@ -508,8 +510,9 @@ public class GlobalDeclarationStrategy
     }
   }
 
-  public GlobalDeclarationStrategy(LogManager pLogger, int pStartRate) {
-    super(pLogger, pStartRate, "Global declarations");
+  public GlobalDeclarationStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Global declarations");
   }
 
   @Override
@@ -557,14 +560,10 @@ public class GlobalDeclarationStrategy
   }
 
   @Override
-  protected Pair<Integer, Pair<ADeclaration, String>> getRollbackInfo(
+  protected Pair<Integer, Pair<ADeclaration, String>> removeObject(
       ParseResult pParseResult, Pair<ADeclaration, String> pObject) {
-    return Pair.of(pParseResult.getGlobalDeclarations().indexOf(pObject), pObject);
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, Pair<ADeclaration, String> pObject) {
     List<Pair<ADeclaration, String>> prgd = pParseResult.getGlobalDeclarations();
+    final int index = prgd.indexOf(pObject);
     assert prgd.remove(pObject);
     assert !prgd.contains(pObject);
     pParseResult =
@@ -573,6 +572,7 @@ public class GlobalDeclarationStrategy
             pParseResult.getCFANodes(),
             prgd,
             pParseResult.getFileNames());
+    return Pair.of(index, pObject);
   }
 
   @Override

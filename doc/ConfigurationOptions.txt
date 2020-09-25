@@ -748,6 +748,9 @@ cfa.mutations.exportRounds = 0
 # CFA
 cfa.mutations.functionsWhitelist = {"main"}
 
+# whether to try to remove complements
+cfa.mutations.useComplements = false
+
 # Export CFA as pixel graphic to the given file name. The suffix is added
 # corresponding to the value of option pixelgraphic.export.formatIf set to
 # 'null', no pixel graphic is exported.

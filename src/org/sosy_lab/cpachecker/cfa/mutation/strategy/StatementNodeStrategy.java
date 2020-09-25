@@ -19,14 +19,17 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class StatementNodeStrategy extends SingleNodeStrategy {
 
-  public StatementNodeStrategy(LogManager pLogger, int pStartRate) {
-    super(pLogger, pStartRate, "Statement edges");
+  public StatementNodeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Statement edges");
   }
 
   @Override

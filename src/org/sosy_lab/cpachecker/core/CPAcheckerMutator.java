@@ -166,7 +166,7 @@ public class CPAcheckerMutator extends CPAchecker {
 
     // if loop ends because of an exception, currentResult is still null
     if (currentResult == null) {
-      return new CPAcheckerResult(result, "", reached, cfa, stats);
+      return new CPAcheckerResult(result, "", reached, cfa, totalStats(stats));
     }
 
     logger.log(Level.INFO, "Mutations ended.");
@@ -183,13 +183,13 @@ public class CPAcheckerMutator extends CPAchecker {
     return originalResult.with(lastCFA, totalStats(lastStats));
   }
 
-  private Statistics totalStats(MainCPAStatistics lastStats) {
+  private Statistics totalStats(MainCPAStatistics pStats) {
     // TODO
-    lastStats.getSubStatistics().clear();
+    pStats.getSubStatistics().clear();
     firstStats.getSubStatistics().clear();
-    lastStats.getSubStatistics().add(firstStats);
-    cfaMutator.collectStatistics(lastStats.getSubStatistics());
-    return lastStats;
+    pStats.getSubStatistics().add(firstStats);
+    cfaMutator.collectStatistics(pStats.getSubStatistics());
+    return pStats;
   }
 
   @Override

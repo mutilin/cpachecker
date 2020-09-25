@@ -21,6 +21,8 @@ package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -31,8 +33,9 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 
 public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
-  public LoopOnNodeStrategy(LogManager pLogger, int pRate) {
-    super(pLogger, pRate, "Loops on nodes");
+  public LoopOnNodeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Loops on nodes");
   }
 
   protected boolean canRemove(CFANode pNode) {
@@ -51,12 +54,7 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
   }
 
   @Override
-  protected CFANode getRollbackInfo(ParseResult pParseResult, CFANode pObject) {
-    return pObject;
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, CFANode pObject) {
+  protected CFANode removeObject(ParseResult pParseResult, CFANode pObject) {
     CFAEdge loopEdge = pObject.getLeavingEdge(0);
     // if it's a loop on exit node, insert node before
     if (pObject instanceof FunctionExitNode) {
@@ -78,6 +76,7 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
       connectEdge(newEdge);
       addNodeToParseResult(pParseResult, newNode);
     }
+    return pObject;
   }
 
   @Override

@@ -61,24 +61,24 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
         ImmutableList.of(
             // First, try to remove most functions.
             //   Remove functions, 60-150 rounds for 10-15k nodes in input, 500-800 nodes remain.
-            new FunctionStrategy(pConfig, pLogger, 4),
-            new GlobalDeclarationStrategy(pLogger, 1),
-            new BranchStrategy(pLogger, 2),
+            new FunctionStrategy(pConfig, pLogger),
+            new GlobalDeclarationStrategy(pConfig, pLogger),
+            new BranchStrategy(pConfig, pLogger),
             new DummyStrategy(pLogger),
-            new SimpleAssumeEdgeStrategy(pLogger, 2),
+            new SimpleAssumeEdgeStrategy(pConfig, pLogger),
             new DummyStrategy(pLogger),
-            new BlankNodeStrategy(pLogger, 1),
+            new BlankNodeStrategy(pConfig, pLogger),
             new DummyStrategy(pLogger),
             // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
             // new DummyStrategy(pLogger),
 
             // Second, mutate remained functions somehow.
-            new RepeatedStrategy(pLogger),
+            new RepeatedStrategy(pConfig, pLogger),
 
             //   5. Linearize loops: instead branching
             //   insert "loop-body" branch and "exit" branch successively,
             //   as if loop is "executed" once.
-            new LoopAssumeEdgeStrategy(pLogger, 1),
+            new LoopAssumeEdgeStrategy(pConfig, pLogger),
             new DummyStrategy(pLogger),
 
             // Replaces threading with plain calls
@@ -86,11 +86,11 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
             // new DummyStrategy(pLogger),
 
             // Third, remove functions-spoilers: they just call another function
-            new SpoilerFunctionStrategy(pConfig, pLogger, 1),
+            new SpoilerFunctionStrategy(pConfig, pLogger),
             new DummyStrategy(pLogger),
 
             // And last: remove unneeded global declarations
-            new GlobalDeclarationStrategy(pLogger, 1),
+            new GlobalDeclarationStrategy(pConfig, pLogger),
             new DummyStrategy(pLogger)));
   }
 

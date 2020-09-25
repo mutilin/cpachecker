@@ -54,10 +54,10 @@ public class SpoilerFunctionStrategy
 
   private final FunctionStrategy functionRemover;
 
-  public SpoilerFunctionStrategy(Configuration pConfig, LogManager pLogger, int pStartRate)
+  public SpoilerFunctionStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
-    super(pLogger, pStartRate, "Spoiler functions");
-    functionRemover = new FunctionStrategy(pConfig, pLogger, 0, ImmutableSet.of("main"));
+    super(pConfig, pLogger, "Spoiler functions");
+    functionRemover = new FunctionStrategy(pConfig, pLogger, ImmutableSet.of("main"));
   }
 
   @Override
@@ -100,10 +100,9 @@ public class SpoilerFunctionStrategy
   }
 
   @Override
-  protected void removeObject(ParseResult parseResult, String pFunctionName) {
+  protected Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> removeObject(
+      ParseResult parseResult, String pFunctionName) {
     logger.logf(Level.INFO, "removing %s as spoiler function", pFunctionName);
-    Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> fullInfo =
-        getRollbackInfo(parseResult, pFunctionName);
     CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pFunctionName);
     CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
     // remove left side if it was an assignment
@@ -116,7 +115,8 @@ public class SpoilerFunctionStrategy
     List<CExpression> iParams = innerCall.getFunctionCallExpression().getParameterExpressions();
     assert iParams.isEmpty() : "TODO args replacing";
 
-    for (CFAEdge outerCallEdge : fullInfo.getThird()) {
+    Collection<CFAEdge> allCalls = getAllCallsTo(parseResult, pFunctionName);
+    for (CFAEdge outerCallEdge : allCalls) {
       CFAEdge newEdge =
           new CStatementEdge(
               innerCallEdge.getRawStatement(),
@@ -128,7 +128,8 @@ public class SpoilerFunctionStrategy
       disconnectEdge(outerCallEdge);
       connectEdge(newEdge);
     }
-    functionRemover.removeObject(parseResult, pFunctionName);
+    Pair<FunctionEntryNode, SortedSet<CFANode>> pair = functionRemover.removeObject(parseResult, pFunctionName);
+    return Triple.of(pair.getFirst(), pair.getSecond(), allCalls);
   }
 
   @Override
@@ -145,14 +146,6 @@ public class SpoilerFunctionStrategy
       disconnectEdge(insertedEdge);
       connectEdge(outerCall);
     }
-  }
-
-  @Override
-  protected Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> getRollbackInfo(
-      ParseResult parseResult, String pFunctionName) {
-    Pair<FunctionEntryNode, SortedSet<CFANode>> pair =
-        functionRemover.getRollbackInfo(parseResult, pFunctionName);
-    return Triple.of(pair.getFirst(), pair.getSecond(), getAllCallsTo(parseResult, pFunctionName));
   }
 
   private CFAEdge getOnlyCallIn(ParseResult parseResult, String pObject) {

@@ -22,6 +22,8 @@ package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.AExpressionStatement;
 import org.sosy_lab.cpachecker.cfa.ast.AVariableDeclaration;
@@ -131,8 +133,9 @@ public class DeclarationStrategy extends SingleNodeStrategy {
     }
   }
 
-  public DeclarationStrategy(LogManager pLogger, int pStartRate) {
-    super(pLogger, pStartRate, "Declaration edges");
+  public DeclarationStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Declaration edges");
   }
 
   @Override

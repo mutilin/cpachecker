@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
@@ -37,8 +39,9 @@ import org.sosy_lab.cpachecker.util.Pair;
 public class SimpleAssumeEdgeStrategy
     extends GenericCFAMutationStrategy<Pair<AssumeEdge, AssumeEdge>, Pair<AssumeEdge, AssumeEdge>> {
 
-  public SimpleAssumeEdgeStrategy(LogManager pLogger, int pRate) {
-    super(pLogger, pRate, "Easy branching");
+  public SimpleAssumeEdgeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Easy branching");
   }
 
   @Override
@@ -122,13 +125,8 @@ public class SimpleAssumeEdgeStrategy
   }
 
   @Override
-  protected Pair<AssumeEdge, AssumeEdge> getRollbackInfo(
-      ParseResult pParseResult, Pair<AssumeEdge, AssumeEdge> pObject) {
-    return pObject;
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, Pair<AssumeEdge, AssumeEdge> pair) {
+  protected Pair<AssumeEdge, AssumeEdge> removeObject(
+      ParseResult pParseResult, Pair<AssumeEdge, AssumeEdge> pair) {
     AssumeEdge edgeToRemove = pair.getFirst();
     AssumeEdge edgeToBlank = pair.getSecond();
 
@@ -144,6 +142,7 @@ public class SimpleAssumeEdgeStrategy
             edgeToBlank.getSuccessor(),
             "blanked " + edgeToBlank.getDescription());
     connectEdge(newEdge);
+    return pair;
   }
 
   @Override

@@ -121,9 +121,9 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
     }
   }
 
-  public ThreadCreateStrategy(Configuration pConfig, LogManager pLogger, int pStartRate)
+  public ThreadCreateStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
-    super(pLogger, pStartRate, "Thread creations");
+    super(pConfig, pLogger, "Thread creations");
     pConfig.inject(this);
     if (!enableThreadOperationsInstrumentation) {
       throw new InvalidConfigurationException("ThreadCreateStrategy is useless with disabled thread operations instrumentation");
@@ -141,12 +141,7 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
   }
 
   @Override
-  protected CFAEdge getRollbackInfo(ParseResult pParseResult, CFAEdge pObject) {
-    return pObject;
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, CFAEdge pEdge) {
+  protected CFAEdge removeObject(ParseResult pParseResult, CFAEdge pEdge) {
     CFunctionCall statement = (CFunctionCall) ((CStatementEdge) pEdge).getStatement();
     CFunctionCallExpression tCallExp = statement.getFunctionCallExpression();
     CStatement fCallSt = prepareFunctionCallStatement(pParseResult, pEdge, tCallExp);
@@ -162,6 +157,7 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
 
     disconnectEdge(pEdge);
     connectEdge(newEdge);
+    return pEdge;
   }
 
   private CFunctionCallStatement prepareFunctionCallStatement(

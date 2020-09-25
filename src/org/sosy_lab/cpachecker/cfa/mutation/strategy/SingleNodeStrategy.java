@@ -26,6 +26,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Level;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -37,12 +39,14 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 
 public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
 
-  public SingleNodeStrategy(LogManager pLogger, int pRate) {
-    super(pLogger, pRate, "Nodes (w 1 leaving edge)");
+  public SingleNodeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Nodes (w 1 leaving edge)");
   }
 
-  protected SingleNodeStrategy(LogManager pLogger, int pRate, String objects) {
-    super(pLogger, pRate, objects);
+  protected SingleNodeStrategy(Configuration pConfig, LogManager pLogger, String objects)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, objects);
   }
 
   // can delete node with its only leaving edge and reconnect entering edge instead
@@ -109,7 +113,7 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
   // remove the node with its only leaving and entering edges
   // and insert new edge similar to entering edge.
   @Override
-  protected void removeObject(ParseResult parseResult, CFANode pNode) {
+  protected CFANode removeObject(ParseResult parseResult, CFANode pNode) {
     assert pNode.getNumLeavingEdges() == 1;
     CFAEdge leavingEdge = pNode.getLeavingEdge(0);
     CFANode successor = leavingEdge.getSuccessor();
@@ -129,6 +133,8 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     }
 
     removeNodeFromParseResult(parseResult, pNode);
+
+    return pNode;
   }
 
   // undo removing a node with leaving edge:
@@ -155,10 +161,5 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     connectEdgeToNode(leavingEdge, successor);
     addNodeToParseResult(parseResult, pNode);
 
-  }
-
-  @Override
-  protected CFANode getRollbackInfo(ParseResult pParseResult, CFANode pNode) {
-    return pNode;
   }
 }

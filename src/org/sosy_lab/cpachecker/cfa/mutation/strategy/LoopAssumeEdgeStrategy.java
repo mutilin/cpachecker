@@ -24,6 +24,8 @@ import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.logging.Level;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
@@ -35,8 +37,9 @@ import org.sosy_lab.cpachecker.util.Triple;
 public class LoopAssumeEdgeStrategy
     extends GenericCFAMutationStrategy<Chain, Triple<CFAEdge, CFAEdge, CFAEdge>> {
 
-  public LoopAssumeEdgeStrategy(LogManager pLogger, int pRate) {
-    super(pLogger, pRate, "Branch-loops");
+  public LoopAssumeEdgeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Branch-loops");
   }
 
   private Collection<CFAEdge> getBackwardEnteringEdges(final CFANode pNode) {
@@ -113,15 +116,7 @@ public class LoopAssumeEdgeStrategy
   }
 
   @Override
-  protected Triple<CFAEdge, CFAEdge, CFAEdge> getRollbackInfo(
-      ParseResult pParseResult, Chain pObject) {
-    CFAEdge edgeToChain = pObject.getEnteringEdge();
-    CFAEdge otherEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
-    return Triple.of(edgeToChain, otherEdge, pObject.getLeavingEdge());
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, Chain pChain) {
+  protected Triple<CFAEdge, CFAEdge, CFAEdge> removeObject(ParseResult pParseResult, Chain pChain) {
     CFAEdge edgeToChain = pChain.getEnteringEdge();
     CFANode branchingPoint = edgeToChain.getPredecessor();
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
@@ -138,6 +133,8 @@ public class LoopAssumeEdgeStrategy
       disconnectEdgeFromNode(enteringEdge, enteringEdge.getPredecessor());
       connectEdge(dupEdge(enteringEdge, pChain.getFirst()));
     }
+
+    return Triple.of(edgeToChain, leavingEdge, edgeFromChain);
   }
 
   @Override

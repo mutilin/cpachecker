@@ -24,6 +24,8 @@ import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.mutation.strategy.CompositeStrategy.CompositeStatistics;
@@ -71,7 +73,8 @@ public class RepeatedStrategy extends AbstractCFAMutationStrategy {
     }
   }
 
-  public RepeatedStrategy(LogManager pLogger) {
+  public RepeatedStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
     super(pLogger);
     strategy =
         new CompositeStrategy(
@@ -79,25 +82,25 @@ public class RepeatedStrategy extends AbstractCFAMutationStrategy {
             ImmutableList.of(
                 //   1. Remove unneeded assumes and statements.
                 // First, remove statements if possible
-                new StatementNodeStrategy(pLogger, 2),
+                new StatementNodeStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger),
                 // Second, remove AssumeEdges if possible
-                new SimpleAssumeEdgeStrategy(pLogger, 2),
+                new SimpleAssumeEdgeStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger),
                 // Then remove blank edges
-                new BlankNodeStrategy(pLogger, 1),
+                new BlankNodeStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger),
 
                 //   2. Remove loops on nodes (edges from node to itself).
-                new LoopOnNodeStrategy(pLogger, 2),
+                new LoopOnNodeStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger),
                 //   Now we can remove delooped blank edges.
-                new BlankNodeStrategy(pLogger, 2),
+                new BlankNodeStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger),
                 //   3. Remove remained branches when both branches are
                 //      chains with end on same node, or either branch
                 //      is a chain ending on exit or termination node.
-                new BranchStrategy(pLogger, 2),
+                new BranchStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger),
 
                 // some thread creating statements could be gone now
@@ -105,7 +108,7 @@ public class RepeatedStrategy extends AbstractCFAMutationStrategy {
                 // new FunctionStrategy(pConfig, pLogger, 100, false, ImmutableSet.of("main")),
 
                 //   4. Remove unneeded declarations.
-                new DeclarationStrategy(pLogger, 1),
+                new DeclarationStrategy(pConfig, pLogger),
                 new DummyStrategy(pLogger)));
     stats = new FullCycleStatistics();
   }

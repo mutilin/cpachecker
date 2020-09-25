@@ -24,6 +24,8 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.logging.Level;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
@@ -37,8 +39,9 @@ import org.sosy_lab.cpachecker.util.Pair;
 public class BranchStrategy
     extends GenericCFAMutationStrategy<Pair<CFANode, Chain>, Pair<CFANode, Chain>> {
 
-  public BranchStrategy(LogManager pLogger, int pRate) {
-    super(pLogger, pRate, "Branches");
+  public BranchStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Branches");
   }
 
   @Override
@@ -125,13 +128,8 @@ public class BranchStrategy
   }
 
   @Override
-  protected Pair<CFANode, Chain> getRollbackInfo(
+  protected Pair<CFANode, Chain> removeObject(
       ParseResult pParseResult, Pair<CFANode, Chain> pObject) {
-    return pObject;
-  }
-
-  @Override
-  protected void removeObject(ParseResult pParseResult, Pair<CFANode, Chain> pObject) {
     CFANode branchingPoint = pObject.getFirst();
     Chain pChain = pObject.getSecond();
 
@@ -168,6 +166,8 @@ public class BranchStrategy
     for (CFANode node : pChain) {
       removeNodeFromParseResult(pParseResult, node);
     }
+
+    return pObject;
   }
 
   @Override

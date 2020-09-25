@@ -19,6 +19,8 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
@@ -27,8 +29,9 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
 public class FunctionCallStrategy extends SingleNodeStrategy {
 
-  public FunctionCallStrategy(LogManager pLogger, int pStartRate) {
-    super(pLogger, pStartRate, "Function call edges");
+  public FunctionCallStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Function call edges");
   }
 
   @Override
