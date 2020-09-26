@@ -53,7 +53,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private Collection<ObjectKey> objectsBefore;
 
   // the objects that are removed by last mutation
-  private final Deque<ObjectKey> currentMutation = new ArrayDeque<>();
+  private Collection<ObjectKey> currentMutation;
   // info to return them into CFA
   private final Deque<RollbackInfo> rollbackInfos = new ArrayDeque<>();
   // this collection helps to try new objects as they are not strictly divided into deltas
@@ -62,7 +62,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   // TODO and so what?.. it can be useful to try in new context...
   private final Set<ObjectKey> previousPasses = new HashSet<>();
 
-  private int rate = 0, pass = 1, levelSize, deltaNum, deltaCount, deltaSize;
+  private int rate = 0, iteration = 1, totalObjectsNum, deltaNum, maxDeltaNum, deltaSize;
   private final String objectsDescription;
   private GenericStatistics stats;
 
@@ -186,8 +186,6 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @SuppressWarnings("unchecked")
   @Override
   public boolean mutate(ParseResult pParseResult) {
-    currentMutation.clear();
-
     switch (state) {
       case NewLevel:
         return setLevelAndMutate(pParseResult);
@@ -198,7 +196,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
           stats.complementRollbacks++;
           return removeComplement(pParseResult);
         }
-        logger.logf(Level.FINE, "complement %d/%d was removed successfully", deltaNum, deltaCount);
+        logger.logf(Level.FINE, "complement %d/%d was removed successfully", deltaNum, maxDeltaNum);
         rate = 2;
         return setLevelAndMutate(pParseResult);
 
@@ -208,29 +206,32 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
           stats.deltaRollbacks++;
           return removeDelta(pParseResult);
         }
-        logger.logf(Level.FINE, "delta %d/%d was removed successfully", deltaNum, deltaCount);
+        logger.logf(Level.FINE, "delta %d/%d was removed successfully", deltaNum, maxDeltaNum);
         if (--rate < 2) {
           return setLevelAndMutate(pParseResult);
         } else {
           return removeDelta(pParseResult);
         }
-    }
 
-    return mutateEpilogue(pParseResult);
+      default:
+        // What is here?
+        return false;
+    }
   }
 
   private boolean removeComplement(ParseResult pParseResult) {
-    if (deltaNum++ < deltaCount) {
-      currentMutation.addAll(getObjects(pParseResult, levelSize - deltaSize));
+    if (deltaNum++ < maxDeltaNum) {
+      Collection<ObjectKey> toRemove = getObjects(pParseResult, totalObjectsNum - deltaSize);
       logger.logf(
           Level.FINE,
           "removing complement %d/%d: %d %s",
           deltaNum,
-          deltaCount,
-          currentMutation.size(),
+          maxDeltaNum,
+          toRemove.size(),
           objectsDescription);
-      if (!currentMutation.isEmpty()) {
-        return mutateEpilogue(pParseResult);
+      if (!toRemove.isEmpty()) {
+        removeObjects(pParseResult, toRemove);
+        return true;
       }
     }
     deltaNum = 0;
@@ -244,31 +245,32 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     // TODO? dont count deltas, just keep going while not isEmpty
     // then deltaCount is not needed (in removeComplement it can be replaced with rate)
     // Actually, a lot of new rounds occurs
-    if (deltaNum++ < deltaCount) {
-      currentMutation.addAll(getObjects(pParseResult, deltaSize));
+    if (deltaNum++ < maxDeltaNum) {
+      Collection<ObjectKey> toRemove = getObjects(pParseResult, deltaSize);
       logger.logf(
           Level.INFO,
           "removing delta %d: %d %s",
           deltaNum,
-          currentMutation.size(),
+          toRemove.size(),
           objectsDescription);
-      if (!currentMutation.isEmpty()) {
-        previousMutations.addAll(currentMutation);
-        return mutateEpilogue(pParseResult);
+      if (!toRemove.isEmpty()) {
+        previousMutations.addAll(toRemove);
+        removeObjects(pParseResult, toRemove);
+        return true;
       }
     }
     return setLevelAndMutate(pParseResult);
   }
 
-  private boolean mutateEpilogue(ParseResult pParseResult) {
+  private void removeObjects(ParseResult pParseResult, Collection<ObjectKey> pToRemove) {
     stats.rounds.inc();
     rollbackInfos.clear();
+    currentMutation = pToRemove;
     for (ObjectKey object : currentMutation) {
       rollbackInfos.push(removeObject(pParseResult, object));
       //      logger.logf(Level.INFO, "removing %s with ri %s", object, ri);
     }
     wasRollback = false;
-    return true;
   }
 
   private boolean setLevelAndMutate(ParseResult pParseResult) {
@@ -276,21 +278,21 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     previousMutations.clear();
 
     // set level
-    Collection<ObjectKey> level = getAllObjects(pParseResult);
-    level.removeAll(previousPasses);
-    levelSize = level.size();
-    if (levelSize == 0) {
+    Collection<ObjectKey> objects = getAllObjects(pParseResult);
+    objects.removeAll(previousPasses);
+    totalObjectsNum = objects.size();
+    if (totalObjectsNum == 0) {
       return false;
     }
 
     if (rate == 0) { // it is a new pass
       rate = 1;
-      objectsBefore = level;
-      stats.objectsBeforePass.setNextValue(levelSize);
-      deltaSize = (levelSize - 1) / rate + 1;
+      objectsBefore = objects;
+      stats.objectsBeforePass.setNextValue(totalObjectsNum);
+      deltaSize = (totalObjectsNum - 1) / rate + 1;
 
     } else { // it is just a new level
-      level.forEach(
+      objects.forEach(
           o -> {
             if (!objectsBefore.contains(o)) {
               stats.objectsAppearedDuringPass.inc();
@@ -299,22 +301,22 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
       if (deltaSize <= 1) {
         // we have already tried the smallest deltas, finish this pass
-        countRemained(level);
+        countRemained(objects);
         return false;
       }
 
       // make deltas twice smaller
       rate *= 2;
-      if (rate >= levelSize) {
+      if (rate >= totalObjectsNum) {
         deltaSize = 1;
-        rate = levelSize;
+        rate = totalObjectsNum;
       } else {
-        deltaSize = (levelSize - 1) / rate + 1;
+        deltaSize = (totalObjectsNum - 1) / rate + 1;
       }
     }
 
     deltaNum = 0;
-    deltaCount = rate;
+    maxDeltaNum = rate;
 
     logger.logf(Level.FINE, "new level: %d deltas of size %d", rate, deltaSize);
 
@@ -376,7 +378,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
   @Override
   public String toString() {
-    return this.getClass().getSimpleName() + " (" + pass + " pass)";
+    return this.getClass().getSimpleName() + " (" + iteration + " pass)";
   }
 
   @Override
@@ -384,7 +386,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     pStatsCollection.add(stats);
     stats =
         new GenericStatistics(
-            this.getClass().getSimpleName() + " " + ++pass + " pass", objectsDescription);
+            this.getClass().getSimpleName() + " " + ++iteration + " pass", objectsDescription);
     state = State.NewLevel;
     rate = 0;
   }
