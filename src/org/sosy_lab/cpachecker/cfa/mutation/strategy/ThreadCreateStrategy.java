@@ -19,12 +19,9 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -33,7 +30,6 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
-import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
 import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
@@ -41,15 +37,14 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
+import org.sosy_lab.cpachecker.cfa.postprocessing.function.ThreadCreateTransformer.ThreadFinder;
 import org.sosy_lab.cpachecker.util.CFATraversal;
-import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 
 @Options
 public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CFAEdge> {
@@ -66,7 +61,7 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
       secure = true,
       name = "cfa.threads.threadCreate",
       description = "A name of thread_create function")
-  private Set<String> threadCreate = ImmutableSet.of("pthread_create");
+  private String threadCreate = "pthread_create";
 
   @Option(
       secure = true,
@@ -82,45 +77,6 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
    * "A name of thread_join_N function") private String threadJoinN = "pthread_join_N";
    */
 
-  private class ThreadFinder implements CFATraversal.CFAVisitor {
-
-    Collection<CFAEdge> threadCreates = new ArrayList<>();
-//    Map<CFAEdge, CFunctionCallExpression> threadJoins = new HashMap<>();
-
-    @Override
-    public TraversalProcess visitEdge(CFAEdge pEdge) {
-      if (pEdge instanceof CStatementEdge) {
-        CStatement statement = ((CStatementEdge) pEdge).getStatement();
-        if (statement instanceof CAssignment) {
-          CRightHandSide rhs = ((CAssignment) statement).getRightHandSide();
-          if (rhs instanceof CFunctionCallExpression) {
-            CFunctionCallExpression exp = ((CFunctionCallExpression) rhs);
-            checkFunctionExpression(pEdge, exp);
-          }
-        } else if (statement instanceof CFunctionCallStatement) {
-          CFunctionCallExpression exp =
-              ((CFunctionCallStatement) statement).getFunctionCallExpression();
-          checkFunctionExpression(pEdge, exp);
-        }
-      }
-      return TraversalProcess.CONTINUE;
-    }
-
-    @Override
-    public TraversalProcess visitNode(CFANode pNode) {
-      return TraversalProcess.CONTINUE;
-    }
-
-    private void checkFunctionExpression(CFAEdge edge, CFunctionCallExpression exp) {
-      String fName = exp.getFunctionNameExpression().toString();
-      if (threadCreate.contains(fName) || fName.equals(threadCreateN)) {
-        threadCreates.add(edge);
-        //      } else if (fName.equals(threadJoin) || fName.equals(threadJoinN)) {
-        //        threadJoins.put(edge, exp);
-      }
-    }
-  }
-
   public ThreadCreateStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
     super(pConfig, pLogger, "Thread creations");
@@ -132,12 +88,13 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
 
   @Override
   protected Collection<CFAEdge> getAllObjects(ParseResult pParseResult) {
-    ThreadFinder vis = new ThreadFinder();
+    String dummy = "dummy_thread_join_function";
+    ThreadFinder vis = new ThreadFinder(threadCreate, threadCreateN, dummy, dummy);
     for (CFANode entry : pParseResult.getFunctions().values()) {
       CFATraversal.dfs().traverseOnce(entry, vis);
     }
 
-    return vis.threadCreates;
+    return vis.getThreadCreates();
   }
 
   @Override

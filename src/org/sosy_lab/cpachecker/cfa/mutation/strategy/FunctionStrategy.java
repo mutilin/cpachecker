@@ -24,33 +24,23 @@ import com.google.common.collect.SortedSetMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ParseResult;
-import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
-import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
-import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
-import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
-import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
-import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
-import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
-import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
+import org.sosy_lab.cpachecker.cfa.postprocessing.function.ThreadCreateTransformer;
+import org.sosy_lab.cpachecker.cfa.postprocessing.function.ThreadCreateTransformer.ThreadFinder;
 import org.sosy_lab.cpachecker.util.CFATraversal;
-import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 import org.sosy_lab.cpachecker.util.Pair;
 
 @Options
@@ -74,7 +64,7 @@ public class FunctionStrategy
       secure = true,
       name = "cfa.threads.threadCreate",
       description = "A name of thread_create function")
-  private Set<String> threadCreate = ImmutableSet.of("pthread_create");
+  private String threadCreate = "pthread_create";
 
   @Option(
       secure = true,
@@ -89,66 +79,6 @@ public class FunctionStrategy
    * @Option( secure = true, name = "cfa.threads.threadSelfJoin", description =
    * "A name of thread_join_N function") private String threadJoinN = "pthread_join_N";
    */
-
-  private class ThreadFinder implements CFATraversal.CFAVisitor {
-    Collection<String> threadedFunctions = new HashSet<>();
-
-    @Override
-    public TraversalProcess visitEdge(CFAEdge pEdge) {
-      if (pEdge instanceof CStatementEdge) {
-        CStatement statement = ((CStatementEdge) pEdge).getStatement();
-        if (statement instanceof CAssignment) {
-          CRightHandSide rhs = ((CAssignment) statement).getRightHandSide();
-          if (rhs instanceof CFunctionCallExpression) {
-            CFunctionCallExpression exp = ((CFunctionCallExpression) rhs);
-            checkFunctionExpression(exp);
-          }
-        } else if (statement instanceof CFunctionCallStatement) {
-          CFunctionCallExpression exp =
-              ((CFunctionCallStatement) statement).getFunctionCallExpression();
-          checkFunctionExpression(exp);
-        }
-      }
-      return TraversalProcess.CONTINUE;
-    }
-
-    @Override
-    public TraversalProcess visitNode(CFANode pNode) {
-      return TraversalProcess.CONTINUE;
-    }
-
-    private void checkFunctionExpression(CFunctionCallExpression exp) {
-      String fName = exp.getFunctionNameExpression().toString();
-      if (threadCreate.contains(fName) || fName.equals(threadCreateN)) {
-        List<CExpression> args = exp.getParameterExpressions();
-        if (args.size() != 4) {
-          throw new UnsupportedOperationException("More arguments expected: " + exp);
-        }
-
-        CExpression calledFunction = args.get(2);
-        CIdExpression functionNameExpression = getFunctionName(calledFunction);
-        String newThreadName = functionNameExpression.getName();
-        threadedFunctions.add(newThreadName);
-      }
-    }
-
-    private CIdExpression getFunctionName(CExpression fName) {
-      if (fName instanceof CIdExpression) {
-        return (CIdExpression) fName;
-      } else if (fName instanceof CUnaryExpression) {
-        return getFunctionName(((CUnaryExpression) fName).getOperand());
-      } else if (fName instanceof CCastExpression) {
-        return getFunctionName(((CCastExpression) fName).getOperand());
-      } else {
-        throw new UnsupportedOperationException(
-            "Unsupported expression in pthread_create: " + fName);
-      }
-    }
-
-    public Collection<String> getThreadedFunctions() {
-      return threadedFunctions;
-    }
-  }
 
   public FunctionStrategy(Configuration pConfig, LogManager pLogger)
       throws InvalidConfigurationException {
@@ -169,22 +99,29 @@ public class FunctionStrategy
   @Override
   protected Collection<String> getAllObjects(ParseResult pParseResult) {
 
-    List<String> answer = new ArrayList<>(pParseResult.getFunctions().keySet());
-    answer.removeAll(whitelist);
+    List<String> result = new ArrayList<>(pParseResult.getFunctions().keySet());
+    result.removeAll(whitelist);
 
     if (enableThreadOperationsInstrumentation) {
-      final ThreadFinder threadVisitor = new ThreadFinder();
+      String dummy = "dummy_thread_join_function";
+      final ThreadFinder threadVisitor =
+          new ThreadFinder(threadCreate, threadCreateN, dummy, dummy);
 
       for (FunctionEntryNode functionStartNode : pParseResult.getFunctions().values()) {
         CFATraversal.dfs().traverseOnce(functionStartNode, threadVisitor);
       }
 
-      answer.removeAll(threadVisitor.getThreadedFunctions());
+      Set<String> threadedFunctions =
+          threadVisitor.getThreadNames()
+          .stream()
+          .map(ThreadCreateTransformer::getThreadName)
+              .collect(Collectors.toSet());
+      result.removeAll(threadedFunctions);
     }
 
     SortedSetMultimap<String, CFANode> allNodes = pParseResult.getCFANodes();
-    Collections.sort(answer, (a, b) -> allNodes.get(a).size() - allNodes.get(b).size());
-    return answer;
+    Collections.sort(result, (a, b) -> allNodes.get(a).size() - allNodes.get(b).size());
+    return result;
   }
 
   @Override
