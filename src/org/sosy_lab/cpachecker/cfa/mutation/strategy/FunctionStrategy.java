@@ -20,10 +20,10 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.SortedSetMultimap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -168,17 +168,6 @@ public class FunctionStrategy
 
   @Override
   protected Collection<String> getAllObjects(ParseResult pParseResult) {
-    class FunctionSize implements Comparator<String> {
-      private final ParseResult parseResult;
-      public FunctionSize(final ParseResult pr) {
-        parseResult = pr;
-      }
-      @Override
-      public int compare(String pArg0, String pArg1) {
-        return parseResult.getCFANodes().get(pArg0).size()
-            - parseResult.getCFANodes().get(pArg1).size();
-      }
-    }
 
     List<String> answer = new ArrayList<>(pParseResult.getFunctions().keySet());
     answer.removeAll(whitelist);
@@ -193,7 +182,8 @@ public class FunctionStrategy
       answer.removeAll(threadVisitor.getThreadedFunctions());
     }
 
-    Collections.sort(answer, new FunctionSize(pParseResult));
+    SortedSetMultimap<String, CFANode> allNodes = pParseResult.getCFANodes();
+    Collections.sort(answer, (a, b) -> allNodes.get(a).size() - allNodes.get(b).size());
     return answer;
   }
 

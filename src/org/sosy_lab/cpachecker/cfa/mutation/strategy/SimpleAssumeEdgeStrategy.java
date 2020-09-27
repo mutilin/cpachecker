@@ -46,7 +46,7 @@ public class SimpleAssumeEdgeStrategy
 
   @Override
   protected Collection<Pair<AssumeEdge, AssumeEdge>> getAllObjects(ParseResult pParseResult) {
-    List<Pair<AssumeEdge, AssumeEdge>> answer = new ArrayList<>();
+    List<Pair<AssumeEdge, AssumeEdge>> result = new ArrayList<>();
 
     for (CFANode node : pParseResult.getCFANodes().values()) {
       if (node.getNumLeavingEdges() != 2) {
@@ -60,15 +60,15 @@ public class SimpleAssumeEdgeStrategy
       // CFANode.isLoopStart is not enough for some reason
       CFANode s = e0.getSuccessor();
       if ((isBackwardEdge(e0) && s.getNumEnteringEdges() > 1) || countForwardEnteringEdges(s) > 1) {
-        answer.add(Pair.of(e0, e1));
+        result.add(Pair.of(e0, e1));
       }
       s = e1.getSuccessor();
       if ((isBackwardEdge(e1) && s.getNumEnteringEdges() > 1) || countForwardEnteringEdges(s) > 1) {
-        answer.add(Pair.of(e1, e0));
+        result.add(Pair.of(e1, e0));
       }
     }
 
-    return answer;
+    return result;
   }
 
   protected static boolean isBackwardEdge(CFAEdge pEdge) {
@@ -88,7 +88,7 @@ public class SimpleAssumeEdgeStrategy
 
   @Override
   protected Collection<Pair<AssumeEdge, AssumeEdge>> getObjects(
-      ParseResult pParseResult, int count) {
+      ParseResult pParseResult, int limit) {
     List<Pair<AssumeEdge, AssumeEdge>> result = new ArrayList<>();
     Set<CFANode> preds = new HashSet<>();
     Set<CFANode> succs0 = new HashSet<>();
@@ -116,7 +116,7 @@ public class SimpleAssumeEdgeStrategy
 
       result.add(pair);
 
-      if (++found >= count) {
+      if (++found >= limit) {
         break;
       }
     }

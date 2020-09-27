@@ -20,7 +20,6 @@
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
 import java.util.ArrayDeque;
-import java.util.Iterator;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
@@ -39,10 +38,7 @@ public class Chain extends ArrayDeque<CFANode> {
 
   public CFANode getPredecessor() {
     CFAEdge e = getEnteringEdge();
-    if (e == null) {
-      return null;
-    }
-    return e.getPredecessor();
+    return e == null ? null : e.getPredecessor();
   }
 
   public CFAEdge getLeavingEdge() {
@@ -56,10 +52,7 @@ public class Chain extends ArrayDeque<CFANode> {
 
   public CFANode getSuccessor() {
     CFAEdge e = getLeavingEdge();
-    if (e == null) {
-      return null;
-    }
-    return e.getSuccessor();
+    return e == null ? null : e.getSuccessor();
   }
 
   public String getDescription() {
@@ -92,28 +85,6 @@ public class Chain extends ArrayDeque<CFANode> {
 
   @Override
   public boolean equals(Object pObj) {
-    if (this == pObj) {
-      return true;
-    }
-
-    if (pObj == null) {
-      return false;
-    }
-
-    if (!(pObj instanceof Chain)) {
-      return false;
-    }
-
-    Chain other = (Chain) pObj;
-
-    Iterator<CFANode> it = this.iterator();
-    Iterator<CFANode> that = other.iterator();
-    while (it.hasNext() && that.hasNext()) {
-      if (!it.next().equals(that.next())) {
-        return false;
-      }
-    }
-
-    return !it.hasNext() && !that.hasNext();
+    return super.equals(pObj);
   }
 }

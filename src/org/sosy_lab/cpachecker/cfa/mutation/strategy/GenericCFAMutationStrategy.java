@@ -67,12 +67,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private GenericStatistics stats;
 
   private enum State {
-    NewLevel,
+    NewIteration,
     RemoveComplement,
     RemoveDelta
   }
 
-  private State state = State.NewLevel;
+  private State state = State.NewIteration;
   private boolean wasRollback;
 
   protected static class GenericStatistics extends AbstractMutationStatistics {
@@ -187,7 +187,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @Override
   public boolean mutate(ParseResult pParseResult) {
     switch (state) {
-      case NewLevel:
+      case NewIteration:
         return setLevelAndMutate(pParseResult);
 
       case RemoveComplement:
@@ -387,7 +387,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     stats =
         new GenericStatistics(
             this.getClass().getSimpleName() + " " + ++iteration + " pass", objectsDescription);
-    state = State.NewLevel;
+    state = State.NewIteration;
     rate = 0;
   }
 }

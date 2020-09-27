@@ -34,7 +34,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class RepeatedStrategy extends AbstractCFAMutationStrategy {
-  private OneRepeatStatistics thisCycle = new OneRepeatStatistics(1);
+  private OneRepeatStatistics currentIteration = new OneRepeatStatistics(1);
   private final AbstractCFAMutationStrategy strategy;
   private FullCycleStatistics stats;
 
@@ -117,23 +117,23 @@ public class RepeatedStrategy extends AbstractCFAMutationStrategy {
   public boolean mutate(ParseResult pParseResult) {
     if (strategy.mutate(pParseResult)) {
       stats.rounds.inc();
-      if (thisCycle.rounds.getValue() == 0) {
+      if (currentIteration.rounds.getValue() == 0) {
         stats.cycles.inc();
       }
-      thisCycle.rounds.inc();
+      currentIteration.rounds.inc();
       return true;
     }
-    return nextCycle(pParseResult);
+    return nextIteration(pParseResult);
   }
 
-  private boolean nextCycle(ParseResult pParseResult) {
-    if (thisCycle.rounds.getValue() == 0) {
+  private boolean nextIteration(ParseResult pParseResult) {
+    if (currentIteration.rounds.getValue() == 0) {
       return false;
     } else {
       strategy.makeAftermath(pParseResult);
-      strategy.collectStatistics(thisCycle.getStatistics());
-      stats.cycleStats.add(thisCycle);
-      thisCycle = new OneRepeatStatistics((int) stats.cycles.getValue() + 1);
+      strategy.collectStatistics(currentIteration.getStatistics());
+      stats.cycleStats.add(currentIteration);
+      currentIteration = new OneRepeatStatistics((int) stats.cycles.getValue() + 1);
       return mutate(pParseResult);
     }
   }
@@ -141,7 +141,7 @@ public class RepeatedStrategy extends AbstractCFAMutationStrategy {
   @Override
   public void rollback(ParseResult pParseResult) {
     stats.rollbacks.inc();
-    thisCycle.rollbacks.inc();
+    currentIteration.rollbacks.inc();
     strategy.rollback(pParseResult);
   }
 
@@ -152,14 +152,14 @@ public class RepeatedStrategy extends AbstractCFAMutationStrategy {
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
-    if (thisCycle.rounds.getUpdateCount() > 0) {
-      strategy.collectStatistics(thisCycle.getStatistics());
-      stats.cycleStats.add(thisCycle);
+    if (currentIteration.rounds.getUpdateCount() > 0) {
+      strategy.collectStatistics(currentIteration.getStatistics());
+      stats.cycleStats.add(currentIteration);
     }
     pStatsCollection.add(stats);
 
     stats = new FullCycleStatistics();
-    thisCycle = new OneRepeatStatistics(1);
+    currentIteration = new OneRepeatStatistics(1);
   }
 
   @Override

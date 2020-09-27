@@ -62,13 +62,13 @@ public class SpoilerFunctionStrategy
 
   @Override
   protected Collection<String> getAllObjects(ParseResult pParseResult) {
-    List<String> answer = new ArrayList<>();
+    List<String> result = new ArrayList<>();
     for (String name : functionRemover.getAllObjects(pParseResult)) {
       if (canRemove(pParseResult, name)) {
-        answer.add(name);
+        result.add(name);
       }
     }
-    return answer;
+    return result;
   }
 
   protected boolean canRemove(ParseResult parseResult, String pObject) {

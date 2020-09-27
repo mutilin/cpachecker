@@ -193,8 +193,7 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
       return null;
     }
 
-    FunctionEntryNode mainFunction;
-    mainFunction = getCMainFunction(sourceFiles, c.getFunctions());
+    FunctionEntryNode mainFunction = getCMainFunction(sourceFiles, c.getFunctions());
     return createCFA(c, mainFunction);
   }
 

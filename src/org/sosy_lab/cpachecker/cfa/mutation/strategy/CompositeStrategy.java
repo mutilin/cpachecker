@@ -106,8 +106,8 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
   public boolean mutate(ParseResult parseResult) {
     logger.logf(
         Level.INFO, "Round %d. Mutation strategy %s", stats.rounds.getValue() + 1, currentStrategy);
-    boolean answer = currentStrategy.mutate(parseResult);
-    while (!answer) {
+    boolean result = currentStrategy.mutate(parseResult);
+    while (!result) {
       logger.logf(
           Level.FINE,
           "Round %d. Mutation strategy %s finished.",
@@ -115,16 +115,16 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
           currentStrategy
           );
       if (!strategies.hasNext()) {
-        return answer;
+        return result;
       }
       currentStrategy = strategies.next();
       logger.logf(Level.INFO, "Switching strategy to %s", currentStrategy);
-      answer = currentStrategy.mutate(parseResult);
+      result = currentStrategy.mutate(parseResult);
     }
-    if (answer) {
+    if (result) {
       stats.rounds.inc();
     }
-    return answer;
+    return result;
   }
 
   @Override
