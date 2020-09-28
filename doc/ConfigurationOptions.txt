@@ -775,7 +775,6 @@ cfa.simplifyConstExpressions = true
 cfa.simplifyPointerExpressions = false
 
 # A name of thread_create function
-cfa.threads.threadCreate = {"pthread_create"}
 cfa.threads.threadCreate = "pthread_create"
 
 # A name of thread_join function
