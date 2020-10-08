@@ -1,30 +1,16 @@
-/*
- *  CPAchecker is a tool for configurable software verification.
- *  This file is part of CPAchecker.
- *
- *  Copyright (C) 2007-2014  Dirk Beyer
- *  All rights reserved.
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *
- *  CPAchecker web page:
- *    http://cpachecker.sosy-lab.org
- */
+// This file is part of CPAchecker,
+// a tool for configurable software verification:
+// https://cpachecker.sosy-lab.org
+//
+// SPDX-FileCopyrightText: 2007-2020 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package org.sosy_lab.cpachecker.cpa.predicate;
 
 import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableSetCopy;
+import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkAbstractionState;
 import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkNonAbstractionStateWithNewPathFormula;
 
 import com.google.common.collect.Sets;
@@ -49,6 +35,7 @@ import org.sosy_lab.cpachecker.core.interfaces.MergeOperator;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractEdge.FormulaDescription;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
+import org.sosy_lab.cpachecker.util.predicates.AbstractionFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer.TimerWrapper;
@@ -72,12 +59,16 @@ public class PredicateMergeOperator implements MergeOperator {
 
   private final boolean abstractionLattice;
   private final boolean joinEffectsIntoUndef;
+  private boolean mergeAbstractionStates;
+  private final PredicateAbstractionManager predAbsManager;
 
   public PredicateMergeOperator(
       LogManager pLogger,
       BooleanFormulaManager pMngr,
       PathFormulaManager pPfmgr,
       PredicateStatistics pStatistics,
+      boolean pMergeAbstractionStates,
+      PredicateAbstractionManager pPredAbsManager,
       boolean pAbstractionLattice,
       boolean pJoin) {
     logger = pLogger;
@@ -87,6 +78,9 @@ public class PredicateMergeOperator implements MergeOperator {
     totalMergeTimer = statistics.totalMergeTime.getNewTimer();
     abstractionLattice = pAbstractionLattice;
     joinEffectsIntoUndef = pJoin;
+
+    mergeAbstractionStates = pMergeAbstractionStates;
+    predAbsManager = pPredAbsManager;
   }
 
   @Override
@@ -280,6 +274,27 @@ public class PredicateMergeOperator implements MergeOperator {
     // this will be the merged element
     PredicateAbstractState merged;
 
+    if (mergeAbstractionStates
+        && pState1.isAbstractionState()
+        && pState2.isAbstractionState()
+        && !pState1.getAbstractionFormula().equals(pState2.getAbstractionFormula())) {
+      if (pState1.getPreviousAbstractionState().equals(pState2.getPreviousAbstractionState())) {
+        totalMergeTimer.start();
+        AbstractionFormula newAbstractionFormula =
+            predAbsManager.makeOr(pState1.getAbstractionFormula(), pState2.getAbstractionFormula());
+        PathFormula newPathFormula =
+            formulaManager.makeEmptyPathFormula(newAbstractionFormula.getBlockFormula());
+        merged =
+            mkAbstractionState(
+                newPathFormula,
+                newAbstractionFormula,
+                pState2.getAbstractionLocationsOnPath(),
+                pState2.getPreviousAbstractionState());
+        pState1.setMergedInto(merged);
+        totalMergeTimer.stop();
+        return merged;
+      }
+    }
     if (pState1.isAbstractionState() || pState2.isAbstractionState()) {
       // we don't merge if this is an abstraction location
       merged = pState2;
@@ -303,7 +318,11 @@ public class PredicateMergeOperator implements MergeOperator {
 
         logger.log(Level.ALL, "New path formula is", pathFormula);
 
-        merged = mkNonAbstractionStateWithNewPathFormula(pathFormula, pState1);
+        merged =
+            mkNonAbstractionStateWithNewPathFormula(
+                pathFormula,
+                pState1,
+                pState2.getPreviousAbstractionState());
 
         // now mark elem1 so that coverage check can find out it was merged
         pState1.setMergedInto(merged);
@@ -314,5 +333,4 @@ public class PredicateMergeOperator implements MergeOperator {
 
     return merged;
   }
-
 }

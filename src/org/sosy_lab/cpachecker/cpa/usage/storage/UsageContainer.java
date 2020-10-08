@@ -1,27 +1,14 @@
-/*
- *  CPAchecker is a tool for configurable software verification.
- *  This file is part of CPAchecker.
- *
- *  Copyright (C) 2007-2014  Dirk Beyer
- *  All rights reserved.
- *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *
- *  CPAchecker web page:
- *    http://cpachecker.sosy-lab.org
- */
+// This file is part of CPAchecker,
+// a tool for configurable software verification:
+// https://cpachecker.sosy-lab.org
+//
+// SPDX-FileCopyrightText: 2007-2020 Dirk Beyer <https://www.sosy-lab.org>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 package org.sosy_lab.cpachecker.cpa.usage.storage;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
@@ -29,6 +16,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
+import java.util.NavigableSet;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -36,6 +25,9 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageState;
@@ -62,6 +54,7 @@ public class UsageContainer {
   private int initialUsages = 0;
 
   private final LogManager logger;
+  private final UsageConfiguration config;
 
   private final StatTimer resetTimer = new StatTimer("Time for reseting unsafes");
   private final StatTimer unsafeDetectionTimer = new StatTimer("Time for unsafe detection");
@@ -71,12 +64,13 @@ public class UsageContainer {
   private boolean usagesCalculated = false;
   private boolean oneTotalIteration = false;
 
-  public UsageContainer(Configuration config, LogManager l) throws InvalidConfigurationException {
+  public UsageContainer(UsageConfiguration pConfig, LogManager l, UnsafeDetector unsafeDetector) throws InvalidConfigurationException {
     unrefinedIds = new TreeMap<>();
     refinedIds = new TreeMap<>();
     falseUnsafes = new TreeSet<>();
     logger = l;
-    detector = new UnsafeDetector(config);
+    detector = unsafeDetector;
+    config = pConfig;
   }
 
   public void add(SingleIdentifier pId, UsageInfo pUsage) {
@@ -196,6 +190,10 @@ public class UsageContainer {
 
   public void setAsRefined(SingleIdentifier id, RefinementResult result) {
     Preconditions.checkArgument(result.isTrue(), "Result is not true, can not set the set as refined");
+    checkArgument(
+        detector.isUnsafe(getUsages(id)),
+        "Refinement is successful, but the unsafe is absent for identifier %s",
+        id);
 
     UsageInfo firstUsage = result.getTrueRace().getFirst();
     UsageInfo secondUsage = result.getTrueRace().getSecond();
