@@ -47,11 +47,8 @@ class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
 
     CFANode successor = pNode.getLeavingEdge(0).getSuccessor();
     CFANode predecessor = pNode.getEnteringEdge(0).getPredecessor();
-    if (predecessor.hasEdgeTo(successor)) {
-      return false; // and chains from with predecessor and successor are checked in getObjects
-    }
-
-    return true;
+    // and chains from with predecessor and successor are checked in getObjects
+    return !predecessor.hasEdgeTo(successor);
   }
 
   @Override
@@ -74,10 +71,6 @@ class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
     forwards = !forwards;
   }
 
-  private Chain getChain() {
-    return chainNodes;
-  }
-
   public static Chain getChainWith(CFANode pNode) {
     if (!canDeleteNode(pNode)) {
       return new Chain();
@@ -87,15 +80,15 @@ class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
     CFATraversal.dfs().backwards().traverse(pNode, chainVisitor);
 
     if (pNode.getNumLeavingEdges() != 1) {
-      return chainVisitor.getChain();
+      return chainVisitor.chainNodes;
     }
     CFANode successor = pNode.getLeavingEdge(0).getSuccessor();
     if (successor.getNumEnteringEdges() > 1) {
-      return chainVisitor.getChain();
+      return chainVisitor.chainNodes;
     }
 
     chainVisitor.changeDirection();
     CFATraversal.dfs().traverse(successor, chainVisitor);
-    return chainVisitor.getChain();
+    return chainVisitor.chainNodes;
   }
 }
