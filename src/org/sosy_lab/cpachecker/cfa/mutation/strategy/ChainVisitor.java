@@ -19,6 +19,8 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
@@ -26,15 +28,15 @@ import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 
 class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
-  private Chain chainNodes = new Chain();
-  public boolean forwards;
+  private Deque<CFANode> chainNodes = new ArrayDeque<>();
+  private boolean forwards;
 
-  private ChainVisitor(boolean pForwards) {
-    forwards = pForwards;
+  private ChainVisitor() {
+    forwards = false;
   }
 
   // can delete node with its only leaving edge and reconnect entering edge instead
-  private static boolean canDeleteNode(CFANode pNode) {
+  private boolean canDeleteNode(CFANode pNode) {
     if (pNode instanceof FunctionEntryNode || pNode instanceof FunctionExitNode) {
       return false;
     }
@@ -71,24 +73,22 @@ class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
     forwards = !forwards;
   }
 
-  public static Chain getChainWith(CFANode pNode) {
-    if (!canDeleteNode(pNode)) {
-      return new Chain();
-    }
+  private Chain prepareChain() {
+    return new Chain(chainNodes);
+  }
 
-    ChainVisitor chainVisitor = new ChainVisitor(false);
+  public static Chain getChainWith(CFANode pNode) {
+    ChainVisitor chainVisitor = new ChainVisitor();
     CFATraversal.dfs().backwards().traverse(pNode, chainVisitor);
 
     if (pNode.getNumLeavingEdges() != 1) {
-      return chainVisitor.chainNodes;
-    }
-    CFANode successor = pNode.getLeavingEdge(0).getSuccessor();
-    if (successor.getNumEnteringEdges() > 1) {
-      return chainVisitor.chainNodes;
+      return chainVisitor.prepareChain();
     }
 
+    // Add the second part of the chain
     chainVisitor.changeDirection();
+    CFANode successor = pNode.getLeavingEdge(0).getSuccessor();
     CFATraversal.dfs().traverse(successor, chainVisitor);
-    return chainVisitor.chainNodes;
+    return chainVisitor.prepareChain();
   }
 }

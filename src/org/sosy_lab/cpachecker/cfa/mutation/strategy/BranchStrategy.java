@@ -97,7 +97,7 @@ public class BranchStrategy
     Collection<Pair<CFANode, Chain>> answer = new ArrayList<>();
     Set<CFANode> starts = new HashSet<>();
     Set<CFANode> ends = new HashSet<>();
-    int found = 0;
+    int counter = 0;
 
     for (Pair<CFANode, Chain> p : getAllObjects(pParseResult)) {
       if (alreadyTried(p)) {
@@ -108,7 +108,7 @@ public class BranchStrategy
         continue;
       }
 
-      CFANode end = p.getSecond().getLast();
+      CFANode end = p.getSecond().get(p.getSecond().size() - 1);
       if (!(end instanceof CFATerminationNode)) {
         end = end.getLeavingEdge(0).getSuccessor();
       }
@@ -119,7 +119,7 @@ public class BranchStrategy
       starts.add(p.getFirst());
       ends.add(end);
       answer.add(p);
-      if (++found >= pCount) {
+      if (++counter >= pCount) {
         break;
       }
     }
@@ -134,32 +134,30 @@ public class BranchStrategy
     Chain pChain = pObject.getSecond();
 
     logger.logf(
-        Level.INFO,
+        Level.FINE,
         "removing branching on node %s:%s with chain %s",
         branchingPoint.getFunctionName(),
         branchingPoint,
         pChain);
     CFAEdge edgeToChain = pChain.getEnteringEdge();
-    logger.logf(Level.INFO, "\ttochain %s", edgeToChain);
+    logger.logf(Level.FINE, "\ttochain %s", edgeToChain);
     for (CFAEdge e : CFAUtils.enteringEdges(edgeToChain.getPredecessor())) {
-      logger.logf(Level.INFO, "\t\tinb4: %s", e);
+      logger.logf(Level.FINE, "\t\tinb4: %s", e);
     }
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
-    logger.logf(Level.INFO, "\tleaving %s", leavingEdge);
+    logger.logf(Level.FINE, "\tleaving %s", leavingEdge);
     CFANode successor = leavingEdge.getSuccessor();
 
-    disconnectEdgeFromNode(leavingEdge, successor);
+    disconnectEdgeFromSuccessor(leavingEdge);
 
-    CFANode lastNode = pChain.getLast();
+    CFANode lastNode = pChain.get(pChain.size() - 1);
     for (CFAEdge edgeFromChain : CFAUtils.leavingEdges(lastNode)) {
-      disconnectEdgeFromNode(edgeFromChain, edgeFromChain.getSuccessor());
+      disconnectEdgeFromSuccessor(edgeFromChain);
     }
 
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
-      logger.logf(Level.INFO, "\tentering %s", enteringEdge);
-      CFANode predecessor = enteringEdge.getPredecessor();
-      disconnectEdgeFromNode(enteringEdge, predecessor);
-      connectEdge(dupEdge(enteringEdge, successor));
+      logger.logf(Level.FINE, "\tentering %s", enteringEdge);
+      replaceEdgeByPredecessor(enteringEdge, successor);
     }
 
     removeNodeFromParseResult(pParseResult, branchingPoint);
@@ -198,7 +196,7 @@ public class BranchStrategy
       addNodeToParseResult(pParseResult, node);
     }
 
-    CFANode lastNode = pChain.getLast();
+    CFANode lastNode = pChain.get(pChain.size() - 1);
     for (CFAEdge edgeFromChain : CFAUtils.leavingEdges(lastNode)) {
       connectEdgeToNode(edgeFromChain, edgeFromChain.getSuccessor());
     }

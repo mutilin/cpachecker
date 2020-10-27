@@ -59,21 +59,15 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     // if it's a loop on exit node, insert node before
     if (pObject instanceof FunctionExitNode) {
       CFANode newNode = new CFANode(pObject.getFunctionName());
-      CFAEdge newLeavingEdge = dupEdge(loopEdge, newNode, pObject);
-      disconnectEdge(loopEdge);
+      replaceEdgeTo(loopEdge, newNode, pObject);
       for (CFAEdge enteringEdge : CFAUtils.enteringEdges(pObject)) {
-        CFAEdge newEnteringEdge = dupEdge(enteringEdge, newNode);
-        disconnectEdge(enteringEdge);
-        connectEdge(newEnteringEdge);
+        replaceEdgeTo(enteringEdge, newNode);
       }
-      connectEdge(newLeavingEdge);
       addNodeToParseResult(pParseResult, newNode);
 
     } else { // else insert node after
       CFANode newNode = new CFATerminationNode(pObject.getFunctionName());
-      CFAEdge newEdge = dupEdge(loopEdge, newNode);
-      disconnectEdge(loopEdge);
-      connectEdge(newEdge);
+      replaceEdgeTo(loopEdge, newNode);
       addNodeToParseResult(pParseResult, newNode);
     }
     return pObject;
@@ -85,20 +79,16 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
       assert pRollbackInfo.getNumEnteringEdges() == 1;
       CFAEdge wasLoopEdge = pRollbackInfo.getEnteringEdge(0);
       CFANode insertedNode = wasLoopEdge.getPredecessor();
-      disconnectEdge(wasLoopEdge);
       for (CFAEdge enteringEdge : CFAUtils.enteringEdges(insertedNode)) {
-        disconnectEdge(enteringEdge);
-        connectEdge(dupEdge(enteringEdge, pRollbackInfo));
+        replaceEdgeTo(enteringEdge, pRollbackInfo);
       }
-      connectEdge(dupEdge(wasLoopEdge, pRollbackInfo, pRollbackInfo));
+      replaceEdgeTo(wasLoopEdge, pRollbackInfo, pRollbackInfo);
       removeNodeFromParseResult(pParseResult, insertedNode);
     } else {
       assert pRollbackInfo.getNumLeavingEdges() == 1;
       CFAEdge insertedEdge = pRollbackInfo.getLeavingEdge(0);
       removeNodeFromParseResult(pParseResult, insertedEdge.getSuccessor());
-      disconnectEdge(insertedEdge);
-      CFAEdge loopEdge = dupEdge(insertedEdge, pRollbackInfo);
-      connectEdge(loopEdge);
+      replaceEdgeTo(insertedEdge, pRollbackInfo);
     }
   }
 }

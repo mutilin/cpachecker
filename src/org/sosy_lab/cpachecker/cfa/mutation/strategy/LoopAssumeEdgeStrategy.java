@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
@@ -65,41 +66,23 @@ public class LoopAssumeEdgeStrategy
       if (backwardEnteringEdges.size() == 1) {
         CFANode onlyBackwardPredecessor =
             Iterables.getOnlyElement(backwardEnteringEdges).getPredecessor();
-        if (onlyBackwardPredecessor.getNumEnteringEdges() != 1
-            || onlyBackwardPredecessor.getNumLeavingEdges() != 1) {
-          continue;
-        }
-        chain = ChainVisitor.getChainWith(onlyBackwardPredecessor);
-        if (chain.getPredecessor() == node) {
+        chain = getChainFor(onlyBackwardPredecessor, node, Chain::getPredecessor);
+        if (chain != null) {
           answer.add(chain);
         }
         continue;
       }
-      assert chain == null;
 
       // try chains on assume edges
       CFANode successor = node.getLeavingEdge(0).getSuccessor();
-      if (successor.getNumEnteringEdges() == 1 && successor.getNumLeavingEdges() == 1) {
-        chain = ChainVisitor.getChainWith(successor);
-        if (chain.getSuccessor() != node) {
-          chain = null;
-        }
-      }
+      chain = getChainFor(successor, node, Chain::getSuccessor);
 
-      Chain otherChain = null;
       successor = node.getLeavingEdge(1).getSuccessor();
-      if (successor.getNumEnteringEdges() == 1 && successor.getNumLeavingEdges() == 1) {
-        otherChain = ChainVisitor.getChainWith(successor);
-        if (otherChain.getSuccessor() != node) {
-          otherChain = null;
-        }
-      }
+      Chain otherChain = getChainFor(successor, node, Chain::getSuccessor);
 
       if (chain == null && otherChain == null) {
         continue;
-      }
-
-      if (chain == null) {
+      } else if (chain == null) {
         chain = otherChain;
       } else if (otherChain != null) {
           logger.logf(
@@ -109,10 +92,24 @@ public class LoopAssumeEdgeStrategy
               otherChain);
           continue;
       }
-      answer.add(chain);
+
+      if (chain != null) {
+        answer.add(chain);
+      }
     }
 
     return answer;
+  }
+
+  private Chain getChainFor(CFANode chainNode, CFANode target, Function<Chain, CFANode> check) {
+    Chain chain = null;
+    if (chainNode.getNumEnteringEdges() == 1 && chainNode.getNumLeavingEdges() == 1) {
+      chain = ChainVisitor.getChainWith(chainNode);
+      if (check.apply(chain) != target) {
+        chain = null;
+      }
+    }
+    return chain;
   }
 
   @Override
@@ -124,14 +121,12 @@ public class LoopAssumeEdgeStrategy
     CFAEdge edgeFromChain = pChain.getLeavingEdge();
 
     removeNodeFromParseResult(pParseResult, branchingPoint);
-    disconnectEdgeFromNode(leavingEdge, successor);
-    disconnectEdge(edgeFromChain);
-    connectEdge(dupEdge(edgeFromChain, successor));
+    disconnectEdgeFromSuccessor(leavingEdge);
+    replaceEdgeTo(edgeFromChain, successor);
 
-    disconnectEdgeFromNode(edgeToChain, pChain.getFirst());
+    disconnectEdgeFromPredecessor(edgeToChain);
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
-      disconnectEdgeFromNode(enteringEdge, enteringEdge.getPredecessor());
-      connectEdge(dupEdge(enteringEdge, pChain.getFirst()));
+      replaceEdgeByPredecessor(enteringEdge, pChain.get(0));
     }
 
     return Triple.of(edgeToChain, leavingEdge, edgeFromChain);

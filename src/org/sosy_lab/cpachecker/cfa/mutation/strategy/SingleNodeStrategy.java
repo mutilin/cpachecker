@@ -122,14 +122,10 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     logger.logf(
         Level.FINEST, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
 
-    disconnectEdgeFromNode(leavingEdge, successor);
+    disconnectEdgeFromSuccessor(leavingEdge);
 
     for (CFAEdge enteringEdge : CFAUtils.allEnteringEdges(pNode)) {
-      CFANode predecessor = enteringEdge.getPredecessor();
-      disconnectEdgeFromNode(enteringEdge, predecessor);
-
-      CFAEdge newEdge = dupEdge(enteringEdge, successor);
-      connectEdge(newEdge);
+      replaceEdgeByPredecessor(enteringEdge, successor);
     }
 
     removeNodeFromParseResult(parseResult, pNode);

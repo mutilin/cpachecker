@@ -129,23 +129,39 @@ public abstract class AbstractCFAMutationStrategy implements StatisticsProvider 
     CFACreationUtils.removeEdgeFromNodes(pEdge);
   }
 
-  protected void disconnectEdgeFromNode(CFAEdge pEdge, CFANode pNode) {
-    logger.logf(Level.FINER, "removing edge %s from node %s", pEdge, pNode);
-    if (pEdge.getPredecessor() == pNode) {
-      pNode.removeLeavingEdge(pEdge);
-    } else if (pEdge.getSuccessor() == pNode) {
-      pNode.removeEnteringEdge(pEdge);
-    } else {
-      assert false : "Tried to remove edge " + pEdge + " from node " + pNode;
-    }
+  protected void disconnectEdgeFromSuccessor(CFAEdge pEdge) {
+    CFANode node = pEdge.getSuccessor();
+    logger.logf(Level.FINER, "removing edge %s from node %s", pEdge, node);
+    node.removeEnteringEdge(pEdge);
   }
 
-  protected CFAEdge dupEdge(CFAEdge pEdge, CFANode pSuccessor) {
+  protected void disconnectEdgeFromPredecessor(CFAEdge pEdge) {
+    CFANode node = pEdge.getPredecessor();
+    logger.logf(Level.FINER, "removing edge %s from node %s", pEdge, node);
+    node.removeLeavingEdge(pEdge);
+  }
+
+  protected void replaceEdgeByPredecessor(CFAEdge pEdge, CFANode pSuccessor) {
+    disconnectEdgeFromPredecessor(pEdge);
+    connectEdge(dupEdge(pEdge, pSuccessor));
+  }
+
+  protected void replaceEdgeTo(CFAEdge pEdge, CFANode pSuccessor) {
+    disconnectEdge(pEdge);
+    connectEdge(dupEdge(pEdge, pSuccessor));
+  }
+
+  protected void replaceEdgeTo(CFAEdge pEdge, CFANode pPredecessor, CFANode pSuccessor) {
+    disconnectEdge(pEdge);
+    connectEdge(dupEdge(pEdge, pPredecessor, pSuccessor));
+  }
+
+  private CFAEdge dupEdge(CFAEdge pEdge, CFANode pSuccessor) {
     return dupEdge(pEdge, pEdge.getPredecessor(), pSuccessor);
   }
 
   // return an edge with same "contents" but from pPredNode to pSuccNode
-  protected CFAEdge dupEdge(CFAEdge pEdge, CFANode pPredecessor, CFANode pSuccessor) {
+  private CFAEdge dupEdge(CFAEdge pEdge, CFANode pPredecessor, CFANode pSuccessor) {
 
     assert pPredecessor.getFunctionName().equals(pSuccessor.getFunctionName());
 

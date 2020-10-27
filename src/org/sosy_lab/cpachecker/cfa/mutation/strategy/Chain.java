@@ -19,19 +19,21 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
-import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Collection;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
-public class Chain extends ArrayDeque<CFANode> {
+public class Chain extends ArrayList<CFANode> {
 
   private static final long serialVersionUID = -1849261707800370541L;
 
+  public Chain(Collection<CFANode> nodes) {
+    super(nodes);
+  }
+
   public CFAEdge getEnteringEdge() {
-    CFANode firstNode = peekFirst();
-    if (firstNode == null) {
-      return null;
-    }
+    CFANode firstNode = get(0);
     assert firstNode.getNumEnteringEdges() == 1;
     return firstNode.getEnteringEdge(0);
   }
@@ -42,10 +44,7 @@ public class Chain extends ArrayDeque<CFANode> {
   }
 
   public CFAEdge getLeavingEdge() {
-    CFANode lastNode = peekLast();
-    if (lastNode == null) {
-      return null;
-    }
+    CFANode lastNode = get(size() - 1);
     assert lastNode.getNumLeavingEdges() == 1;
     return lastNode.getLeavingEdge(0);
   }
@@ -72,19 +71,5 @@ public class Chain extends ArrayDeque<CFANode> {
       sb.deleteCharAt(0);
     }
     return sb.toString();
-  }
-
-  @Override
-  public int hashCode() {
-    int result = 37;
-    result += peekFirst() == null ? 0 : peekFirst().hashCode();
-    result *= 37;
-    result += peekLast() == null ? 0 : peekLast().hashCode();
-    return result;
-  }
-
-  @Override
-  public boolean equals(Object pObj) {
-    return super.equals(pObj);
   }
 }
