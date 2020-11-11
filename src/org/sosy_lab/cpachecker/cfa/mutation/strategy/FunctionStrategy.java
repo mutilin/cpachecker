@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import java.util.logging.Level;
 import java.util.stream.Collectors;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -130,7 +129,7 @@ public class FunctionStrategy
     FunctionEntryNode entry = pParseResult.getFunctions().get(functionName);
     SortedSet<CFANode> nodes = new TreeSet<>(pParseResult.getCFANodes().get(functionName));
     logger.logf(
-        Level.FINE, "removing %s (entry is %s, %d nodes)", functionName, entry, nodes.size());
+        logObjects, "removing %s (entry is %s, %d nodes)", functionName, entry, nodes.size());
     pParseResult.getCFANodes().removeAll(functionName);
     pParseResult.getFunctions().remove(functionName);
 
@@ -142,7 +141,7 @@ public class FunctionStrategy
       ParseResult pParseResult, Pair<FunctionEntryNode, SortedSet<CFANode>> pRollbackInfo) {
     String functionName = pRollbackInfo.getFirst().getFunctionName();
     logger.logf(
-        Level.FINE,
+        logObjects,
         "returning %s (entry is %s, %d nodes)",
         functionName,
         pRollbackInfo.getFirst(),

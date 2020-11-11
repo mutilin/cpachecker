@@ -51,6 +51,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       description = "whether to try to remove complements")
   private boolean useComplements = false;
 
+  protected Level logObjects = Level.FINE; // for "removing object" and "returning object" messages
+  protected Level logDetails = Level.FINER; // for more mutation details
+
   private Collection<ObjectKey> objectsBefore;
 
   // info to return them into CFA
@@ -69,12 +72,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   private GenericStatistics stats;
 
   private enum State {
-    NewIteration,
-    RemoveComplement,
-    RemoveDelta
+    DIVIDE,
+    REMOVE_COMPLEMENT,
+    REMOVE_DELTA
   }
 
-  private State state = State.NewIteration;
+  private State state = State.DIVIDE;
   private boolean wasRollback;
 
   protected static class GenericStatistics extends AbstractMutationStatistics {
@@ -174,7 +177,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   protected abstract void returnObject(ParseResult pParseResult, RollbackInfo pRollbackInfo);
 
   // ddmin algorithm (see Delta Debugging)
-  // 1. "Set level". Divide objects in CFA into parts, "deltas".
+  // 1. Divide objects in CFA into parts, "deltas".
   //    A complement is the set of all objects without the corresponding delta.
   // 2. Remove a complement, or to put it the other way, let one delta remain.
   //    If the bug remains, we have to divide remained objects next time in new deltas.
@@ -186,10 +189,10 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   @Override
   public boolean mutate(ParseResult pParseResult) {
     switch (state) {
-      case NewIteration:
-        return setLevelAndMutate(pParseResult);
+      case DIVIDE:
+        return divideAndMutate(pParseResult);
 
-      case RemoveComplement:
+      case REMOVE_COMPLEMENT:
         stats.complementRounds++;
         if (wasRollback) {
           stats.complementRollbacks++;
@@ -197,9 +200,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         }
         logger.logf(Level.FINE, "complement %d/%d was removed successfully", deltaNum, maxDeltaNum);
         rate = 2;
-        return setLevelAndMutate(pParseResult);
+        return divideAndMutate(pParseResult);
 
-      case RemoveDelta:
+      case REMOVE_DELTA:
         stats.deltaRounds++;
         if (wasRollback) {
           stats.deltaRollbacks++;
@@ -207,7 +210,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
         }
         logger.logf(Level.FINE, "delta %d/%d was removed successfully", deltaNum, maxDeltaNum);
         if (--rate < 2) {
-          return setLevelAndMutate(pParseResult);
+          return divideAndMutate(pParseResult);
         } else {
           return removeDelta(pParseResult);
         }
@@ -236,7 +239,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       return true;
     }
     deltaNum = 0;
-    state = State.RemoveDelta;
+    state = State.REMOVE_DELTA;
     logger.logf(Level.FINE, "switching to deltas");
     return removeDelta(pParseResult);
   }
@@ -259,7 +262,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       removeObjects(pParseResult, toRemove);
       return true;
     }
-    return setLevelAndMutate(pParseResult);
+    return divideAndMutate(pParseResult);
   }
 
   private void removeObjects(ParseResult pParseResult, Collection<ObjectKey> pToRemove) {
@@ -276,7 +279,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     wasRollback = false;
   }
 
-  private boolean setLevelAndMutate(ParseResult pParseResult) {
+  private boolean divideAndMutate(ParseResult pParseResult) {
     // set level
     Collection<ObjectKey> objects = getAllObjects(pParseResult);
     objects.removeAll(previousPasses);
@@ -339,10 +342,10 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
     // actually mutate
     if (rate <= 2 || !useComplements) {
-      state = State.RemoveDelta;
+      state = State.REMOVE_DELTA;
       return removeDelta(pParseResult);
     }
-    state = State.RemoveComplement;
+    state = State.REMOVE_COMPLEMENT;
     return removeComplement(pParseResult);
   }
 
@@ -385,7 +388,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     stats =
         new GenericStatistics(
             this.getClass().getSimpleName() + " " + ++iteration + " pass", objectsDescription);
-    state = State.NewIteration;
+    state = State.DIVIDE;
     rate = 0;
     deltaList = null;
     rollbackInfos.clear();

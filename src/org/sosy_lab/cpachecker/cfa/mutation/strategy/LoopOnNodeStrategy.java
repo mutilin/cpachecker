@@ -56,6 +56,8 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
   @Override
   protected CFANode removeObject(ParseResult pParseResult, CFANode pObject) {
     CFAEdge loopEdge = pObject.getLeavingEdge(0);
+    logger.log(logObjects, "removing " + loopEdge);
+
     // if it's a loop on exit node, insert node before
     if (pObject instanceof FunctionExitNode) {
       CFANode newNode = new CFANode(pObject.getFunctionName());
@@ -75,6 +77,8 @@ public class LoopOnNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
 
   @Override
   protected void returnObject(ParseResult pParseResult, CFANode pRollbackInfo) {
+    logger.log(logObjects, "returning loop on " + pRollbackInfo);
+
     if (pRollbackInfo instanceof FunctionExitNode) {
       assert pRollbackInfo.getNumEnteringEdges() == 1;
       CFAEdge wasLoopEdge = pRollbackInfo.getEnteringEdge(0);

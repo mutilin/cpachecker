@@ -548,7 +548,7 @@ public class GlobalDeclarationStrategy
         answer.add(pair);
       }
       logger.logf(
-          Level.FINE,
+          logDetails,
           "Global declaration %s:\n%s\nname: %s\ntype: %s",
           (isNeeded ? "remaines" : "added for removing"),
           decl,
@@ -564,6 +564,7 @@ public class GlobalDeclarationStrategy
       ParseResult pParseResult, Pair<ADeclaration, String> pObject) {
     List<Pair<ADeclaration, String>> prgd = pParseResult.getGlobalDeclarations();
     final int index = prgd.indexOf(pObject);
+    logger.logf(logObjects, "removing global [%d]: %s", index, pObject.getSecond());
     assert prgd.remove(pObject);
     assert !prgd.contains(pObject);
     pParseResult =
@@ -579,8 +580,11 @@ public class GlobalDeclarationStrategy
   protected void returnObject(
       ParseResult pParseResult, Pair<Integer, Pair<ADeclaration, String>> pRollbackInfo) {
     List<Pair<ADeclaration, String>> prgd = pParseResult.getGlobalDeclarations();
+    int index = pRollbackInfo.getFirst();
+    Pair<ADeclaration, String> pair = pRollbackInfo.getSecond();
+    logger.logf(logObjects, "returning global [%d]: %s", index, pair.getSecond());
     assert !prgd.contains(pRollbackInfo.getSecond());
-    prgd.add(pRollbackInfo.getFirst(), pRollbackInfo.getSecond());
+    prgd.add(index, pair);
     assert prgd.indexOf(pRollbackInfo.getSecond()) == pRollbackInfo.getFirst();
     pParseResult =
         new ParseResult(

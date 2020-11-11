@@ -738,11 +738,11 @@ cfa.mutations = false
 cfa.mutations.count = -1
 
 # With this option set to true, original CFA will be exported as well.
-cfa.mutations.exportOriginal = false
+cfa.mutations.export.original = false
 
 # With this option set to positive integer, CFA will be exported every round
 # divisible by given number.
-cfa.mutations.exportRounds = 0
+cfa.mutations.export.rounds = 0
 
 # Names of functions (separated with comma) that should not be deleted from
 # CFA

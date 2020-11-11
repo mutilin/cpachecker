@@ -25,7 +25,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -99,7 +98,6 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
       succs.add(successor);
       succs.add(node);
 
-      logger.logf(Level.FINER, "Choosing %s:%s (s: %s)", node.getFunctionName(), node, successor);
       result.add(node);
 
       if (++found >= pCount) {
@@ -117,10 +115,9 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     assert pNode.getNumLeavingEdges() == 1;
     CFAEdge leavingEdge = pNode.getLeavingEdge(0);
     CFANode successor = leavingEdge.getSuccessor();
-    logger.logf(Level.FINE, "removing node %s with edge %s", pNode, leavingEdge);
-    logger.logf(Level.FINEST, "entering edges: %s", CFAUtils.allEnteringEdges(pNode));
-    logger.logf(
-        Level.FINEST, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
+    logger.logf(logObjects, "removing node %s with edge %s", pNode, leavingEdge);
+    logger.logf(logDetails, "entering edges: %s", CFAUtils.allEnteringEdges(pNode));
+    logger.logf(logDetails, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
 
     disconnectEdgeFromSuccessor(leavingEdge);
 
@@ -140,11 +137,9 @@ public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFAN
     assert pNode.getNumLeavingEdges() == 1;
     CFAEdge leavingEdge = pNode.getLeavingEdge(0);
     CFANode successor = leavingEdge.getSuccessor();
-    logger.logf(Level.FINE, "returning node %s with edge %s", pNode, leavingEdge);
-
-    logger.logf(Level.FINEST, "entering edges: %s", CFAUtils.allEnteringEdges(pNode));
-    logger.logf(
-        Level.FINEST, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
+    logger.logf(logObjects, "returning node %s with edge %s", pNode, leavingEdge);
+    logger.logf(logDetails, "entering edges: %s", CFAUtils.allEnteringEdges(pNode));
+    logger.logf(logDetails, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
 
     for (CFAEdge enteringEdge : CFAUtils.allEnteringEdges(pNode)) {
       CFANode predecessor = enteringEdge.getPredecessor();

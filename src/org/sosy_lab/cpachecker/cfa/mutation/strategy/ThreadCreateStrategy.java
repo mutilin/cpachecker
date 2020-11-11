@@ -22,7 +22,6 @@ package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.List;
-import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -102,7 +101,7 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
     CFunctionCall statement = (CFunctionCall) ((CStatementEdge) pEdge).getStatement();
     CFunctionCallExpression tCallExp = statement.getFunctionCallExpression();
     CStatement fCallSt = prepareFunctionCallStatement(pParseResult, pEdge, tCallExp);
-    logger.logf(Level.INFO, "replacing %s with %s", tCallExp, fCallSt);
+    logger.logf(logObjects, "replacing %s with %s", tCallExp, fCallSt);
 
     CFANode predecessor = pEdge.getPredecessor();
     CFANode successor = pEdge.getSuccessor();
@@ -152,7 +151,7 @@ public class ThreadCreateStrategy extends GenericCFAMutationStrategy<CFAEdge, CF
   protected void returnObject(ParseResult pParseResult, CFAEdge pRollbackInfo) {
     CFANode predecessor = pRollbackInfo.getPredecessor();
     CFANode successor = pRollbackInfo.getSuccessor();
-    logger.logf(Level.INFO, "returning %s", pRollbackInfo);
+    logger.logf(logObjects, "returning %s", pRollbackInfo);
 
     disconnectEdge(predecessor.getEdgeTo(successor));
     connectEdge(pRollbackInfo);

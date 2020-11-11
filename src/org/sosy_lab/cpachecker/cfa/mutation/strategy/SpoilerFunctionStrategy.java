@@ -102,7 +102,7 @@ public class SpoilerFunctionStrategy
   @Override
   protected Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> removeObject(
       ParseResult parseResult, String pFunctionName) {
-    logger.logf(Level.INFO, "removing %s as spoiler function", pFunctionName);
+    logger.logf(logObjects, "removing %s as spoiler function", pFunctionName);
     CFAEdge innerCallEdge = getOnlyCallIn(parseResult, pFunctionName);
     CFunctionCall innerCall = (CFunctionCall) ((AStatementEdge) innerCallEdge).getStatement();
     // remove left side if it was an assignment
@@ -111,7 +111,7 @@ public class SpoilerFunctionStrategy
           new CFunctionCallStatement(
               innerCall.getFileLocation(), innerCall.getFunctionCallExpression());
     }
-    logger.logf(Level.INFO, "spoilered callee is %s", innerCall.getFunctionCallExpression());
+    logger.logf(logObjects, "spoilered callee is %s", innerCall.getFunctionCallExpression());
     List<CExpression> iParams = innerCall.getFunctionCallExpression().getParameterExpressions();
     assert iParams.isEmpty() : "TODO args replacing";
 
@@ -124,7 +124,7 @@ public class SpoilerFunctionStrategy
               innerCallEdge.getFileLocation(),
               outerCallEdge.getPredecessor(),
               outerCallEdge.getSuccessor());
-      logger.logf(Level.INFO, "replacing call %s as %s", outerCallEdge, newEdge);
+      logger.logf(logDetails, "replacing call %s as %s", outerCallEdge, newEdge);
       disconnectEdge(outerCallEdge);
       connectEdge(newEdge);
     }
@@ -138,6 +138,7 @@ public class SpoilerFunctionStrategy
       Triple<FunctionEntryNode, SortedSet<CFANode>, Collection<CFAEdge>> pRollbackInfo) {
     Pair<FunctionEntryNode, SortedSet<CFANode>> pair =
         Pair.of(pRollbackInfo.getFirst(), pRollbackInfo.getSecond());
+    logger.log(logObjects, "returning spoiler function " + pair.getFirst().getFunctionName());
     functionRemover.returnObject(pParseResult, pair);
     for (CFAEdge outerCall : pRollbackInfo.getThird()) {
       CFANode predecessor = outerCall.getPredecessor();
@@ -159,22 +160,22 @@ public class SpoilerFunctionStrategy
         case StatementEdge:
           if (((AStatementEdge) leavingEdge).getStatement() instanceof AFunctionCall) {
             if (found != null) { // if more than one call
-              logger.logf(Level.FINE, "Found another call %s", leavingEdge);
+              logger.logf(logDetails, "Found another call %s", leavingEdge);
               return null;
             }
             found = leavingEdge;
-            logger.logf(Level.FINE, "Found call %s", found);
+            logger.logf(logDetails, "Found call %s", found);
           }
           continue;
         case ReturnStatementEdge:
           AExpression expr = ((AReturnStatementEdge) leavingEdge).getExpression().orNull();
           if (expr != null && expr instanceof AFunctionCallExpression) {
             if (found != null) { // if more than one call
-              logger.logf(Level.FINE, "Found another call %s", leavingEdge);
+              logger.logf(logDetails, "Found another call %s", leavingEdge);
               return null;
             }
             found = leavingEdge;
-            logger.logf(Level.FINE, "Found call %s", found);
+            logger.logf(logDetails, "Found call %s", found);
           }
           continue;
         default:
@@ -182,7 +183,7 @@ public class SpoilerFunctionStrategy
       }
     }
     if (found == null) {
-      logger.logf(Level.FINE, "No inner call found");
+      logger.logf(logDetails, "No inner call found");
     }
     return found;
   }

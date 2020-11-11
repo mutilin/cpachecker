@@ -153,7 +153,7 @@ public class DeclarationStrategy extends SingleNodeStrategy {
     String qName = decl.getQualifiedName();
     boolean used = varIsUsedAfter(successor, qName);
     logger.logf(
-        Level.FINE,
+        logDetails,
         "Variable %s is%s used after %s (in function %s)",
         qName,
         used ? "" : " not",

@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -134,18 +133,18 @@ public class BranchStrategy
     Chain pChain = pObject.getSecond();
 
     logger.logf(
-        Level.FINE,
+        logObjects,
         "removing branching on node %s:%s with chain %s",
         branchingPoint.getFunctionName(),
         branchingPoint,
         pChain);
     CFAEdge edgeToChain = pChain.getEnteringEdge();
-    logger.logf(Level.FINE, "\ttochain %s", edgeToChain);
+    logger.logf(logDetails, "\ttochain %s", edgeToChain);
     for (CFAEdge e : CFAUtils.enteringEdges(edgeToChain.getPredecessor())) {
-      logger.logf(Level.FINE, "\t\tinb4: %s", e);
+      logger.logf(logDetails, "\t\tinb4: %s", e);
     }
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
-    logger.logf(Level.FINE, "\tleaving %s", leavingEdge);
+    logger.logf(logDetails, "\tleaving %s", leavingEdge);
     CFANode successor = leavingEdge.getSuccessor();
 
     disconnectEdgeFromSuccessor(leavingEdge);
@@ -156,7 +155,7 @@ public class BranchStrategy
     }
 
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
-      logger.logf(Level.FINE, "\tentering %s", enteringEdge);
+      logger.logf(logDetails, "\tentering %s", enteringEdge);
       replaceEdgeByPredecessor(enteringEdge, successor);
     }
 
@@ -173,17 +172,17 @@ public class BranchStrategy
     CFANode branchingPoint = pRollbackInfo.getFirst();
     Chain pChain = pRollbackInfo.getSecond();
 
-    logger.logf(Level.INFO, "returning branching on node %s with chain %s", branchingPoint, pChain);
+    logger.logf(logObjects, "returning branching on node %s with chain %s", branchingPoint, pChain);
 
     CFAEdge edgeToChain = pChain.getEnteringEdge();
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
     CFANode successor = leavingEdge.getSuccessor();
 
-    logger.logf(Level.INFO, "\ttochain %s", edgeToChain);
-    logger.logf(Level.INFO, "\tleaving %s", leavingEdge);
+    logger.logf(logDetails, "\ttochain %s", edgeToChain);
+    logger.logf(logDetails, "\tleaving %s", leavingEdge);
 
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
-      logger.logf(Level.INFO, "\tentering %s", enteringEdge);
+      logger.logf(logDetails, "\tentering %s", enteringEdge);
       CFANode predecessor = enteringEdge.getPredecessor();
       disconnectEdge(predecessor.getEdgeTo(successor));
       connectEdgeToNode(enteringEdge, predecessor);

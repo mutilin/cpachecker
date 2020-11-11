@@ -116,6 +116,7 @@ public class LoopAssumeEdgeStrategy
   protected Triple<CFAEdge, CFAEdge, CFAEdge> removeObject(ParseResult pParseResult, Chain pChain) {
     CFAEdge edgeToChain = pChain.getEnteringEdge();
     CFANode branchingPoint = edgeToChain.getPredecessor();
+    logger.log(logObjects, "removing " + pChain + " at " + branchingPoint);
     CFAEdge leavingEdge = CFAUtils.getComplimentaryAssumeEdge((AssumeEdge) edgeToChain);
     CFANode successor = leavingEdge.getSuccessor();
     CFAEdge edgeFromChain = pChain.getLeavingEdge();
@@ -139,6 +140,7 @@ public class LoopAssumeEdgeStrategy
     CFAEdge leavingEdge = pRollbackInfo.getSecond();
     CFAEdge edgeFromChain = pRollbackInfo.getThird();
     CFANode branchingPoint = leavingEdge.getPredecessor();
+    logger.log(logObjects, "returning chain at " + branchingPoint);
     CFANode firstNode = edgeToChain.getSuccessor();
     CFANode successor = edgeFromChain.getSuccessor();
 

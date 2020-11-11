@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -131,7 +130,7 @@ public class SimpleAssumeEdgeStrategy
     AssumeEdge edgeToBlank = pair.getSecond();
 
     logger.logf(
-        Level.INFO, "removing %s and replacing %s with blank edge", edgeToRemove, edgeToBlank);
+        logObjects, "removing %s and replacing %s with blank edge", edgeToRemove, edgeToBlank);
     disconnectEdge(edgeToRemove);
     disconnectEdge(edgeToBlank);
     BlankEdge newEdge =
@@ -147,6 +146,7 @@ public class SimpleAssumeEdgeStrategy
 
   @Override
   protected void returnObject(ParseResult pParseResult, Pair<AssumeEdge, AssumeEdge> pair) {
+    logger.log(logObjects, "returning assume edges " + pair);
     CFANode predecessor = pair.getFirst().getPredecessor();
     assert predecessor.getNumLeavingEdges() == 1;
     BlankEdge insertedEdge = (BlankEdge) predecessor.getLeavingEdge(0);

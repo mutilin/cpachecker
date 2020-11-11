@@ -70,14 +70,14 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
 
   @Option(
       secure = true,
-      name = "exportRounds",
+      name = "export.rounds",
       description =
           "With this option set to positive integer, CFA will be exported every round divisible by given number.")
   private int exportRounds = 0;
 
   @Option(
       secure = true,
-      name = "exportOriginal",
+      name = "export.original",
       description = "With this option set to true, original CFA will be exported as well.")
   private boolean exportOriginal = false;
 
@@ -266,6 +266,7 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     }
   }
 
+  @SuppressWarnings("finally")
   private boolean mutate() {
     boolean res;
     stats.mutationRound.inc();
@@ -273,8 +274,13 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     try {
       res = strategy.mutate(parseResult);
     } catch (Throwable e) {
-      exportCFA(lastCFA);
-      throw e;
+      try {
+        exportCFA(lastCFA);
+      } catch (Throwable inner) {
+        logger.logException(Level.SEVERE, e, "Thrown while exiting because of other exception");
+      } finally {
+        throw e;
+      }
     }
 
     if (res) {
@@ -353,6 +359,7 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     // TODO export with suffix or to different subdirs
     if (stats.mutationRound.getValue() == 0) {
       if (exportOriginal) {
+        // TODO change dir to beforeDir?
         exportCFA(lastCFA);
       }
     } else if (exportRounds > 0) {
