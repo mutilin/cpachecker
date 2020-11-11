@@ -19,11 +19,10 @@
  */
 package org.sosy_lab.cpachecker.cfa.mutation.strategy;
 
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
-import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
-import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.util.CFATraversal;
 import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 
@@ -35,29 +34,15 @@ class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
     forwards = false;
   }
 
-  // can delete node with its only leaving edge and reconnect entering edge instead
-  private boolean canDeleteNode(CFANode pNode) {
-    if (pNode instanceof FunctionEntryNode || pNode instanceof FunctionExitNode) {
-      return false;
-    }
-    if (pNode.getNumLeavingEdges() != 1) {
-      return false;
-    }
-    if (pNode.getNumEnteringEdges() != 1) {
-      return false;
-    }
-
-    CFANode successor = pNode.getLeavingEdge(0).getSuccessor();
-    CFANode predecessor = pNode.getEnteringEdge(0).getPredecessor();
-    // and chains from with predecessor and successor are checked in getObjects
-    return !predecessor.hasEdgeTo(successor);
+  public static boolean chainNode(CFANode pNode) {
+    return pNode.getNumLeavingEdges() == 1 && pNode.getNumEnteringEdges() == 1;
   }
 
   @Override
   public TraversalProcess visitNode(CFANode pNode) {
     assert !chainNodes.contains(pNode) : pNode.toString() + " is already in chain " + chainNodes;
 
-    if (!canDeleteNode(pNode)) {
+    if (!chainNode(pNode)) {
       return TraversalProcess.SKIP;
     }
 
@@ -78,12 +63,14 @@ class ChainVisitor extends CFATraversal.DefaultCFAVisitor {
   }
 
   public static Chain getChainWith(CFANode pNode) {
+    if (!chainNode(pNode)) {
+      // if the node can't be in chain, there is no chain
+      return new Chain(ImmutableList.of());
+    }
+
+    // Add the chain 'before' node
     ChainVisitor chainVisitor = new ChainVisitor();
     CFATraversal.dfs().backwards().traverse(pNode, chainVisitor);
-
-    if (pNode.getNumLeavingEdges() != 1) {
-      return chainVisitor.prepareChain();
-    }
 
     // Add the second part of the chain
     chainVisitor.changeDirection();

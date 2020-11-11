@@ -24,6 +24,10 @@ import java.util.Collection;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
+/**
+ * A chain is a sequence of nodes, joined with edges. Every node in this chain has only one entering
+ * and only one leaving edge.
+ */
 public class Chain extends ArrayList<CFANode> {
 
   private static final long serialVersionUID = -1849261707800370541L;
@@ -39,8 +43,7 @@ public class Chain extends ArrayList<CFANode> {
   }
 
   public CFANode getPredecessor() {
-    CFAEdge e = getEnteringEdge();
-    return e == null ? null : e.getPredecessor();
+    return getEnteringEdge().getPredecessor();
   }
 
   public CFAEdge getLeavingEdge() {
@@ -50,8 +53,7 @@ public class Chain extends ArrayList<CFANode> {
   }
 
   public CFANode getSuccessor() {
-    CFAEdge e = getLeavingEdge();
-    return e == null ? null : e.getSuccessor();
+    return getLeavingEdge().getSuccessor();
   }
 
   public String getDescription() {

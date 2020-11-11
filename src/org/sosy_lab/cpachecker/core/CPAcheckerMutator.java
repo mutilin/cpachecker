@@ -149,7 +149,8 @@ public class CPAcheckerMutator extends CPAchecker {
 
       } catch (VerifyException | AssertionError e) {
         for (final StackTraceElement ste : e.getStackTrace()) {
-          if (ste.getClassName().contains("CFACreator")) {
+          if (ste.getClassName().contains("CFACreator")
+              || ste.getClassName().contains("CFAMutator")) {
             throw e;
           }
         }

@@ -124,7 +124,7 @@ public class LoopAssumeEdgeStrategy
     disconnectEdgeFromSuccessor(leavingEdge);
     replaceEdgeTo(edgeFromChain, successor);
 
-    disconnectEdgeFromPredecessor(edgeToChain);
+    disconnectEdgeFromSuccessor(edgeToChain);
     for (CFAEdge enteringEdge : CFAUtils.enteringEdges(branchingPoint)) {
       replaceEdgeByPredecessor(enteringEdge, pChain.get(0));
     }
