@@ -118,7 +118,7 @@ public class CompositeStrategy extends AbstractCFAMutationStrategy {
         return result;
       }
       currentStrategy = strategies.next();
-      logger.logf(Level.INFO, "Switching strategy to %s", currentStrategy);
+      logger.logf(Level.FINE, "Switching strategy to %s", currentStrategy);
       result = currentStrategy.mutate(parseResult);
     }
     if (result) {

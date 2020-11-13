@@ -51,8 +51,9 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       description = "whether to try to remove complements")
   private boolean useComplements = false;
 
-  protected Level logObjects = Level.FINE; // for "removing object" and "returning object" messages
-  protected Level logDetails = Level.FINER; // for more mutation details
+  // for "removing object" and "returning object" messages
+  protected final Level logObjects = Level.FINE;
+  protected final Level logDetails = Level.FINER; // for more mutation details
 
   private Collection<ObjectKey> objectsBefore;
 
@@ -167,11 +168,6 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       if (alreadyTried(object)) {
         continue;
       }
-      //      for (ObjectKey alreadyChosen : result) {
-      //        if (!canRemoveInSameRound(object, alreadyChosen)) {
-      //          continue;
-      //        }
-      //      }
 
       result.add(object);
 
@@ -203,61 +199,58 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
   // Algorithm ends when there are no objects or each delta consists of one object.
   @Override
   public boolean mutate(ParseResult pParseResult) {
-    while (true) {
+    Collection<ObjectKey> toRemove = null;
+
+    do {
       switch (state) {
         case DIVIDE:
-          Collection<ObjectKey> toRemove1 = divideAndGet(pParseResult);
-          if (toRemove1 == null) {
+          if (!preparePartition(pParseResult)) {
             return false;
           }
-          removeObjects(pParseResult, toRemove1);
-          return true;
+          break;
 
         case REMOVE_COMPLEMENT:
           stats.complementRounds++;
           if (wasRollback) {
             stats.complementRollbacks++;
-            Collection<ObjectKey> toRemove = getComplement();
+            toRemove = getComplement();
             if (toRemove == null) {
               deltaNum = 0;
-              logger.logf(Level.INFO, "switching to deltas");
+              logger.logf(Level.FINE, "switching to deltas");
               state = State.REMOVE_DELTA;
-              break;
             }
-            removeObjects(pParseResult, toRemove);
-            return true;
+          } else {
+            logger.logf(
+                Level.FINE,
+                "complement %d/%d was removed successfully",
+                deltaNum,
+                maxDeltaNum);
+            rate = 2;
+            state = State.DIVIDE;
           }
-          logger.logf(Level.FINE, "complement %d/%d was removed successfully", deltaNum, maxDeltaNum);
-          rate = 2;
-          state = State.DIVIDE;
           break;
 
         case REMOVE_DELTA:
           stats.deltaRounds++;
           if (wasRollback) {
             stats.deltaRollbacks++;
-            Collection<ObjectKey> toRemove = getDelta(pParseResult);
-            if (toRemove == null) {
+          } else {
+            logger.logf(Level.FINE, "delta %d/%d was removed successfully", deltaNum, maxDeltaNum);
+            if (--rate < 2) {
               state = State.DIVIDE;
               break;
             }
-            removeObjects(pParseResult, toRemove);
-            return true;
           }
-          logger.logf(Level.FINE, "delta %d/%d was removed successfully", deltaNum, maxDeltaNum);
-          if (--rate < 2) {
-            state = State.DIVIDE;
-            break;
-          }
-          Collection<ObjectKey> toRemove = getDelta(pParseResult);
+          toRemove = getDelta(pParseResult);
           if (toRemove == null) {
             state = State.DIVIDE;
-            break;
           }
-          removeObjects(pParseResult, toRemove);
-          return true;
+          break;
       }
-    }
+    } while (toRemove == null);
+
+    removeObjects(pParseResult, toRemove);
+    return true;
   }
 
   // no need in parse result as complements were already prepared
@@ -270,13 +263,14 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     deltaNum++;
 
     logger.logf(
-        Level.INFO,
+        Level.FINE,
         "removing complement %d/%d: %d %s",
         deltaNum,
         maxDeltaNum,
         toRemove.size(),
         objectsDescription);
-    return checkToRemove(toRemove);
+
+    return nullIfConsidered(toRemove);
   }
 
   private Collection<ObjectKey> getDelta(ParseResult pParseResult) {
@@ -298,10 +292,10 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
 
     previousMutations.addAll(toRemove);
 
-    return checkToRemove(toRemove);
+    return nullIfConsidered(toRemove);
   }
 
-  private Collection<ObjectKey> checkToRemove(Collection<ObjectKey> pToRemove) {
+  private Collection<ObjectKey> nullIfConsidered(Collection<ObjectKey> pToRemove) {
     ImmutableSet<ObjectKey> trySet = ImmutableSet.copyOf(pToRemove);
     if (triedSets.contains(trySet)) {
       logger.log(Level.FINE, "Already have rollbacked");
@@ -324,14 +318,14 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     wasRollback = false;
   }
 
-  private Collection<ObjectKey> divideAndGet(ParseResult pParseResult) {
+  private boolean preparePartition(ParseResult pParseResult) {
     previousMutations.clear();
 
     Collection<ObjectKey> objects = getAllObjects(pParseResult);
     objects.removeAll(previousPasses);
     int totalObjectsNum = objects.size();
     if (totalObjectsNum == 0) {
-      return null;
+      return false;
     }
 
     if (rate == 0) { // it is a new iteration
@@ -347,7 +341,7 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
       if (deltaSize <= 1) {
         // we have already tried the smallest deltas, finish this pass
         countRemained(objects);
-        return null;
+        return false;
       }
 
       // make deltas twice smaller
@@ -380,12 +374,12 @@ public abstract class GenericCFAMutationStrategy<ObjectKey, RollbackInfo>
     // if there should be no complements
     if (rate <= 2 || !useComplements || skipComplements) {
       state = State.REMOVE_DELTA;
-      return getDelta(pParseResult);
+    } else {
+      // else prepare them inbefore
+      prepareComplements(pParseResult, complementSize);
+      state = State.REMOVE_COMPLEMENT;
     }
-    // else prepare them inbefore
-    prepareComplements(pParseResult, complementSize);
-    state = State.REMOVE_COMPLEMENT;
-    return getComplement();
+    return true;
   }
 
   private void prepareComplements(ParseResult pParseResult, int complementSize) {
