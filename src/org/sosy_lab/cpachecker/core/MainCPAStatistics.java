@@ -525,12 +525,16 @@ class MainCPAStatistics implements Statistics {
       StatisticsUtils.writeOutputFiles(cfaCreatorStatistics, logger, result, reached);
     }
     out.println("Time for Analysis:            " + analysisTime);
-    out.println("CPU time for analysis:        " + TimeSpan.ofNanos(analysisCpuTime).formatAs(TimeUnit.SECONDS));
+    out.println(
+        "CPU time for analysis:        "
+            + TimeSpan.ofNanos(analysisCpuTime).formatAs(TimeUnit.SECONDS));
     if (resultAnalysisTime.getNumberOfIntervals() > 0) {
       out.println("Time for analyzing result:    " + resultAnalysisTime);
     }
     out.println("Total time for CPAchecker:    " + programTime);
-    out.println("Total CPU time for CPAchecker:" + TimeSpan.ofNanos(programCpuTime).formatAs(TimeUnit.SECONDS));
+    out.println(
+        "Total CPU time for CPAchecker:"
+            + TimeSpan.ofNanos(programCpuTime).formatAs(TimeUnit.SECONDS));
     out.println("Time for statistics:          " + statisticsTime);
   }
 

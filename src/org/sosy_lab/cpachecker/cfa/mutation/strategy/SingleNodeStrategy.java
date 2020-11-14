@@ -1,0 +1,156 @@
+/*
+ *  CPAchecker is a tool for configurable software verification.
+ *  This file is part of CPAchecker.
+ *
+ *  Copyright (C) 2007-2020  Dirk Beyer
+ *  All rights reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ */
+package org.sosy_lab.cpachecker.cfa.mutation.strategy;
+
+import com.google.common.collect.ImmutableList;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ParseResult;
+import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
+import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
+import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
+import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
+import org.sosy_lab.cpachecker.util.CFAUtils;
+
+public class SingleNodeStrategy extends GenericCFAMutationStrategy<CFANode, CFANode> {
+
+  public SingleNodeStrategy(Configuration pConfig, LogManager pLogger)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, "Nodes (w 1 leaving edge)");
+  }
+
+  protected SingleNodeStrategy(Configuration pConfig, LogManager pLogger, String objects)
+      throws InvalidConfigurationException {
+    super(pConfig, pLogger, objects);
+  }
+
+  // can delete node with its only leaving edge and reconnect entering edge instead
+  protected boolean canRemove(CFANode pNode) {
+    if (pNode instanceof FunctionEntryNode
+        || pNode instanceof FunctionExitNode
+        || pNode instanceof CFATerminationNode) {
+      return false;
+    }
+    if (pNode.getNumLeavingEdges() != 1) {
+      return false;
+    }
+    CFAEdge leavingEdge = pNode.getLeavingEdge(0);
+    CFANode successor = leavingEdge.getSuccessor();
+    for (CFANode predecessor : CFAUtils.allPredecessorsOf(pNode)) {
+      if (predecessor.hasEdgeTo(successor)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  @Override
+  protected Collection<CFANode> getAllObjects(ParseResult parseResult) {
+    List<CFANode> answer = new ArrayList<>();
+    for (CFANode node : parseResult.getCFANodes().values()) {
+      if (canRemove(node)) {
+        answer.add(node);
+      }
+    }
+    return answer;
+  }
+
+  @Override
+  protected Collection<CFANode> getObjects(ParseResult parseResult, int pCount) {
+    List<CFANode> result = new ArrayList<>();
+    Set<CFANode> succs = new HashSet<>();
+
+    int found = 0;
+    for (CFANode node : getAllObjects(parseResult)) {
+      if (alreadyTried(node) || succs.contains(node)) {
+        continue;
+      }
+
+      CFANode successor = node.getLeavingEdge(0).getSuccessor();
+      if (succs.contains(successor)) {
+        continue;
+      }
+      succs.add(successor);
+      succs.add(node);
+
+      result.add(node);
+
+      if (++found >= pCount) {
+        break;
+      }
+    }
+
+    return ImmutableList.copyOf(result);
+  }
+
+  // remove the node with its only leaving and entering edges
+  // and insert new edge similar to entering edge.
+  @Override
+  protected CFANode removeObject(ParseResult parseResult, CFANode pNode) {
+    assert pNode.getNumLeavingEdges() == 1;
+    CFAEdge leavingEdge = pNode.getLeavingEdge(0);
+    CFANode successor = leavingEdge.getSuccessor();
+    logger.logf(logObjects, "removing node %s with edge %s", pNode, leavingEdge);
+    logger.logf(logDetails, "entering edges: %s", CFAUtils.allEnteringEdges(pNode));
+    logger.logf(logDetails, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
+
+    disconnectEdgeFromSuccessor(leavingEdge);
+
+    for (CFAEdge enteringEdge : CFAUtils.allEnteringEdges(pNode)) {
+      replaceEdgeByPredecessor(enteringEdge, successor);
+    }
+
+    removeNodeFromParseResult(parseResult, pNode);
+
+    return pNode;
+  }
+
+  // undo removing a node with leaving edge:
+  // insert node, delete inserted edge, reconnect edges
+  @Override
+  protected void returnObject(ParseResult parseResult, CFANode pNode) {
+    assert pNode.getNumLeavingEdges() == 1;
+    CFAEdge leavingEdge = pNode.getLeavingEdge(0);
+    CFANode successor = leavingEdge.getSuccessor();
+    logger.logf(logObjects, "returning node %s with edge %s", pNode, leavingEdge);
+    logger.logf(logDetails, "entering edges: %s", CFAUtils.allEnteringEdges(pNode));
+    logger.logf(logDetails, "successor's entering edges: %s", CFAUtils.allEnteringEdges(successor));
+
+    for (CFAEdge enteringEdge : CFAUtils.allEnteringEdges(pNode)) {
+      CFANode predecessor = enteringEdge.getPredecessor();
+
+      CFAEdge insertedEdge = predecessor.getEdgeTo(successor);
+      disconnectEdge(insertedEdge);
+      connectEdgeToNode(enteringEdge, predecessor);
+    }
+
+    connectEdgeToNode(leavingEdge, successor);
+    addNodeToParseResult(parseResult, pNode);
+
+  }
+}

@@ -8,11 +8,13 @@
 
 package org.sosy_lab.cpachecker.cfa.postprocessing.function;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -86,10 +88,22 @@ public class ThreadCreateTransformer {
   )
   private String threadJoinN = "pthread_join_N";
 
-  private class ThreadFinder implements CFATraversal.CFAVisitor {
+  public static class ThreadFinder implements CFATraversal.CFAVisitor {
 
-    Map<CFAEdge, CFunctionCallExpression> threadCreates = new HashMap<>();
-    Map<CFAEdge, CFunctionCallExpression> threadJoins = new HashMap<>();
+    private final String threadCreateName;
+    private final String threadCreateNName;
+    private final String threadJoinName;
+    private final String threadJoinNName;
+
+    private final Map<CFAEdge, CFunctionCallExpression> threadCreates = new HashMap<>();
+    private final Map<CFAEdge, CFunctionCallExpression> threadJoins = new HashMap<>();
+
+    public ThreadFinder(String tcName, String tcNName, String tjName, String tjNName) {
+      threadCreateName = tcName;
+      threadCreateNName = tcNName;
+      threadJoinName = tjName;
+      threadJoinNName = tjNName;
+    }
 
     @Override
     public TraversalProcess visitEdge(CFAEdge pEdge) {
@@ -117,11 +131,23 @@ public class ThreadCreateTransformer {
 
     private void checkFunctionExpression(CFAEdge edge, CFunctionCallExpression exp) {
       String fName = exp.getFunctionNameExpression().toString();
-      if (fName.equals(threadCreate) || fName.equals(threadCreateN)) {
+      if (fName.equals(threadCreateName) || fName.equals(threadCreateNName)) {
         threadCreates.put(edge, exp);
-      } else if (fName.equals(threadJoin) || fName.equals(threadJoinN)) {
+      } else if (fName.equals(threadJoinName) || fName.equals(threadJoinNName)) {
         threadJoins.put(edge, exp);
       }
+    }
+
+    public Set<CFAEdge> getThreadCreates() {
+      return ImmutableSet.copyOf(threadCreates.keySet());
+    }
+
+    public Set<CFunctionCallExpression> getThreadNames() {
+      return ImmutableSet.copyOf(threadCreates.values());
+    }
+
+    public Set<CFAEdge> getThreadJoins() {
+      return ImmutableSet.copyOf(threadJoins.keySet());
     }
   }
 
@@ -134,7 +160,8 @@ public class ThreadCreateTransformer {
   }
 
   public void transform(CFA cfa) {
-    ThreadFinder threadVisitor = new ThreadFinder();
+    ThreadFinder threadVisitor =
+        new ThreadFinder(threadCreate, threadCreateN, threadJoin, threadJoinN);
 
     for (FunctionEntryNode functionStartNode : cfa.getAllFunctionHeads()) {
       CFATraversal.dfs().traverseOnce(functionStartNode, threadVisitor);
@@ -156,7 +183,7 @@ public class ThreadCreateTransformer {
       CExpression calledFunction = args.get(2);
       CIdExpression functionNameExpression = getFunctionName(calledFunction);
       List<CExpression> functionParameters = Lists.newArrayList(args.get(3));
-      String newThreadName = functionNameExpression.getName();
+      String newThreadName = getThreadName(fCall);
       CFunctionEntryNode entryNode = (CFunctionEntryNode) cfa.getFunctionHead(newThreadName);
       if (entryNode == null) {
         throw new UnsupportedOperationException(
@@ -289,7 +316,14 @@ public class ThreadCreateTransformer {
     }
   }
 
-  private CIdExpression getFunctionName(CExpression fName) {
+  public static String getThreadName(CFunctionCallExpression fexp) {
+    List<CExpression> args = fexp.getParameterExpressions();
+    CExpression calledFunction = args.get(2);
+    CIdExpression functionNameExpression = getFunctionName(calledFunction);
+    return functionNameExpression.getName();
+  }
+
+  private static CIdExpression getFunctionName(CExpression fName) {
     if (fName instanceof CIdExpression) {
       return (CIdExpression) fName;
     } else if (fName instanceof CUnaryExpression) {

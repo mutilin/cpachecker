@@ -771,6 +771,28 @@ cfa.initializeAllVariables = false
 # create c code which is not the same as the original one
 cfa.moveDeclarationsToFunctionStart = false
 
+# For debugging purposes. Runs analysis multiple times, each time CFA is
+# simplified so that the analysis result does not change.
+cfa.mutations = false
+
+# How many times the CFA will be mutated and analysed. Negative integer means
+# no limit.
+cfa.mutations.count = -1
+
+# With this option set to true, original CFA will be exported as well.
+cfa.mutations.export.original = false
+
+# With this option set to positive integer, CFA will be exported every round
+# divisible by given number.
+cfa.mutations.export.rounds = 0
+
+# Names of functions (separated with comma) that should not be deleted from
+# CFA
+cfa.mutations.functionsWhitelist = {"main"}
+
+# whether to try to remove complements
+cfa.mutations.useComplements = false
+
 # Export CFA as pixel graphic to the given file name. The suffix is added
 # corresponding to the value of option pixelgraphic.export.formatIf set to
 # 'null', no pixel graphic is exported.
@@ -3347,8 +3369,6 @@ java.version = JavaCore.VERSION_1_7
 # Programming language of the input program. If not given explicitly,
 # auto-detection will occur
 # C, Java, or LLVM IR?
-language = C
-  enum:     [C, JAVA, LLVM]
 language = no default value
   enum:     [C, JAVA, LLVM]
 language = C

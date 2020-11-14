@@ -125,7 +125,9 @@ public class CFACreator {
       description="entry function")
   private String mainFunctionName = "main";
 
-  @Option(secure=true, name="analysis.machineModel",
+  @Option(
+      secure = true,
+      name = "analysis.machineModel",
       description = "the machine model, which determines the sizes of types like int")
   private MachineModel machineModel = MachineModel.LINUX32;
 
@@ -185,8 +187,7 @@ public class CFACreator {
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path exportFunctionCallsUsedFile = Paths.get("functionCallsUsed.dot");
 
-  @Option(secure=true, name="cfa.file",
-      description="export CFA as .dot file")
+  @Option(secure = true, name = "cfa.file", description = "export CFA as .dot file")
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private Path exportCfaFile = Paths.get("cfa.dot");
 
@@ -270,17 +271,20 @@ public class CFACreator {
   )
   private boolean addLabels = false;
 
-  @Option(secure=true,
-      description="Programming language of the input program. If not given explicitly, "
-          + "auto-detection will occur")
+  @Option(
+      secure = true,
+      description =
+          "Programming language of the input program. If not given explicitly, "
+              + "auto-detection will occur")
+  protected
   // keep option name in sync with {@link CPAMain#language}, value might differ
-  private Language language = Language.C;
+  Language language = Language.C;
 
-  private final LogManager logger;
+  protected final LogManager logger;
   private final Parser parser;
   private final ShutdownNotifier shutdownNotifier;
 
-  private static class CFACreatorStatistics implements Statistics {
+  static class CFACreatorStatistics implements Statistics {
 
     private final Timer parserInstantiationTime = new Timer();
     private final Timer totalTime = new Timer();
@@ -289,7 +293,7 @@ public class CFACreator {
     private final Timer checkTime = new Timer();
     private final Timer processingTime = new Timer();
     private final Timer exportTime = new Timer();
-    private final List<Statistics> statisticsCollection;
+    protected final List<Statistics> statisticsCollection;
     private final LogManager logger;
 
     private CFACreatorStatistics(LogManager pLogger) {
@@ -334,7 +338,7 @@ public class CFACreator {
   public CFACreator(Configuration config, LogManager logger, ShutdownNotifier pShutdownNotifier)
       throws InvalidConfigurationException {
 
-    config.inject(this);
+    config.inject(this, CFACreator.class);
 
     this.config = config;
     this.logger = logger;
@@ -447,7 +451,8 @@ public class CFACreator {
     }
   }
 
-  private CFA createCFA(ParseResult pParseResult, FunctionEntryNode pMainFunction) throws InvalidConfigurationException, InterruptedException, ParserException {
+  protected CFA createCFA(ParseResult pParseResult, FunctionEntryNode pMainFunction)
+      throws InvalidConfigurationException, InterruptedException, ParserException {
 
     FunctionEntryNode mainFunction = pMainFunction;
 
@@ -623,10 +628,12 @@ public class CFACreator {
     return parseResult;
   }
 
-  /** This method parses the sourceFiles and builds a CFA for each function.
-   * The ParseResult is only a Wrapper for the CFAs of the functions and global declarations. */
-  private ParseResult parseToCFAs(final List<String> sourceFiles)
-          throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
+  /**
+   * This method parses the sourceFiles and builds a CFA for each function. The ParseResult is only
+   * a Wrapper for the CFAs of the functions and global declarations.
+   */
+  protected ParseResult parseToCFAs(final List<String> sourceFiles)
+      throws InvalidConfigurationException, IOException, ParserException, InterruptedException {
     final ParseResult parseResult;
 
     if (language == Language.C) {
@@ -794,8 +801,8 @@ public class CFACreator {
     }
   }
 
-  private FunctionEntryNode getCMainFunction(List<String> sourceFiles,
-      final Map<String, FunctionEntryNode> cfas)
+  protected FunctionEntryNode getCMainFunction(
+      List<String> sourceFiles, final Map<String, FunctionEntryNode> cfas)
       throws InvalidConfigurationException {
 
     // try specified function
@@ -981,13 +988,13 @@ v.addInitializer(initializer);
     }
   }
 
-  private void exportCFAAsync(final CFA cfa) {
+  protected void exportCFAAsync(final CFA cfa) {
     // Execute asynchronously, this may take several seconds for large programs on slow disks.
     // This is safe because we don't modify the CFA from this point on.
     Concurrency.newThread("CFA export thread", () -> exportCFA(cfa)).start();
   }
 
-  private void exportCFA(final CFA cfa) {
+  protected void exportCFA(final CFA cfa) {
     stats.exportTime.start();
 
     // write CFA to file
