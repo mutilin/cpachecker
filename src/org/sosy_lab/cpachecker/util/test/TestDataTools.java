@@ -69,7 +69,7 @@ public class TestDataTools {
    */
   public static ConfigurationBuilder configurationForTest() throws InvalidConfigurationException {
     Configuration typeConverterConfig = Configuration.builder()
-        .setOption("output.disable", "true")
+        .setOption("output.disable", "false")
         .build();
     FileTypeConverter fileTypeConverter = FileTypeConverter.create(typeConverterConfig);
     Configuration.getDefaultConverters().put(

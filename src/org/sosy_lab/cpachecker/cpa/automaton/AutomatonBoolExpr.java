@@ -41,6 +41,7 @@ import java.util.logging.Level;
 import java.util.regex.Pattern;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.CParser;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallExpression;
@@ -61,9 +62,11 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CLabelNode;
+import org.sosy_lab.cpachecker.cfa.parser.Scope;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractQueryableState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonASTComparator.ASTMatcher;
+import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCFAEdgeException;
@@ -1112,10 +1115,27 @@ interface AutomatonBoolExpr extends AutomatonExpression<Boolean> {
   static class CPAQuery implements AutomatonBoolExpr {
     private final String cpaName;
     private final String queryString;
+    private CParser cparser;
+    private Scope scope;
 
-    public CPAQuery(String pCPAName, String pQuery) {
+    public CPAQuery(
+        String pCPAName,
+        String pQuery) {
       cpaName = pCPAName;
       queryString = pQuery;
+      this.cparser = null;
+      this.scope = null;
+    }
+
+    public CPAQuery(
+        String pCPAName,
+        String pQuery,
+        CParser pCparser,
+        Scope pScope) {
+      cpaName = pCPAName;
+      queryString = pQuery;
+      this.cparser = pCparser;
+      this.scope = pScope;
     }
 
     @Override
@@ -1131,6 +1151,9 @@ interface AutomatonBoolExpr extends AutomatonExpression<Boolean> {
       for (AbstractState ae : pArgs.getAbstractStates()) {
         if (ae instanceof AbstractQueryableState) {
           AbstractQueryableState aqe = (AbstractQueryableState) ae;
+          if (aqe instanceof PredicateAbstractState){
+            ((PredicateAbstractState) aqe).setCParserAndScope(cparser, scope);
+          }
           if (aqe.getCPAName().equals(cpaName)) {
             try {
               Object result = aqe.evaluateProperty(modifiedQueryString);

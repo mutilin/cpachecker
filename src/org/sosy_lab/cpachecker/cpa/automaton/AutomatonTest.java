@@ -249,6 +249,9 @@ public class AutomatonTest {
             "test/config/automata/set_variable.spc",
             //"cpa.automaton.inputFile",
             //"test/config/automata/ldv/mutex.spc",
+            "cpa.automaton.dotExport",
+            //"counterexample.export.enabled",
+            "true",
             "cpa.automaton.dotExportFile",
             OUTPUT_FILE,
             "solver.solver",
@@ -258,8 +261,15 @@ public class AutomatonTest {
 
     prop = ImmutableMap.<String, String>builder()
         .putAll(prop)
+        .put("statistics.export", "true")
+        .put("cpa.arg.automaton.export", "true")
+        .put("cpa.predicate.abstractions.export", "true")
+        .put("solver.logAllQueries", "true")
+        .put("solver.logfile", "output/solver.txt")
+        .put("log.level", "Level.ALL")
+        .put("log.file", "output/log.txt")
         .put("cpa.predicate.encodeFloatAs", "INTEGER")
-        .put("cpa.predicate.targetStateSatCheck", "true")
+        //.put("cpa.predicate.targetStateSatCheck", "true")
         .put("cpa.predicate.useMemoryRegions", "true")
         .build();
 

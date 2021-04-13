@@ -412,7 +412,7 @@ class AutomatonTransferRelation implements TransferRelation {
       Precision pPrecision)
       throws CPATransferException {
     Set<List<AbstractState>> strengtheningCombinations = new LinkedHashSet<>();
-    strengtheningCombinations.add(pOtherElements);
+    strengtheningCombinations.add(ImmutableList.copyOf(pOtherElements));
     boolean changed = from(pOtherElements).anyMatch(instanceOf(AutomatonUnknownState.class));
     while (changed) {
       changed = false;

@@ -159,7 +159,7 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
             false,
             null);
 
-        return Lists.newArrayList(errorState, normalState);
+        return Lists.newArrayList(normalState, errorState);
       }
 
       return Collections.singleton(

@@ -52,7 +52,7 @@ public class CPATestRunner {
   }
 
   public static TestResults run(Configuration config, String pSourceCodeFilePath) throws Exception {
-    return run(config, pSourceCodeFilePath, Level.INFO);
+    return run(config, pSourceCodeFilePath, Level.ALL);
   }
 
   public static TestResults run(Configuration config, String pSourceCodeFilePath, Level logLevel) throws Exception {

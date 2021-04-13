@@ -31,13 +31,13 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 
 import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import javax.annotation.Nullable;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.matheclipse.core.reflection.system.Solve;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentMap;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -50,17 +50,10 @@ import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.parser.Scope;
-import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
-import org.sosy_lab.cpachecker.cfa.types.c.CBasicType;
-import org.sosy_lab.cpachecker.cfa.types.c.CBitFieldType;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
-import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
-import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractQueryableState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
-import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.FormulaReportingState;
 import org.sosy_lab.cpachecker.core.interfaces.Graphable;
 import org.sosy_lab.cpachecker.core.interfaces.NonMergeableAbstractState;
@@ -70,8 +63,6 @@ import org.sosy_lab.cpachecker.core.interfaces.Targetable;
 import org.sosy_lab.cpachecker.cpa.arg.Splitable;
 import org.sosy_lab.cpachecker.cpa.automaton.CParserUtils;
 import org.sosy_lab.cpachecker.cpa.automaton.InvalidAutomatonException;
-import org.sosy_lab.cpachecker.cpa.composite.CompositeCPA;
-import org.sosy_lab.cpachecker.cpa.value.type.BooleanValue;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -82,22 +73,20 @@ import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
-import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMapMerger;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaTypeHandler;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.smt.ArrayFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.smt.BooleanFormulaManagerView;
 import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
+import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.java_smt.api.ArrayFormula;
 import org.sosy_lab.java_smt.api.BitvectorFormula;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 
 import java.io.Serializable;
 import java.util.Collection;
-import org.sosy_lab.java_smt.api.Formula;
 import org.sosy_lab.java_smt.api.FormulaType;
-import org.sosy_lab.java_smt.api.FormulaType.ArrayFormulaType;
-import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
+import org.sosy_lab.java_smt.api.SolverException;
 
 /**
  * AbstractState for Symbolic Predicate Abstraction CPA
@@ -425,19 +414,129 @@ public abstract class PredicateAbstractState
   }
 
   @Override
+  public boolean checkProperty(String property) throws InvalidQueryException {
+    checkNotNull(property);
+    PredicateCPA predicateCPA = getPredicateCPA();
+
+    PathFormulaManager pfMgr = predicateCPA.getPathFormulaManager();
+    FormulaManagerView fMgr = predicateCPA.getSolver().getFormulaManager();
+    ArrayFormulaManagerView afMgr = fMgr.getArrayFormulaManager();
+    BooleanFormulaManagerView bfMgr = fMgr.getBooleanFormulaManager();
+    CtoFormulaTypeHandler typeHandler = new CtoFormulaTypeHandler(
+        predicateCPA.logger,
+        predicateCPA.getCfa().getMachineModel());
+    Solver solver = predicateCPA.getSolver();
+    //PredicateAbstractionManager abstractionManager = predicateCPA.getPredicateManager();
+
+    if (startsWithIgnoreCase(property, "setcontains(") ||
+        startsWithIgnoreCase(property, "!setcontains(") ||
+        startsWithIgnoreCase(property, "setempty(") ||
+        startsWithIgnoreCase(property, "!setempty(")) {
+
+      if (!property.endsWith(")")) {
+        throw new InvalidQueryException(property + " should end with \")\"");
+      }
+
+      String paramsStr =
+          property.substring(property.indexOf('(') + 1, property.lastIndexOf(')'));
+
+      List<String> params = Splitter.on(',').trimResults().splitToList(paramsStr);
+      String setName = params.get(0);
+
+      BitvectorFormula arrayIndex = null;
+      if (!startsWithIgnoreCase(property, "setempty(") &&
+          !startsWithIgnoreCase(property, "!setempty(")) {
+        String mutexExp = params.get(1);
+
+        arrayIndex = parseMutexExpression(
+            mutexExp,
+            pathFormula,
+            pfMgr,
+            parser,
+            scope);
+      }
+
+      ArrayFormula<BitvectorFormula, BooleanFormula> arrayFormula =
+          makeArray(setName, fMgr, typeHandler);
+
+      boolean unsat = false;
+
+      if (startsWithIgnoreCase(property, "setcontains(")){
+        BooleanFormula set_select =
+            afMgr.select(arrayFormula, arrayIndex);
+
+        BooleanFormula set_contains = bfMgr.equivalence(set_select, bfMgr.makeTrue());
+
+        // bitwise axioms??
+        BooleanFormula resultFormula0 = bfMgr.and(pathFormula.getFormula(), set_contains);
+        BooleanFormula resultFormula = bfMgr.and(abstractionFormula.asInstantiatedFormula(), resultFormula0);
+        try {
+          unsat = solver.isUnsat(resultFormula);
+        } catch (SolverException | InterruptedException pE) {
+          pE.printStackTrace();
+        }
+      }
+      else if (startsWithIgnoreCase(property, "!setcontains(")){
+        BooleanFormula set_select =
+            afMgr.select(arrayFormula, arrayIndex);
+
+        BooleanFormula set_not_contains = bfMgr.equivalence(set_select, bfMgr.makeFalse());
+
+        BooleanFormula resultFormula0 = bfMgr.and(pathFormula.getFormula(), set_not_contains);
+        BooleanFormula resultFormula = bfMgr.and(abstractionFormula.asInstantiatedFormula(), resultFormula0);
+        try {
+          unsat = solver.isUnsat(resultFormula);
+        } catch (SolverException | InterruptedException pE) {
+          pE.printStackTrace();
+        }
+      }
+      else if (startsWithIgnoreCase(property, "setempty(")){
+        ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+            makeArray(toInitialSetName(setName), fMgr, typeHandler, 1);
+
+        BooleanFormula set_empty = afMgr.equivalence(arrayFormula, initialArrayFormula);
+
+        BooleanFormula resultFormula0 = bfMgr.and(pathFormula.getFormula(), set_empty);
+        BooleanFormula resultFormula = bfMgr.and(abstractionFormula.asInstantiatedFormula(), resultFormula0);
+        try {
+          unsat = solver.isUnsat(resultFormula);
+        } catch (SolverException | InterruptedException pE) {
+          pE.printStackTrace();
+        }
+      }
+      else if (startsWithIgnoreCase(property, "!setempty(")){
+        ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+            makeArray(toInitialSetName(setName), fMgr, typeHandler, 1);
+
+        BooleanFormula set_empty = afMgr.equivalence(arrayFormula, initialArrayFormula);
+        BooleanFormula set_not_empty = bfMgr.not(set_empty);
+
+        BooleanFormula resultFormula0 = bfMgr.and(pathFormula.getFormula(), set_not_empty);
+        BooleanFormula resultFormula = bfMgr.and(abstractionFormula.asInstantiatedFormula(), resultFormula0);
+        try {
+          unsat = solver.isUnsat(resultFormula);
+        } catch (SolverException | InterruptedException pE) {
+          pE.printStackTrace();
+        }
+      }
+
+      return !unsat;
+    } else {
+      return false;
+    }
+  }
+
+  @Override
   public void modifyProperty(String pModification) throws InvalidQueryException {
+    if (this.isTarget){
+      // we shouldn't modify target state
+      return;
+    }
+
     String s = checkNotNull(pModification);
     //System.out.println(s);
 
-    PredicateCPA predicateCPA = null;
-    try {
-      predicateCPA = CPAs.retrieveCPAOrFail(
-          GlobalInfo.getInstance().getCPA().get(),
-          PredicateCPA.class,
-          this.getClass());
-    } catch (InvalidConfigurationException pE) {
-      pE.printStackTrace();
-    }
+    PredicateCPA predicateCPA = getPredicateCPA();
 
     PathFormulaManager pfMgr = predicateCPA.getPathFormulaManager();
     FormulaManagerView fMgr = predicateCPA.getSolver().getFormulaManager();
@@ -448,7 +547,8 @@ public abstract class PredicateAbstractState
         predicateCPA.getCfa().getMachineModel());
 
     // todo split by ;
-    if (startsWithIgnoreCase(pModification, "setadd(") ||
+    if (startsWithIgnoreCase(pModification, "setinit(") ||
+        startsWithIgnoreCase(pModification, "setadd(") ||
         startsWithIgnoreCase(pModification, "setremove(") ||
         startsWithIgnoreCase(pModification, "setcontains(") ||
         startsWithIgnoreCase(pModification, "!setcontains(") ||
@@ -538,24 +638,56 @@ public abstract class PredicateAbstractState
         makeAndWithoutInst(set_not_contains, bfMgr, elseError);
       }
       else if (startsWithIgnoreCase(pModification, "setempty(")){
-        ArrayFormula<BitvectorFormula, BooleanFormula> firstArray =
-            makeArray(setName, fMgr, typeHandler, 1);
+        ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+            makeArray(toInitialSetName(setName), fMgr, typeHandler, 1);
 
-        BooleanFormula set_empty = afMgr.equivalence(arrayFormula, firstArray);
+        BooleanFormula set_empty = afMgr.equivalence(arrayFormula, initialArrayFormula);
 
         makeAndWithoutInst(set_empty, bfMgr, elseError);
       }
       else if (startsWithIgnoreCase(pModification, "!setempty(")){
-        ArrayFormula<BitvectorFormula, BooleanFormula> firstArray =
-            makeArray(setName, fMgr, typeHandler, 1);
+        ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+            makeArray(toInitialSetName(setName), fMgr, typeHandler, 1);
 
-        BooleanFormula set_empty = afMgr.equivalence(arrayFormula, firstArray);
+        BooleanFormula set_empty = afMgr.equivalence(arrayFormula, initialArrayFormula);
         BooleanFormula set_not_empty = bfMgr.not(set_empty);
 
         makeAndWithoutInst(set_not_empty, bfMgr, elseError);
       }
+      else if (startsWithIgnoreCase(pModification, "setinit(")){
+        // todo: only one init
+        ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+            makeArray(toInitialSetName(setName), fMgr, typeHandler, 1);
+
+        BooleanFormula set_select =
+            afMgr.select(arrayFormula, arrayIndex);
+
+        BooleanFormula set_init = afMgr.equivalence(initialArrayFormula, arrayFormula);
+        BooleanFormula set_not_contains = bfMgr.equivalence(set_select, bfMgr.makeFalse());
+        BooleanFormula and = bfMgr.and(set_not_contains, set_init);
+
+        makeAndWithoutInst(and, bfMgr, elseError);
+      }
 
     }
+  }
+
+  @Nullable
+  private PredicateCPA getPredicateCPA() {
+    PredicateCPA predicateCPA = null;
+    try {
+      predicateCPA = CPAs.retrieveCPAOrFail(
+          GlobalInfo.getInstance().getCPA().get(),
+          PredicateCPA.class,
+          this.getClass());
+    } catch (InvalidConfigurationException pE) {
+      pE.printStackTrace();
+    }
+    return predicateCPA;
+  }
+
+  private static String toInitialSetName(String name){
+    return name + "_init";
   }
 
   private ArrayFormula<BitvectorFormula, BooleanFormula> makeArray(
@@ -634,10 +766,10 @@ public abstract class PredicateAbstractState
       if (errorPathFormula != null) {
         errorFormula = bfmgr.or(errorPathFormula.getFormula(), errorFormula);
       }
-      errorPathFormula = new PathFormula(errorFormula, ssa, pts, this.pathFormula.getLength());
+      errorPathFormula = new PathFormula(errorFormula, ssa, pts, this.pathFormula.getLength() + 1);
     }
 
-    pathFormula = new PathFormula(resultFormula, ssa, pts, pathFormula.getLength());
+    pathFormula = new PathFormula(resultFormula, ssa, pts, pathFormula.getLength() + 1);
   }
 
   private static SSAMap updateSsa(SSAMap ssa, String variable) {
