@@ -65,15 +65,23 @@ import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
 import org.sosy_lab.cpachecker.util.BuiltinFloatFunctions;
 import org.sosy_lab.cpachecker.util.BuiltinFunctions;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ErrorConditions;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap.SSAMapBuilder;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.Constraints;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaConverter;
+import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.CtoFormulaTypeHandler;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.ctoformula.ExpressionToFormulaVisitor;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.AliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Location.UnaliasedLocation;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.Expression.Value;
+import org.sosy_lab.cpachecker.util.predicates.smt.ArrayFormulaManagerView;
+import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
+import org.sosy_lab.java_smt.api.ArrayFormula;
+import org.sosy_lab.java_smt.api.BitvectorFormula;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 import org.sosy_lab.java_smt.api.Formula;
+import org.sosy_lab.java_smt.api.FormulaType;
 
 /**
  * A visitor the handle C expressions with the support for pointer aliasing.
@@ -643,6 +651,39 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     return Value.ofValue(e.accept(delegate));
   }
 
+  private ArrayFormula<BitvectorFormula, BooleanFormula> makeArray(
+      String name,
+      FormulaManagerView fMgr,
+      CtoFormulaTypeHandler pTypeHandler) {
+    if (!ssa.build().containsVariable(name)) {
+      ssa.setIndex(name, CNumericTypes.BOOL, 1);
+    }
+
+    return fMgr.makeVariable(
+        FormulaType.getArrayType(
+            (FormulaType<BitvectorFormula>) pTypeHandler.getPointerType(),
+            FormulaType.BooleanType),
+        name,
+        ssa.getIndex(name));
+  }
+
+  private ArrayFormula<BitvectorFormula, BooleanFormula> makeArray(
+      String name,
+      FormulaManagerView fMgr,
+      CtoFormulaTypeHandler pTypeHandler,
+      int ssaIndex) {
+    if (!ssa.build().containsVariable(name)) {
+      ssa.setIndex(name, CNumericTypes.BOOL, ssaIndex);
+    }
+
+    return fMgr.makeVariable(
+        FormulaType.getArrayType(
+            (FormulaType<BitvectorFormula>) pTypeHandler.getPointerType(),
+            FormulaType.BooleanType),
+        name,
+        ssaIndex);
+  }
+
   /**
    * Evaluates the return value of a function call expression.
    *
@@ -657,6 +698,110 @@ class CExpressionVisitorWithPointerAliasing extends DefaultCExpressionVisitor<Ex
     // First let's handle special cases such as allocations
     if (functionNameExpression instanceof CIdExpression) {
       final String functionName = ((CIdExpression)functionNameExpression).getName();
+
+      if (functionName.equals("__VERIFIER_set_init") ||
+          functionName.equals("__VERIFIER_check_locked") ||
+          functionName.equals("__VERIFIER_set_locked") ||
+          functionName.equals("__VERIFIER_set_unlocked") ||
+          functionName.equals("__VERIFIER_check_empty")) {
+
+        String funcName = edge.getPredecessor().getFunctionName();
+
+        BitvectorFormula arrayIndex = null;
+        if (!functionName.equals("__VERIFIER_set_init") &&
+            !functionName.equals("__VERIFIER_check_empty")) {
+          arrayIndex = (BitvectorFormula)
+              conv.buildTerm(
+                  e.getParameterExpressions().get(0),
+                  edge,
+                  funcName,
+                  ssa,
+                  pts,
+                  constraints,
+                  ErrorConditions.dummyInstance(conv.bfmgr)
+              );
+        }
+
+        String setName = "setName";
+        String initialSetName = "setName_init";
+
+        ArrayFormulaManagerView afmgr = conv.fmgr.getArrayFormulaManager();
+
+        ArrayFormula<BitvectorFormula, BooleanFormula> arrayFormula =
+            makeArray(setName, conv.fmgr, typeHandler);
+
+        if (functionName.equals("__VERIFIER_set_init")){
+          ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+              makeArray(initialSetName, conv.fmgr, typeHandler, 1);
+
+          BooleanFormula set_init = afmgr.equivalence(arrayFormula, initialArrayFormula);
+
+          constraints.addConstraint(set_init);
+          return Value.ofValue(set_init);
+        }
+        else if(functionName.equals("__VERIFIER_check_locked")){
+          BooleanFormula set_select =
+              afmgr.select(arrayFormula, arrayIndex);
+
+          BooleanFormula set_contains = conv.bfmgr.equivalence(set_select, conv.bfmgr.makeTrue());
+
+          FormulaType<?> resultType = conv.getFormulaTypeFromCType(CNumericTypes.INT);
+          Formula zero = conv.fmgr.makeNumber(resultType, 0);
+          Formula one = conv.fmgr.makeNumber(resultType, 1);
+          Formula ifThenElse = conv.bfmgr.ifThenElse(set_contains, one, zero);
+
+          return Value.ofValue(ifThenElse);
+        }
+        else if(functionName.equals("__VERIFIER_set_locked")){
+          ArrayFormula<BitvectorFormula, BooleanFormula> set_store =
+              afmgr.store(arrayFormula, arrayIndex, conv.bfmgr.makeTrue());
+
+          ssa.setIndex(
+              setName,
+              ssa.getType(setName),
+              ssa.getFreshIndex(setName));
+
+          ArrayFormula<BitvectorFormula, BooleanFormula> arrayFormula1 =
+              makeArray(setName, conv.fmgr, typeHandler);
+
+          BooleanFormula set_add =
+              afmgr.equivalence(arrayFormula1, set_store);
+
+          constraints.addConstraint(set_add);
+          return Value.ofValue(set_add);
+        }
+        else if(functionName.equals("__VERIFIER_set_unlocked")){
+          ArrayFormula<BitvectorFormula, BooleanFormula> set_store =
+              afmgr.store(arrayFormula, arrayIndex, conv.bfmgr.makeFalse());
+
+          ssa.setIndex(
+              setName,
+              ssa.getType(setName),
+              ssa.getFreshIndex(setName));
+
+          ArrayFormula<BitvectorFormula, BooleanFormula> arrayFormula1 =
+              makeArray(setName, conv.fmgr, typeHandler);
+
+          BooleanFormula set_remove =
+              afmgr.equivalence(arrayFormula1, set_store);
+
+          constraints.addConstraint(set_remove);
+          return Value.ofValue(set_remove);
+        }
+        else if(functionName.equals("__VERIFIER_check_empty")){
+          ArrayFormula<BitvectorFormula, BooleanFormula> initialArrayFormula =
+              makeArray(initialSetName, conv.fmgr, typeHandler, 1);
+
+          BooleanFormula set_empty = afmgr.equivalence(arrayFormula, initialArrayFormula);
+
+          FormulaType<?> resultType = conv.getFormulaTypeFromCType(CNumericTypes.INT);
+          Formula zero = conv.fmgr.makeNumber(resultType, 0);
+          Formula one = conv.fmgr.makeNumber(resultType, 1);
+          Formula ifThenElse = conv.bfmgr.ifThenElse(set_empty, one, zero);
+
+          return Value.ofValue(ifThenElse);
+        }
+      }
 
       if (conv.options.isDynamicMemoryFunction(functionName)) {
         DynamicMemoryHandler memoryHandler = new DynamicMemoryHandler(conv, edge, ssa, pts, constraints, errorConditions, regionMgr);

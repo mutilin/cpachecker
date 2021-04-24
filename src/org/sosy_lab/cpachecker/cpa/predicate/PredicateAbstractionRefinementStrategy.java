@@ -288,7 +288,7 @@ public class PredicateAbstractionRefinementStrategy extends RefinementStrategy
       final BooleanFormula pInterpolant, PathFormula blockFormula)
       throws InterruptedException {
 
-    BooleanFormula interpolant = pInterpolant;
+    BooleanFormula interpolant = fmgr.simplify(pInterpolant);
 
     if (bfmgr.isTrue(interpolant)) {
       return Collections.<AbstractionPredicate>emptySet();
