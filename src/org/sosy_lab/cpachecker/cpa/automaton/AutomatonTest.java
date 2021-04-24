@@ -246,7 +246,8 @@ public class AutomatonTest {
             //"cpa.location.LocationCPA, cpa.callstack.CallstackCPA, cpa.functionpointer.FunctionPointerCPA, cpa.value.ValueAnalysisCPA, cpa.predicate.PredicateCPA, cpa.automaton.ControlAutomatonCPA",
             //"cpa.automaton.inputFile",
             "specification",
-            "test/config/automata/set_variable.spc",
+            //"test/config/automata/set_variable.spc",
+            "config/specification/sv-comp-reachability.spc",
             //"cpa.automaton.inputFile",
             //"test/config/automata/ldv/mutex.spc",
             "cpa.automaton.dotExport",
@@ -255,13 +256,16 @@ public class AutomatonTest {
             "cpa.automaton.dotExportFile",
             OUTPUT_FILE,
             "solver.solver",
-            "SMTInterpol",
-            "cpa.predicate.encodeBitvectorAs",
-            "INTEGER");
+            "SMTInterpol");
+            //"cpa.predicate.encodeBitvectorAs",
+            //"INTEGER");
 
     prop = ImmutableMap.<String, String>builder()
         .putAll(prop)
         .put("statistics.export", "true")
+        .put("cpa.predicate.predmap.export", "true")
+        .put("statistics.print", "true")
+        .put("cpa.predicate.predmap.file", "predmap.txt")
         .put("cpa.arg.automaton.export", "true")
         .put("cpa.predicate.abstractions.export", "true")
         .put("solver.logAllQueries", "true")
@@ -271,14 +275,19 @@ public class AutomatonTest {
         .put("cpa.predicate.encodeFloatAs", "INTEGER")
         //.put("cpa.predicate.targetStateSatCheck", "true")
         .put("cpa.predicate.useMemoryRegions", "true")
+        .put("cpa.predicate.refinement.dumpPredicates", "true")
+        .put("cpa.predicate.refinement.dumpPredicatesFile", "refinement%04d-predicates.prec")
         .build();
 
     Configuration config = TestDataTools.configurationForTest()
-        .loadFromFile("config/predicateAnalysis-PredAbsRefiner-ABEl.properties")
-        .setOptions(prop)
+        //.loadFromFile("config/predicateAnalysis-PredAbsRefiner-ABElf.properties")
+        .loadFromFile("config/ldv.properties")
+        //.loadFromFile("config/includes/ldv-bam.properties")
+        //.setOptions(prop)
         .build();
 
-    TestResults results = CPATestRunner.run(config, "test/programs/simple/set_correct.c");
+    TestResults results = CPATestRunner.run(config, "C:/Users/Maxim/Desktop/sv-comp-test-old.c");
+    //TestResults results = CPATestRunner.run(config, "test/programs/simple/set_correct.c");
     //TestResults results = CPATestRunner.run(prop, "test/programs/ldv-automata/mutex/mutex_test_false_1.c");
     results.assertIsSafe();
     System.out.println(results.getLog());
