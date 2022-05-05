@@ -37,6 +37,8 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
@@ -54,6 +56,7 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
@@ -66,11 +69,13 @@ import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
+import org.sosy_lab.cpachecker.util.identifiers.Identifiers;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
+@Options(prefix = "cpa.usage")
 public class UsageProcessor {
 
   private final Map<String, BinderFunctionInfo> binderFunctionInfo;
@@ -92,6 +97,12 @@ public class UsageProcessor {
   StatTimer usageCreationTimer = new StatTimer("Time for usage creation");
   StatTimer searchingCacheTimer = new StatTimer("Time for searching in cache");
 
+  @Option(description = "functions, which perform atomic read access", secure = true)
+  private Set<String> atomicReadFunctions = ImmutableSet.of();
+
+  @Option(description = "functions, which perform atomic write access", secure = true)
+  private Set<String> atomicWriteFunctions = ImmutableSet.of();
+
   public UsageProcessor(
       Configuration config,
       LogManager pLogger,
@@ -107,6 +118,7 @@ public class UsageProcessor {
     uselessNodes = new IdentityHashSet<>();
     usages = new IdentityHashMap<>();
     creator = pCreator;
+    config.inject(this);
   }
 
   public void updateRedundantUnsafes(Set<SingleIdentifier> set) {
@@ -132,43 +144,48 @@ public class UsageProcessor {
     }
     boolean resultComputed = false;
 
-    for (ARGState child : argState.getChildren()) {
-      CFANode childNode = AbstractStates.extractLocation(child);
+    // Ignore usages inside of atomic read and write functions, as they were already handled on the
+    // function call
+    String fName = getCurrentFunction(pState);
+    if (!atomicReadFunctions.contains(fName) && !atomicWriteFunctions.contains(fName)) {
+      for (ARGState child : argState.getChildren()) {
+        CFANode childNode = AbstractStates.extractLocation(child);
 
-      if (node.hasEdgeTo(childNode)) {
-        // Need the flag to avoid missed cases with applied edges: it may be traversed first,
-        // so put to useless nodes ONLY if there is a normal CFA edge.
-        resultComputed = true;
-        CFAEdge edge = node.getEdgeTo(childNode);
-        Collection<Pair<AbstractIdentifier, Access>> ids;
+        if (node.hasEdgeTo(childNode)) {
+          // Need the flag to avoid missed cases with applied edges: it may be traversed first,
+          // so put to useless nodes ONLY if there is a normal CFA edge.
+          resultComputed = true;
+          CFAEdge edge = node.getEdgeTo(childNode);
+          Collection<Pair<AbstractIdentifier, Access>> ids;
 
-        synchronized (usages) {
-          if (usages.containsKey(edge)) {
-            ids = usages.get(edge);
-          } else {
-            ids = getUsagesForEdge(child, edge);
-            if (!ids.isEmpty()) {
-              usages.put(edge, ids);
+          synchronized (usages) {
+            if (usages.containsKey(edge)) {
+              ids = usages.get(edge);
+            } else {
+              ids = getUsagesForEdge(child, edge);
+              if (!ids.isEmpty()) {
+                usages.put(edge, ids);
+              }
             }
           }
-        }
 
-        // usagePreparationTimer.start();
-        for (Pair<AbstractIdentifier, Access> pair : ids) {
-          AbstractIdentifier id = pair.getFirst();
-          // Links will be extracted as aliases later
+          // usagePreparationTimer.start();
+          for (Pair<AbstractIdentifier, Access> pair : ids) {
+            AbstractIdentifier id = pair.getFirst();
+            // Links will be extracted as aliases later
 
-          // searchingCacheTimer.start();
-          // searchingCacheTimer.stop();
-          if (!redundantIds.contains(id)) {
-            createUsages(id, node, child, pair.getSecond(), result);
+            // searchingCacheTimer.start();
+            // searchingCacheTimer.stop();
+            if (!redundantIds.contains(id)) {
+              createUsages(id, node, child, pair.getSecond(), result);
+            }
           }
-        }
-        // usagePreparationTimer.stop();
+          // usagePreparationTimer.stop();
 
-      } else {
-        // No edge, for example, due to BAM
-        // Note, function call edge was already handled, we do not miss it
+        } else {
+          // No edge, for example, due to BAM
+          // Note, function call edge was already handled, we do not miss it
+        }
       }
     }
 
@@ -217,11 +234,25 @@ public class UsageProcessor {
         return handleFunctionCall(pChild, (CFunctionCallEdge) pCfaEdge);
         }
 
+        case ReturnStatementEdge:
+        {
+          return handleReturnStatement(pChild, (CReturnStatementEdge) pCfaEdge);
+        }
+
       default:
         {
         return ImmutableSet.of();
         }
     }
+  }
+
+  private Collection<Pair<AbstractIdentifier, Access>>
+      handleReturnStatement(AbstractState pChild, CReturnStatementEdge edge) {
+    CExpression expr = edge.getExpression().orElse(null);
+    if (expr != null) {
+      return visitStatement(pChild, expr, Access.READ);
+    }
+    return ImmutableSet.of();
   }
 
   private Collection<Pair<AbstractIdentifier, Access>>
@@ -288,6 +319,18 @@ public class UsageProcessor {
     String functionCallName = fcExpression.getFunctionNameExpression().toASTString();
 
     List<Pair<AbstractIdentifier, Access>> internalIds = new ArrayList<>();
+
+    if (atomicReadFunctions.contains(functionCallName)) {
+      List<CExpression> params = fcExpression.getParameterExpressions();
+      AbstractIdentifier id =
+          Identifiers.createIdentifier(params.get(0), 1, getCurrentFunction(pChild));
+      internalIds.add(Pair.of(id, Access.ATOMIC_READ));
+    } else if (atomicWriteFunctions.contains(functionCallName)) {
+      List<CExpression> params = fcExpression.getParameterExpressions();
+      AbstractIdentifier id =
+          Identifiers.createIdentifier(params.get(0), 1, getCurrentFunction(pChild));
+      internalIds.add(Pair.of(id, Access.ATOMIC_WRITE));
+    }
 
     if (binderFunctionInfo.containsKey(functionCallName)) {
       BinderFunctionInfo currentInfo = binderFunctionInfo.get(functionCallName);

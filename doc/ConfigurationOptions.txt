@@ -3149,6 +3149,12 @@ cpa.uninitvars.stop = "sep"
 # functions, which stops analysis
 cpa.usage.abortfunctions = {}
 
+# functions, which perform atomic read access
+cpa.usage.atomicReadFunctions = {}
+
+# functions, which perform atomic write access
+cpa.usage.atomicWriteFunctions = {}
+
 # bind arguments of functions with passed variables
 cpa.usage.bindArgsFunctions = false
 
