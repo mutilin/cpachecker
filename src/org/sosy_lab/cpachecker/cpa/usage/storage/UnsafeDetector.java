@@ -15,7 +15,6 @@ import java.util.SortedSet;
 import org.sosy_lab.cpachecker.cpa.lock.DeadLockState.DeadLockTreeNode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
-import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.util.Pair;
 
 public class UnsafeDetector {
@@ -130,7 +129,8 @@ public class UnsafeDetector {
 
 
   private boolean isRace(UsagePoint point1, UsagePoint point2) {
-    if (point1.getAccess() == Access.WRITE || point2.getAccess() == Access.WRITE) {
+    if ((point1.getAccess().isWrite() || point2.getAccess().isWrite())
+        && !(point1.getAccess().isAtomic() && point2.getAccess().isAtomic())) {
       if (config.ignoreEmptyLockset() && point1.isEmpty() && point2.isEmpty()) {
         return false;
       }

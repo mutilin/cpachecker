@@ -26,8 +26,26 @@ import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 public final class UsageInfo implements Comparable<UsageInfo> {
 
   public enum Access {
-    WRITE,
-    READ;
+    WRITE(true, false),
+    READ(false, false),
+    ATOMIC_WRITE(true, true),
+    ATOMIC_READ(false, true);
+
+    private final boolean isWrite;
+    private final boolean isAtomic;
+
+    private Access(boolean pIsWrite, boolean pIsAtomic) {
+      isWrite = pIsWrite;
+      isAtomic = pIsAtomic;
+    }
+
+    public boolean isWrite() {
+      return isWrite;
+    }
+
+    public boolean isAtomic() {
+      return isAtomic;
+    }
   }
 
   private static class UsageCore {
