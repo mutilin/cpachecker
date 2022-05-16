@@ -126,8 +126,22 @@ public class ARGPrecisionAdjustment implements PrecisionAdjustment {
     ImmutableList.Builder<ARGState> scheduledForDeletion = ImmutableList.builder();
 
     for (ARGState sibling : Iterables.getOnlyElement(element.getParents()).getChildren()) {
-      if (!Objects.equals(sibling, element) && !pReachedSet.contains(sibling)) {
-        scheduledForDeletion.add(sibling);
+      // If sibling.getAppliedFrom() != null then it won't be in reachedSet,
+      // but it still can be reached and should not be removed from ARG
+      // Here we check if such sibling's children can be reached,
+      // assuming such children are not applied states
+      if (sibling.getAppliedFrom() == null) {
+        if (!Objects.equals(sibling, element) && !pReachedSet.contains(sibling)) {
+          scheduledForDeletion.add(sibling);
+        }
+      } else {
+        for (ARGState nephew : sibling.getChildren()) {
+          if (!Objects.equals(nephew, element) && !pReachedSet.contains(nephew)) {
+            // It is unlikely for a "nephew" to be an applied state, but not impossible
+            assert (nephew.getAppliedFrom() == null);
+            scheduledForDeletion.add(nephew);
+          }
+        }
       }
     }
 
