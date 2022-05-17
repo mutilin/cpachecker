@@ -21,6 +21,7 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -557,6 +558,8 @@ public class PredicateApplyOperator implements ApplyOperator {
     return new PredicateProjectedState(newEdge, guard);
   }
 
+  private final static String undefFunction = "__VERIFIER_nondet_";
+
   static CFunctionCallExpression prepareUndefFunctionFor(CRightHandSide right) {
 
     FileLocation loc = right.getFileLocation();
@@ -570,7 +573,7 @@ public class PredicateApplyOperator implements ApplyOperator {
         new CFunctionDeclaration(
             loc,
             fType,
-            "__VERIFIER_nondet_" + retType,
+            undefFunction + retType,
             ImmutableList.of());
     CExpression name = new CIdExpression(loc, funcDecl);
 
@@ -599,6 +602,34 @@ public class PredicateApplyOperator implements ApplyOperator {
     BooleanFormula bFormula = pFormula.getFormula();
     SSAMap ssa = pFormula.getSsa();
     Collection<String> varsAndUFs = fmngr.extractFunctionNames(bFormula);
+
+    // Indices in undefFunctions are written after '!', not '@'; for example,
+    // "__VERIFIER_nondet_signed_int!2@". Since there is no index after "@", it leads to a problem
+    // where indices are considered non-existent and are not updated correctly. Such problem occurs
+    // in thread-modular analysis when an unknown value of undefFunction is considered the same for
+    // multiple assignments. As a part of the solution we need to get types for UndefFunctions.
+    // Right now for a pair of variables, one of which is undefFunction, type is extracted from the
+    // other variable.
+
+    if (varsAndUFs.size() == 2) { // TODO get type in general case
+      if (Iterables.get(varsAndUFs, 0).startsWith(undefFunction)
+          || Iterables.get(varsAndUFs, 1).startsWith(undefFunction)) {
+
+        String nondetFunc = FormulaManagerView.parseName(Iterables.get(varsAndUFs, 0)).getFirst(),
+            otherVar = FormulaManagerView.parseName(Iterables.get(varsAndUFs, 1)).getFirst();
+        if (!nondetFunc.startsWith(undefFunction)) {
+          nondetFunc = otherVar;
+          otherVar = FormulaManagerView.parseName(Iterables.get(varsAndUFs, 0)).getFirst();
+        }
+
+        CType type = ssa.getType(otherVar);
+        result.put(otherVar, type);
+        assert (nondetFunc.contains("!"));
+        nondetFunc = Splitter.on('!').splitToList(nondetFunc).get(0);
+        result.put(nondetFunc, type);
+        return result;
+      }
+    }
 
     for (String var : varsAndUFs) {
       Pair<String, OptionalInt> parsed = FormulaManagerView.parseName(var);

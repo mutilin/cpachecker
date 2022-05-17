@@ -12,6 +12,7 @@ import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkInfeasibleDummyState;
 import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkNonAbstractionStateWithNewPathFormula;
 
+import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
@@ -749,6 +750,29 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
       return newName;
 
     } else {
+      // Indices in undefFunctions are written after '!', not '@'; for example,
+      // "__VERIFIER_nondet_signed_int!2@". Since there is no index after "@", it leads to a problem
+      // where indices are considered non-existent and are not updated correctly. Such problem
+      // occurs in thread-modular analysis when an unknown value of undefFunction is considered the
+      // same for multiple assignments. Here we manually parse such string and update index.
+      // Right now undefFunction does not always have a type
+      if (varName.contains("!")) {
+        List<String> parts = Splitter.on('!').splitToList(varName);
+        assert (parts.size() == 2);
+
+        varName = parts.get(0);
+        int oldIndex = Integer.parseInt(parts.get(1));
+        assert (oldIndex == 2);
+
+        // set old index in pNewSsa if the variable was not there, and get a new index if it was
+        if (pNewSsa.allVariables().contains(varName)) {
+          return varName + "!" + pNewSsa.makeFreshIndex(varName) + "@";
+        } else {
+          pNewSsa.setIndex(varName, envSsa.get(parts.get(0)), oldIndex);
+          return pOldVar;
+        }
+
+      }
       // Without index, nothing to rename
       return pOldVar;
     }
