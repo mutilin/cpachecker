@@ -18,7 +18,7 @@ stages:
   - deploy
 
 # Default image for non-JDK-specific jobs
-image: ${CI_REGISTRY_IMAGE}/test:jdk-11
+image: ${CI_REGISTRY_IMAGE}/base
 
 variables:
   IVY_CACHE_DIR: "${CI_PROJECT_DIR}/.ivy2"
@@ -54,11 +54,7 @@ build-dependencies:
 
 build:jdk-11:
   <<: *build
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-11
-
-build:jdk-16:
-  <<: *build
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-16
+  image: ${CI_REGISTRY_IMAGE}/base
 
 
 # For checks that need the binaries
@@ -74,19 +70,6 @@ build:jdk-16:
   needs:
     - build-dependencies
   interruptible: true
-
-
-.build-project-ecj: &build-project-ecj
-  <<: *source_check
-  script: "ant $ANT_PROPS_BUILD build-project-ecj"
-
-build-project-ecj:jdk-11:
-  <<: *build-project-ecj
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-11
-
-build-project-ecj:jdk-16:
-  <<: *build-project-ecj
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-16
 
 
 check-format:
@@ -152,22 +135,11 @@ unit-tests:jdk-11:
   needs:
     - build-dependencies
     - build:jdk-11
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-11
-
-unit-tests:jdk-16:
-  <<: *unit-tests
-  dependencies:
-    - build-dependencies
-    - build:jdk-16
-  needs:
-    - build-dependencies
-    - build:jdk-16
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-16
-
+  image: ${CI_REGISTRY_IMAGE}/base
 
 refaster:
   <<: *source_check
-  image: ${CI_REGISTRY_IMAGE}/test:jdk-11
+  image: ${CI_REGISTRY_IMAGE}/base
   before_script:
     - 'test -d refaster || git clone https://gitlab.com/sosy-lab/software/refaster.git'
     - 'cd refaster'
@@ -193,37 +165,6 @@ refaster:
       - $REFASTER_REPO_REVISION == null # required for job
       - $REFASTER_VERSION == null # required for job
 
-
-# check license declarations etc.
-reuse:
-  stage: checks
-  dependencies: []
-  needs: []
-  image:
-    name: fsfe/reuse:latest
-    entrypoint: [""]
-  script:
-    - reuse lint
-
-
-deploy-gh-pages:
-  stage: deploy
-  script: "build/deploy-gh-pages.sh"
-  dependencies:
-    - build:jdk-11
-    - javadoc
-  needs:
-    - build:jdk-11
-    - javadoc
-  only:
-    variables:
-      - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # only on default branch
-      - $CI_PROJECT_PATH == $PROJECT_PATH # not on forks
-  except:
-    variables:
-      - $GH_TOKEN == null # required for job
-
-
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html
 .build-docker:
@@ -245,10 +186,4 @@ build-docker:test:jdk-11:
   extends: .build-docker
   variables:
     DOCKERFILE: build/gitlab-ci.Dockerfile.jdk-11
-    IMAGE: /test:jdk-11
-
-build-docker:test:jdk-16:
-  extends: .build-docker
-  variables:
-    DOCKERFILE: build/gitlab-ci.Dockerfile.jdk-16
-    IMAGE: /test:jdk-16
+    IMAGE: /base
