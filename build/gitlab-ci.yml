@@ -168,7 +168,7 @@ refaster:
 integration-tests:
   <<: *binary_check
   script:
-    - 'python3 ./scripts/benchmark.py test/test-sets/integration-cpalockator.xml'
+    - 'python3 ./scripts/benchmark.py test/test-sets/integration-cpalockator.xml --no-container'
   dependencies:
     - build-dependencies
     - build:jdk-11
