@@ -165,6 +165,22 @@ refaster:
       - $REFASTER_REPO_REVISION == null # required for job
       - $REFASTER_VERSION == null # required for job
 
+integration-tests:
+  <<: *binary_check
+  script:
+    - 'python3 ./scripts/benchmark.py test/test-sets/integration-cpalockator.xml'
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+  artifacts:
+    paths:
+      - "test/results/*.xml.bz2"
+    when: on_failure
+
+
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html
 .build-docker:
