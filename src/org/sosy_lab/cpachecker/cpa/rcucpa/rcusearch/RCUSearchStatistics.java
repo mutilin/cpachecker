@@ -29,7 +29,6 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Set;
 import java.util.TreeSet;
@@ -99,7 +98,7 @@ public class RCUSearchStatistics implements Statistics {
   @Option(secure = true, name = "output", description = "name of a file to hold information about"
       + " RCU pointers and their aliases")
   @FileOption(Type.OUTPUT_FILE)
-  private Path output = Paths.get("RCUPointers");
+  private Path output = Path.of("RCUPointers");
 
   private final LogManager logger;
   final StatTimer transferTimer = new StatTimer("Overall time for transfer relation");

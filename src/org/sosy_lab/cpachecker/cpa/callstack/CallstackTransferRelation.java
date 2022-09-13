@@ -15,7 +15,6 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.logging.Level;
-import javax.annotation.Nullable;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.common.log.LogManagerWithoutDuplicates;
 import org.sosy_lab.cpachecker.cfa.ast.AExpression;
@@ -329,7 +328,7 @@ public class CallstackTransferRelation extends SingleEdgeTransferRelation {
   public Collection<? extends AbstractState> strengthen(
       AbstractState state,
       Iterable<AbstractState> otherStates,
-      @Nullable CFAEdge cfaEdge,
+      CFAEdge cfaEdge,
       Precision precision)
       throws CPATransferException, InterruptedException {
 
