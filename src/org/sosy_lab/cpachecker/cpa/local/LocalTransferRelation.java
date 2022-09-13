@@ -17,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -108,7 +107,7 @@ public class LocalTransferRelation
   }
 
   @Override
-  protected Collection<LocalState> postProcessing(@Nullable LocalState successor, CFAEdge edge) {
+  protected Collection<LocalState> postProcessing(LocalState successor, CFAEdge edge) {
     stats.registerState(successor, edge.getSuccessor());
     return super.postProcessing(successor, edge);
   }

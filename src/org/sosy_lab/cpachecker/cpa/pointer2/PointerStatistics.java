@@ -31,7 +31,6 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -54,7 +53,7 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public class PointerStatistics implements Statistics {
 
-  private Path path = Paths.get("PointsToMap");
+  private Path path = Path.of("PointsToMap");
   private boolean noOutput = true;
   private final PointerTransferRelation transfer;
   private final PointerReducer reducer;

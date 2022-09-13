@@ -29,7 +29,6 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -133,7 +132,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   @Option(name = "rcuPointersFile", secure = true, description = "Name of a file containing RCU "
       + "pointers")
   @FileOption(Type.OUTPUT_FILE)
-  private Path input = Paths.get("RCUPointers");
+  private Path input = Path.of("RCUPointers");
 
   private final LogManager logger;
   private final Set<MemoryLocation> rcuPointers;
