@@ -111,8 +111,7 @@ public class UsageCPAStatistics implements Statistics {
         .put(stopTimer)
         .beginLevel()
         .put(usageStopTimer)
-        .put(innerStopTimer)
-        .endLevel();
+        .put(innerStopTimer);
 
     ReachedSet reachedSet = (ReachedSet) reached;
     while (reachedSet instanceof ForwardingReachedSet) {

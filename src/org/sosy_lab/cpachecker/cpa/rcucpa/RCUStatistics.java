@@ -39,8 +39,7 @@ public class RCUStatistics implements Statistics {
         .beginLevel()
         .put(derefNum)
         .put(assignNum)
-        .put(synchNum)
-        .endLevel();
+        .put(synchNum);
 
   }
 

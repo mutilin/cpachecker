@@ -8,6 +8,8 @@
 
 package org.sosy_lab.cpachecker.cpa.usage;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -224,7 +226,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
       int i = 0;
 
       while (Files.exists(currentPath)) {
-        currentPath = errorPathFile.getPath(fileName.concat("__" + i++));
+        currentPath = errorPathFile.getPath(fileName + ("__" + i++));
       }
       IO.writeFile(currentPath, Charset.defaultCharset(), (Appender) a -> builder.appendTo(a));
       printedUnsafes.inc();
@@ -329,7 +331,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     dumpCommonInfoForEdge(builder, result, edge);
 
     String note = getNoteFor(edge);
-    if (note != null && !note.isEmpty()) {
+    if (!isNullOrEmpty(note)) {
       String formatted = formatNote(note);
       builder.addDataElementChild(result, KeyDef.NOTE, formatted);
     }

@@ -168,7 +168,7 @@ public class CPABuilder {
         insertionPoint.children =
             from(insertionPoint.children).append(SPECIFICATION_PLACEHOLDER).toList();
       }
-      placeholderCount++;
+      // placeholderCount++;
     }
 
     List<ConfigurableProgramAnalysis> cpas = new ArrayList<>();

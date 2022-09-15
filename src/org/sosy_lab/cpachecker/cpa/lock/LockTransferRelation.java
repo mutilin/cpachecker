@@ -338,6 +338,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation {
       if (expression instanceof CIntegerLiteralExpression) {
         int newValue = ((CIntegerLiteralExpression) expression).getValue().intValue();
         effect = SetLockEffect.createEffectForId(newValue, uId.apply(null));
+        result.add(effect);
       }
     } else {
       LockIdentifier id = uId.apply(function.getParameterExpressions());

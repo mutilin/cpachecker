@@ -15,6 +15,7 @@ stages:
   - dependencies
   - build
   - checks
+  - tests
   - deploy
 
 # Default image for non-JDK-specific jobs
@@ -24,7 +25,7 @@ variables:
   IVY_CACHE_DIR: "${CI_PROJECT_DIR}/.ivy2"
   ANT_PROPS_BUILD: "-Divy.disable=true"
   ANT_PROPS_CHECKS: "-Divy.disable=true -DskipBuild=true"
-
+  MASTER_BRANCH: "CPALockator-update"
 
 # Download dependencies and provide them to later stages
 build-dependencies:
@@ -98,22 +99,21 @@ javadoc:
     paths:
       - "Javadoc/"
 
-# TODO - enable
-# spotbugs:
-#   <<: *binary_check
-#   script:
-#     - 'ant $ANT_PROPS_CHECKS spotbugs'
-#     - 'test \! -f SpotBugs.html'
-#   dependencies:
-#     - build-dependencies
-#     - build:jdk-11
-#   needs:
-#     - build-dependencies
-#     - build:jdk-11
-#   artifacts:
-#     paths:
-#       - "SpotBugs.html"
-#     when: on_failure
+spotbugs:
+  <<: *binary_check
+  script:
+    - 'ant $ANT_PROPS_CHECKS spotbugs'
+    - 'test \! -f SpotBugs.html'
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+  artifacts:
+    paths:
+      - "SpotBugs.html"
+    when: on_failure
 
 .unit-tests: &unit-tests
   <<: *binary_check
@@ -138,50 +138,69 @@ javadoc:
 #     - build:jdk-11
 #   image: ${CI_REGISTRY_IMAGE}/base
 
-# TODO - enable
-# refaster:
-#   <<: *source_check
-#   image: ${CI_REGISTRY_IMAGE}/base
-#   before_script:
-#     - 'test -d refaster || git clone https://gitlab.com/sosy-lab/software/refaster.git'
-#     - 'cd refaster'
-#     - 'git fetch'
-#     - 'git checkout $REFASTER_REPO_REVISION'
-#     - 'ant build-refaster-rule -Drefaster.source.pattern=**/*.java -Drefaster.rule.file=../rule.refaster -Derrorprone.version=$REFASTER_VERSION'
-#     - 'cd -'
-#   script:
-#     - 'ant $ANT_PROPS_BUILD refaster -Drefaster.rule.file=rule.refaster'
-#   interruptible: true
-#   cache:
-#     key: "$CI_JOB_NAME"
-#     paths:
-#       - ".ivy2/"
-#       - "refaster/"
-#   artifacts:
-#     paths:
-#       - "error-prone.patch"
-#       - "rule.refaster"
-#     when: on_failure
-#   except:
-#     variables:
-#       - $REFASTER_REPO_REVISION == null # required for job
-#       - $REFASTER_VERSION == null # required for job
-
-integration-tests:
-  <<: *binary_check
+refaster:
+  <<: *source_check
+  image: ${CI_REGISTRY_IMAGE}/base
+  before_script:
+    - 'test -d refaster || git clone https://gitlab.com/sosy-lab/software/refaster.git'
+    - 'cd refaster'
+    - 'git fetch'
+    - 'git checkout $REFASTER_REPO_REVISION'
+    - 'ant build-refaster-rule -Drefaster.source.pattern=**/*.java -Drefaster.rule.file=../rule.refaster -Derrorprone.version=$REFASTER_VERSION'
+    - 'cd -'
   script:
-    - 'python3 ci-test-run.py'
+    - 'ant $ANT_PROPS_BUILD refaster -Drefaster.rule.file=rule.refaster'
+  interruptible: true
+  cache:
+    key: "$CI_JOB_NAME"
+    paths:
+      - ".ivy2/"
+      - "refaster/"
+  artifacts:
+    paths:
+      - "error-prone.patch"
+      - "rule.refaster"
+    when: on_failure
+  except:
+    variables:
+      - $REFASTER_REPO_REVISION == null # required for job
+      - $REFASTER_VERSION == null # required for job
+
+.tests: &tests
+  stage: tests
   dependencies:
     - build-dependencies
     - build:jdk-11
   needs:
     - build-dependencies
     - build:jdk-11
+  interruptible: true
+
+simple-tests:
+  <<: *tests
+  script:
+    - 'python3 ci-test-run.py simple basic'
+  
+klever-tests:
+  <<: *tests
+  script:
+    - 'python3 ci-test-run.py ldv-klever'
+  variables:
+    KLEVER_BENCHMARKS: "/opt/ldv-klever-benchmarks/"
   #artifacts:
   #  paths:
   #    - "test/results/*.xml.bz2"
   #  when: on_failure
 
+# Enable after fix
+# integration-master-tests:
+#   <<: *binary_check
+#   script:
+#     - 'python3 ci-test-run.py ldv-benchmarks'
+#   variables:
+#     LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
+  # only:
+  #   - MASTER_BRANCH
 
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html

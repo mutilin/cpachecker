@@ -549,13 +549,14 @@ public class BDDTransferRelation extends ForwardingTransferRelation<BDDState, BD
    * the canonical name could not determined.
    */
   static @Nullable String getCanonicalName(CExpression expr) {
-    String name = "";
+    StringBuilder name = new StringBuilder();
     while (true) {
       if (expr instanceof CIdExpression) {
-        return ((CIdExpression) expr).getDeclaration().getQualifiedName() + name;
+        return name.insert(0, ((CIdExpression) expr).getDeclaration().getQualifiedName())
+            .toString();
       } else if (expr instanceof CFieldReference) {
         CFieldReference fieldRef = (CFieldReference) expr;
-        name = (fieldRef.isPointerDereference() ? "->" : ".") + fieldRef.getFieldName() + name;
+        name = name.insert(0, (fieldRef.isPointerDereference() ? "->" : ".") + fieldRef.getFieldName());
         expr = fieldRef.getFieldOwner();
       } else {
         return null;

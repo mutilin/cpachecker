@@ -8,6 +8,8 @@
 
 package org.sosy_lab.cpachecker.cpa.usage;
 
+import static com.google.common.base.Strings.isNullOrEmpty;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Writer;
@@ -165,7 +167,7 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
         callstackDepth--;
       }
       String caption = getNoteFor(edge);
-      if (caption != null && !caption.isEmpty() && !(edge instanceof CFunctionReturnEdge)) {
+      if (!isNullOrEmpty(caption) && !(edge instanceof CFunctionReturnEdge)) {
         writer.write("Line 0:     N0 -{/*" + caption + "*/}-> N0\n");
         writer.write("Line 0:     N0 -{highlight}-> N0\n");
       } else if (Objects.equals(edge.getSuccessor(), usage.getCFANode())

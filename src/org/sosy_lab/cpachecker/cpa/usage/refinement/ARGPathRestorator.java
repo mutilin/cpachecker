@@ -19,6 +19,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
@@ -81,9 +83,7 @@ public class ARGPathRestorator implements PathRestorator {
 
       if (seenElements.contains(parentElement)) {
         // Backtrack
-        if (backTrackPoints.isEmpty()) {
-          throw new IllegalArgumentException("No ARG path from the target state to a root state.");
-        }
+        checkArgument(!backTrackPoints.isEmpty(), "No ARG path from the target state to a root state.");
         ARGState backTrackPoint = backTrackPoints.pop();
         ListIterator<ARGState> stateIterator = states.listIterator(states.size());
         while (stateIterator.hasPrevious() && !stateIterator.previous().equals(backTrackPoint)) {

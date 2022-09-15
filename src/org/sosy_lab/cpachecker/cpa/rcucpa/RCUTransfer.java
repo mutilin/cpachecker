@@ -386,7 +386,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
                                  RCUState pResult,
                                  String pFunctionName) {
 
-    if (pDeclaration != null && pDeclaration instanceof CVariableDeclaration) {
+    if (pDeclaration instanceof CVariableDeclaration) {
       IdentifierCreator localIc = new IdentifierCreator(pFunctionName);
       CVariableDeclaration var = (CVariableDeclaration) pDeclaration;
       AbstractIdentifier ail = localIc.createIdentifier(var, 0);
@@ -394,7 +394,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       if (ail != null && ail.isPointer()) {
         if (rcuPointers.contains(LocationIdentifierConverter.toLocation(ail))) {
           CInitializer initializer = ((CVariableDeclaration) pDeclaration).getInitializer();
-          if (initializer != null && initializer instanceof CInitializerExpression) {
+          if (initializer instanceof CInitializerExpression) {
             AbstractIdentifier init =
                 ((CInitializerExpression) initializer).getExpression().accept(localIc);
             pResult = addTmpMappingIfNecessary(ail, init, pResult);

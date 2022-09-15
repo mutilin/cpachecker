@@ -8,8 +8,10 @@
 
 package org.sosy_lab.cpachecker.cpa.predicate;
 
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
+
+import com.google.common.collect.ImmutableList;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -41,12 +43,7 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
 
     // renaming variables back
     List<BooleanFormula> interpolants =
-        pInterpolants.stream()
-            .map(
-                f -> fmgr.renameFreeVariablesAndUFs(
-                    f,
-                    ThreadEffectBlockFormulaStrategy::RenameVariablesBack))
-            .collect(Collectors.toList());
+        transformedImmutableListCopy(pInterpolants, f->fmgr.renameFreeVariablesAndUFs(f, ThreadEffectBlockFormulaStrategy::RenameVariablesBack));
 
     return super.performRefinement(
         pReached,

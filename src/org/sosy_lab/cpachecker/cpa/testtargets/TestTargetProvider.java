@@ -33,8 +33,8 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 
 public class TestTargetProvider implements Statistics {
 
-
-  private static TestTargetProvider instance = null;
+  // volatile to avoid Spotbugs warning
+  private static volatile TestTargetProvider instance = null;
 
   private final CFA cfa;
   private final TestTargetType type;

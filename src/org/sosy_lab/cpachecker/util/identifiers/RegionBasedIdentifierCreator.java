@@ -49,8 +49,8 @@ public class RegionBasedIdentifierCreator extends IdentifierCreator {
       Optional<VariableClassification> pVariableClassification) {
     super(pFunc);
     if (pVariableClassification.isPresent()) {
-      addressedVariables = pVariableClassification.get().getAddressedVariables();
-      addressedFields = pVariableClassification.get().getAddressedFields();
+      addressedVariables = pVariableClassification.orElseThrow().getAddressedVariables();
+      addressedFields = pVariableClassification.orElseThrow().getAddressedFields();
     } else {
       addressedVariables = null;
       addressedFields = null;
@@ -60,8 +60,8 @@ public class RegionBasedIdentifierCreator extends IdentifierCreator {
   public RegionBasedIdentifierCreator(
       Optional<VariableClassification> pVariableClassification) {
     if (pVariableClassification.isPresent()) {
-      addressedVariables = pVariableClassification.get().getAddressedVariables();
-      addressedFields = pVariableClassification.get().getAddressedFields();
+      addressedVariables = pVariableClassification.orElseThrow().getAddressedVariables();
+      addressedFields = pVariableClassification.orElseThrow().getAddressedFields();
     } else {
       addressedVariables = null;
       addressedFields = null;

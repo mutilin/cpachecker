@@ -107,5 +107,15 @@ public final class SMGUnknownValue implements SMGExplicitValue, SMGAddressValue 
   public BigInteger getId() {
     throw new IllegalStateException("Can't get Value of an Unknown Value.");
   }
+
+  @Override
+  public boolean equals(Object other) {
+    return INSTANCE == other;
+  }
+
+  @Override
+  public int hashCode() {
+    return System.identityHashCode(INSTANCE);
+  }
 }
 

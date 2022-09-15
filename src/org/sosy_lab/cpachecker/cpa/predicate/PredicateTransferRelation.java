@@ -725,7 +725,7 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
     String varName = parsed.getFirst();
     OptionalInt optIndex = parsed.getSecond();
     if (optIndex.isPresent()) {
-      int oldIndex = optIndex.getAsInt();
+      int oldIndex = optIndex.orElseThrow();
       int newId;
 
       if (pNewSsa.getType(varName) == null) {

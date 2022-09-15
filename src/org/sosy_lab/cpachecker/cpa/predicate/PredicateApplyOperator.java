@@ -359,7 +359,7 @@ public class PredicateApplyOperator implements ApplyOperator {
 
       assert returnVariableDeclaration.isPresent();
 
-      rhs = new CIdExpression(fExp.getFileLocation(), returnVariableDeclaration.get());
+      rhs = new CIdExpression(fExp.getFileLocation(), returnVariableDeclaration.orElseThrow());
 
       return Pair.of(rhs, false);
     }

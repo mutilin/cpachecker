@@ -96,7 +96,6 @@ public abstract class ErrorTracePrinter {
   private Path outputFalseUnsafes = Path.of("FalseUnsafes");
 
   @Option(
-    name = "filterMissedFiles",
     description = "if a file do not exist, do not include the corresponding edge",
     secure = true
   )
@@ -177,7 +176,7 @@ public abstract class ErrorTracePrinter {
     String concat;
     if (type instanceof CCompositeType) {
       // It includes declarations of all fields
-      concat = ((CCompositeType) type).getQualifiedName() + " " + id.toString();
+      concat = ((CCompositeType) type).getQualifiedName() + " " + id;
     } else if (type instanceof CElaboratedType) {
       String typeName = ((CElaboratedType) type).getQualifiedName();
       if (typeName.contains("anonstruct") || typeName.contains("anonunion")) {
@@ -185,7 +184,7 @@ public abstract class ErrorTracePrinter {
         // if it have different declaration, thus, remove the number
         typeName = typeName.replaceAll("_(\\d)*$", "");
       }
-      concat = typeName + " " + id.toString();
+      concat = typeName + " " + id;
     } else {
       concat = id.getType().toASTString(id.toString());
     }

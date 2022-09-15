@@ -124,7 +124,7 @@ public final class LockState extends AbstractLockState {
       if (this == obj) {
         return true;
       }
-      if (obj == null || !(obj instanceof LockTreeNode)) {
+      if (!(obj instanceof LockTreeNode)) {
         return false;
       }
       LockTreeNode other = (LockTreeNode) obj;

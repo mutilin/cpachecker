@@ -86,8 +86,7 @@ public class RCUSearchStatistics implements Statistics {
           .endLevel()
           .put(lessOrEqualsTimer)
           .beginLevel()
-          .put(lessOrEqualsPointerTimer)
-          .endLevel();
+          .put(lessOrEqualsPointerTimer);
     }
 
     public static RCUSearchStateStatistics getInstance() {
