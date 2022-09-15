@@ -43,7 +43,7 @@ public class GenericDelta implements Delta<CompatibleNode> {
 
   @Override
   public int hashCode() {
-    return 31;
+    return System.identityHashCode(instance);
   }
 
 }

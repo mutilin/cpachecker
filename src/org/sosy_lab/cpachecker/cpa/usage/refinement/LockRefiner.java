@@ -95,7 +95,7 @@ public class LockRefiner
           transfer
               .getAbstractSuccessorsForEdge(currentState, SingletonPrecision.getInstance(), edge);
 
-      if (successors.size() == 0) {
+      if (successors.isEmpty()) {
         // Means we do not consider assume edge
         return null;
       }

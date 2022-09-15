@@ -36,6 +36,8 @@ import java.nio.file.StandardCopyOption;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Objects;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
@@ -160,7 +162,11 @@ public class ConfigurationFileChecks {
           "cpa.predicate.refinement.performInitialStaticRefinement",
           // options set with inject(...,...)
           "pcc.proof",
-          "pcc.partial.stopAddingAtReachedSetSize");
+          "pcc.partial.stopAddingAtReachedSetSize",
+          // ErrorTracePrinter is created lazily
+          "cpa.usage.export.witnessTemplate",
+          "cpa.usage.filterMissedFiles",
+          "cpa.usage.filterSimilarUnsafes");
 
   @Options
   private static class OptionsWithSpecialHandlingInTest {
@@ -529,11 +535,26 @@ public class ConfigurationFileChecks {
         || options.useCompositionAlgorithm) {
       // TODO find a solution how to check for unused properties correctly even with
       // RestartAlgorithm
+
+      // Evil hack for lock configurations
+      Set<String> unusedOptions =
+          new TreeSet<>(Sets.difference(config.getUnusedProperties(), UNUSED_OPTIONS));
+      Iterator<String> iterator = unusedOptions.iterator();
+      while (iterator.hasNext()) {
+        String option = iterator.next();
+        if (option.endsWith(".parameters")
+            || option.endsWith(".maxDepth")
+            || option.endsWith(".lock")
+            || option.endsWith(".unlock")) {
+          iterator.remove();
+        }
+      }
+
       assert_()
           .withMessage(
               "Failure in CPAchecker run with following log\n%s\n\nlist of unused options",
               formatLogRecords(logHandler.getStoredLogRecords()))
-          .that(Sets.difference(config.getUnusedProperties(), UNUSED_OPTIONS))
+          .that(unusedOptions)
           .isEmpty();
     }
   }

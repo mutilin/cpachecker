@@ -28,6 +28,7 @@ import static com.google.common.collect.FluentIterable.from;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.ImmutableListMultimap;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import com.google.common.collect.ImmutableSet;
@@ -73,7 +74,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   RCUState() {
     this(
         new LockStateRCU(),
-        ImmutableMultimap.of(),
+        ImmutableListMultimap.of(),
         ImmutableSet.of(),
         ImmutableSet.of(),
         ImmutableMap.of());
@@ -100,7 +101,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
     return new RCUState(
         newLock,
-        ImmutableMultimap.copyOf(newRel),
+        ImmutableListMultimap.copyOf(newRel),
         ImmutableSet.copyOf(newOutdated),
         ImmutableSet.copyOf(newLocal),
         ImmutableMap.copyOf(newTmp));
@@ -161,7 +162,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
       relations.put(pAil, pInit);
       return new RCUState(
           lockState,
-          ImmutableMultimap.copyOf(relations),
+          ImmutableListMultimap.copyOf(relations),
                           outdatedRCU, localAgain, temporaryIds);
     }
     return this;
@@ -230,7 +231,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
   @Override
   public String toString() {
-    String result = "Lock state: " + lockState.toString()
+    String result = "Lock state: " + lockState
         + "\nRCU relations: " + rcuRelations
         + "\nOutdated RCU: " + outdatedRCU
         + "\nLocal Again: " + localAgain

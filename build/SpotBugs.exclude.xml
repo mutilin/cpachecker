@@ -9,6 +9,12 @@ SPDX-License-Identifier: Apache-2.0
 -->
 
 <FindBugsFilter>
+    <!-- Strange false alarms -->
+    <Match><Bug pattern="EQ_UNUSUAL"/></Match>
+    <!-- evil hack for tm analysis: state with edge extends serializable class -->
+    <Match><Bug pattern="SE_BAD_FIELD"/></Match>
+    <!-- Too many false alarms -->
+    <Match><Bug pattern="SF_SWITCH_NO_DEFAULT"/></Match>
     <!-- These checks are too pessimistic: https://github.com/spotbugs/spotbugs/issues/1601 -->
     <Match><Bug pattern="EI_EXPOSE_REP"/></Match>
     <Match><Bug pattern="EI_EXPOSE_REP2"/></Match>

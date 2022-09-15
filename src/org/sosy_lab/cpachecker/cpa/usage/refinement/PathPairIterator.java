@@ -158,7 +158,7 @@ public class PathPairIterator extends
     }
 
     predicateInfo = wrapperResult.getInfo(LockRefiner.class);
-    if (predicateInfo != null && predicateInfo instanceof Pair) {
+    if (predicateInfo instanceof Pair) {
       Pair<List<ARGState>, List<ARGState>> lockInfo =
           (Pair<List<ARGState>, List<ARGState>>) predicateInfo;
 
@@ -288,7 +288,7 @@ public class PathPairIterator extends
     if (currentPath == null) {
       // no path to iterate, finishing
       if (!computedPathsForState.containsKey(keyState)
-          || computedPathsForState.get(keyState).size() == 0) {
+          || computedPathsForState.get(keyState).isEmpty()) {
         skippedUsages.add(info);
       }
       return null;

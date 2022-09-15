@@ -37,6 +37,51 @@ variables:
     reports:
       junit: "output/configuration-checks/TESTS-TestSuites.xml"
 
+configuration-checks:jdk-11:
+  <<: *configuration-checks
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+
+forbidden-apis:
+  <<: *binary_check
+  script: "ant $ANT_PROPS_CHECKS forbiddenapis"
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+
+build-tar:
+  stage: checks
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+  script: "ant $ANT_PROPS_CHECKS dist-unix -Dnamet=cpachecker"
+  artifacts:
+    paths:
+      - "cpachecker.tar.bz2"
+  only:
+    - ${MASTER_BRANCH}
+
+# Checks python script
+# flake8:
+#   stage: checks
+#   dependencies: []
+#   needs: []
+#   image: python:3.8
+#   before_script:
+#     - "pip install flake8 flake8-awesome"
+#   script:
+#     - flake8
+
 # Disable some checks because they are not used for CPAchecker
 check-format:
   only: []

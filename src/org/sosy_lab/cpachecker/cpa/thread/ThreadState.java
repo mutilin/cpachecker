@@ -11,6 +11,7 @@ package org.sosy_lab.cpachecker.cpa.thread;
 import static org.sosy_lab.cpachecker.cpa.thread.ThreadTransferRelation.isThreadCreateFunction;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.Iterator;
@@ -255,6 +256,6 @@ public class ThreadState
                 ((CFunctionSummaryStatementEdge) pEdge).getFunctionName()));
       }
     }
-    return Collections.emptyList();
+    return ImmutableList.of();
   }
 }

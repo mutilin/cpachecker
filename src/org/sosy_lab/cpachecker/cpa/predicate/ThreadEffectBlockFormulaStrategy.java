@@ -8,10 +8,12 @@
 
 package org.sosy_lab.cpachecker.cpa.predicate;
 
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
+
+import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.stream.Collectors;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
@@ -45,7 +47,7 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
   static String RenameVariablesBack(String s) {
     String t = s;
     if (t.startsWith("eff#")) {
-      t = t.substring(4, t.length());
+      t = t.substring(4);
     }
     return t;
   }
@@ -79,10 +81,7 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
 
       // making list of formulas in path to effect with renamed variables
       List<BooleanFormula> secondFormulas =
-          blockFormulas.getFormulas()
-              .stream()
-              .map(f -> fmgr.renameFreeVariablesAndUFs(f, this::RenameVariables))
-              .collect(Collectors.toList());
+          transformedImmutableListCopy(blockFormulas.getFormulas(), f->fmgr.renameFreeVariablesAndUFs(f, this::RenameVariables));
 
       BooleanFormula variableEqualities =
           makeVariableEqualities(formulasInMain, secondFormulas, firstSsa, secondSsa);

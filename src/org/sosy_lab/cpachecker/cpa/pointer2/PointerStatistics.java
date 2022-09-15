@@ -25,6 +25,7 @@ package org.sosy_lab.cpachecker.cpa.pointer2;
 
 //import com.jsoniter.DecodingMode;
 //import com.jsoniter.JsonIterator;
+import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.Writer;
@@ -144,9 +145,7 @@ public class PointerStatistics implements Statistics {
         set = Collections.singleton(replLocSetTop);
       } else {
         set = new TreeSet<>();
-        for (MemoryLocation loc : (ExplicitLocationSet) locationSet) {
-          set.add(loc);
-        }
+        Iterables.addAll(set, (ExplicitLocationSet)locationSet);
       }
       result.put(entry.getKey(), set);
     }

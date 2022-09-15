@@ -276,7 +276,7 @@ public class LocationApplyOperator implements ApplyOperator {
     } else if (edge instanceof CReturnStatementEdge) {
       Optional<CExpression> oExp = ((CReturnStatementEdge) edge).getExpression();
       if (oExp.isPresent()) {
-        return oExp.get().accept(new GlobalExpressionVisitor());
+        return oExp.orElseThrow().accept(new GlobalExpressionVisitor());
       } else {
         return true;
       }

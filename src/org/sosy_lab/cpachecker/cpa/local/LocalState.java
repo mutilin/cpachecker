@@ -232,7 +232,7 @@ public class LocalState implements LatticeAbstractState<LocalState> {
     if (this == obj) {
       return true;
     }
-    if (obj == null || !(obj instanceof LocalState)) {
+    if (!(obj instanceof LocalState)) {
       return false;
     }
     LocalState other = (LocalState) obj;

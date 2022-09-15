@@ -107,8 +107,8 @@ public class ConcurrentUsageExtractor {
 
     try {
       while (numberOfActiveTasks.get() != processingSteps.get()) {
-        synchronized (service) {
-          service.wait(1000);
+        synchronized (this) {
+          this.wait(1000);
         }
         if (notifier.shouldShutdown()) {
           service.shutdown();
@@ -272,7 +272,7 @@ public class ConcurrentUsageExtractor {
       UsageDelta newDiff = UsageDelta.constructDeltaBetween(reducedState, rootState);
       UsageDelta difference = currentDelta.add(newDiff);
 
-      synchronized (service) {
+      synchronized (ConcurrentUsageExtractor.this) {
         if (shouldContinue(processedSets.get(reducedState), difference)) {
           numberOfActiveTasks.incrementAndGet();
           processedSets.put(reducedState, difference);

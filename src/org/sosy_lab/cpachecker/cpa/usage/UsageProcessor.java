@@ -267,8 +267,8 @@ public class UsageProcessor {
           ((CFunctionCallAssignmentStatement) statement).getRightHandSide();
       CExpression variable = ((CFunctionCallAssignmentStatement) statement).getLeftHandSide();
 
-      List<Pair<AbstractIdentifier, Access>> internalIds = new ArrayList<>();
-      internalIds.addAll(handleFunctionCallExpression(pChild, right));
+      List<Pair<AbstractIdentifier, Access>> internalIds = new ArrayList<>(handleFunctionCallExpression(pChild, right));
+      
       internalIds.addAll(visitStatement(pChild, variable, Access.WRITE));
       return ImmutableList.copyOf(internalIds);
 

@@ -133,7 +133,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
         (PointerState) oldRcuSearchState.getWrappedState();
     Collection<? extends AbstractState> states =
         pointerTransfer.getAbstractSuccessorsForEdge(oldPointerState, precision, cfaEdge);
-    if (states.size() == 0) {
+    if (states.isEmpty()) {
       // Infeasible assumption
       stats.pointerTimer.stop();
       stats.transferTimer.stop();
@@ -220,10 +220,8 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     CStatement statement = pEdge.getStatement();
     logger.log(
         Level.ALL,
-        "HANDLE_STATEMENT: "
-            + statement
-                .getClass()
-                            + ' ' + statement.toString());
+        "HANDLE_STATEMENT: " + statement
+                .getClass() + ' ' + statement);
     if (statement instanceof CFunctionCallAssignmentStatement) {
       return handleFunctionCallAssignmentStatement(
           pFunctionName,
