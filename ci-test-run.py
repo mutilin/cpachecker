@@ -11,6 +11,7 @@ cpa_bin = ["./scripts/cpa.sh"]
 
 def fail_if_incorrect_verdict(ret, expected, real):
     if (expected != real):
+        print(" ".join(ret.args))
         print(ret.stdout)
         print(ret.stderr)
         raise ValueError("Expected verdict {} and obtain {}".format(expected, real))
@@ -20,7 +21,7 @@ def run_cpachecker(options, program):
     cmd_line = cpa_bin + options + [program]
     ret = subprocess.run(cmd_line, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if ret.returncode != 0:
-        print(cmd_line)
+        print(" ".join(cmd_line))
         print(ret.stdout)
         print(ret.stderr)
         raise ValueError("Return code is not zero")
@@ -57,25 +58,100 @@ def call_cpachecker(options, program, expected):
     fail_if_incorrect_verdict(ret, expected, verdict)
 
 def run_simple_tests():
+    # Checks the basic configs on a small simple tests
+    simple_test_dir = "test/programs/cpalockator/simple/*.c"
+
+    def run_simple_with_options(options):
+        for test in glob.glob(simple_test_dir):
+            run_cpachecker(options, test)
+
+    # Note, there is no threads
     print("Run simple tests")
     simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
         "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.BAMPredicateCPA",
-        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false",
-        "-skipRecursion"]
-
-    for test in glob.glob("test/programs/cpalockator/simple/*.c"):
+        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]    
+    for test in glob.glob(simple_test_dir):
         verdict = get_verdict_for_simple_test(test)
         call_cpachecker(simple_options, test, verdict)
 
+    # The verdicts are set for the one configuration, then just check, that the tool does not fail
+    simple_options = ["-config", "config/includes/lockator/lockStatistics-linux-lightweight.properties",
+        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA",
+        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+    run_simple_with_options(simple_options)
+
+    simple_options = ["-config", "config/includes/lockator/lockStatistics-threadmodular-linux.properties",
+        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.PredicateCPA",
+        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+    run_simple_with_options(simple_options)
+
+    simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
+        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"]
+    run_simple_with_options(simple_options)
+
+    run_simple_with_options(["-lockator-linux"])
+
+    run_simple_with_options(["-lockator-linux-lightweight"])
+
+    run_simple_with_options(["-lockator-threadmodular-linux"])
+
+def run_product_lines():
+    test_dir = "test/programs/cpalockator/threads/*.c"
+
+    def run_simple_with_options(options):
+        for test in glob.glob(test_dir):
+            run_cpachecker(options, test)
+
+    config = "config/includes/lockator/lockStatistics-linux.properties"
+
+    options_list = [
+        # TODO fix
+        # "cpa.lock.analysisMode=DEADLOCK",
+        "cpa.usage.useSoundRegions=true",
+        "cpa.usage.bindArgsFunctions=true",
+        "cpa.usage.filterAliases=true",
+        "cpa.thread.useAggressiveReduction=true",
+        "cpa.thread.mode=ENVIRONMENT",
+        # TODO fix
+        # "cpa.thread.mode=SIMPLE",
+        "cpa.thread.supportSelfCreation=true",
+        "cpa.thread.skipTheSameThread=true"
+        ]
+
+    for option in options_list:
+        run_options = ["-config", config, "-setprop", option]
+        run_simple_with_options(run_options)
+
+    # TODO Enable after SSA issue fix
+    # config = "config/includes/lockator/lockStatistics-threadmodular-linux.properties"
+
+    # options_list = [
+    #     "cpa.usage.useSoundRegions=true",
+    #     "cpa.thread.mode=ENVIRONMENT",
+    #     "cpa.thread.mode=SIMPLE",
+    #     "cpa.thread.supportSelfCreation=true",
+    #     "cpa.thread.skipTheSameThread=true",
+    #     "cpa.predicate.joinEffectsIntoUndefs=false",
+    #     "cpa.predicate.useUndefFunctions=false",
+    #     "cpa.predicate.applyRelevantEffects=true",
+    #     "cpa.usage.refinement.refinementChain=IdentifierIterator,PointIterator,UsageIterator,SinglePathIterator,ImprecisePredicateRefiner",
+    #     "cpa.predicate.useHavocAbstraction=true",
+    #     "cpa.predicate.abstractionLattice=true"
+    #     ]
+
+    # for option in options_list:
+    #     run_options = ["-config", config, "-setprop", option]
+    #     run_simple_with_options(run_options)
+
 def run_basic_tests():
     print("Run basic tests")
-    basic_options = ["-lockator-linux",
-        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false",
-        "-skipRecursion"]
     
     for test in glob.glob("test/programs/cpalockator/threads/*.c"):
         verdict = get_verdict_for_simple_test(test)
-        call_cpachecker(basic_options, test, verdict)
+        call_cpachecker(["-lockator-linux"], test, verdict)
+        # issue with SSA index
+        # call_cpachecker(["-lockator-threadmodular-linux"], test, verdict)
+        # the tests have conditions, do not check lightweight mode
 
 def run_ldv_klever_tests():
 
@@ -164,3 +240,5 @@ if __name__ == "__main__":
             run_ldv_klever_tests()
         if test_name == "'ldv-benchmarks'":
             run_ldv_tests()
+        if test_name == "'product-lines'":
+            run_product_lines()

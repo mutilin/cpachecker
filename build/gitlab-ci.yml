@@ -180,7 +180,12 @@ simple-tests:
   <<: *tests
   script:
     - 'python3 ci-test-run.py simple basic'
-  
+
+product-lines:
+  <<: *tests
+  script:
+    - 'python3 ci-test-run.py product-lines'
+
 klever-tests:
   <<: *tests
   script:
