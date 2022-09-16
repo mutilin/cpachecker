@@ -19,18 +19,38 @@
  */
 package org.sosy_lab.cpachecker.cpa.lock;
 
+import java.util.List;
+import org.sosy_lab.common.configuration.Configuration;
+import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
 
+@Options(prefix = "cpa.lock")
 public class LockApplyOperator implements ApplyOperator {
 
-  public LockApplyOperator() {}
+  @Option(description = "support atomic sections by Lock analysis", secure = true)
+  private boolean supportAtomicSections = false;
+
+  // duplicates transfer relation
+  @Option(
+    description = "name of a lock, which is considered as atomic section",
+    secure = true)
+  private String atomicSectionLockName = "atomic_block";
+
+  public LockApplyOperator(Configuration pConfig) throws InvalidConfigurationException {
+    pConfig.inject(this);
+  }
 
   @Override
   public AbstractState apply(AbstractState pState1, AbstractState pState2) {
     LockState state1 = (LockState) pState1;
     LockState state2 = (LockState) pState2;
+    if (supportAtomicSections && state1.isAtomicSection(atomicSectionLockName)) {
+      return null;
+    }
     if (state1.isCompatibleWith(state2)) {
       return state1;
     }
@@ -54,7 +74,23 @@ public class LockApplyOperator implements ApplyOperator {
 
   @Override
   public boolean canBeAnythingApplied(AbstractState pState) {
+    LockState state = (LockState) pState;
+    if (supportAtomicSections && state.isAtomicSection(atomicSectionLockName)) {
+      return false;
+    }
     return true;
   }
 
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    assert pStates.size() >= 2;
+    return pStates.get(0);
+  }
+
+  @Override
+  public boolean isCompositeBlock(AbstractState pState) {
+    LockState state = (LockState) pState;
+    return supportAtomicSections && state.isAtomicSection(atomicSectionLockName);
+  }
 }

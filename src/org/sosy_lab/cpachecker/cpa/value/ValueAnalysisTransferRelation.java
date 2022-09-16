@@ -1011,13 +1011,10 @@ public class ValueAnalysisTransferRelation
   }
 
   private MemoryLocation getMemoryLocation(AIdExpression pIdExpression) {
-    String varName = pIdExpression.getName();
-
-    if (isGlobal(pIdExpression)) {
-      return MemoryLocation.parseExtendedQualifiedName(varName);
-    } else {
-      return MemoryLocation.forLocalVariable(functionName, varName);
-    }
+    String qualifiedName = pIdExpression.getDeclaration().getQualifiedName();
+    MemoryLocation memloc = MemoryLocation.fromQualifiedName(qualifiedName);
+    assert memloc != null;
+    return memloc;
   }
 
   private boolean isRelevant(AExpression pOp1, ARightHandSide pOp2) {

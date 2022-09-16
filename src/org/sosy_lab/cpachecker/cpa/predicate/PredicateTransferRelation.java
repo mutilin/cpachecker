@@ -648,8 +648,7 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
           SSAMapBuilder newSSA = oldFormula.getSsa().builder();
 
           for (String oldVar : varsAndUFs) {
-            String newVar =
-                computeNewIndex(oldVar, newSSA, types);
+            String newVar = computeNewIndex(oldVar, newSSA, types);
             if (!oldVar.equals(newVar)) {
               updateVariables.put(oldVar, newVar);
             }
@@ -658,8 +657,7 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
           BooleanFormula newFormula =
               fmgr.renameFreeVariablesAndUFs(disjunction, s -> updateVariables.getOrDefault(s, s));
 
-          BooleanFormula conjunction =
-              bfmgr.and(oldFormula.getFormula(), newFormula);
+          BooleanFormula conjunction = bfmgr.and(oldFormula.getFormula(), newFormula);
 
           @SuppressWarnings("deprecation")
           // Strange, but direct assignment to currentFormula does not work
@@ -671,7 +669,6 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
                   oldFormula.getLength() + 1);
 
           currentFormula = tmpFormula;
-
         }
       }
 

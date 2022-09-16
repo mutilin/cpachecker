@@ -122,6 +122,14 @@ public class LockTransferRelation extends SingleEdgeTransferRelation {
     secure = true)
   private boolean stopAfterLockLimit = false;
 
+  @Option(
+    name = "atomicSectionLockName",
+    description = "name of a lock, which is considered as atomic section",
+    secure = true)
+  private String atomicSectionLockName = "atomic_block";
+
+  private String atomicFunctionPrefix = "__VERIFIER_atomic_";
+
   public LockTransferRelation(Configuration config, LogManager logger)
       throws InvalidConfigurationException {
     this.logger = logger;
@@ -158,6 +166,12 @@ public class LockTransferRelation extends SingleEdgeTransferRelation {
       stats.filteringTimer.start();
       toProcess = lockPrecision.filter(cfaEdge.getPredecessor(), toProcess);
       stats.filteringTimer.stop();
+    }
+
+    if (lockStatisticsElement.isAtomicSection(atomicSectionLockName)) {
+      for (AbstractLockEffect effect : toProcess) {
+        assert !(effect instanceof AcquireLockEffect) : "Acquiring a lock inside of atomic block is not allowed";
+      }
     }
 
     stats.applyTimer.start();
@@ -317,12 +331,20 @@ public class LockTransferRelation extends SingleEdgeTransferRelation {
         return result.build();
       }
     }
+    if (atomicFunctionPrefix != null && fName.startsWith(atomicFunctionPrefix)) {
+      LockIdentifier id = LockIdentifier.of(atomicSectionLockName);
+      return ImmutableList.of(GenericLockEffectWithId.RELEASE.applyToTarget(id));
+    }
     return ImmutableList.of();
   }
 
   private List<AbstractLockEffect> handleFunctionCallExpression(CFunctionCallExpression function) {
     String functionName = function.getFunctionNameExpression().toASTString();
     if (!lockDescription.getFunctionEffectDescription().containsKey(functionName)) {
+      if (atomicFunctionPrefix != null && functionName.startsWith(atomicFunctionPrefix)) {
+        LockIdentifier id = LockIdentifier.of(atomicSectionLockName);
+        return ImmutableList.of(AcquireLockEffect.createEffectForId(id));
+      }
       return ImmutableList.of();
     }
     Pair<AbstractLockEffect, LockIdParametrized> locksWithEffect =

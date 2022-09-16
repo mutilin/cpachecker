@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.location;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -283,6 +284,12 @@ public class LocationApplyOperator implements ApplyOperator {
     }
 
     return false;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    return ProjectedLocationStateWithEdge.getInstance();
   }
 
 }

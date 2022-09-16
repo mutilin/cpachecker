@@ -19,6 +19,8 @@
  */
 package org.sosy_lab.cpachecker.core.interfaces;
 
+import java.util.List;
+
 public interface ApplyOperator {
 
   public AbstractState apply(AbstractState pState1, AbstractState pState2);
@@ -27,7 +29,14 @@ public interface ApplyOperator {
 
   public AbstractState project(AbstractState pParent, AbstractState pChild, AbstractEdge pEdge);
 
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges);
+
   public boolean isInvariantToEffects(AbstractState pState);
 
   public boolean canBeAnythingApplied(AbstractState pState);
+
+  default public boolean isCompositeBlock(@SuppressWarnings("unused") AbstractState pState) {
+    return false;
+  }
 }

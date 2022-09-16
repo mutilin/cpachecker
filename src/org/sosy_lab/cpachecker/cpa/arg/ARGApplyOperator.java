@@ -19,9 +19,21 @@
  */
 package org.sosy_lab.cpachecker.cpa.arg;
 
+import java.util.ArrayList;
+import java.util.List;
+import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
+import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
+import org.sosy_lab.cpachecker.core.defaults.WrapperCFAEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithEdge;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithLocations;
 import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 
 public class ARGApplyOperator implements ApplyOperator {
 
@@ -94,4 +106,51 @@ public class ARGApplyOperator implements ApplyOperator {
     return wrappedApply.canBeAnythingApplied(state.getWrappedState());
   }
 
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    assert pStates.size() >= 2;
+    assert pStates.size() - pEdges.size() == 1;
+
+    List<ARGState> projectedFrom = new ArrayList<>();
+    List<AbstractState> wrappedStates = new ArrayList<>();
+    for (int i = 0; i < pStates.size() - 1; i++) {
+      ARGState state = (ARGState) pStates.get(i);
+      AbstractEdge edge =
+          ((AbstractStateWithEdge) AbstractStates
+              .extractStateByType(state, AbstractStateWithLocations.class))
+                  .getAbstractEdge();
+      assert edge instanceof WrapperCFAEdge;
+      CFAEdge realEdge = ((WrapperCFAEdge) edge).getCFAEdge();
+      if (realEdge instanceof CDeclarationEdge
+          || realEdge instanceof CFunctionCallEdge
+          || realEdge instanceof BlankEdge
+          || realEdge instanceof CReturnStatementEdge
+          || realEdge instanceof CAssumeEdge) {
+        // These edges cannot be handled while refinement (see AbstractState.generalWay)
+      } else {
+        projectedFrom.add(state);
+      }
+      wrappedStates.add(state.getWrappedState());
+    }
+    wrappedStates.add(((ARGState) pStates.get(pStates.size() - 1)).getWrappedState());
+
+    AbstractState wrappedState = wrappedApply.createCompositeProjection(wrappedStates, pEdges);
+    if (wrappedState == null) {
+      return null;
+    }
+
+    ARGState result = new ARGState(wrappedState, null);
+    for (ARGState state : projectedFrom) {
+      state.addProjection(result);
+    }
+
+    return result;
+  }
+
+  @Override
+  public boolean isCompositeBlock(AbstractState pState) {
+    ARGState state = (ARGState) pState;
+    return wrappedApply.isCompositeBlock(state.getWrappedState());
+  }
 }

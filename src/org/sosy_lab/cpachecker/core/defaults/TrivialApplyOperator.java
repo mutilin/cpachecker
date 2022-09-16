@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.core.defaults;
 
+import java.util.List;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
@@ -56,6 +57,13 @@ public class TrivialApplyOperator implements ApplyOperator {
   @Override
   public boolean canBeAnythingApplied(AbstractState pState) {
     return true;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    assert pStates.size() >= 2;
+    return pStates.get(0);
   }
 
 }

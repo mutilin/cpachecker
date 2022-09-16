@@ -22,6 +22,7 @@ package org.sosy_lab.cpachecker.cpa.threadmodular;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -40,6 +41,7 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithLocations;
 import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
+import org.sosy_lab.cpachecker.core.interfaces.Targetable;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.core.reachedset.ThreadModularReachedSet;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
@@ -158,12 +160,35 @@ public class ThreadModularTransferRelation implements TransferRelation {
         result.addAll(successors);
 
         stats.projectOperator.start();
-        // Projection must be independent from child edge, so we may get only one
-        AbstractState projection =
-            applyOperator.project(pState, Iterables.getFirst(successors, null));
-        if (projection != null) {
-          result.add(projection);
-          stats.numberOfProjectionsProduced.inc();
+
+        if (!applyOperator.isCompositeBlock(pState)) {
+
+          // if a successor is a target we can crash
+          // After refining a target state, the old 'unrefined' state does not get deleted
+          // It is not in the reached set, so building a path to it can (and do) result in a problem
+          // TODO find more permanent solution
+
+          boolean isTarget = false;
+
+          for (AbstractState st : successors) {
+            if (st instanceof Targetable && ((Targetable) st).isTarget()) {
+              isTarget = true;
+            }
+          }
+
+          if (!isTarget) {
+            // Projection must be independent from child edge, so we may get only one
+            AbstractState projection =
+              applyOperator.project(pState, Iterables.getFirst(successors, null));
+            if (projection != null) {
+              if (!(projection instanceof Targetable && ((Targetable) projection).isTarget())) {
+                result.add(projection);
+                stats.numberOfProjectionsProduced.inc();
+              }
+            }
+          }
+          ConstructCompositeProjections(pState, result);
+
         }
         stats.projectOperator.stop();
       }
@@ -179,6 +204,52 @@ public class ThreadModularTransferRelation implements TransferRelation {
 
     stats.totalTransfer.stop();
     return result;
+  }
+
+  private void ConstructCompositeProjections(AbstractState pState, List<AbstractState> result) {
+    ARGState pARGStatue = (ARGState) pState;
+    Collection<ARGState> parents = pARGStatue.getParents();
+    for (ARGState parent : parents) {
+      if (applyOperator.isCompositeBlock(parent)) {
+
+        List<AbstractState> allStates = new ArrayList<>();
+        List<AbstractEdge> allEdges = new ArrayList<>();
+        ARGState currentState = parent;
+        allStates.add(currentState);
+        while (true) {
+          Collection<ARGState> currentParents = currentState.getParents();
+          if (currentParents.size() != 1) {
+            throw new UnsupportedOperationException(
+                "There should be the only parent of state in atomic section");
+          }
+          ARGState currentParent = currentParents.iterator().next();
+          if (!applyOperator.isCompositeBlock(currentParent)) {
+            break;
+          }
+          allStates.add(currentParent);
+          List<CFAEdge> currentEdges = currentParent.getEdgesToChild(currentState);
+          if (currentEdges.size() != 1) {
+            throw new UnsupportedOperationException(
+                "There should be the only edge from state in atomic section");
+          }
+          assert currentEdges.get(0) != null;
+          allEdges.add(new WrapperCFAEdge(currentEdges.get(0)));
+
+          currentState = currentParent;
+        }
+
+        Collections.reverse(allStates);
+        Collections.reverse(allEdges);
+        if (allStates.size() >= 2) {
+          AbstractState compositeProjection =
+              applyOperator.createCompositeProjection(allStates, allEdges);
+          if (compositeProjection != null) {
+            result.add(compositeProjection);
+            stats.numberOfProjectionsProduced.inc();
+          }
+        }
+      }
+    }
   }
 
   @Override

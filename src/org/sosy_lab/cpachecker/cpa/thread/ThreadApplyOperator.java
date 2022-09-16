@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.thread;
 
+import java.util.List;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
@@ -56,6 +57,13 @@ public class ThreadApplyOperator implements ApplyOperator {
   public boolean canBeAnythingApplied(AbstractState pState) {
     ThreadState state = (ThreadState) pState;
     return state.getThreadSize() > 0;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    assert pStates.size() >= 2;
+    return pStates.get(0);
   }
 
 }

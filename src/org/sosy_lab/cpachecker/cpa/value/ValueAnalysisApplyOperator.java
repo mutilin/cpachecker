@@ -20,6 +20,7 @@
 package org.sosy_lab.cpachecker.cpa.value;
 
 import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentMap;
@@ -161,5 +162,12 @@ public class ValueAnalysisApplyOperator implements ApplyOperator {
   @Override
   public boolean canBeAnythingApplied(AbstractState pState) {
     return true;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    assert pStates.size() >= 2;
+    return project(pStates.get(0), pStates.get(pStates.size() - 1));
   }
 }

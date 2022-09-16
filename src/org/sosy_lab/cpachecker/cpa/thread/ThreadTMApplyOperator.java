@@ -21,6 +21,7 @@ package org.sosy_lab.cpachecker.cpa.thread;
 
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
+import java.util.List;
 import java.util.Set;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -78,6 +79,19 @@ public class ThreadTMApplyOperator implements ApplyOperator {
   public boolean canBeAnythingApplied(AbstractState pState) {
     ThreadState state = (ThreadState) pState;
     return state.getThreadSize() > 0;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    assert pStates.size() >= 2;
+    AbstractState projection = project(pStates.get(0), pStates.get(pStates.size() - 1));
+    assert ((ThreadTMStateWithEdge) projection).hasEmptyEffect()
+        || ((ThreadTMStateWithEdge) projection).getAbstractEdge()
+            .getAction()
+            .getFirst() != ThreadAction.JOIN : "Joining a thread inside of atomic block is not allowed";
+
+    return projection;
   }
 
 }

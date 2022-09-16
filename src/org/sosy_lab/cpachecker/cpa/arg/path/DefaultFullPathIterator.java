@@ -31,6 +31,7 @@ class DefaultFullPathIterator extends FullPathIterator {
 
     CFAEdge nextEdge = fullPath.get(overallOffset);
     Iterable<CFANode> nextLocation = extractLocations(getNextAbstractState());
+    // TODO: backward analysis is not supported for composite projections and merged projections
     boolean nextPositionHasState =
         Iterables.contains(nextLocation, nextEdge.getSuccessor()) // forward analysis
             || Iterables.contains(nextLocation, nextEdge.getPredecessor()); // backward analysis

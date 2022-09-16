@@ -648,4 +648,11 @@ public class PredicateApplyOperator implements ApplyOperator {
     return true;
   }
 
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    throw new UnsupportedOperationException(
+        "Composite projection is not supported for Predicate Analysis");
+  }
+
 }

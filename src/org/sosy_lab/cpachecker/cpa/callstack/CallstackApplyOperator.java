@@ -19,6 +19,7 @@
  */
 package org.sosy_lab.cpachecker.cpa.callstack;
 
+import java.util.List;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
@@ -52,6 +53,12 @@ public class CallstackApplyOperator implements ApplyOperator {
   @Override
   public boolean canBeAnythingApplied(AbstractState pState) {
     return true;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+    return ProjectedCallstackState.getInstance();
   }
 
 }

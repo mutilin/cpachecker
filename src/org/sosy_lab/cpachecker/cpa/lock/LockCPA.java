@@ -74,6 +74,7 @@ public class LockCPA extends AbstractCPA
   private String mergeType = "SEP";
 
   private final LockReducer reducer;
+  private final ApplyOperator applyOperator;
 
   private LockCPA(Configuration config, LogManager logger) throws InvalidConfigurationException {
     super(
@@ -81,6 +82,11 @@ public class LockCPA extends AbstractCPA
         new LockTransferRelation(config, logger));
     config.inject(this);
     reducer = new LockReducer(config);
+    if (considerLockGuards) {
+      applyOperator = new LockApplyOperator(config);
+    } else {
+      applyOperator = TrivialApplyOperator.getInstance();
+    }
   }
 
   @Override
@@ -152,10 +158,6 @@ public class LockCPA extends AbstractCPA
 
   @Override
   public ApplyOperator getApplyOperator() {
-    if (considerLockGuards) {
-      return new LockApplyOperator();
-    } else {
-      return TrivialApplyOperator.getInstance();
-    }
+    return applyOperator;
   }
 }

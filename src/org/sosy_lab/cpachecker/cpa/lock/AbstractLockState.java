@@ -51,6 +51,15 @@ public abstract class AbstractLockState
 
   protected abstract Set<LockIdentifier> getLocks();
 
+  public boolean isAtomicSection(String atomicSection) {
+    for (LockIdentifier lock : getLocks()) {
+      if (lock.getName().equals(atomicSection)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @Override
   public boolean isCompatibleWith(CompatibleState state) {
     Preconditions.checkArgument(state instanceof AbstractLockState);

@@ -19,8 +19,11 @@
  */
 package org.sosy_lab.cpachecker.cpa.composite;
 
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
+
 import com.google.common.collect.ImmutableList;
 import java.util.Iterator;
+import java.util.List;
 import org.sosy_lab.cpachecker.core.defaults.WrapperCFAEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -169,5 +172,49 @@ public class CompositeApplyOperator implements ApplyOperator {
       }
     }
     return true;
+  }
+
+  @Override
+  public AbstractState
+      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+
+    ImmutableList.Builder<AbstractState> projections = ImmutableList.builder();
+    boolean notEmptyEdge = false;
+    for (int i = 0; i < applyOperators.size(); i++) {
+      int iCopy = i;
+      List<AbstractState> wrappedStates =
+          transformedImmutableListCopy(pStates, state->((CompositeState)state).get(iCopy));
+      AbstractState projection = applyOperators.get(i).createCompositeProjection(wrappedStates, pEdges);
+
+      if (projection instanceof AbstractStateWithEdge) {
+        if (!((AbstractStateWithEdge) projection).hasEmptyEffect()) {
+          notEmptyEdge = true;
+        }
+      }
+
+      projections.add(projection);
+    }
+
+    if (notEmptyEdge) {
+      return new CompositeState(projections.build());
+    } else {
+      return null;
+    }
+  }
+
+  @Override
+  public boolean isCompositeBlock(AbstractState pState) {
+    CompositeState state = (CompositeState) pState;
+    Iterator<AbstractState> iter = state.getWrappedStates().iterator();
+
+    for (ApplyOperator applyOp : applyOperators) {
+      AbstractState absState = iter.next();
+
+      boolean res = applyOp.isCompositeBlock(absState);
+      if (res) {
+        return true;
+      }
+    }
+    return false;
   }
 }
