@@ -69,7 +69,8 @@ build-tar:
     paths:
       - "cpachecker.tar.bz2"
   only:
-    - ${MASTER_BRANCH}
+    refs:
+      - ${MASTER_BRANCH}
 
 # Checks python script
 # flake8:

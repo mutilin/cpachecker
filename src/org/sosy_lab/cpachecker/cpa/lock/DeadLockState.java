@@ -14,7 +14,6 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -26,25 +25,23 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 
 public final class DeadLockState extends AbstractLockState {
 
-  @SuppressWarnings("checkstyle:IllegalType") // TODO: use composition instead of inheritance
-  public static class DeadLockTreeNode extends ArrayList<LockIdentifier> implements CompatibleNode {
-
-    private static final long serialVersionUID = 5757759799394605077L;
+  public static class DeadLockTreeNode implements CompatibleNode, Iterable<LockIdentifier> {
+    private final List<LockIdentifier> lockList;
 
     public DeadLockTreeNode(List<LockIdentifier> locks) {
-      super(locks);
+      lockList = locks;
     }
 
     @Override
     public int compareTo(CompatibleState pArg0) {
       Preconditions.checkArgument(pArg0 instanceof DeadLockTreeNode);
       DeadLockTreeNode o = (DeadLockTreeNode) pArg0;
-      int result = size() - o.size();
+      int result = lockList.size() - o.lockList.size();
       if (result != 0) {
         return result;
       }
-      Iterator<LockIdentifier> lockIterator = iterator();
-      Iterator<LockIdentifier> lockIterator2 = o.iterator();
+      Iterator<LockIdentifier> lockIterator = lockList.iterator();
+      Iterator<LockIdentifier> lockIterator2 = o.lockList.iterator();
       while (lockIterator.hasNext()) {
         result = lockIterator.next().compareTo(lockIterator2.next());
         if (result != 0) {
@@ -62,7 +59,37 @@ public final class DeadLockState extends AbstractLockState {
 
     @Override
     public boolean hasEmptyLockSet() {
-      return isEmpty();
+      return lockList.isEmpty();
+    }
+
+    public int indexOf(LockIdentifier pLock1) {
+      return lockList.indexOf(pLock1);
+    }
+
+    public boolean contains(LockIdentifier pIntLock) {
+      return lockList.contains(pIntLock);
+    }
+
+    @Override
+    public Iterator<LockIdentifier> iterator() {
+      return lockList.iterator();
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(lockList);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (!(obj instanceof DeadLockTreeNode)) {
+        return false;
+      }
+      DeadLockTreeNode other = (DeadLockTreeNode) obj;
+      return Objects.equals(lockList, other.lockList);
     }
   }
 

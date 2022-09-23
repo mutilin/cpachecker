@@ -105,11 +105,10 @@ def run_product_lines():
     config = "config/includes/lockator/lockStatistics-linux.properties"
 
     options_list = [
-        # TODO fix
-        # "cpa.lock.analysisMode=DEADLOCK",
         "cpa.usage.useSoundRegions=true",
         "cpa.usage.bindArgsFunctions=true",
-        "cpa.usage.filterAliases=true",
+        "cpa.usage.filterAliases=false",
+        "cpa.usage.useConcurrentExtraction=false",
         "cpa.thread.useAggressiveReduction=true",
         "cpa.thread.mode=ENVIRONMENT",
         # TODO fix
@@ -121,6 +120,18 @@ def run_product_lines():
     for option in options_list:
         run_options = ["-config", config, "-setprop", option]
         run_simple_with_options(run_options)
+
+    # Specific case for deadlocks:
+    run_options = ["-config", config,
+        "-setprop", "cpa.lock.analysisMode=DEADLOCK",
+        "-setprop", "cpa.usage.unsafedetector.unsafeMode=DEADLOCKCIRCULAR"]
+    run_simple_with_options(run_options)
+
+    run_options = ["-config", config,
+        "-setprop", "cpa.lock.analysisMode=DEADLOCK",
+        "-setprop", "cpa.usage.unsafedetector.intLock=dummy",
+        "-setprop", "cpa.usage.unsafedetector.unsafeMode=DEADLOCKDISPATCH"]
+    run_simple_with_options(run_options)
 
     # TODO Enable after SSA issue fix
     # config = "config/includes/lockator/lockStatistics-threadmodular-linux.properties"
