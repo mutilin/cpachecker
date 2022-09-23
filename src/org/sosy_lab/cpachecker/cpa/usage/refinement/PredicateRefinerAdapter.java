@@ -206,7 +206,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
               .filter(PredicateAbstractState::containsAbstractionState)
               .toList();
 
-      if (pPath.getLastState() != result.get(result.size() - 1)) {
+      if (!result.isEmpty() && pPath.getLastState() != result.get(result.size() - 1)) {
         List<ARGState> newResult = new ArrayList<>(result);
         newResult.add(pPath.getLastState());
         return ImmutableList.copyOf(newResult);

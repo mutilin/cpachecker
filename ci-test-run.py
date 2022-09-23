@@ -111,8 +111,7 @@ def run_product_lines():
         "cpa.usage.useConcurrentExtraction=false",
         "cpa.thread.useAggressiveReduction=true",
         "cpa.thread.mode=ENVIRONMENT",
-        # TODO fix
-        # "cpa.thread.mode=SIMPLE",
+        "cpa.thread.mode=SIMPLE",
         "cpa.thread.supportSelfCreation=true",
         "cpa.thread.skipTheSameThread=true"
         ]
