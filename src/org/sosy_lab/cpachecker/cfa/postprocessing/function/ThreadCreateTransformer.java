@@ -94,10 +94,26 @@ public class ThreadCreateTransformer {
     description = "Add assumptions about successfull thread create")
   private boolean addAssumptions = true;
 
-  private class ThreadFinder implements CFATraversal.CFAVisitor {
+  public boolean isThreadOperation(CFunctionCallExpression pCallExpr) {
+    String fName = pCallExpr.getFunctionNameExpression().toString();
+    return threadCreate.contains(fName)
+        || fName.equals(threadCreateN)
+        || fName.equals(threadJoin)
+        || fName.equals(threadJoinN);
+  }
 
-    Map<CFAEdge, CFunctionCallExpression> threadCreates = new HashMap<>();
-    Map<CFAEdge, CFunctionCallExpression> threadJoins = new HashMap<>();
+  public class ThreadFinder implements CFATraversal.CFAVisitor {
+
+    private final Map<CFAEdge, CFunctionCallExpression> threadCreates = new HashMap<>();
+    private final Map<CFAEdge, CFunctionCallExpression> threadJoins = new HashMap<>();
+
+    public Map<CFAEdge, CFunctionCallExpression> getThreadCreates() {
+      return threadCreates;
+    }
+
+    private Map<CFAEdge, CFunctionCallExpression> getThreadJoins() {
+      return threadJoins;
+    }
 
     @Override
     public TraversalProcess visitEdge(CFAEdge pEdge) {
@@ -150,7 +166,7 @@ public class ThreadCreateTransformer {
 
     // We need to repeat this loop several times, because we traverse that part cfa, which is
     // reachable from main
-    for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.threadCreates.entrySet()) {
+    for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.getThreadCreates().entrySet()) {
       CFAEdge edge = entry.getKey();
       CFunctionCallExpression fCall = entry.getValue();
 
@@ -256,7 +272,7 @@ public class ThreadCreateTransformer {
       }
     }
 
-    for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.threadJoins.entrySet()) {
+    for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.getThreadJoins().entrySet()) {
       CFAEdge edge = entry.getKey();
       CFunctionCallExpression fCall = entry.getValue();
       CIdExpression varName = getThreadVariableName(fCall);
@@ -316,7 +332,7 @@ public class ThreadCreateTransformer {
     }
   }
 
-  private CIdExpression getFunctionName(CExpression fName) {
+  public static CIdExpression getFunctionName(CExpression fName) {
     if (fName instanceof CIdExpression) {
       return (CIdExpression) fName;
     } else if (fName instanceof CUnaryExpression) {

@@ -233,7 +233,37 @@ def run_ldv_tests():
                 if is_ignored(test, ignored_tests):
                     continue
                 run_cpachecker(base_options, test)
+
+def run_cfa_mutation():
+    print("Run cfa mutation")
+
+    base_options = ["-setprop", "cfaMutation=true",
+        "-setprop", "limits.time.wall=1500s",
+        "-setprop", "limits.time.cpu=-1ns",
+        "-setprop", "parser.readLineDirectives=false",
+        "-setprop", "cfa.threads.addAssumptions=false",
+        "-setprop", "cpa.usage.outputType=Klever3",
+        "-lockator-threadmodular-linux",
+        "-setprop", "output.disable=false",
+        "-setprop", "cfa.export=true",
+        "-setprop", "cfa.exportPerFunction=true",
+        "-setprop", "cfa.exportToC=true",
+        "-setprop", "cfa.serialize=true",
+        ]
     
+    strategies = ["cfaMutation.strategies=FunctionBodyRemover,AssumeEdgesRemover,StatementChainRemover,StatementEdgeRemover,ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover",
+        "cfaMutation.strategies=ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover",
+        # Verify.error at CFA construction
+        # "cfaMutation.strategies=AssumeEdgesRemover,StatementChainRemover,StatementEdgeRemover,ExpressionRemover,DeclarationEdgeRemover,GlobalDeclarationRemover",
+        "cfaMutation.strategies=FunctionBodyRemover",
+        "cfaMutation.strategies=StatementChainRemover"]
+
+    test = "test/programs/issues-for-mutation/cpalockator.i"
+
+    for strategy in strategies:
+        options = base_options + ["-setprop"] + [strategy]
+        run_cpachecker(options, test)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run integration tests.')
@@ -252,3 +282,5 @@ if __name__ == "__main__":
             run_ldv_tests()
         if test_name == "'product-lines'":
             run_product_lines()
+        if test_name == "'cfa-mutation'":
+            run_cfa_mutation()

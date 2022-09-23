@@ -57,6 +57,7 @@ import org.sosy_lab.common.log.LoggingOptions;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.cmdline.CmdLineArguments.InvalidCmdlineArgumentException;
 import org.sosy_lab.cpachecker.core.CPAchecker;
+import org.sosy_lab.cpachecker.core.CPAcheckerMutator;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.algorithm.pcc.ProofGenerator;
@@ -134,7 +135,12 @@ public class CPAMain {
       limits = ResourceLimitChecker.fromConfiguration(cpaConfig, logManager, shutdownManager);
       limits.start();
 
-      cpachecker = new CPAchecker(cpaConfig, logManager, shutdownManager);
+      if (options.minimizeCfaForException) {
+        cpachecker =
+            new CPAcheckerMutator(cpaConfig, logManager, shutdownManager, limits, logOptions);
+      } else {
+        cpachecker = new CPAchecker(cpaConfig, logManager, shutdownManager);
+      }
       if (options.doPCC) {
         proofGenerator = new ProofGenerator(cpaConfig, logManager, shutdownNotifier);
       }
@@ -265,6 +271,14 @@ public class CPAMain {
 
     @Option(secure=true, name = "pcc.proofgen.doPCC", description = "Generate and dump a proof")
     private boolean doPCC = false;
+
+    @Option(
+        secure = true,
+        name = "cfaMutation",
+        description =
+            "Try to make CFA of the input program smaller. The goal is to make a small test "
+                + "for a case when CPAchecker analysis crashes.")
+    private boolean minimizeCfaForException = false;
   }
 
   private static void dumpConfiguration(MainOptions options, Configuration config,
@@ -728,6 +742,7 @@ public class CPAMain {
       if (!options.printStatistics) {
         stream = makePrintStream(mergeStreams(System.out, file)); // ensure that result is printed to System.out
       }
+
       mResult.printResult(stream);
 
       // write output files

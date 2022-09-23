@@ -160,6 +160,7 @@ solver.z3.usePhantomReferences = false
 # SPDX-FileCopyrightText: 2014-2017 Université Grenoble Alpes
 # SPDX-FileCopyrightText: 2020 Dirk Beyer <https://www.sosy-lab.org>
 # SPDX-FileCopyrightText: 2021 Dirk Beyer <https://www.sosy-lab.org>
+# SPDX-FileCopyrightText: 2022 Dirk Beyer <https://www.sosy-lab.org>
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -755,10 +756,7 @@ cfa.addLabels.atProgramExit = false
 # Which functions should be interpreted as encoding assumptions
 cfa.assumeFunctions = {"__VERIFIER_assume"}
 
-# dump a simple call graph
-cfa.callgraph.export = true
-
-# file name for call graph as .dot file
+# dump graphs of all function calls and used functions calls in .dot format
 cfa.callgraph.file = "functionCalls.dot"
 cfa.callgraph.fileUsed = "functionCallsUsed.dot"
 
@@ -777,17 +775,27 @@ cfa.checkNullPointers.singleTargetPerFunction = true
 # create a series of if-else edges with explicit indizes instead.
 cfa.expandFunctionPointerArrayAssignments = false
 
-# export CFA as .dot file
+# export program as CFA in .dot format
 cfa.export = true
 
-# export individual CFAs for function as .dot files
+# dump graphs of all function calls and used functions calls in .dot format
+cfa.export.callgraph = true
+
+# subdirectory in main output directory to export all CFA-related files to
+cfa.export.directory = "."
+
+# export individual CFAs for function as .dot files in given subdirectory
 cfa.exportPerFunction = true
 
-# export CFA as C file
+# subdirectory in CFA export subdirectory to export individual CFAs for
+# function as .dot files
+cfa.exportPerFunction.directory = "cfa"
+
+# export program CFA as C source file
 cfa.exportToC = false
 cfa.exportToC.file = "cfa.c"
 
-# export CFA as .dot file
+# export program as CFA in .dot format
 cfa.file = "cfa.dot"
 
 # By enabling this option the variables that are live are computed for each
@@ -810,8 +818,8 @@ cfa.initializeAllVariables = false
 cfa.moveDeclarationsToFunctionStart = false
 
 # Export CFA as pixel graphic to the given file name. The suffix is added
-# corresponding to the value of option pixelgraphic.export.formatIf set to
-# 'null', no pixel graphic is exported.
+# corresponding to the value of option pixelgraphic.export.format
+cfa.pixelGraphic = false
 cfa.pixelGraphicFile = "cfaPixel"
 
 # export CFA as .ser file (dump Java objects)
@@ -865,6 +873,44 @@ cfa.variableClassification.printStatsOnStartup = false
 
 # Dump variable type mapping to a file.
 cfa.variableClassification.typeMapFile = "VariableTypeMapping.txt"
+
+# Try to make CFA of the input program smaller. The goal is to make a small
+# test for a case when CPAchecker analysis crashes.
+cfaMutation = false
+
+# Create log file for every round with this logging level.
+# Use main file logging level if that is lower.
+cfaMutation.logFilesLevel = Level.FINE
+
+# If a mutation round is unsuccessfull (i.e. sought-for bug does not occur),
+# the mutation is rollbacked. If this count of rollbacks occur in row, check
+# that rollbacked CFA produces the sought-for bug.
+# If set to 0, do not check any rollbacks.
+# If set to 1, check that bug occurs after every rollback.
+# If set to 2, check every other one that occurs immediately after another
+# one, so if there occur 5 rollbacks in a row, 2nd and 4th will be checked.
+# And so on.
+cfaMutation.rollbacksInRowCheck = 5
+
+# which strategies to use subsequently to mutate CFA
+cfaMutation.strategies = [
+          FunctionBodyRemover.class,
+          AssumeEdgesRemover.class,
+          StatementChainRemover.class,
+          StatementEdgeRemover.class,
+          ExpressionRemover.class,
+          DeclarationEdgeRemover.class,
+          GlobalDeclarationRemover.class]
+
+# Sometimes analysis run can be unpredictably long. To run many rounds
+# successfully,
+# CFA mutator needs to setup its own time limit for each round.
+# It is walltime for original analysis run multiplied by numerator,
+# divided by denominator (both are integer), plus additional bias.
+# By default it is original run * 2 / 1 + 20s.
+cfaMutation.walltimeLimit.add = 20s
+cfaMutation.walltimeLimit.denominator = 1
+cfaMutation.walltimeLimit.numerator = 2
 
 # Output an input file, with invariants embedded as assume constraints.
 cinvariants.export = false

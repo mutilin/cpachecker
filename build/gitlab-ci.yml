@@ -186,6 +186,11 @@ product-lines:
   script:
     - 'python3 ci-test-run.py product-lines'
 
+cfa-mutation:
+  <<: *tests
+  script:
+    - 'python3 ci-test-run.py cfa-mutation'
+
 klever-tests:
   <<: *tests
   script:
