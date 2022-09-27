@@ -27,16 +27,6 @@ def run_cpachecker(options, program):
         raise ValueError("Return code is not zero")
     return ret
 
-def get_verdict_for_simple_test(program):
-    # For simple tests
-    if re.match('.*-safe\.c', program):
-        return "TRUE"
-
-    if re.match('.*-unsafe\.c', program):
-        return "FALSE"
-    
-    raise ValueError("Cannot determine expected verdict for {}".format(program))
-
 def to_string_verdict(verdict):
     if verdict == True:
         return "TRUE"
@@ -45,9 +35,7 @@ def to_string_verdict(verdict):
 
     raise ValueError("Unknown verdict {}".format(verdict))
 
-def call_cpachecker(options, program, expected):
-    ret = run_cpachecker(options, program)
-
+def parse_verdict(ret):
     m = re.search('Verification result: (.*)\. ', ret.stdout)
     if m is None:
         print(ret.stdout)
@@ -55,45 +43,53 @@ def call_cpachecker(options, program, expected):
         raise ValueError("No verification result")
     
     verdict = m.group(1)
+    return verdict
+
+def call_cpachecker(options, program, expected):
+    ret = run_cpachecker(options, program)    
+    verdict = parse_verdict(ret)
     fail_if_incorrect_verdict(ret, expected, verdict)
 
 def run_simple_tests():
     # Checks the basic configs on a small simple tests
     simple_test_dir = "test/programs/cpalockator/simple/*.c"
 
-    def run_simple_with_options(options):
+    def run_simple_with_options(options, verdicts):
         for test in glob.glob(simple_test_dir):
-            run_cpachecker(options, test)
+            expected = verdicts[test]
+            call_cpachecker(options, test, expected)
 
     # Note, there is no threads
     print("Run simple tests")
-    simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
-        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.BAMPredicateCPA",
-        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]    
-    for test in glob.glob(simple_test_dir):
-        verdict = get_verdict_for_simple_test(test)
-        call_cpachecker(simple_options, test, verdict)
+    with open('ci-config/simple-test-verdicts.yml', 'r') as file:
+        test_results = yaml.safe_load(file)
 
-    # The verdicts are set for the one configuration, then just check, that the tool does not fail
-    simple_options = ["-config", "config/includes/lockator/lockStatistics-linux-lightweight.properties",
-        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA",
-        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
-    run_simple_with_options(simple_options)
+        simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
+            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.BAMPredicateCPA",
+            "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+        
+        run_simple_with_options(simple_options, test_results['lockStatistics-linux.properties'])
 
-    simple_options = ["-config", "config/includes/lockator/lockStatistics-threadmodular-linux.properties",
-        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.PredicateCPA",
-        "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
-    run_simple_with_options(simple_options)
+        # The verdicts are set for the one configuration, then just check, that the tool does not fail
+        simple_options = ["-config", "config/includes/lockator/lockStatistics-linux-lightweight.properties",
+            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA",
+            "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+        run_simple_with_options(simple_options, test_results['lockStatistics-linux-lightweight.properties'])
 
-    simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
-        "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"]
-    run_simple_with_options(simple_options)
+        simple_options = ["-config", "config/includes/lockator/lockStatistics-threadmodular-linux.properties",
+            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.PredicateCPA",
+            "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+        run_simple_with_options(simple_options, test_results['lockStatistics-threadmodular-linux.properties'])
 
-    run_simple_with_options(["-lockator-linux"])
+        simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
+            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"]
+        run_simple_with_options(simple_options, test_results['lockStatistics-linux-bam.properties'])
 
-    run_simple_with_options(["-lockator-linux-lightweight"])
+        run_simple_with_options(simple_options, test_results['lockator-linux.properties'])
 
-    run_simple_with_options(["-lockator-threadmodular-linux"])
+        run_simple_with_options(simple_options, test_results['lockator-linux-lightweight.properties'])
+
+        run_simple_with_options(simple_options, test_results['lockator-threadmodular-linux.properties'])
 
 def run_product_lines():
     test_dir = "test/programs/cpalockator/threads/*.c"
@@ -154,11 +150,17 @@ def run_product_lines():
     #     run_simple_with_options(run_options)
 
 def run_basic_tests():
+    def run_basic_with_options(options, verdicts):
+        for test in glob.glob("test/programs/cpalockator/threads/*.c"):
+            verdict = verdicts[test]
+            call_cpachecker(options, test, verdict)
+
     print("Run basic tests")
     
-    for test in glob.glob("test/programs/cpalockator/threads/*.c"):
-        verdict = get_verdict_for_simple_test(test)
-        call_cpachecker(["-lockator-linux"], test, verdict)
+    with open('ci-config/basic-test-verdicts.yml', 'r') as file:
+        test_results = yaml.safe_load(file)
+        run_basic_with_options(["-lockator-linux"], test_results['lockator-linux.properties'])
+        
         # issue with SSA index
         # call_cpachecker(["-lockator-threadmodular-linux"], test, verdict)
         # the tests have conditions, do not check lightweight mode
