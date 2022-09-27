@@ -346,7 +346,7 @@ public class PredicateCPA
     return config;
   }
 
-  LogManager getLogger() {
+  public LogManager getLogger() {
     return logger;
   }
 

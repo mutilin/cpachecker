@@ -713,6 +713,8 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
     }
   }
 
+  private final static String UNDEF_FUNCTION = "__VERIFIER_nondet_";
+
   private String computeNewIndex(
       String pOldVar,
       SSAMapBuilder pNewSsa,
@@ -747,13 +749,16 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
       return newName;
 
     } else {
-      // Indices in undefFunctions are written after '!', not '@'; for example,
-      // "__VERIFIER_nondet_signed_int!2@". Since there is no index after "@", it leads to a problem
-      // where indices are considered non-existent and are not updated correctly. Such problem
-      // occurs in thread-modular analysis when an unknown value of undefFunction is considered the
-      // same for multiple assignments. Here we manually parse such string and update index.
-      // Right now undefFunction does not always have a type
-      if (varName.contains("!")) {
+      // Indices in undefFunctions are written after '!', not '@'. That leads to a problem where
+      // such indices are not updated correctly. Here we manually parse such string and update
+      // index.
+
+      // Some operations that contain "!" (e.g. "_!!_") are interpreted as variables. While parsing
+      // such a "variable" problems can occur. The following piece of code is specified for
+      // undefFunctions, so it is not enough to just check if varName.contains("!"), we also need to
+      // check if varName.startsWith(undefFunction)
+
+      if (varName.contains("!") && varName.startsWith(UNDEF_FUNCTION)) {
         List<String> parts = Splitter.on('!').splitToList(varName);
         assert (parts.size() == 2);
 
@@ -765,10 +770,15 @@ public final class PredicateTransferRelation extends SingleEdgeTransferRelation 
         if (pNewSsa.allVariables().contains(varName)) {
           return varName + "!" + pNewSsa.makeFreshIndex(varName) + "@";
         } else {
-          pNewSsa.setIndex(varName, envSsa.get(parts.get(0)), oldIndex);
+          if (envSsa.get(parts.get(0)) == null) {
+            logger.log(
+                Level.FINE,
+                "New index for undefFunction cannot be set since type for undefFunction is undefined");
+          } else {
+            pNewSsa.setIndex(varName, envSsa.get(parts.get(0)), oldIndex);
+          }
           return pOldVar;
         }
-
       }
       // Without index, nothing to rename
       return pOldVar;

@@ -398,7 +398,18 @@ public class ARGReachedSet {
           toWaitlist.add(parent);
         }
       }
+      // There was a problem with projections which were projected from a several states from
+      // different branches of ARG. Let us say projection A was projected from states B and C. If
+      // state B is removed from ARG, projection A is removed as well. But state C (if it is not
+      // removed) has to be put in the waitlist for its projection to be rediscovered.
 
+      if (ae.getProjectedFrom() != null) {
+        for (ARGState projectedFrom : ae.getProjectedFrom()) {
+          if (!elements.contains(projectedFrom)) {
+            toWaitlist.add(projectedFrom);
+          }
+        }
+      }
       ae.removeFromARG();
     }
     return toWaitlist;

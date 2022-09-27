@@ -229,7 +229,7 @@ public class LocationApplyOperator implements ApplyOperator {
     return result;
   }
 
-  private boolean isRedundantEdge(CFAEdge edge) {
+  public static boolean isRedundantEdge(CFAEdge edge) {
     if (edge instanceof BlankEdge) {
       return true;
     } else if (edge instanceof CDeclarationEdge) {

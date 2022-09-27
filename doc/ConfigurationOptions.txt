@@ -3151,6 +3151,14 @@ cpa.thread.supportSelfCreation = false
 # Use aggressive reduction mode
 cpa.thread.useAggressiveReduction = false
 
+# Which projections are added to precision?
+cpa.threadabstraction.addProjectionsToPrecision = ALL
+  enum:     [EVERYTHING_IN_PRECISION, ALL, REPEATED, ORDER]
+
+# Which states is precision updated for?
+cpa.threadabstraction.optimizePrecisionUpdate = PROJECTIONS
+  enum:     [ALL, PROJECTIONS, COMMON_PREDECESSOR]
+
 # allow assignments of a new thread to the same left-hand-side as an existing
 # thread.
 cpa.threading.allowMultipleLHS = false

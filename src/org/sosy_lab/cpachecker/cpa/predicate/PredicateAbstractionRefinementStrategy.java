@@ -101,6 +101,12 @@ public class PredicateAbstractionRefinementStrategy extends RefinementStrategy
   }
 
   @Option(
+    secure = true,
+    name = "precision.rebuildARG",
+    description = "If true, refinement root is the root of the ARG.")
+  private boolean updatePresisionForAll = false;
+
+  @Option(
       secure = true,
       name = "refinement.predicateBasisStrategy",
       description =
@@ -436,18 +442,27 @@ public class PredicateAbstractionRefinementStrategy extends RefinementStrategy
       UnmodifiableReachedSet reached,
       PredicatePrecision targetStatePrecision)
       throws RefinementFailedException {
+
+    if (updatePresisionForAll) {
+      return Iterables.getLast(((ARGState) reached.getFirstState()).getChildren());
+    }
+
     ARGState refinementRoot =
         getPivotState(pAffectedStates, targetStatePrecision, pRepeatedCounterexample);
 
     // check whether we should restart
     refinementCount++;
     if (restartAfterRefinements > 0 && refinementCount >= restartAfterRefinements) {
-      ARGState root = (ARGState)reached.getFirstState();
+      ARGState root = (ARGState) reached.getFirstState();
       // we have to use the child as the refinementRoot
       assert root.getChildren().size() == 1 : "ARG root should have exactly one child";
       refinementRoot = Iterables.getLast(root.getChildren());
 
-      logger.log(Level.FINEST, "Restarting analysis after",refinementCount,"refinements by clearing the ARG.");
+      logger.log(
+          Level.FINEST,
+          "Restarting analysis after",
+          refinementCount,
+          "refinements by clearing the ARG.");
       refinementCount = 0;
 
     } else {
