@@ -23,7 +23,9 @@ RUN rm -rf /usr/bin/python3
 RUN ln -s /usr/bin/python3.7 /usr/bin/python3
 
 RUN git clone https://gitlab.com/sosy-lab/software/ldv-klever-benchmarks.git /opt/ldv-klever-benchmarks/
-RUN git clone https://gitlab.com/sosy-lab/software/ldv-benchmarks.git /opt/ldv-benchmarks/
+ADD linux-4.2.6-races.tar.xz /opt/ldv-benchmarks/
+ADD ldv-sv-benchmarks.tar.xz /opt/sv-benchmarks/
+# RUN git clone https://gitlab.com/sosy-lab/software/ldv-benchmarks.git /opt/ldv-benchmarks/
 # RUN git clone https://github.com/sosy-lab/sv-benchmarks /opt/sv-benchmarks/
 # The repo is very large, save memory and get only necessary directory
 # RUN mv /opt/sv-benchmarks/c/ldv-linux-3.14-races/ /opt/ && \

@@ -47,24 +47,28 @@ Linux-Testing-Requirement-specifications/8-ext-modules---linux---concurrency-saf
 Linux-Testing-Requirement-specifications/8-ext-modules---linux---concurrency-safety---ldv-races---race-3_2-container_of-global_false-unreach-call.ko-concurrency-safety.cil.i 
 Linux-Testing-Requirement-specifications/8-ext-modules---linux---concurrency-safety---ldv-races---race-4_1-thread_local_vars_true-unreach-call.ko-concurrency-safety.cil.i 
 Linux-Testing-Requirement-specifications/9-ext-modules---linux---concurrency-safety---lock-reduce---safe.ko-concurrency-safety.cil.i
-# issue #1
-# Linux-Validation-Bugs-found-by-Klever/10-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/10-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i
+# Timeout
 # Linux-Validation-Bugs-found-by-Klever/11-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/12-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/12-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i
+# Timeout
 # Linux-Validation-Bugs-found-by-Klever/13-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/24-drivers---watchdog---rdc321x_wdt.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/24-drivers---watchdog---rdc321x_wdt.ko-concurrency-safety.cil.i
+# Timeout
 # Linux-Validation-Bugs-found-by-Klever/25-drivers---watchdog---rdc321x_wdt.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/31-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/32-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/33-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/34-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/37-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/31-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/32-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/33-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/34-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/37-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i
+# Timeout
 # Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/70-drivers---char---tlclk.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/71-drivers---char---tlclk.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/70-drivers---char---tlclk.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/71-drivers---char---tlclk.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i
+# Timeout
 # Linux-Validation-Bugs-found-by-Klever/73-drivers---dma---pch_dma.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/74-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i
-# Linux-Validation-Bugs-found-by-Klever/75-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/74-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i
+Linux-Validation-Bugs-found-by-Klever/75-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i

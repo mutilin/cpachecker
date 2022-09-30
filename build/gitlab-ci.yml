@@ -179,7 +179,7 @@ refaster:
 simple-tests:
   <<: *tests
   script:
-    - 'python3 ci-test-run.py simple basic'
+    - 'python3 ci-test-run.py simple'
 
 product-lines:
   <<: *tests
@@ -197,20 +197,29 @@ klever-tests:
     - 'python3 ci-test-run.py ldv-klever'
   variables:
     KLEVER_BENCHMARKS: "/opt/ldv-klever-benchmarks/"
-  #artifacts:
-  #  paths:
-  #    - "test/results/*.xml.bz2"
-  #  when: on_failure
 
-# Enable after fix
-# integration-master-tests:
-#   <<: *binary_check
+# ldv-benchmarks-tests:
+#   stage: tests
+#   # dependencies:
+#   #   - build-dependencies
+#   #   - build:jdk-11
+#   # needs:
+#   #   - build-dependencies
+#   #   - build:jdk-11
+#   interruptible: true
+#   rules:
+#     - when: manual
 #   script:
 #     - 'python3 ci-test-run.py ldv-benchmarks'
 #   variables:
 #     LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
-  # only:
-  #   - MASTER_BRANCH
+
+sv-benchmarks-tests:
+  <<: *tests
+  script:
+    - 'python3 ci-test-run.py sv-benchmarks'
+  variables:
+    SV_BENCHMARKS: "/opt/sv-benchmarks/"
 
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html
