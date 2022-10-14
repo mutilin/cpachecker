@@ -59,13 +59,7 @@ public class RegionBasedIdentifierCreator extends IdentifierCreator {
 
   public RegionBasedIdentifierCreator(
       Optional<VariableClassification> pVariableClassification) {
-    if (pVariableClassification.isPresent()) {
-      addressedVariables = pVariableClassification.orElseThrow().getAddressedVariables();
-      addressedFields = pVariableClassification.orElseThrow().getAddressedFields();
-    } else {
-      addressedVariables = null;
-      addressedFields = null;
-    }
+    this(null, pVariableClassification);
   }
 
   private RegionBasedIdentifierCreator(
@@ -85,7 +79,7 @@ public class RegionBasedIdentifierCreator extends IdentifierCreator {
     CType type = decl.getType();
 
     if (decl instanceof CVariableDeclaration) {
-      if (pDereference == 0 && !addressedVariables.contains(scopedName)) {
+      if (pDereference < 0 || (pDereference == 0 && !addressedVariables.contains(scopedName))) {
         if (((CDeclaration) decl).isGlobal()) {
           return new GlobalVariableIdentifier(name, type, pDereference);
         } else {

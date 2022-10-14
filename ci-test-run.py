@@ -301,6 +301,7 @@ def run_sv_benchmarks():
     # fast check of different options on ldv-races
     test_config("-predicateAnalysis-threadmodular-refinement", "/ldv-races/")
     test_config("-predicateAnalysis-threadmodular-reordered", "/ldv-races/")
+    test_config("-predicateAnalysis-tm-ta", "/ldv-races/")
     test_config("-predicateValueAnalysis-threadmodular", "/ldv-races/")
 
 if __name__ == "__main__":

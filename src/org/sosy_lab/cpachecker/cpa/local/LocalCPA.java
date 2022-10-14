@@ -15,6 +15,7 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
 import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.defaults.AbstractCPA;
 import org.sosy_lab.cpachecker.core.defaults.AutomaticCPAFactory;
@@ -41,12 +42,13 @@ public class LocalCPA extends AbstractCPA
     return AutomaticCPAFactory.forType(LocalCPA.class);
   }
 
-  private LocalCPA(LogManager pLogger, Configuration pConfig) throws InvalidConfigurationException {
+  private LocalCPA(CFA pCfa, LogManager pLogger, Configuration pConfig)
+      throws InvalidConfigurationException {
     super(
         "join",
         "sep",
         DelegateAbstractDomain.<LocalState>getInstance(),
-        new LocalTransferRelation(pConfig, pLogger));
+        new LocalTransferRelation(pConfig, pLogger, pCfa.getVarClassification()));
     pConfig.inject(this);
   }
 

@@ -32,6 +32,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CInitializerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CParameterDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
@@ -60,9 +61,10 @@ import org.sosy_lab.cpachecker.util.Triple;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
-import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.RegionBasedIdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.ReturnIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
+import org.sosy_lab.cpachecker.util.variableclassification.VariableClassification;
 
 @Options(prefix = "cpa.local")
 public class LocalTransferRelation
@@ -91,15 +93,23 @@ public class LocalTransferRelation
   )
   private Set<String> conservationOfSharedness = ImmutableSet.of();
 
+  @Option(description = "use region based identifiers", secure = true)
+  private boolean regionBasedIdentifiers = false;
+
   private final Map<String, Integer> allocateInfo;
+  private final Optional<VariableClassification> varClassification;
 
   private final LocalStatistics stats;
 
-  public LocalTransferRelation(Configuration config, LogManager pLogger)
+  public LocalTransferRelation(
+      Configuration config,
+      LogManager pLogger,
+      Optional<VariableClassification> pVars)
       throws InvalidConfigurationException {
     config.inject(this);
     allocateInfo = from(allocate).toMap(f -> getNumOrDefault(config, f));
     stats = new LocalStatistics(config, pLogger);
+    varClassification = pVars;
   }
 
   public LocalStatistics getStatistics() {
@@ -166,7 +176,7 @@ public class LocalTransferRelation
       // function
       int dereference = findDereference(assignExp.getLeftHandSide().getExpressionType());
       AbstractIdentifier leftId =
-          createId(assignExp.getLeftHandSide(), 0, new IdentifierCreator(callerFunctionName));
+          createId(assignExp.getLeftHandSide(), 0, callerFunctionName);
       // return id is handled internally
       assign(newElement, leftId, dereference, assignExp.getRightHandSide());
     }
@@ -174,21 +184,18 @@ public class LocalTransferRelation
     // Update the outer parameters:
     CFunctionSummaryEdge sEdge = cfaEdge.getSummaryEdge();
     CFunctionEntryNode entry = sEdge.getFunctionEntry();
-    String funcName = entry.getFunctionName();
-    assert funcName.equals(getFunctionName());
-
+    String funcName = getFunctionName();
 
     int allocParameter = isParameterAllocatedFunction(funcName) ? allocateInfo.get(funcName) : 0;
-    List<String> paramNames = entry.getFunctionParameterNames();
     List<CExpression> arguments =
         sEdge.getExpression().getFunctionCallExpression().getParameterExpressions();
     List<CParameterDeclaration> parameterTypes = entry.getFunctionDefinition().getParameters();
 
-    List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> toProcess =
-        extractIdentifiers(arguments, paramNames, parameterTypes, callerFunctionName, funcName);
+    List<Triple<AbstractIdentifier, AbstractIdentifier, Integer>> toProcess =
+        extractIdentifiers(arguments, parameterTypes, callerFunctionName, funcName);
 
     for (int i = 0; i < toProcess.size(); i++) {
-      Triple<AbstractIdentifier, LocalVariableIdentifier, Integer> pairId = toProcess.get(i);
+      Triple<AbstractIdentifier, AbstractIdentifier, Integer> pairId = toProcess.get(i);
       // Note, index starts from in configuration
       if (allocParameter > 0 && allocParameter == i + 1) {
         completeSet(newElement, pairId.getFirst(), pairId.getThird(), DataType.LOCAL);
@@ -206,17 +213,18 @@ public class LocalTransferRelation
       List<CParameterDeclaration> parameterTypes,
       String calledFunctionName) {
     LocalState newState = state.createNextLocalState();
-    CFunctionEntryNode functionEntryNode = cfaEdge.getSuccessor();
-    List<String> paramNames = functionEntryNode.getFunctionParameterNames();
 
-    List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> toProcess =
+    List<Triple<AbstractIdentifier, AbstractIdentifier, Integer>> toProcess =
         extractIdentifiers(
-            arguments, paramNames, parameterTypes, getFunctionName(), calledFunctionName);
+            arguments,
+            parameterTypes,
+            getFunctionName(),
+            calledFunctionName);
     // TODO Make it with config
     boolean isThreadCreate =
         cfaEdge.getSummaryEdge().getExpression() instanceof CThreadCreateStatement;
 
-    for (Triple<AbstractIdentifier, LocalVariableIdentifier, Integer> pairId : toProcess) {
+    for (Triple<AbstractIdentifier, AbstractIdentifier, Integer> pairId : toProcess) {
       if (isThreadCreate) {
         // Data became shared after thread creation
         completeSet(newState, pairId.getSecond(), pairId.getThird(), DataType.GLOBAL);
@@ -293,52 +301,51 @@ public class LocalTransferRelation
 
       // Usually it looks like 'priv = netdev_priv(dev)'
       // Other cases will be handled if they appear
-      CParameterDeclaration decl = right.getDeclaration().getParameters().get(0);
       // TODO How it works with *a = f(b) ?
-      LocalVariableIdentifier paramId =
-          new LocalVariableIdentifier(decl.getName(), decl.getType(), funcName, dereference);
+      AbstractIdentifier paramId =
+          createIdForParam(right.getDeclaration().getParameters().get(0), dereference, funcName);
       alias(pSuccessor, leftId, paramId);
       return true;
     }
     return false;
   }
 
-  private List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> extractIdentifiers(
+  private List<Triple<AbstractIdentifier, AbstractIdentifier, Integer>> extractIdentifiers(
       List<CExpression> arguments,
-      List<String> paramNames,
       List<CParameterDeclaration> parameterTypes,
       String callerFunction,
       String calledFunction) {
 
-    List<Triple<AbstractIdentifier, LocalVariableIdentifier, Integer>> result = new ArrayList<>();
-    CExpression currentArgument;
-    int dereference;
-    for (int i = 0; i < arguments.size(); i++) {
-      if (i >= paramNames.size()) {
-        // function with unknown parameter size: printf(char* a, ...)
-        // assign what we can
-        break;
-      }
-      currentArgument = arguments.get(i);
-      dereference = findDereference(parameterTypes.get(i).getType());
+    // function with unknown parameter size is possible: printf(char* a, ...)
+    // assign what we can
+    assert arguments.size() >= parameterTypes.size();
+    List<Triple<AbstractIdentifier, AbstractIdentifier, Integer>> result = new ArrayList<>();
+    for (int i = 0; i < parameterTypes.size(); i++) {
+      int dereference = findDereference(parameterTypes.get(i).getType());
 
-      LocalVariableIdentifier innerId =
-          new LocalVariableIdentifier(
-              paramNames.get(i), parameterTypes.get(i).getType(), calledFunction, 0);
+      AbstractIdentifier innerId = createIdForParam(parameterTypes.get(i), 0, calledFunction);
       AbstractIdentifier outerId =
-          createId(currentArgument, 0, new IdentifierCreator(callerFunction));
+          createId(arguments.get(i), 0, callerFunction);
       result.add(Triple.of(outerId, innerId, dereference));
     }
     return result;
   }
 
-  private AbstractIdentifier createId(
-      CExpression expression, int dereference, IdentifierCreator idCreator) {
+  private AbstractIdentifier
+      createIdForParam(CParameterDeclaration param, int dereference, String func) {
+    // We may use different identifier creator, so do not create
+    // LocalIdentifier directly
+    CSimpleDeclaration paramDecl = param.asVariableDeclaration();
+    return getIdentifierCreator(func).createIdentifier(paramDecl, dereference);
+  }
+
+  private AbstractIdentifier createId(CExpression expression, int dereference, String funcName) {
+    IdentifierCreator idCreator = getIdentifierCreator(funcName);
     return idCreator.createIdentifier(expression, dereference);
   }
 
   private AbstractIdentifier createId(CExpression expression, int dereference) {
-    return createId(expression, dereference, new IdentifierCreator(getFunctionName()));
+    return createId(expression, dereference, getFunctionName());
   }
 
   private void assign(LocalState pSuccessor, CExpression left, CRightHandSide right) {
@@ -464,5 +471,13 @@ public class LocalTransferRelation
   private boolean isParameterAllocatedFunction(String funcName) {
     return allocateInfo.containsKey(funcName)
         && allocateInfo.get(funcName) > 0;
+  }
+
+  private IdentifierCreator getIdentifierCreator(String callerFunc) {
+    if (regionBasedIdentifiers) {
+      return new RegionBasedIdentifierCreator(callerFunc, varClassification);
+    } else {
+      return new IdentifierCreator(callerFunc);
+    }
   }
 }

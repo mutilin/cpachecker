@@ -226,6 +226,10 @@ public class UsageCPA extends AbstractSingleWrapperCPA
     return config;
   }
 
+  public CFA getCFA() {
+    return cfa;
+  }
+
   @Override
   public ApplyOperator getApplyOperator() {
     return new UsageApplyOperator(

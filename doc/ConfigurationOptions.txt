@@ -757,6 +757,7 @@ cfa.addLabels.atProgramExit = false
 cfa.assumeFunctions = {"__VERIFIER_assume"}
 
 # dump graphs of all function calls and used functions calls in .dot format
+cfa.callgraph.export = true
 cfa.callgraph.file = "functionCalls.dot"
 cfa.callgraph.fileUsed = "functionCallsUsed.dot"
 
@@ -777,9 +778,6 @@ cfa.expandFunctionPointerArrayAssignments = false
 
 # export program as CFA in .dot format
 cfa.export = true
-
-# dump graphs of all function calls and used functions calls in .dot format
-cfa.export.callgraph = true
 
 # subdirectory in main output directory to export all CFA-related files to
 cfa.export.directory = "."
@@ -1811,6 +1809,9 @@ cpa.local.conservativefunctions = {}
 # variables, which are always local
 cpa.local.localvariables = {}
 
+# use region based identifiers
+cpa.local.regionBasedIdentifiers = false
+
 # Use special states with edges
 cpa.location.enableStatesWithEdges = false
 
@@ -1856,6 +1857,9 @@ cpa.lock.stopAfterLockLimit = false
 # Consider or not special cases with empty lock sets
 cpa.lock.stopMode = DEFAULT
   enum:     [DEFAULT, EMPTYLOCKSET]
+
+# support atomic sections by Lock analysis
+cpa.lock.supportAtomicSections = false
 
 # Only checks for targets after loops were unrolled exactly a number of times
 # that is contained in this list. The default is an empty list, which means
@@ -2388,6 +2392,9 @@ cpa.predicate.overflowVariablesAreRelevant = false
 # the program counter symbolically with a special variable %pc
 cpa.predicate.pathFormulaBuilderVariant = DEFAULT
   enum:     [DEFAULT, SYMBOLICLOCATIONS]
+
+# If true, refinement root is the root of the ARG.
+cpa.predicate.precision.rebuildARG = false
 
 # Where to apply the found predicates to?
 cpa.predicate.precision.sharing = LOCATION
