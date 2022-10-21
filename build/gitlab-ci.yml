@@ -205,21 +205,22 @@ uppsala-tests:
   variables:
     UPPSALA_BENCHMARKS: "/opt/uppsala/"
 
-# ldv-benchmarks-tests:
-#   stage: tests
-#   # dependencies:
-#   #   - build-dependencies
-#   #   - build:jdk-11
-#   # needs:
-#   #   - build-dependencies
-#   #   - build:jdk-11
-#   interruptible: true
-#   rules:
-#     - when: manual
-#   script:
-#     - 'python3 ci-test-run.py ldv-benchmarks'
-#   variables:
-#     LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
+ldv-benchmarks-tests:
+  stage: tests
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+  interruptible: true
+  script:
+    - 'python3 ci-test-run.py ldv-benchmarks'
+  variables:
+    LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
+  rules:
+    - if: $NIGHTLY_TEST == "True"
+      when: always
 
 sv-benchmarks-tests:
   <<: *tests
