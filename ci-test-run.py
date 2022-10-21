@@ -63,45 +63,76 @@ def parse_verdict(ret):
 def call_cpachecker(options, program, expected):
     ret = run_cpachecker(options, program)    
     verdict = parse_verdict(ret)
-    fail_if_incorrect_verdict(ret, expected, verdict)
+    if expected is None:
+        # Used for debug mostly
+        return verdict
+    else:
+        fail_if_incorrect_verdict(ret, expected, verdict)
+
+def prepare_options(config_name, options):
+    result = ["-config", "config/includes/lockator/" + config_name + ".properties"]
+    for option in options:
+        result += ["-setprop", option]
+    return result
+
+def run_cpachecker_on_set(options, verdicts, benchmarks, prefix = None):
+    for test in glob.glob(benchmarks):
+        if prefix:            
+            expected = verdicts[strip_start(test, prefix)]
+        else:
+            expected = verdicts[test]
+        call_cpachecker(options, test, expected)
+
+# Mostly for debug
+def obtain_verdicts(options, benchmarks):
+    result = {}
+    for test in benchmarks:
+        verdict = call_cpachecker(options, test, None)
+        result.update({strip_start(test, os.environ['UPPSALA_BENCHMARKS']): verdict})
+    return result
+
+def yaml_dump(data):
+    with open('data.yaml', 'w') as fp:
+        yaml.dump(data, fp)
+
+def strip_start(text, prefix):
+    if prefix and text.startswith(prefix):
+        return text[len(prefix):]
+    return text
 
 def run_simple_tests():
     # Checks the basic configs on a small simple tests
 
     def run_simple_with_options(options, verdicts):
-        for test in glob.glob("test/programs/cpalockator/simple/*.c"):
-            expected = verdicts[test]
-            call_cpachecker(options, test, expected)
+        run_cpachecker_on_set(options, verdicts, "test/programs/cpalockator/simple/*.c")
 
     def run_basic_with_options(options, verdicts):
-        for test in glob.glob("test/programs/cpalockator/threads/*.c"):
-            verdict = verdicts[test]
-            call_cpachecker(options, test, verdict)
+        run_cpachecker_on_set(options, verdicts, "test/programs/cpalockator/threads/*.c")
 
     # Note, there is no threads
     print("Run simple tests")
     with open('ci-config/simple-test-verdicts.yml', 'r') as file:
         test_results = yaml.safe_load(file)
 
-        simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
-            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.BAMPredicateCPA",
-            "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+        simple_options = prepare_options("lockStatistics-linux", 
+            ["CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.BAMPredicateCPA",
+            "cpa.usage.unsafedetector.ignoreEmptyLockset=false"])
         
         run_simple_with_options(simple_options, test_results['lockStatistics-linux.properties'])
 
         # The verdicts are set for the one configuration, then just check, that the tool does not fail
-        simple_options = ["-config", "config/includes/lockator/lockStatistics-linux-lightweight.properties",
-            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA",
-            "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+        simple_options = prepare_options("lockStatistics-linux-lightweight",
+            ["CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA",
+            "cpa.usage.unsafedetector.ignoreEmptyLockset=false"])
         run_simple_with_options(simple_options, test_results['lockStatistics-linux-lightweight.properties'])
 
-        simple_options = ["-config", "config/includes/lockator/lockStatistics-threadmodular-linux.properties",
-            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.PredicateCPA",
-            "-setprop", "cpa.usage.unsafedetector.ignoreEmptyLockset=false"]
+        simple_options = prepare_options("lockStatistics-threadmodular-linux",
+            ["CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.PredicateCPA",
+            "cpa.usage.unsafedetector.ignoreEmptyLockset=false"])
         run_simple_with_options(simple_options, test_results['lockStatistics-threadmodular-linux.properties'])
 
-        simple_options = ["-config", "config/includes/lockator/lockStatistics-linux.properties",
-            "-setprop", "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"]
+        simple_options = prepare_options("lockStatistics-linux",
+            ["CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"])
         run_simple_with_options(simple_options, test_results['lockStatistics-linux-bam.properties'])
 
         run_simple_with_options(["-lockator-linux"], test_results['lockator-linux.properties'])
@@ -118,13 +149,38 @@ def run_simple_tests():
         
         run_basic_with_options(["-lockator-linux-lightweight"], test_results['lockator-linux-lightweight.properties'])
 
+def run_uppsala_tests():
+    def run_uppsala_tests(options, benchmarks, verdicts):
+        run_cpachecker_on_set(options, verdicts, benchmarks, os.environ['UPPSALA_BENCHMARKS'])
+
+    # Note, there is no threads
+    print("Run uppsala tests")
+
+    options = ["-predicateAnalysis-threadmodular",
+        "-setprop", "cpa.predicate.refinement.performThreadEffectRefinement=true",
+        "-setprop", "cpa.thread.skipTheSameThread=true"]
+
+    with open('ci-config/uppsala-verdicts.yml', 'r') as file:
+        test_results = yaml.safe_load(file)
+        uppsala_dir = os.environ['UPPSALA_BENCHMARKS'] + "/sv-races/"
+        run_uppsala_tests(options, uppsala_dir + "*.i", test_results['predicateAnalysis-threadmodular.properties'])
+        
+        uppsala_dir = os.environ['UPPSALA_BENCHMARKS'] + "/adhoc/"
+        run_uppsala_tests(options, uppsala_dir + "*.i", test_results['predicateAnalysis-threadmodular.properties'])
+        
+        uppsala_dir = os.environ['UPPSALA_BENCHMARKS']
+        run_uppsala_tests(options, uppsala_dir + "*.i", test_results['predicateAnalysis-threadmodular.properties'])
+
 def run_product_lines():
 
-    def run_simple_with_options(options):
+    def run_simple_with_options(config, options):
+        run_options = prepare_options(config, options)
         for test in glob.glob("test/programs/cpalockator/threads/*.c"):
-            run_cpachecker(options, test)
+            run_cpachecker(run_options, test)
 
-    config = "config/includes/lockator/lockStatistics-linux.properties"
+    def check_options(config, option_list):
+        for option in options_list:
+            run_simple_with_options(config, [option])
 
     options_list = [
         "cpa.usage.useSoundRegions=true",
@@ -138,23 +194,17 @@ def run_product_lines():
         "cpa.thread.skipTheSameThread=true"
         ]
 
-    for option in options_list:
-        run_options = ["-config", config, "-setprop", option]
-        run_simple_with_options(run_options)
+    check_options("lockStatistics-linux", options_list)
 
     # Specific case for deadlocks:
-    run_options = ["-config", config,
-        "-setprop", "cpa.lock.analysisMode=DEADLOCK",
-        "-setprop", "cpa.usage.unsafedetector.unsafeMode=DEADLOCKCIRCULAR"]
-    run_simple_with_options(run_options)
+    run_simple_with_options("lockStatistics-linux",
+        ["cpa.lock.analysisMode=DEADLOCK",
+        "cpa.usage.unsafedetector.unsafeMode=DEADLOCKCIRCULAR"])
 
-    run_options = ["-config", config,
-        "-setprop", "cpa.lock.analysisMode=DEADLOCK",
-        "-setprop", "cpa.usage.unsafedetector.intLock=dummy",
-        "-setprop", "cpa.usage.unsafedetector.unsafeMode=DEADLOCKDISPATCH"]
-    run_simple_with_options(run_options)
-
-    config = "config/includes/lockator/lockStatistics-threadmodular-linux.properties"
+    run_simple_with_options("lockStatistics-linux",
+        ["cpa.lock.analysisMode=DEADLOCK",
+        "cpa.usage.unsafedetector.intLock=dummy",
+        "cpa.usage.unsafedetector.unsafeMode=DEADLOCKDISPATCH"])
 
     options_list = [
         "cpa.usage.useSoundRegions=true",
@@ -170,9 +220,7 @@ def run_product_lines():
         "cpa.predicate.abstractionLattice=true"
         ]
 
-    for option in options_list:
-        run_options = ["-config", config, "-setprop", option]
-        run_simple_with_options(run_options)
+    check_options("lockStatistics-threadmodular-linux", options_list)
 
 def run_ldv_klever_tests():
 
@@ -313,6 +361,8 @@ if __name__ == "__main__":
     for test_name in args.tests:
         if test_name == "'simple'":
             run_simple_tests()
+        if test_name == "'uppsala'":
+            run_uppsala_tests()
         if test_name == "'ldv-klever'":
             run_ldv_klever_tests()
         if test_name == "'ldv-benchmarks'":

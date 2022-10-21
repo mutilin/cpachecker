@@ -198,6 +198,13 @@ klever-tests:
   variables:
     KLEVER_BENCHMARKS: "/opt/ldv-klever-benchmarks/"
 
+uppsala-tests:
+  <<: *tests
+  script:
+    - 'python3 ci-test-run.py uppsala'
+  variables:
+    UPPSALA_BENCHMARKS: "/opt/uppsala/"
+
 # ldv-benchmarks-tests:
 #   stage: tests
 #   # dependencies:
