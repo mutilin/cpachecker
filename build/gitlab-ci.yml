@@ -218,9 +218,8 @@ ldv-benchmarks-tests:
     - 'python3 ci-test-run.py ldv-benchmarks'
   variables:
     LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
-  rules:
-    - if: $NIGHTLY_TEST == "True"
-      when: always
+  only:
+    - schedules
 
 sv-benchmarks-tests:
   <<: *tests
@@ -231,23 +230,24 @@ sv-benchmarks-tests:
 
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html
-.build-docker:
-  stage: images
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  variables:
-    EXTRA_ARGS: ""
-  script:
-    - mkdir -p /root/.docker
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --dockerfile $CI_PROJECT_DIR/$DOCKERFILE --destination $CI_REGISTRY_IMAGE$IMAGE $EXTRA_ARGS
-  only:
-    - schedules
-    - web
+# TODO Modify according CPALockator docker build
+# .build-docker:
+#   stage: images
+#   image:
+#     name: gcr.io/kaniko-project/executor:debug
+#     entrypoint: [""]
+#   variables:
+#     EXTRA_ARGS: ""
+#   script:
+#     - mkdir -p /root/.docker
+#     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+#     - /kaniko/executor --dockerfile $CI_PROJECT_DIR/$DOCKERFILE --destination $CI_REGISTRY_IMAGE$IMAGE $EXTRA_ARGS
+#   only:
+#     - schedules
+#     - web
 
-build-docker:test:jdk-11:
-  extends: .build-docker
-  variables:
-    DOCKERFILE: build/gitlab-ci.Dockerfile.jdk-11
-    IMAGE: /base
+# build-docker:test:jdk-11:
+#   extends: .build-docker
+#   variables:
+#     DOCKERFILE: build/gitlab-ci.Dockerfile.jdk-11
+#     IMAGE: /base
