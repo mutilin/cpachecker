@@ -77,11 +77,12 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
    * @param options the configured options.
    */
   public PointerCPA(PointerOptions options) {
-    super(options.merge, "SEP", PointerDomain.INSTANCE, PointerTransferRelation.INSTANCE);
+    super(options.merge, "SEP", PointerDomain.INSTANCE, new PointerTransferRelation());
     reducer = new PointerReducer();
     statistics = new PointerStatistics(options.noOutput, options.path,
-                                        PointerTransferRelation.INSTANCE, reducer);
-    PointerTransferRelation.INSTANCE.setUseFakeLocs(options.useFakeLocs);
+        getTransferRelation(),
+        reducer);
+    ((PointerTransferRelation) getTransferRelation()).setUseFakeLocs(options.useFakeLocs);
   }
 
   @Override

@@ -117,26 +117,23 @@ spotbugs:
 
 .unit-tests: &unit-tests
   <<: *binary_check
-  script: "ant $ANT_PROPS_CHECKS unit-tests-coverage"
+  script: "ant $ANT_PROPS_CHECKS unit-tests"
   artifacts:
     paths:
       - "JUnit.html"
-      - "JUnit-coverage/"
-      - "junit/coverage.xml"
-    when: always
-    reports:
-      junit: "junit/TESTS-TestSuites.xml"
+    when: on_failure
+    # reports:
+    #   junit: "junit/TESTS-TestSuites.xml"
 
-# TODO fails at coverage
-# unit-tests:jdk-11:
-#   <<: *unit-tests
-#   dependencies:
-#     - build-dependencies
-#     - build:jdk-11
-#   needs:
-#     - build-dependencies
-#     - build:jdk-11
-#   image: ${CI_REGISTRY_IMAGE}/base
+unit-tests:jdk-11:
+  <<: *unit-tests
+  dependencies:
+    - build-dependencies
+    - build:jdk-11
+  needs:
+    - build-dependencies
+    - build:jdk-11
+#  image: ${CI_REGISTRY_IMAGE}/base
 
 refaster:
   <<: *source_check

@@ -77,7 +77,6 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   RCUSearchTransfer(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     logger = pLogger;
     config.inject(this);
-    pointerTransfer = PointerTransferRelation.INSTANCE;
   }
 
   @Override

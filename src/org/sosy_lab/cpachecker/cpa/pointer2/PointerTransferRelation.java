@@ -101,7 +101,6 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
-  public static final PointerTransferRelation INSTANCE = new PointerTransferRelation();
   final Timer transferTime = new Timer();
   final Timer equalityTime = new Timer();
   private boolean useFakeLocs = false;
