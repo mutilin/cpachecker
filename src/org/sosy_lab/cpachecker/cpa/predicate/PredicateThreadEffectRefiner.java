@@ -40,13 +40,18 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
-  private final StatTimer mainCheckTime = new StatTimer("Time for checking the main path");
+  private final StatTimer totalTime = new StatTimer("Time for refinement");
+  private final StatTimer mainCheckTime = new StatTimer("Checking the main path");
   private final StatTimer effectCheckTime =
-      new StatTimer("Time for checking the paths with effects");
+      new StatTimer("Checking the paths with effects");
+  private final StatTimer effect1CheckTime =
+      new StatTimer("Checking the main+effect paths");
+  private final StatTimer effect2CheckTime =
+      new StatTimer("Checking the effect+main paths");
   private final StatCounter pathsWithEffects =
-      new StatCounter("How many paths with effects were checked");
-  private final StatCounter mainPathChecks = new StatCounter("How many main paths were checked");
-  private final StatCounter spuriousCount = new StatCounter("Spurious contrexamples found");
+      new StatCounter("Total amount of paths with effects that were checked");
+  private final StatCounter spuriousEffectPath = new StatCounter("Spurious paths with effects");
+  private final StatCounter spuriousMainPaths = new StatCounter("Spurious main paths");
 
   public PredicateThreadEffectRefiner(
       final Configuration pConfig,
@@ -81,70 +86,84 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
   public CounterexampleInfo
       performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace)
           throws CPAException, InterruptedException {
+    totalTime.start();
+    try {
 
-    mainCheckTime.start();
+      ((GlobalRefinementStrategy) strategy).initializeGlobalRefinement();
 
-    ((GlobalRefinementStrategy) strategy).initializeGlobalRefinement();
-    // checking main path
-    // TODO Add stat timers for all basic blocks: main path check, formula preparation, effect
-    // checks
-    mainPathChecks.inc();
-    CounterexampleInfo cexInfo = super.performRefinementForPath(pReached, allStatesTrace);
-    mainCheckTime.stop();
-
-    if (cexInfo.isSpurious()) {
-      ((GlobalRefinementStrategy) strategy).updatePrecisionAndARG();
-      return cexInfo;
-    }
-
-    // list of all states in main path from beginning to the current
-    List<ARGState> statesInMainPath = new ArrayList<>();
-
-    effectCheckTime.start();
-    for (ARGState state : allStatesTrace.asStatesList()) {
-      if (state.getAppliedFrom() != null) {
-        boolean feasibleCexFound = false;
-        for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
-          pathsWithEffects.inc();
-          // extracting formulas from path to current state
-          // Note, not getOnePathTo, to be sure, the sequence is the same
-          ARGPath pathToEffect = ARGUtils.getOnePathTo(effect);
-
-          List<ARGState> mainAndEffect = new ArrayList<>(statesInMainPath);
-          mainAndEffect.addAll(pathToEffect.asStatesList());
-          ARGPath newPath = new ARGPath(mainAndEffect);
-          CounterexampleInfo counterexampleInfo = super.performRefinementForPath(pReached, newPath);
-
-          mainAndEffect = new ArrayList<>(pathToEffect.asStatesList());
-          mainAndEffect.addAll(statesInMainPath);
-          newPath = new ARGPath(mainAndEffect);
-          CounterexampleInfo counterexampleInfo2 =
-              super.performRefinementForPath(pReached, newPath);
-
-          if (counterexampleInfo.isSpurious()) {
-            spuriousCount.inc();
-          } else {
-            feasibleCexFound = true;
-          }
-          if (counterexampleInfo2.isSpurious()) {
-            spuriousCount.inc();
-          } else {
-            feasibleCexFound = true;
-          }
-        }
-        if (!feasibleCexFound) {
-          ((GlobalRefinementStrategy) strategy).updatePrecisionAndARG();
-          effectCheckTime.stop();
-          return CounterexampleInfo.spurious();
-        }
+      // First, we check if given path (main path) is spurious.
+      mainCheckTime.start();
+      CounterexampleInfo cexInfo = super.performRefinementForPath(pReached, allStatesTrace);
+      mainCheckTime.stop();
+      if (cexInfo.isSpurious()) {
+        spuriousMainPaths.inc();
+        ((GlobalRefinementStrategy) strategy).updatePrecisionAndARG();
+        return cexInfo;
       }
-      statesInMainPath.add(state);
-    }
 
-    // TODO Update in case of spurious counterexample
-    ((GlobalRefinementStrategy) strategy).resetGlobalRefinement();
-    effectCheckTime.stop();
-    return cexInfo;
+      // For each applied state in the main path we combine a path to this state and a path to the
+      // state from which a corresponding projection was projected. We then check if the new path is
+      // spurious.
+
+      List<ARGState> statesInMainPath = new ArrayList<>(); // list of all states in main path from
+                                                           // the first to the current
+      boolean spuriousCexFound = false;
+      effectCheckTime.start();
+      for (ARGState state : allStatesTrace.asStatesList()) {
+        if (state.getAppliedFrom() != null) {
+
+          boolean allEffectsSpurious = true;
+          for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
+            pathsWithEffects.inc();
+
+            // Note, not getOnePathTo, to be sure, the sequence is the same
+            ARGPath pathToEffect = ARGUtils.getOnePathTo(effect);
+
+            List<ARGState> mainAndEffect = new ArrayList<>(statesInMainPath);
+            mainAndEffect.addAll(pathToEffect.asStatesList());
+            ARGPath newPath = new ARGPath(mainAndEffect);
+            effect1CheckTime.start();
+            CounterexampleInfo cexInfo1 = super.performRefinementForPath(pReached, newPath);
+            effect1CheckTime.stop();
+
+            mainAndEffect = new ArrayList<>(pathToEffect.asStatesList());
+            mainAndEffect.addAll(statesInMainPath);
+            newPath = new ARGPath(mainAndEffect);
+            effect2CheckTime.start();
+            CounterexampleInfo cexInfo2 = super.performRefinementForPath(pReached, newPath);
+            effect2CheckTime.stop();
+
+            // CexInfo1 and cexInfo2 provide different interpolants => both of them are necessary
+
+            assert (cexInfo1.isSpurious() == cexInfo2.isSpurious());
+            // If at least one of the effects generates feasible CEX, the state is considered
+            // reachable. Otherwise, corresponding projection won't be ruled out and will be found
+            // again. All effects must generate spurious CEX in order for the state to be considered
+            // unreachable and precision to be updated.
+            if (!cexInfo1.isSpurious()) {
+              allEffectsSpurious = false;
+            }
+          }
+          if (allEffectsSpurious) {
+            spuriousCexFound = true;
+            spuriousEffectPath.inc();
+          }
+
+        }
+        statesInMainPath.add(state);
+      }
+      effectCheckTime.stop();
+
+      if (spuriousCexFound) {
+        ((GlobalRefinementStrategy) strategy).updatePrecisionAndARG();
+        return CounterexampleInfo.spurious();
+      }
+
+      return cexInfo;
+
+    } finally {
+      totalTime.stop();
+    }
   }
 
   @Override
@@ -158,11 +177,24 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
     @Override
     public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
       StatisticsWriter w0 = writingStatisticsTo(out);
-      w0.put(pathsWithEffects)
-          .put(mainPathChecks)
-          .put(spuriousCount)
-          .put(mainCheckTime)
-          .put(effectCheckTime);
+      int numberOfRefinements = totalTime.getUpdateCount();
+      if (numberOfRefinements > 0) {
+        w0.put("Number of refinements", numberOfRefinements);
+        w0.beginLevel()
+            .put(spuriousMainPaths)
+            .put(spuriousEffectPath)
+            .put(
+                "Feasible paths",
+                numberOfRefinements - spuriousMainPaths.getValue() - spuriousEffectPath.getValue());
+        w0.put(pathsWithEffects);
+        w0.put(totalTime);
+        w0.beginLevel()
+            .put(mainCheckTime)
+            .put(effectCheckTime)
+            .beginLevel()
+            .put(effect1CheckTime)
+            .put(effect2CheckTime);
+      }
     }
 
     @Override

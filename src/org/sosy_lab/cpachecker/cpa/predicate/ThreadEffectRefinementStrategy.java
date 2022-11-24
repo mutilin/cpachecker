@@ -10,7 +10,6 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -18,6 +17,7 @@ import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
 import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 
@@ -40,6 +40,12 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
       List<BooleanFormula> pInterpolants,
       boolean pRepeatedCounterexample)
       throws CPAException, InterruptedException {
+
+    if (pRepeatedCounterexample) {
+      throw new RefinementFailedException(
+          RefinementFailedException.Reason.RepeatedCounterexample,
+          null);
+    }
 
     // renaming variables back
     List<BooleanFormula> interpolants =
