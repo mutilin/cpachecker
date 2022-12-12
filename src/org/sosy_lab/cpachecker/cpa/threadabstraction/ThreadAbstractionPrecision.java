@@ -15,9 +15,9 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 
 public class ThreadAbstractionPrecision implements Precision {
 
-  private final ImmutableSet<ThreadAbstractionEdge> prec;
+  private final ImmutableSet<CFAEdge> prec;
 
-  private ThreadAbstractionPrecision(ImmutableSet<ThreadAbstractionEdge> pPrec) {
+  private ThreadAbstractionPrecision(ImmutableSet<CFAEdge> pPrec) {
     prec = pPrec;
   }
 
@@ -25,23 +25,18 @@ public class ThreadAbstractionPrecision implements Precision {
     this(ImmutableSet.of());
   }
 
-  public ThreadAbstractionPrecision copyWith(Set<ThreadAbstractionEdge> pEdges) {
-    ImmutableSet.Builder<ThreadAbstractionEdge> newPrec = ImmutableSet.builder();
+  public ThreadAbstractionPrecision copyWith(Set<CFAEdge> pEdges) {
+    ImmutableSet.Builder<CFAEdge> newPrec = ImmutableSet.builder();
     newPrec.addAll(prec);
     newPrec.addAll(pEdges);
     return new ThreadAbstractionPrecision(newPrec.build());
   }
 
-  public boolean contains(CFAEdge edge, String thread) {
+  public boolean contains(CFAEdge edge) {
     if (prec.isEmpty() || edge == ThreadAbstractionEdge.EMPTY_EDGE) {
       return false;
     }
-    for (ThreadAbstractionEdge element : prec) {
-      if (element.getCFAEdge().equals(edge) && element.getThread().equals(thread)) {
-        return true;
-      }
-    }
-    return false;
+    return prec.contains(edge);
   }
 
   public int size() {

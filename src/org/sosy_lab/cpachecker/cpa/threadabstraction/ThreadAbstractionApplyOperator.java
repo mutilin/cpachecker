@@ -24,7 +24,7 @@ public class ThreadAbstractionApplyOperator implements ApplyOperator {
 
       if (state2.getAbstractEdge() != null) {
         if (state2.isCompatibleWith(state1)) {
-          return new ThreadAbstractionStateWithEdge(state1, state2.getAbstractEdge());
+          return new ThreadAbstractionStateWithEdge(state1, state2.getAppliedEdge());
         }
       }
     }
@@ -32,31 +32,40 @@ public class ThreadAbstractionApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState project(AbstractState pParent, AbstractState pChild) {
-    ThreadAbstractionState parent = (ThreadAbstractionState) pParent;
-    ThreadAbstractionState child = (ThreadAbstractionState) pChild;
-    // the creation of the first thread is not projected but it is not needed anyway
-    if (!child.getCurrentThread().equals(parent.getCurrentThread())) {
-      // thread creation, already have this projection
-      return new ThreadAbstractionStateWithEdge(parent, null);
-    }
-    for (String th : parent.threadSet.keySet()) {
-      if (!child.threadSet.get(th).equals(parent.threadSet.get(th))) {
-        ThreadAbstractionEdge edge = new ThreadAbstractionEdge(child.threadSet.get(th), th);
-        return new ThreadAbstractionStateWithEdge(parent, edge);
-      }
-    }
-    if (parent.equals(child)) { // the edge is not in precision
-      return new ThreadAbstractionStateWithEdge(
-          parent,
-          ThreadAbstractionEdge.getEmptyEdge(parent.getCurrentThread()));
-    }
-    return new ThreadAbstractionStateWithEdge(parent, null);
+  public AbstractState project(AbstractState pParent, AbstractState pChild, AbstractEdge pEdge) {
+    return project(pParent, pChild);
   }
 
   @Override
-  public AbstractState project(AbstractState pParent, AbstractState pChild, AbstractEdge pEdge) {
-    return project(pParent, pChild);
+  public AbstractState project(AbstractState pParent, AbstractState pChild) {
+    ThreadAbstractionState parent = (ThreadAbstractionState) pParent;
+    ThreadAbstractionState child = (ThreadAbstractionState) pChild;
+    return new ThreadAbstractionStateWithEdge(parent, prepareEdge(parent, child));
+  }
+
+  private ThreadAbstractionEdge
+      prepareEdge(ThreadAbstractionState parent, ThreadAbstractionState child) {
+
+    if (parent.equals(child)) {
+      // The edge is not in precision
+      return ThreadAbstractionEdge.getEmptyEdge();
+    }
+
+    if (!child.getCurrentThread().equals(parent.getCurrentThread())) {
+      // thread creation, already have this projection
+      return null;
+    }
+
+    String currentThread = parent.getCurrentThread();
+
+    // Note: the creation of the first thread is not projected but it is not needed anyway
+    if (!parent.getThreadSet().isEmpty()) {
+      assert (!child.getThreadSet()
+          .get(currentThread)
+          .equals(parent.getThreadSet().get(currentThread)));
+      return new ThreadAbstractionEdge(child.getThreadSet().get(currentThread), null);
+    }
+    return null;
   }
 
   @Override

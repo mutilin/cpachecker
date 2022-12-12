@@ -8,8 +8,6 @@
 
 package org.sosy_lab.cpachecker.cpa.threadabstraction;
 
-import java.util.Map;
-import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithEdge;
 
 public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
@@ -18,23 +16,23 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
   private final ThreadAbstractionEdge edge;
 
   protected ThreadAbstractionStateWithEdge(
-      Map<String, CFAEdge> Tset,
-      String pCurrent,
-      ThreadAbstractionEdge pEdge) {
-    super(Tset, pCurrent);
-    edge = pEdge;
-  }
-
-  protected ThreadAbstractionStateWithEdge(
       ThreadAbstractionState pState,
       ThreadAbstractionEdge pEdge) {
-    super(pState.threadSet, pState.currentThread);
+    super(pState.getThreadSet(), pState.getCurrentThread());
     edge = pEdge;
   }
 
   @Override
   public boolean isCompatibleWith(ThreadAbstractionState pOther) {
-    return super.isCompatibleWith(pOther) && !this.edge.getThread().equals(pOther.currentThread);
+    if (this.edge.getThread() != null) { // TODO tmp assert
+      assert (!this.edge.getThread().equals(this.getCurrentThread()));
+    }
+    return super.isCompatibleWith(pOther);
+  }
+
+  public ThreadAbstractionEdge getAppliedEdge() {
+    assert (edge.getThread() == null);
+    return new ThreadAbstractionEdge(edge.getCFAEdge(), this.getCurrentThread());
   }
 
   public ThreadAbstractionState getThreadAbstractionState() {
@@ -56,7 +54,7 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
 
   @Override
   public boolean isProjection() {
-    return true;
+    return !edge.isAppliedEdge();
   }
 
   @Override
@@ -64,7 +62,6 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
     if (!(obj instanceof ThreadAbstractionStateWithEdge)) {
       return false;
     }
-
     ThreadAbstractionStateWithEdge pOther = (ThreadAbstractionStateWithEdge) obj;
     return super.equals(pOther) && edge.equals(pOther.getAbstractEdge());
   }

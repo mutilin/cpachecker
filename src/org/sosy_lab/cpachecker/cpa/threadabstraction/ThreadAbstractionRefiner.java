@@ -11,6 +11,7 @@ package org.sosy_lab.cpachecker.cpa.threadabstraction;
 import static org.sosy_lab.cpachecker.util.statistics.StatisticsWriter.writingStatisticsTo;
 
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.io.PrintStream;
 import java.util.Collection;
@@ -19,6 +20,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
@@ -149,7 +151,7 @@ public class ThreadAbstractionRefiner implements ARGBasedRefiner, StatisticsProv
         return false;
       }
 
-      Set<ThreadAbstractionEdge> edges = new TreeSet<>(getEdgesFromProjection(projection));
+      ImmutableSet<CFAEdge> edges = getEdgesFromProjection(projection);
 
       if (options.optimizePrecisionUpdate() == PrecisionUpdate.ALL) {
         return addEdgesToPrecisionForState(
@@ -202,19 +204,17 @@ public class ThreadAbstractionRefiner implements ARGBasedRefiner, StatisticsProv
     return state2;
   }
 
-  private Set<ThreadAbstractionEdge>
-      getEdgesFromProjection(ARGState projection) {
-    String thread = getThreadForProjection(projection);
-    Set<ThreadAbstractionEdge> edges = new TreeSet<>();
+  private ImmutableSet<CFAEdge> getEdgesFromProjection(ARGState projection) {
+    ImmutableSet.Builder<CFAEdge> edges = ImmutableSet.builder();
     for (ARGState state : projection.getProjectedFrom()) {
       for (ARGState child : state.getChildren()) {
         if (child.getAppliedFrom() == null) {
-          edges.add(new ThreadAbstractionEdge(state.getEdgeToChild(child), thread));
+          edges.add(state.getEdgeToChild(child));
           break;
         }
       }
     }
-    return edges;
+    return edges.build();
   }
 
   /**
@@ -224,7 +224,7 @@ public class ThreadAbstractionRefiner implements ARGBasedRefiner, StatisticsProv
   private boolean addEdgesToPrecisionForState(
       ARGReachedSet pReached,
       ARGState pState,
-      Set<ThreadAbstractionEdge> edges)
+      ImmutableSet<CFAEdge> edges)
       throws InterruptedException {
 
     ThreadAbstractionPrecision precision =
@@ -242,8 +242,7 @@ public class ThreadAbstractionRefiner implements ARGBasedRefiner, StatisticsProv
 
   private static String getThreadForProjection(ARGState projection) {
     return AbstractStates.extractStateByType(projection, ThreadAbstractionStateWithEdge.class)
-        .getAbstractEdge()
-        .getThread();
+        .getCurrentThread();
   }
 
   @Override

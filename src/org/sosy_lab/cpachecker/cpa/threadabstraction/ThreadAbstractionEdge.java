@@ -11,11 +11,9 @@ package org.sosy_lab.cpachecker.cpa.threadabstraction;
 import org.sosy_lab.cpachecker.cfa.DummyCFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
-import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
-import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryStatementEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 
-public class ThreadAbstractionEdge implements Comparable<ThreadAbstractionEdge>, AbstractEdge {
+public class ThreadAbstractionEdge implements AbstractEdge {
   private final CFAEdge edge;
   private final String thread;
 
@@ -52,11 +50,16 @@ public class ThreadAbstractionEdge implements Comparable<ThreadAbstractionEdge>,
       return false;
     }
     ThreadAbstractionEdge otherEdge = (ThreadAbstractionEdge) obj;
+    if (thread == null || otherEdge.getThread() == null) {
+      return edge.equals(otherEdge.getCFAEdge()) && thread == null && otherEdge.getThread() == null;
+    }
     return edge.equals(otherEdge.getCFAEdge()) && thread.equals(otherEdge.getThread());
   }
 
-  public boolean isInitialEdge() {
-    return edge == INITIAL_EDGE;
+  // Only edges that contain thread are applied edges. If thread == null the edge is regular (its
+  // thread would be equal to state's currentThread)
+  public boolean isAppliedEdge() {
+    return thread != null;
   }
 
   public static CFAEdge getInitialEdge() {
@@ -67,24 +70,15 @@ public class ThreadAbstractionEdge implements Comparable<ThreadAbstractionEdge>,
     return edge == EMPTY_EDGE;
   }
 
-  public boolean isThreadCreateEdge() {
-    return (edge instanceof CFunctionSummaryStatementEdge) || (edge instanceof CFunctionCallEdge);
-  }
-
-  public static ThreadAbstractionEdge getEmptyEdge(String thread) {
-    return new ThreadAbstractionEdge(EMPTY_EDGE, thread);
+  public static ThreadAbstractionEdge getEmptyEdge() {
+    return new ThreadAbstractionEdge(EMPTY_EDGE, null);
   }
 
   @Override
   public String toString() {
-    return thread + ": " + edge;
-  }
-
-  @Override
-  public int compareTo(ThreadAbstractionEdge pEdge) {
-    if (edge.equals(pEdge.getCFAEdge()) && thread.equals(pEdge.getThread())) {
-      return 0;
+    if (thread == null) {
+      return edge.toString();
     }
-    return this.toString().compareTo(pEdge.toString());
+    return thread + ": " + edge;
   }
 }

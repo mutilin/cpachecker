@@ -17,6 +17,7 @@ import java.util.TreeMap;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
+import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
@@ -45,10 +46,13 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
       getAbstractSuccessors(AbstractState pState, Precision pPrecision)
           throws CPATransferException, InterruptedException {
 
-    // applied states are TAstates with edges
+    // Applied state is TAstate with edge such that thread of the edge is not null
     assert (pState instanceof ThreadAbstractionStateWithEdge);
     ThreadAbstractionStateWithEdge state = (ThreadAbstractionStateWithEdge) pState;
+
+    assert (state.getAbstractEdge().getThread() != null);
     CFAEdge edge = state.getAbstractEdge().getCFAEdge();
+    String thread = state.getAbstractEdge().getThread();
 
     // CFunctionCallEdges are not projected (only CFunctionSummaryStatementEdge are),
     // thus they cannot appear here
@@ -56,7 +60,7 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
       CFunctionCall fCall = ((CFunctionCallEdge) edge).getSummaryEdge().getExpression();
       assert (!isThreadCreateFunction(fCall));
     }
-    return getSuccessors(state, edge, state.getAbstractEdge().getThread(), pPrecision);
+    return getSuccessors(state, edge, thread, pPrecision);
   }
 
   /** This method gets successors for regular states, but not applied states. */
@@ -74,12 +78,17 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
     if (pCfaEdge instanceof CFunctionCallEdge) { // child thread
       CFunctionCall fCall = ((CFunctionCallEdge) pCfaEdge).getSummaryEdge().getExpression();
       if (isThreadCreateFunction(fCall)) {
-        String newThread =
-            fCall.getFunctionCallExpression().getFunctionNameExpression().toASTString();
+        String newThread = ((CThreadCreateStatement) fCall).getVariableName();
         if (isNewThread(newThread, TAstate)) {
+          // We add FunctionSummaryStatementEdge instead of FunctionCallEdge for the compatible
+          // operator
           return ImmutableSet.of(
               new ThreadAbstractionState(
-                  getNewTSet(TAstate, pCfaEdge, TAstate.getCurrentThread(), newThread),
+                  getNewTSet(
+                      TAstate,
+                      pCfaEdge.getPredecessor().getLeavingSummaryEdge(),
+                      TAstate.getCurrentThread(),
+                      newThread),
                   newThread));
         }
         return ImmutableSet.of();
@@ -99,7 +108,7 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
     if (pCfaEdge instanceof CFunctionSummaryStatementEdge) { // parent thread
       CFunctionCall functionCall = ((CFunctionSummaryStatementEdge) pCfaEdge).getFunctionCall();
       if (isThreadCreateFunction(functionCall)) {
-        String newThread = ((CFunctionSummaryStatementEdge) pCfaEdge).getFunctionName();
+        String newThread = ((CThreadCreateStatement) functionCall).getVariableName();
         if (isNewThread(newThread, state)) {
           return ImmutableSet
               .of(state.copyWith(getNewTSet(state, pCfaEdge, activeThread, newThread)));
@@ -127,7 +136,7 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
     }
 
     ThreadAbstractionPrecision precision = (ThreadAbstractionPrecision) pPrecision;
-    if (!precision.contains(pCfaEdge, activeThread)) {
+    if (!precision.contains(pCfaEdge)) {
       if (state instanceof ThreadAbstractionStateWithEdge) {
         return ImmutableSet
             .of(((ThreadAbstractionStateWithEdge) state).getThreadAbstractionState());

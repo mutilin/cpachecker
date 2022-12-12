@@ -14,7 +14,6 @@ import com.google.common.collect.ImmutableMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
 import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
@@ -29,8 +28,8 @@ import org.sosy_lab.cpachecker.util.Pair;
 public class ThreadAbstractionState
     implements LatticeAbstractState<ThreadAbstractionState>, ThreadIdProvider {
 
-  protected final Map<String, CFAEdge> threadSet;
-  protected final String currentThread;
+  private final Map<String, CFAEdge> threadSet;
+  private final String currentThread;
 
   protected final static String MAIN_THREAD = "main";
 
@@ -73,23 +72,8 @@ public class ThreadAbstractionState
   }
 
   public boolean isCompatibleWith(ThreadAbstractionState pOther) {
-    if (!pOther.threadSet.equals(threadSet)) {
-      if (!pOther.threadSet.keySet().equals(threadSet.keySet())) {
-        return false;
-      }
-      for (Entry<String, CFAEdge> entry : threadSet.entrySet()) {
-        String th = entry.getKey();
-        if (!pOther.threadSet.get(th).equals(threadSet.get(th))) {
-          if (!((pOther.threadSet.get(th) instanceof CFunctionSummaryStatementEdge
-              && threadSet.get(th) instanceof CFunctionCallEdge)
-              || (threadSet.get(th) instanceof CFunctionSummaryStatementEdge
-                  && pOther.threadSet.get(th) instanceof CFunctionCallEdge))) {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
+    return pOther.threadSet.equals(threadSet)
+        && !currentThread.equals(pOther.currentThread); // TODO add selfparallel
   }
 
   @Override
