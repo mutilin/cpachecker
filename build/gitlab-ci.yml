@@ -42,7 +42,6 @@ build-dependencies:
     paths:
       - "lib/java/"
 
-
 # Build binaries and provide them to later stages
 .build: &build
   stage: build
@@ -85,19 +84,6 @@ checkstyle:
     paths:
       - "Checkstyle*html"
     when: on_failure
-
-javadoc:
-  <<: *binary_check
-  script: "ant $ANT_PROPS_CHECKS javadoc"
-  dependencies:
-    - build-dependencies
-    - build:jdk-11
-  needs:
-    - build-dependencies
-    - build:jdk-11
-  artifacts:
-    paths:
-      - "Javadoc/"
 
 spotbugs:
   <<: *binary_check
@@ -187,6 +173,9 @@ cfa-mutation:
   <<: *tests
   script:
     - 'python3 ci-test-run.py cfa-mutation'
+  rules:
+    - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
+      when: always
 
 klever-tests:
   <<: *tests
@@ -194,6 +183,9 @@ klever-tests:
     - 'python3 ci-test-run.py ldv-klever'
   variables:
     KLEVER_BENCHMARKS: "/opt/ldv-klever-benchmarks/"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
+      when: always
 
 uppsala-tests:
   <<: *tests
@@ -202,21 +194,22 @@ uppsala-tests:
   variables:
     UPPSALA_BENCHMARKS: "/opt/uppsala/"
 
-ldv-benchmarks-tests:
-  stage: tests
-  dependencies:
-    - build-dependencies
-    - build:jdk-11
-  needs:
-    - build-dependencies
-    - build:jdk-11
-  interruptible: true
-  script:
-    - 'python3 ci-test-run.py ldv-benchmarks'
-  variables:
-    LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
-  only:
-    - schedules
+# takes a lot of time
+# ldv-benchmarks-tests:
+#   stage: tests
+#   dependencies:
+#     - build-dependencies
+#     - build:jdk-11
+#   needs:
+#     - build-dependencies
+#     - build:jdk-11
+#   interruptible: true
+#   script:
+#     - 'python3 ci-test-run.py ldv-benchmarks'
+#   variables:
+#     LDV_BENCHMARKS: "/opt/ldv-benchmarks/"
+#   only:
+#     - schedules
 
 sv-benchmarks-tests:
   <<: *tests
@@ -227,24 +220,22 @@ sv-benchmarks-tests:
 
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html
-# TODO Modify according CPALockator docker build
-# .build-docker:
-#   stage: images
-#   image:
-#     name: gcr.io/kaniko-project/executor:debug
-#     entrypoint: [""]
-#   variables:
-#     EXTRA_ARGS: ""
-#   script:
-#     - mkdir -p /root/.docker
-#     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-#     - /kaniko/executor --dockerfile $CI_PROJECT_DIR/$DOCKERFILE --destination $CI_REGISTRY_IMAGE$IMAGE $EXTRA_ARGS
-#   only:
-#     - schedules
-#     - web
+.build-docker:
+  stage: images
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  variables:
+    EXTRA_ARGS: ""
+  script:
+    - mkdir -p /root/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    - /kaniko/executor --dockerfile $CI_PROJECT_DIR/$DOCKERFILE --destination $CI_REGISTRY_IMAGE$IMAGE $EXTRA_ARGS
+  only:
+    - web
 
-# build-docker:test:jdk-11:
-#   extends: .build-docker
-#   variables:
-#     DOCKERFILE: build/gitlab-ci.Dockerfile.jdk-11
-#     IMAGE: /base
+build-docker:base:
+  extends: .build-docker
+  variables:
+    DOCKERFILE: build/gitlab-ci.Dockerfile.base
+    IMAGE: /base
