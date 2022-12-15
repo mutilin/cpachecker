@@ -106,8 +106,12 @@ def run_simple_tests():
     def run_simple_with_options(options, verdicts):
         run_cpachecker_on_set(options, verdicts, "test/programs/cpalockator/simple/*.c")
 
-    def run_basic_with_options(options, verdicts):
-        run_cpachecker_on_set(options, verdicts, "test/programs/cpalockator/threads/*.c")
+    def run_common_checks(type):
+        with open('ci-config/' + type + '-test-verdicts.yml', 'r') as file:
+            test_results = yaml.safe_load(file)
+            run_cpachecker_on_set(["-lockator-linux"], test_results['lockator-linux.properties'], "test/programs/cpalockator/" + type + "/*.c")            
+            run_cpachecker_on_set(["-lockator-threadmodular-linux"], test_results['lockator-threadmodular-linux.properties'], "test/programs/cpalockator/" + type + "/*.c")            
+            run_cpachecker_on_set(["-lockator-linux-lightweight"], test_results['lockator-linux-lightweight.properties'], "test/programs/cpalockator/" + type + "/*.c")
 
     # Note, there is no threads
     print("Run simple tests")
@@ -135,23 +139,15 @@ def run_simple_tests():
             ["CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"])
         run_simple_with_options(simple_options, test_results['lockStatistics-linux-bam.properties'])
 
-        run_simple_with_options(["-lockator-linux"], test_results['lockator-linux.properties'])
-
-        run_simple_with_options(["-lockator-linux-lightweight"], test_results['lockator-linux-lightweight.properties'])
-
-        run_simple_with_options(["-lockator-threadmodular-linux"], test_results['lockator-threadmodular-linux.properties'])
-    
-    with open('ci-config/basic-test-verdicts.yml', 'r') as file:
-        test_results = yaml.safe_load(file)
-        run_basic_with_options(["-lockator-linux"], test_results['lockator-linux.properties'])
-        
-        run_basic_with_options(["-lockator-threadmodular-linux"], test_results['lockator-threadmodular-linux.properties'])
-        
-        run_basic_with_options(["-lockator-linux-lightweight"], test_results['lockator-linux-lightweight.properties'])
+    run_common_checks('simple')
+    run_common_checks('threads')
 
 def run_uppsala_tests():
-    def run_uppsala_tests(options, benchmarks, verdicts):
-        run_cpachecker_on_set(options, verdicts, benchmarks, os.environ['UPPSALA_BENCHMARKS'])
+    def run_uppsala_tests(options, dirs, key_config, verdict_file):
+        with open(verdict_file, 'r') as file:
+            test_results = yaml.safe_load(file)
+            for dir in dirs:
+                run_cpachecker_on_set(options, test_results[key_config], dir + "*.i", os.environ['UPPSALA_BENCHMARKS'])
 
     # Note, there is no threads
     print("Run uppsala tests")
@@ -159,17 +155,14 @@ def run_uppsala_tests():
     options = ["-predicateAnalysis-threadmodular",
         "-setprop", "cpa.predicate.refinement.performThreadEffectRefinement=true",
         "-setprop", "cpa.thread.skipTheSameThread=true"]
+    
+    benchmark_dirs = [
+        os.environ['UPPSALA_BENCHMARKS'] + "/sv-races/",
+        os.environ['UPPSALA_BENCHMARKS'] + "/adhoc/",
+        os.environ['UPPSALA_BENCHMARKS']
+    ]
 
-    with open('ci-config/uppsala-verdicts.yml', 'r') as file:
-        test_results = yaml.safe_load(file)
-        uppsala_dir = os.environ['UPPSALA_BENCHMARKS'] + "/sv-races/"
-        run_uppsala_tests(options, uppsala_dir + "*.i", test_results['predicateAnalysis-threadmodular.properties'])
-        
-        uppsala_dir = os.environ['UPPSALA_BENCHMARKS'] + "/adhoc/"
-        run_uppsala_tests(options, uppsala_dir + "*.i", test_results['predicateAnalysis-threadmodular.properties'])
-        
-        uppsala_dir = os.environ['UPPSALA_BENCHMARKS']
-        run_uppsala_tests(options, uppsala_dir + "*.i", test_results['predicateAnalysis-threadmodular.properties'])
+    run_uppsala_tests(options, benchmark_dirs, 'predicateAnalysis-threadmodular.properties', 'ci-config/uppsala-verdicts.yml')
 
 def run_product_lines():
 
@@ -178,7 +171,7 @@ def run_product_lines():
         for test in glob.glob("test/programs/cpalockator/threads/*.c"):
             run_cpachecker(run_options, test)
 
-    def check_options(config, option_list):
+    def check_options(config, options_list):
         for option in options_list:
             run_simple_with_options(config, [option])
 
@@ -304,13 +297,14 @@ def run_ldv_tests():
 def run_cfa_mutation():
     print("Run cfa mutation")
 
-    base_options = ["-setprop", "cfaMutation=true",
+    base_options = [
+        "-lockator-threadmodular-linux",
+        "-setprop", "cfaMutation=true",
         "-setprop", "limits.time.wall=1500s",
         "-setprop", "limits.time.cpu=-1ns",
         "-setprop", "parser.readLineDirectives=false",
         "-setprop", "cfa.threads.addAssumptions=false",
         "-setprop", "cpa.usage.outputType=Klever3",
-        "-lockator-threadmodular-linux",
         "-setprop", "output.disable=false",
         "-setprop", "cfa.export=true",
         "-setprop", "cfa.exportPerFunction=true",
@@ -330,7 +324,7 @@ def run_cfa_mutation():
     test = "test/programs/issues-for-mutation/cpalockator.i"
 
     for strategy in strategies:
-        options = base_options + ["-setprop"] + [strategy]
+        options = base_options + ["-setprop", strategy]
         run_cpachecker(options, test, cpa_timeout=1600)
 
 def run_sv_benchmarks():
@@ -345,6 +339,14 @@ def run_sv_benchmarks():
 
     test_config("-predicateAnalysis-threadmodular", "/ldv-linux-3.14-races/")
     test_config("-predicateAnalysis-threadmodular", "/ldv-races/")
+    # Unsupported parameter expression tids[i]
+    # test_config("-predicateAnalysis-threadmodular", "/pthread/")
+    test_config("-predicateAnalysis-threadmodular", "/pthread-atomic/")
+    test_config("-predicateAnalysis-threadmodular", "/pthread-ext/")
+    test_config("-predicateAnalysis-threadmodular", "/pthread-lit/")
+    test_config("-predicateAnalysis-threadmodular", "/pthread-driver-races/")
+    # Unsupported parameter expression t[i]
+    # test_config("-predicateAnalysis-threadmodular", "/pthread-nondet/")
 
     # fast check of different options on ldv-races
     test_config("-predicateAnalysis-threadmodular-refinement", "/ldv-races/")
