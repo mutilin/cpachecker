@@ -183,9 +183,8 @@ klever-tests:
     - 'python3 ci-test-run.py ldv-klever'
   variables:
     KLEVER_BENCHMARKS: "/opt/ldv-klever-benchmarks/"
-  rules:
-    - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
-      when: always
+  only:
+    - web
 
 uppsala-tests:
   <<: *tests
@@ -217,6 +216,8 @@ sv-benchmarks-tests:
     - 'python3 ci-test-run.py sv-benchmarks'
   variables:
     SV_BENCHMARKS: "/opt/sv-benchmarks/"
+  only:
+    - web
 
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html

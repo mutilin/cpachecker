@@ -7,18 +7,32 @@ import argparse
 import os
 import yaml
 import time
+import multiprocessing
+from multiprocessing import Pool
 # CI script, as it has problems with benchexec due to c groups
 cpa_bin = ["./scripts/cpa.sh"]
+
+def fail(ret, expected, real):
+    if ret is not None:
+        print(" ".join(ret.args))
+        print(ret.stdout)
+        print(ret.stderr)
+    raise ValueError("Expected verdict {} and obtain {}".format(expected, real))
+
 
 def fail_if_incorrect_verdict(ret, expected, real):
     if expected is None:
         # No expected verdict
         return
-    if (expected != real):
-        print(" ".join(ret.args))
-        print(ret.stdout)
-        print(ret.stderr)
-        raise ValueError("Expected verdict {} and obtain {}".format(expected, real))
+    if type(expected) is list:
+        # Several possible verdicts, like flacky false-timeout
+        for exp in expected:
+            if exp == real:
+                return
+        fail(ret, expected, real)
+    else:
+        if (expected != real):
+            fail(ret, expected, real)
 
 def run_cpachecker(options, program, cpa_timeout = 900):
     print("Run CPALockator for {}".format(program))
@@ -51,18 +65,47 @@ def to_string_verdict(verdict):
 
 def parse_verdict(ret):
     m = re.search('Verification result: (.*)\. ', ret.stdout)
-    if m is None:
-        print(" ".join(ret.args))
-        print(ret.stdout)
-        print(ret.stderr)
-        raise ValueError("No verification result")
-    
-    verdict = m.group(1)
-    return verdict
+    if m is not None:
+        verdict = m.group(1)
+        return verdict
+        
+    m = re.search('Shutdown requested', ret.stderr)
+    if m is not None:
+        return 'TIMEOUT'
 
-def call_cpachecker(options, program, expected):
-    ret = run_cpachecker(options, program)    
-    verdict = parse_verdict(ret)
+    m = re.search('Analysis interrupted', ret.stderr)
+    if m is not None:
+        return 'TIMEOUT'
+    
+    m = re.search('Error: ', ret.stderr)
+    if m is not None:
+        return 'ERROR'
+
+    m = re.search('Exception in thread', ret.stderr)
+    if m is not None:
+        return 'EXCEPTION'
+
+    print(" ".join(ret.args))
+    print(ret.stdout)
+    print(ret.stderr)
+    raise ValueError("No verification result")
+
+def call_cpachecker(options, program, expected, timeout_check = True):
+    try:
+        ret = run_cpachecker(options, program)
+        verdict = parse_verdict(ret)
+    except subprocess.TimeoutExpired as e:
+        if timeout_check:
+            verdict = 'TIMEOUT'
+            ret = None
+        else:
+            # Do not check timeouts right now
+            # because ldv-klever benchmarks do not support multiple verdicts
+            raise e;
+    except ValueError as e:
+        verdict = 'EXCEPTION'
+        ret = None
+    
     if expected is None:
         # Used for debug mostly
         return verdict
@@ -71,17 +114,26 @@ def call_cpachecker(options, program, expected):
 
 def prepare_options(config_name, options):
     result = ["-config", "config/includes/lockator/" + config_name + ".properties"]
+    return result + add_setprop(options)
+
+def add_setprop(options):
+    result = []
     for option in options:
         result += ["-setprop", option]
     return result
 
 def run_cpachecker_on_set(options, verdicts, benchmarks, prefix = None):
+    pool = Pool(processes=2)
     for test in glob.glob(benchmarks):
         if prefix:            
             expected = verdicts[strip_start(test, prefix)]
         else:
             expected = verdicts[test]
-        call_cpachecker(options, test, expected)
+
+        pool.apply_async(call_cpachecker, args=[options, test, expected])
+
+    pool.close()
+    pool.join()
 
 # Mostly for debug
 def obtain_verdicts(options, benchmarks):
@@ -234,7 +286,7 @@ def run_ldv_klever_tests():
                     try:
                         if 'expected_verdict' in properties:
                             verdict = test_desc['properties'][0]['expected_verdict']
-                            call_cpachecker(options, klever_dir + test, to_string_verdict(verdict))
+                            call_cpachecker(options, klever_dir + test, to_string_verdict(verdict), False)
                         else:
                             # there are unknown verdicts
                             run_cpachecker(options, klever_dir + test)
@@ -243,14 +295,13 @@ def run_ldv_klever_tests():
                         pass
 
     print("Run ldv klever tests")
-    base_options = ["-setprop", "cpa.callstack.unsupportedFunctions=__VERIFIER_nonexisting_dummy_function",
-        "-setprop", "cpa.predicate.allowedUnsupportedFunctions=memset,memcpy,__builtin_add_overflow,__builtin_mul_overflow,__builtin_va_arg",
-        "-setprop", "counterexample.export.extendedWitnessFile=witness.%d.graphml",
-        "-setprop", "cpa.arg.witness.removeInsufficientEdges=false",
-        "-setprop", "additionalCoverage.file=additionalCoverage.info",
-        "-setprop", "shutdown.timeout=100",
-        "-setprop", "counterexample.export.graphml=witness.%d.graphml",
-        "-noout", "-heap", "2400m", "-64"]
+    base_options = add_setprop(["cpa.callstack.unsupportedFunctions=__VERIFIER_nonexisting_dummy_function",
+        "cpa.predicate.allowedUnsupportedFunctions=memset,memcpy,__builtin_add_overflow,__builtin_mul_overflow,__builtin_va_arg",
+        "counterexample.export.extendedWitnessFile=witness.%d.graphml",
+        "cpa.arg.witness.removeInsufficientEdges=false",
+        "additionalCoverage.file=additionalCoverage.info",
+        "shutdown.timeout=100",
+        "counterexample.export.graphml=witness.%d.graphml"]) + ["-noout", "-heap", "2400m", "-64"]
 
     run_klever_list('ci-config/ldv-klever-benchmarks.list', base_options + ["-lockator-threadmodular-linux"])
 
@@ -276,41 +327,39 @@ def run_ldv_tests():
                     run_cpachecker(options, test)
     
     print("Run ldv benchmarks")
-    base_options = ["-lockator-threadmodular-linux",
-        "-setprop", "cpa.predicate.useUndefFunctions=false",
-        "-setprop", "cpa.predicate.joinEffectsIntoUndefs=false",
-        "-setprop", "cpa.predicate.refinement.predicateBasisStrategy=subgraph",
-        "-setprop", "cpa.predicate.applyRelevantEffects=true",
-        "-setprop", "cpa.lock.refinement=false",
-        "-setprop", "cpa.usage.refinement.refinementChain=IdentifierIterator,PointIterator,UsageIterator,SinglePathIterator,PredicateRefiner",
-        "-setprop", "limits.time.cpu=900s",
-        "-setprop", "shutdown.timeout=1000"]
+    base_options = ["-lockator-threadmodular-linux"] + add_setprop([
+        "cpa.predicate.useUndefFunctions=false",
+        "cpa.predicate.joinEffectsIntoUndefs=false",
+        "cpa.predicate.refinement.predicateBasisStrategy=subgraph",
+        "cpa.predicate.applyRelevantEffects=true",
+        "cpa.lock.refinement=false",
+        "cpa.usage.refinement.refinementChain=IdentifierIterator,PointIterator,UsageIterator,SinglePathIterator,PredicateRefiner",
+        "limits.time.cpu=900s",
+        "shutdown.timeout=1000"])
 
     run_with_options(base_options)
 
-    base_options = ["-lockator-linux-without-shared",
-        "-setprop", "limits.time.cpu=900s",
-        "-setprop", "shutdown.timeout=1000"]
+    base_options = ["-lockator-linux-without-shared"] + add_setprop([
+        "limits.time.cpu=900s",
+        "shutdown.timeout=1000"])
 
     run_with_options(base_options)
 
 def run_cfa_mutation():
     print("Run cfa mutation")
 
-    base_options = [
-        "-lockator-threadmodular-linux",
-        "-setprop", "cfaMutation=true",
-        "-setprop", "limits.time.wall=1500s",
-        "-setprop", "limits.time.cpu=-1ns",
-        "-setprop", "parser.readLineDirectives=false",
-        "-setprop", "cfa.threads.addAssumptions=false",
-        "-setprop", "cpa.usage.outputType=Klever3",
-        "-setprop", "output.disable=false",
-        "-setprop", "cfa.export=true",
-        "-setprop", "cfa.exportPerFunction=true",
-        "-setprop", "cfa.exportToC=true",
-        "-setprop", "cfa.serialize=true",
-        ]
+    base_options = ["-lockator-threadmodular-linux"] + add_setprop([
+        "cfaMutation=true",
+        "limits.time.wall=1500s",
+        "limits.time.cpu=-1ns",
+        "parser.readLineDirectives=false",
+        "cfa.threads.addAssumptions=false",
+        "cpa.usage.outputType=Klever3",
+        "output.disable=false",
+        "cfa.export=true",
+        "cfa.exportPerFunction=true",
+        "cfa.exportToC=true",
+        "cfa.serialize=true"])
     
     strategies = ["cfaMutation.strategies=FunctionBodyRemover,AssumeEdgesRemover,StatementChainRemover,StatementEdgeRemover,ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover",
         "cfaMutation.strategies=ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover"
@@ -324,35 +373,38 @@ def run_cfa_mutation():
     test = "test/programs/issues-for-mutation/cpalockator.i"
 
     for strategy in strategies:
-        options = base_options + ["-setprop", strategy]
+        options = base_options + add_setprop([strategy])
         run_cpachecker(options, test, cpa_timeout=1600)
 
 def run_sv_benchmarks():
     def test_config(config, directory):
-        options = [config] + ["-setprop", "limits.time.cpu=900s",
-            "-setprop", "shutdown.timeout=1000"]
-        benchmarks_dir = os.environ['SV_BENCHMARKS'] + directory
-        for test in glob.glob(benchmarks_dir + "*.i"):
-            run_cpachecker(options, test)
+        with open('ci-config/sv-benchmarks-verdicts.yml', 'r') as file:
+            test_results = yaml.safe_load(file)
+            
+            options = [config] + add_setprop(["limits.time.cpu=900s",
+                "shutdown.timeout=1000",
+                "cpa.thread.supportSelfCreation=true"]) + ["-noout"]
+            benchmarks = os.environ['SV_BENCHMARKS'] + directory + "*.i"
+            run_cpachecker_on_set(options, test_results[config], benchmarks , os.environ['SV_BENCHMARKS'])
 
     print("Run sv benchmarks")
 
-    test_config("-predicateAnalysis-threadmodular", "/ldv-linux-3.14-races/")
-    test_config("-predicateAnalysis-threadmodular", "/ldv-races/")
+    test_config('-predicateAnalysis-threadmodular', "ldv-linux-3.14-races/")
+    test_config('-predicateAnalysis-threadmodular', "ldv-races/")
     # Unsupported parameter expression tids[i]
     # test_config("-predicateAnalysis-threadmodular", "/pthread/")
-    test_config("-predicateAnalysis-threadmodular", "/pthread-atomic/")
-    test_config("-predicateAnalysis-threadmodular", "/pthread-ext/")
-    test_config("-predicateAnalysis-threadmodular", "/pthread-lit/")
-    test_config("-predicateAnalysis-threadmodular", "/pthread-driver-races/")
+    test_config('-predicateAnalysis-threadmodular', "pthread-atomic/")
+    test_config('-predicateAnalysis-threadmodular', "pthread-ext/")
+    test_config('-predicateAnalysis-threadmodular', "pthread-lit/")
+    test_config('-predicateAnalysis-threadmodular', "pthread-driver-races/")
     # Unsupported parameter expression t[i]
     # test_config("-predicateAnalysis-threadmodular", "/pthread-nondet/")
 
     # fast check of different options on ldv-races
-    test_config("-predicateAnalysis-threadmodular-refinement", "/ldv-races/")
-    test_config("-predicateAnalysis-threadmodular-reordered", "/ldv-races/")
-    test_config("-predicateAnalysis-tm-ta", "/ldv-races/")
-    test_config("-predicateValueAnalysis-threadmodular", "/ldv-races/")
+    test_config('-predicateAnalysis-threadmodular-refinement', "ldv-races/")
+    test_config('-predicateAnalysis-threadmodular-reordered', "ldv-races/")
+    test_config('-predicateAnalysis-tm-ta', "ldv-races/")
+    test_config('-predicateValueAnalysis-threadmodular', "ldv-races/")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run integration tests.')
