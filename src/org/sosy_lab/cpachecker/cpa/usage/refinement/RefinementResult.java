@@ -101,6 +101,11 @@ public class RefinementResult {
     }
   }
 
+  public void resetPrecision(Iterable<AdjustablePrecision> pList) {
+    precisions = new ArrayList<>();
+    this.addPrecisions(pList);
+  }
+
   public Collection<AdjustablePrecision> getPrecisions() {
     return ImmutableList.copyOf(precisions);
   }

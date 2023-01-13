@@ -61,7 +61,7 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
           return result;
         }
       }
-      result.addPrecisions(completePrecisions);
+      result.resetPrecision(completePrecisions);
       return result;
     } finally {
       finish(pInput, result);
