@@ -79,19 +79,18 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
       CFunctionCall fCall = ((CFunctionCallEdge) pCfaEdge).getSummaryEdge().getExpression();
       if (isThreadCreateFunction(fCall)) {
         String newThread = ((CThreadCreateStatement) fCall).getVariableName();
-        if (isNewThread(newThread, TAstate)) {
-          // We add FunctionSummaryStatementEdge instead of FunctionCallEdge for the compatible
-          // operator
-          return ImmutableSet.of(
-              new ThreadAbstractionState(
-                  getNewTSet(
-                      TAstate,
-                      pCfaEdge.getPredecessor().getLeavingSummaryEdge(),
-                      TAstate.getCurrentThread(),
-                      newThread),
-                  newThread));
-        }
-        return ImmutableSet.of();
+        boolean selfParallel = !isNewThread(newThread, TAstate);
+        // We add FunctionSummaryStatementEdge instead of FunctionCallEdge for the compatible
+        // operator
+        return ImmutableSet.of(
+            new ThreadAbstractionState(
+                getNewTSet(
+                    TAstate,
+                    pCfaEdge.getPredecessor().getLeavingSummaryEdge(),
+                    TAstate.getCurrentThread(),
+                    newThread),
+                newThread,
+                selfParallel));
       }
     }
 
@@ -109,11 +108,8 @@ public class ThreadAbstractionTransferRelation implements TransferRelation {
       CFunctionCall functionCall = ((CFunctionSummaryStatementEdge) pCfaEdge).getFunctionCall();
       if (isThreadCreateFunction(functionCall)) {
         String newThread = ((CThreadCreateStatement) functionCall).getVariableName();
-        if (isNewThread(newThread, state)) {
-          return ImmutableSet
-              .of(state.copyWith(getNewTSet(state, pCfaEdge, activeThread, newThread)));
-        }
-        return ImmutableSet.of();
+        return ImmutableSet
+            .of(state.copyWith(getNewTSet(state, pCfaEdge, activeThread, newThread)));
       }
     } else if (pCfaEdge.getEdgeType() == CFAEdgeType.FunctionReturnEdge) {
       CFunctionCall functionCall =

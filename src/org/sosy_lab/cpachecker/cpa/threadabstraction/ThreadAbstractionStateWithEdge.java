@@ -18,7 +18,7 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
   protected ThreadAbstractionStateWithEdge(
       ThreadAbstractionState pState,
       ThreadAbstractionEdge pEdge) {
-    super(pState.getThreadSet(), pState.getCurrentThread());
+    super(pState.getThreadSet(), pState.getCurrentThread(), pState.isSelfParallel());
     edge = pEdge;
   }
 
@@ -36,7 +36,10 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
   }
 
   public ThreadAbstractionState getThreadAbstractionState() {
-    return new ThreadAbstractionState(this.getThreadSet(), this.getCurrentThread());
+    return new ThreadAbstractionState(
+        this.getThreadSet(),
+        this.getCurrentThread(),
+        this.isSelfParallel());
   }
 
   @Override

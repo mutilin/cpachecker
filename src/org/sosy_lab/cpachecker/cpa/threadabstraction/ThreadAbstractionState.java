@@ -30,22 +30,29 @@ public class ThreadAbstractionState
 
   private final Map<String, CFAEdge> threadSet;
   private final String currentThread;
+  private final boolean selfParallel;
 
   protected final static String MAIN_THREAD = "main";
 
   protected ThreadAbstractionState(
       Map<String, CFAEdge> Tset,
-      String pCurrent) {
+      String pCurrent,
+      boolean pSelfParallel) {
     threadSet = Tset;
     currentThread = pCurrent;
+    selfParallel = pSelfParallel;
   }
 
   public static ThreadAbstractionState emptyState() {
-    return new ThreadAbstractionState(ImmutableMap.of(), MAIN_THREAD);
+    return new ThreadAbstractionState(ImmutableMap.of(), MAIN_THREAD, false);
   }
 
   public String getCurrentThread() {
     return currentThread;
+  }
+
+  public boolean isSelfParallel() {
+    return selfParallel;
   }
 
   public Map<String, CFAEdge> getThreadSet() {
@@ -63,7 +70,7 @@ public class ThreadAbstractionState
   }
 
   public ThreadAbstractionState copyWith(Map<String, CFAEdge> Tset) {
-    return new ThreadAbstractionState(Tset, this.currentThread);
+    return new ThreadAbstractionState(Tset, this.currentThread, this.selfParallel);
   }
 
   @Override
@@ -73,7 +80,8 @@ public class ThreadAbstractionState
 
   public boolean isCompatibleWith(ThreadAbstractionState pOther) {
     return pOther.threadSet.equals(threadSet)
-        && !currentThread.equals(pOther.currentThread); // TODO add selfparallel
+        && ((this.isSelfParallel() && pOther.isSelfParallel())
+            || !currentThread.equals(pOther.currentThread));
   }
 
   @Override

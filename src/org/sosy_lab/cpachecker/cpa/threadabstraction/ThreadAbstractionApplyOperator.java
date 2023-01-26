@@ -60,9 +60,6 @@ public class ThreadAbstractionApplyOperator implements ApplyOperator {
 
     // Note: the creation of the first thread is not projected but it is not needed anyway
     if (!parent.getThreadSet().isEmpty()) {
-      assert (!child.getThreadSet()
-          .get(currentThread)
-          .equals(parent.getThreadSet().get(currentThread)));
       return new ThreadAbstractionEdge(child.getThreadSet().get(currentThread), null);
     }
     return null;
