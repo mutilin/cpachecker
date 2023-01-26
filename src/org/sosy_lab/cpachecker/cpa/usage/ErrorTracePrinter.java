@@ -44,7 +44,6 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
-import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon;
@@ -69,11 +68,7 @@ public abstract class ErrorTracePrinter {
 
     @Override
     public int hashCode() {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + Objects.hashCode(compatibleNodes);
-      result = prime * result + Objects.hashCode(function);
-      return result;
+      return Objects.hash(compatibleNodes, function);
     }
 
     @Override
@@ -117,7 +112,7 @@ public abstract class ErrorTracePrinter {
   private Set<String> disableNotesFor = ImmutableSet.of();
 
   // private final BAMTransferRelation transfer;
-  protected final LockTransferRelation lockTransfer;
+  protected final List<WitnessNoteProvider> noteProvider;
 
   private final StatTimer preparationTimer = new StatTimer("Time for preparation");
   private final StatTimer writingUnsafeTimer = new StatTimer("Time for dumping the unsafes");
@@ -145,11 +140,12 @@ public abstract class ErrorTracePrinter {
       BAMMultipleCEXSubgraphComputer t,
       CFA pCfa,
       LogManager l,
-      LockTransferRelation lT)
+      List<WitnessNoteProvider> pProvider)
       throws InvalidConfigurationException {
     logger = l;
     config = c;
-    lockTransfer = lT;
+    noteProvider = pProvider;
+
     config.inject(this, ErrorTracePrinter.class);
 
     final FunctionEntryNode main = pCfa.getMainFunction();
@@ -227,11 +223,13 @@ public abstract class ErrorTracePrinter {
         continue;
       }
 
-      if (uinfo1.getLockNode().getSize() == 0 && uinfo2.getLockNode().getSize() == 0) {
-        if (printEmptyLockStates) {
-          emptyLockSetUnsafes.inc();
-        } else {
-          continue;
+      if (uinfo1.getLockNode() != null) {
+        if (uinfo1.getLockNode().getSize() == 0 && uinfo2.getLockNode().getSize() == 0) {
+          if (printEmptyLockStates) {
+            emptyLockSetUnsafes.inc();
+          } else {
+            continue;
+          }
         }
       }
 
@@ -299,14 +297,21 @@ public abstract class ErrorTracePrinter {
   }
 
   protected String getNoteFor(CFAEdge pEdge) {
-    if (pEdge == null || lockTransfer == null) {
+    if (pEdge == null || noteProvider == null) {
       return "";
     }
     String function = pEdge.getPredecessor().getFunctionName();
     if (disableNotesFor.contains(function)) {
       return "";
     }
-    return lockTransfer.doesChangeTheState(pEdge);
+    for (WitnessNoteProvider provider : noteProvider) {
+      // TODO we still have no cases with different notes for single edge
+      String note = provider.getNoteForEdge(pEdge);
+      if (!note.isEmpty()) {
+        return note;
+      }
+    }
+    return "";
   }
 
   protected List<CFAEdge> getPath(UsageInfo usage) {

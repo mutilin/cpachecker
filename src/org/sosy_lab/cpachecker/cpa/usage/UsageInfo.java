@@ -241,7 +241,7 @@ public final class UsageInfo implements Comparable<UsageInfo> {
 
   public UsageInfo expand(UsageDelta pDelta, List<AbstractState> pExpandedStack) {
     List<CompatibleNode> old = point.getCompatibleNodes();
-    ImmutableList<CompatibleNode> newStates = pDelta.apply(old);
+    List<CompatibleNode> newStates = pDelta.apply(old);
     if (newStates.isEmpty()) {
       return IRRELEVANT_USAGE;
     }

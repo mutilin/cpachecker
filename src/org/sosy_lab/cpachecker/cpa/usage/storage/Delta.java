@@ -19,6 +19,7 @@ public interface Delta<T> {
   @Override
   public int hashCode();
 
+  // oldRoot.add(newRoot)
   public Delta<T> add(Delta<T> pDelta);
 
 }

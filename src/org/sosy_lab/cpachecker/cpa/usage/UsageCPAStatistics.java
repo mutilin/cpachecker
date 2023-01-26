@@ -9,6 +9,7 @@
 package org.sosy_lab.cpachecker.cpa.usage;
 
 import java.io.PrintStream;
+import java.util.List;
 import java.util.logging.Level;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.configuration.Configuration;
@@ -25,7 +26,6 @@ import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.bam.BAMCPA;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
-import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
@@ -61,7 +61,7 @@ public class UsageCPAStatistics implements Statistics {
   private final LogManager logger;
 
   private final Configuration config;
-  private final LockTransferRelation lockTransfer;
+  private final List<WitnessNoteProvider> providers;
   private ErrorTracePrinter errPrinter;
   private final CFA cfa;
 
@@ -82,11 +82,14 @@ public class UsageCPAStatistics implements Statistics {
   // public final StatCounter numberOfStatesCounter = new StatCounter("Number of states");
 
   public UsageCPAStatistics(
-      Configuration pConfig, LogManager pLogger, CFA pCfa, LockTransferRelation lTransfer)
+      Configuration pConfig,
+      LogManager pLogger,
+      CFA pCfa,
+      List<WitnessNoteProvider> pProviders)
       throws InvalidConfigurationException {
     pConfig.inject(this);
     logger = pLogger;
-    lockTransfer = lTransfer;
+    providers = pProviders;
     config = pConfig;
     cfa = pCfa;
     computer = null;
@@ -125,17 +128,17 @@ public class UsageCPAStatistics implements Statistics {
       try {
         switch (outputFileType) {
           case KLEVER3:
-            errPrinter = new Klever3ErrorTracePrinter(config, computer, cfa, logger, lockTransfer);
+            errPrinter = new Klever3ErrorTracePrinter(config, computer, cfa, logger, providers);
             break;
           case KLEVER:
-            errPrinter = new KleverErrorTracePrinter(config, computer, cfa, logger, lockTransfer);
+            errPrinter = new KleverErrorTracePrinter(config, computer, cfa, logger, providers);
             break;
           case KLEVER_OLD:
             errPrinter =
-                new KleverErrorTracePrinterOld(config, computer, cfa, logger, lockTransfer);
+                new KleverErrorTracePrinterOld(config, computer, cfa, logger, providers);
             break;
           case ETV:
-            errPrinter = new ETVErrorTracePrinter(config, computer, cfa, logger, lockTransfer);
+            errPrinter = new ETVErrorTracePrinter(config, computer, cfa, logger, providers);
             break;
           default:
             throw new UnsupportedOperationException("Unknown type " + outputFileType);

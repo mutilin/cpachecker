@@ -9,10 +9,9 @@
 package org.sosy_lab.cpachecker.cpa.lock;
 
 import org.sosy_lab.cpachecker.cpa.lock.LockState.LockTreeNode;
-import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
 
-public class LockNodeDelta implements Delta<CompatibleNode> {
+public class LockNodeDelta implements Delta<LockTreeNode> {
 
   private final LockTreeNode delta;
 
@@ -21,34 +20,33 @@ public class LockNodeDelta implements Delta<CompatibleNode> {
   }
 
   @Override
-  public CompatibleNode apply(CompatibleNode pState) {
+  public LockTreeNode apply(LockTreeNode pState) {
     if (delta.isEmpty()) {
       return pState;
     }
-    LockTreeNode pOther = (LockTreeNode) pState;
-    if (pOther.isEmpty()) {
+    if (pState.isEmpty()) {
       return delta;
     }
 
     LockTreeNode newSet = new LockTreeNode(delta);
-    newSet.addAll(pOther);
+    newSet.addAll(pState);
     return newSet;
   }
 
   @Override
-  public boolean covers(Delta<CompatibleNode> pDelta) {
+  public boolean covers(Delta<LockTreeNode> pDelta) {
     LockNodeDelta pOther = (LockNodeDelta) pDelta;
     return delta.cover(pOther.delta);
   }
 
   @Override
-  public Delta<CompatibleNode> add(Delta<CompatibleNode> pDelta) {
+  public LockNodeDelta add(Delta<LockTreeNode> pDelta) {
     LockNodeDelta pOther = (LockNodeDelta) pDelta;
     if (pOther.delta.isEmpty()) {
       return this;
     }
     if (delta.isEmpty()) {
-      return pDelta;
+      return pOther;
     }
     LockTreeNode newSet = new LockTreeNode(delta);
     newSet.addAll(pOther.delta);

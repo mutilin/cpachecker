@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.usage;
 
+import java.util.List;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
@@ -15,7 +16,6 @@ import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
-import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.GraphMlBuilder;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.KeyDef;
 import org.w3c.dom.Element;
@@ -27,7 +27,7 @@ public class Klever3ErrorTracePrinter extends KleverErrorTracePrinter {
       BAMMultipleCEXSubgraphComputer pT,
       CFA pCfa,
       LogManager pL,
-      LockTransferRelation pLT)
+      List<WitnessNoteProvider> pLT)
       throws InvalidConfigurationException {
     super(pC, pT, pCfa, pL, pLT);
   }

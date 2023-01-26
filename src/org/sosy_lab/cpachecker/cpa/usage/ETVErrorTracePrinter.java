@@ -17,6 +17,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
@@ -34,7 +35,6 @@ import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
 import org.sosy_lab.cpachecker.cpa.lock.AbstractLockState;
-import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
@@ -61,7 +61,7 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
       BAMMultipleCEXSubgraphComputer pT,
       CFA pCfa,
       LogManager pL,
-      LockTransferRelation t)
+      List<WitnessNoteProvider> t)
       throws InvalidConfigurationException {
     super(pC, pT, pCfa, pL, t);
   }

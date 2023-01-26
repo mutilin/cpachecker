@@ -9,7 +9,9 @@
 package org.sosy_lab.cpachecker.cpa.usage;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.sosy_lab.common.ShutdownNotifier;
@@ -43,8 +45,6 @@ import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
-import org.sosy_lab.cpachecker.cpa.lock.LockCPA;
-import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
@@ -103,13 +103,19 @@ public class UsageCPA extends AbstractSingleWrapperCPA
     pConfig.inject(this);
     config = pConfig;
     this.cfa = pCfa;
-    LockCPA lockCPA = CPAs.retrieveCPA(this, LockCPA.class);
+    List<WitnessNoteProvider> providers = new ArrayList<>();
+    for (ConfigurableProgramAnalysis cpa : CPAs.asIterable(this)) {
+      TransferRelation transfer = cpa.getTransferRelation();
+      if (transfer instanceof WitnessNoteProvider) {
+        providers.add((WitnessNoteProvider) transfer);
+      }
+    }
     this.statistics =
         new UsageCPAStatistics(
             pConfig,
             pLogger,
             pCfa,
-            lockCPA != null ? (LockTransferRelation) lockCPA.getTransferRelation() : null);
+            providers);
     this.stopOperator = new UsageStopOperator(pCpa.getStopOperator(), statistics);
     this.mergeOperator =
         new UsageMergeOperator(pCpa.getMergeOperator(), statistics, bindArgsFunctions);

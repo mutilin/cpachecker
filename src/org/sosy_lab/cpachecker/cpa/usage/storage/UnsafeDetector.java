@@ -10,10 +10,13 @@ package org.sosy_lab.cpachecker.cpa.usage.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.util.List;
 import java.util.NavigableSet;
 import java.util.SortedSet;
 import org.sosy_lab.cpachecker.cpa.lock.DeadLockState.DeadLockTreeNode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState.Action;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.util.Pair;
 
@@ -22,7 +25,8 @@ public class UnsafeDetector {
   public enum UnsafeMode {
     RACE,
     DEADLOCKCIRCULAR,
-    DEADLOCKDISPATCH
+    DEADLOCKDISPATCH,
+    DEADLOCKSIGNAL,
   }
 
   private final UsageConfiguration config;
@@ -120,6 +124,9 @@ public class UnsafeDetector {
         case DEADLOCKCIRCULAR:
           return isDeadlockCircular(point1, point2);
 
+        case DEADLOCKSIGNAL:
+          return isDeadlockSignal(point1, point2);
+
         default:
           throw new UnsupportedOperationException("Unknown mode: " + config.getUnsafeMode());
       }
@@ -177,4 +184,60 @@ public class UnsafeDetector {
     }
     return false;
   }
+
+  private boolean isDeadlockSignal(UsagePoint point1, UsagePoint point2) {
+    SignalState node1 = point1.get(SignalState.class);
+    SignalState node2 = point2.get(SignalState.class);
+
+    List<Pair<Integer, Action>> signals1 = node1.getSignals();
+    List<Pair<Integer, Action>> signals2 = node2.getSignals();
+
+    for (int i = 0; i < signals1.size(); i++) {
+      Pair<Integer, Action> signal1 = signals1.get(i);
+      if (signal1.getSecond() == Action.SEND) {
+        continue;
+      }
+      for (int j = i + 1; j < signals1.size(); j++) {
+        Pair<Integer, Action> signal2 = signals1.get(j);
+        if (signal2.getSecond() == Action.RECEIVE) {
+          continue;
+        }
+        if (hasDeadlockOnSignals(signals2, signal1.getFirst(), signal2.getFirst())) {
+          return true;
+        }
+      }
+    }
+    return false;
+
+  }
+
+  // Note, receive and send are from the point of first thread view
+  // We need to find them as reverted value (send<->receive) in the second thread
+  private boolean
+      hasDeadlockOnSignals(List<Pair<Integer, Action>> signals, Integer receive, Integer send) {
+
+    for (int i = 0; i < signals.size(); i++) {
+      Pair<Integer, Action> signal1 = signals.get(i);
+      // This thread receives the signal, which was _sent_
+      if (signal1.getSecond() == Action.SEND
+          || !sameSignal(signal1.getFirst(), send)) {
+        continue;
+      }
+      for (int j = i + 1; j < signals.size(); j++) {
+        Pair<Integer, Action> signal2 = signals.get(j);
+        // This thread sends the signal, which was _received_
+        if (signal2.getSecond() == Action.SEND && sameSignal(signal2.getFirst(), receive)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private boolean sameSignal(Integer sig1, Integer sig2) {
+    // -1 means 'any' signal
+    final int ANY = -1;
+    return sig1.equals(sig2) && sig1 != ANY && sig2 != ANY;
+  }
+
  }

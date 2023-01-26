@@ -58,6 +58,7 @@ import org.sosy_lab.cpachecker.cpa.lock.effects.GenericLockEffect;
 import org.sosy_lab.cpachecker.cpa.lock.effects.GenericLockEffectWithId;
 import org.sosy_lab.cpachecker.cpa.lock.effects.LockEffectWithId;
 import org.sosy_lab.cpachecker.cpa.lock.effects.SetLockEffect;
+import org.sosy_lab.cpachecker.cpa.usage.WitnessNoteProvider;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.Precisions;
@@ -70,7 +71,8 @@ import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 @Options(prefix = "cpa.lock")
-public class LockTransferRelation extends SingleEdgeTransferRelation {
+public class LockTransferRelation extends SingleEdgeTransferRelation
+    implements WitnessNoteProvider {
 
   public static class LockStatistics implements Statistics {
 
@@ -434,7 +436,8 @@ public class LockTransferRelation extends SingleEdgeTransferRelation {
    * @param pEdge edge to check
    * @return the verdict
    */
-  public String doesChangeTheState(CFAEdge pEdge) {
+  @Override
+  public String getNoteForEdge(CFAEdge pEdge) {
     return Joiner.on(",").join(getLockEffects(pEdge));
   }
 

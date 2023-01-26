@@ -34,7 +34,6 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.core.specification.Specification;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
-import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.AssumeCase;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.GraphMlBuilder;
@@ -54,7 +53,7 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
       BAMMultipleCEXSubgraphComputer pT,
       CFA pCfa,
       LogManager pL,
-      LockTransferRelation lT)
+      List<WitnessNoteProvider> lT)
       throws InvalidConfigurationException {
     super(c, pT, pCfa, pL, lT);
   }

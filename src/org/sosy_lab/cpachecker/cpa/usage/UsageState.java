@@ -272,24 +272,31 @@ public class UsageState extends AbstractSerializableSingleWrapperState
   @Override
   public boolean isLessOrEqual(final UsageState other) {
     // If we are here, the wrapped domain return true and the stop depends only on this value
-    stats.lessTimer.start();
-    // this element is not less or equal than the other element, if that one contains less elements
-    if (this.variableBindingRelation.size() > other.variableBindingRelation.size()) {
-      stats.lessTimer.stop();
-      return false;
-    }
+    try {
+      stats.lessTimer.start();
+      if (variableBindingRelation.isEmpty() && other.variableBindingRelation.isEmpty()) {
+        return true;
+      }
 
-    // also, this element is not less or equal than the other element,
-    // if any one constant's value of the other element differs from the constant's value in this
-    // element
-    if (from(variableBindingRelation.keySet())
-        .anyMatch(Predicates.not(other.variableBindingRelation::containsKey))) {
-      stats.lessTimer.stop();
-      return false;
-    }
+      // this element is not less or equal than the other element, if that one contains less
+      // elements
+      if (this.variableBindingRelation.size() > other.variableBindingRelation.size()) {
+        return false;
+      }
 
-    stats.lessTimer.stop();
-    return true;
+      // also, this element is not less or equal than the other element,
+      // if any one constant's value of the other element differs from the constant's value in this
+      // element
+      if (from(variableBindingRelation.keySet())
+          .anyMatch(Predicates.not(other.variableBindingRelation::containsKey))) {
+        return false;
+      }
+
+      return true;
+    } finally {
+      stats.lessTimer.stop();
+
+    }
   }
 
   public StateStatistics getStatistics() {

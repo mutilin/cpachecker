@@ -27,7 +27,6 @@ import org.sosy_lab.cpachecker.cpa.lock.effects.GenericLockEffectWithId;
 import org.sosy_lab.cpachecker.cpa.lock.effects.LockEffectWithId;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
-import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
 
 public final class LockState extends AbstractLockState {
 
@@ -87,7 +86,7 @@ public final class LockState extends AbstractLockState {
     }
 
     @Override
-    public Delta<CompatibleNode> getDeltaBetween(CompatibleNode pOther) {
+    public LockNodeDelta getDeltaBetween(CompatibleNode pOther) {
       LockTreeNode pState = (LockTreeNode) pOther;
       // TODO more deterministic
       if (locks.isEmpty()) {

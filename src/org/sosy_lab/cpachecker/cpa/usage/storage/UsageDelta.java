@@ -26,7 +26,7 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
   }
 
   @Override
-  public ImmutableList<CompatibleNode> apply(List<CompatibleNode> pState) {
+  public List<CompatibleNode> apply(List<CompatibleNode> pState) {
     ImmutableList.Builder<CompatibleNode> result = ImmutableList.builder();
     assert nestedDeltas.size() == pState.size();
     boolean changed = false;
@@ -45,7 +45,7 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
     if (changed) {
       return result.build();
     } else {
-      return (ImmutableList<CompatibleNode>) pState;
+      return pState;
     }
   }
 
@@ -66,28 +66,17 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
   public boolean equals(Object pDelta) {
     if (pDelta instanceof UsageDelta) {
       UsageDelta pOther = (UsageDelta) pDelta;
-      assert nestedDeltas.size() == pOther.nestedDeltas.size();
-
-      for (int i = 0; i < this.nestedDeltas.size(); i++) {
-        if (!nestedDeltas.get(i).equals(pOther.nestedDeltas.get(i))) {
-          return false;
-        }
-      }
-      return true;
+      return nestedDeltas.equals(pOther.nestedDeltas);
     }
     return false;
   }
 
   @Override
   public int hashCode() {
-    int result = 7;
-    final int prime = 31;
-    for (int i = 0; i < this.nestedDeltas.size(); i++) {
-      result = prime * result + Objects.hash(nestedDeltas.hashCode());
-    }
-    return result;
+    return Objects.hash(nestedDeltas);
   }
 
+  @SuppressWarnings("unchecked")
   public static UsageDelta
       constructDeltaBetween(AbstractState reducedState, AbstractState rootState) {
 
@@ -108,7 +97,7 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
       CompatibleNode nestedReducedState = reducedStates.get(i);
       CompatibleNode nestedRootState = rootStates.get(i);
 
-      storedStates.add(nestedReducedState.getDeltaBetween(nestedRootState));
+      storedStates.add((Delta<CompatibleNode>) nestedReducedState.getDeltaBetween(nestedRootState));
     }
 
     return new UsageDelta(storedStates.build());
