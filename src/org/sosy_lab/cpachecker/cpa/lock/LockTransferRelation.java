@@ -441,6 +441,65 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
     return Joiner.on(",").join(getLockEffects(pEdge));
   }
 
+  @Override
+  public List<CFAEdge> filterIrrelevantEdges(List<CFAEdge> pEdges) {
+    // We have a sequence of edges in one function
+    // Filter only pattern acquire-release the same lock
+
+    List<CFAEdge> workList = new ArrayList<>(pEdges);
+
+    boolean changed = false;
+    boolean globalChanged = false;
+    do {
+      changed = false;
+      AcquireLockEffect previousAcquire = null;
+      int toRemove = 0;
+      // It is very dangerous to use indexOf, as we may have two same edges
+      int index = 0;
+      for (CFAEdge edge : workList) {
+        FluentIterable<LockEffectWithId> effects = getLockEffects(edge);
+        if (effects.size() == 1) {
+          LockEffectWithId effect = effects.first().get();
+
+          if (effect instanceof AcquireLockEffect) {
+            previousAcquire = (AcquireLockEffect) effect;
+          } else if (effect instanceof GenericLockEffectWithId
+              && ((GenericLockEffectWithId) effect).getAction().equals("Release")) {
+            // No normal way to check is it is release
+            if (previousAcquire != null) {
+              if (previousAcquire.getId().equals(effect.getId())) {
+                toRemove = index;
+              }
+              break;
+            }
+          } else {
+            previousAcquire = null;
+          }
+        } else {
+          previousAcquire = null;
+        }
+        index++;
+      }
+
+      if (previousAcquire != null && toRemove > 0) {
+        // It is possible to have only one acquire in block - do not remove it
+        // remove acquire
+        workList.remove(toRemove - 1);
+        // remove release
+        workList.remove(toRemove - 1);
+        changed = true;
+        globalChanged = true;
+      }
+
+    } while (changed);
+
+    if (globalChanged) {
+      return workList;
+    } else {
+      return pEdges;
+    }
+  }
+
   public Statistics getStatistics() {
     return stats;
   }

@@ -56,5 +56,7 @@ public abstract class LockEffectWithId implements AbstractLockEffect {
            Objects.equals(getAction(), other.getAction());
   }
 
-
+  public LockIdentifier getId() {
+    return target;
+  }
 }

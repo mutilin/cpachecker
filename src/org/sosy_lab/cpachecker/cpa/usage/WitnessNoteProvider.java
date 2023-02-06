@@ -8,8 +8,13 @@
 
 package org.sosy_lab.cpachecker.cpa.usage;
 
+import java.util.List;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 
 public interface WitnessNoteProvider {
   public String getNoteForEdge(CFAEdge pEdge);
+
+  default public List<CFAEdge> filterIrrelevantEdges(List<CFAEdge> pEdges) {
+    return pEdges;
+  }
 }

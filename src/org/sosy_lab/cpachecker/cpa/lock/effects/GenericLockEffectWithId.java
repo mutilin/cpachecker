@@ -45,7 +45,7 @@ public class GenericLockEffectWithId extends LockEffectWithId {
   }
 
   @Override
-  protected String getAction() {
+  public String getAction() {
     return name;
   }
 }

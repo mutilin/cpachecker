@@ -10,13 +10,16 @@ package org.sosy_lab.cpachecker.cpa.usage;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 
+import edu.stanford.CVC4.UnsafeInterruptException;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -35,14 +38,19 @@ import org.sosy_lab.common.io.PathTemplate;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCall;
+import org.sosy_lab.cpachecker.cfa.ast.c.CInitializer;
 import org.sosy_lab.cpachecker.cfa.ast.c.CThreadOperationStatement.CThreadCreateStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
+import org.sosy_lab.cpachecker.cfa.model.CFAEdgeType;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
+import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryEdge;
 import org.sosy_lab.cpachecker.core.specification.Specification;
@@ -70,6 +78,17 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
       description = "export counterexample core as text file")
   @FileOption(FileOption.Type.OUTPUT_FILE)
   private PathTemplate errorPathFile = PathTemplate.ofFormatString("witness.%s.graphml");
+
+  @Option(
+    secure = true,
+    name = "removeGlobalDeclarations",
+    description = "remove global declarations and local ones withous initializers to save time and memory")
+  private boolean removeUselessDecl = false;
+
+  @Option(
+    secure = true,
+    description = "keep all notes, in opposite case only notes for the error stack are stored")
+  private boolean keepAllNotes = true;
 
   String defaultSourcefileName;
 
@@ -107,6 +126,67 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     }
   }
 
+  private class NoteFilter {
+    private final Set<CFAEdge> notes;
+
+    public NoteFilter(List<CFAEdge> path1, List<CFAEdge> path2) {
+      notes = new HashSet<>();
+      FillNotes(path1);
+      FillNotes(path2);
+    }
+
+    private void FillNotes(List<CFAEdge> edges) {
+      Deque<List<CFAEdge>> stack = new ArrayDeque<>();
+      List<CFAEdge> currentFunc = new ArrayList<>();
+
+      for (CFAEdge edge : edges) {
+        String note = KleverErrorTracePrinter.this.getNoteFor(edge);
+        if (!isNullOrEmpty(note)) {
+          currentFunc.add(edge);
+        }
+        if (edge.getEdgeType() == CFAEdgeType.FunctionCallEdge) {
+          stack.push(currentFunc);
+          currentFunc = new ArrayList<>();
+        } else if (edge.getEdgeType() == CFAEdgeType.FunctionReturnEdge) {
+          if (!currentFunc.isEmpty()) {
+            if (keepAllNotes) {
+              notes.addAll(currentFunc);
+            } else {
+              // Filter notes by provider
+              List<CFAEdge> filteredFuncs = currentFunc;
+              for (WitnessNoteProvider provider : noteProvider) {
+                List<CFAEdge> newfilteredFuncs = provider.filterIrrelevantEdges(currentFunc);
+                if (filteredFuncs == currentFunc) {
+                  filteredFuncs = newfilteredFuncs;
+                } else if (newfilteredFuncs == currentFunc) {
+                  // One provider filtered, the other do not
+                } else if (filteredFuncs.equals(newfilteredFuncs)) {
+                  // two providers filtered in the same way
+                } else {
+                  // Two providers filtered the edges in a different way
+                  throw new UnsafeInterruptException(
+                      "Two witness providers filtered notes in the different way. Merge is not supported now");
+                }
+              }
+              notes.addAll(filteredFuncs);
+            }
+          }
+          currentFunc = stack.pop();
+        }
+
+      }
+      // Save the rest: error stack
+      notes.addAll(currentFunc);
+      for (List<CFAEdge> curStack : stack) {
+        notes.addAll(curStack);
+      }
+    }
+
+    public boolean isRelevant(CFAEdge edge) {
+      return notes.contains(edge);
+    }
+  }
+
   public KleverErrorTracePrinter(
       Configuration c,
       BAMMultipleCEXSubgraphComputer pT,
@@ -130,6 +210,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   private int idCounter = 0;
   private ThreadIterator threadIterator;
   private Element currentNode;
+  private NoteFilter notePreparator;
 
   @Override
   protected void printUnsafe(SingleIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair, boolean refined) {
@@ -150,6 +231,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
       logger.log(Level.WARNING, "Path to " + secondUsage + "is empty");
       return;
     }
+    notePreparator = new NoteFilter(firstPath, secondPath);
 
     Iterator<CFAEdge> firstIterator = firstPath.iterator();
     Iterator<CFAEdge> secondIterator = secondPath.listIterator();
@@ -311,6 +393,19 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
       return null;
     }
 
+    if (removeUselessDecl && edge instanceof CDeclarationEdge) {
+      CDeclaration decl = ((CDeclarationEdge) edge).getDeclaration();
+      if (decl.isGlobal()) {
+        return null;
+      }
+      if (decl instanceof CVariableDeclaration) {
+        CInitializer init = ((CVariableDeclaration) decl).getInitializer();
+        if (init == null) {
+          return null;
+        }
+      }
+    }
+
     if (isThreadCreateFunction(edge)) {
       CFunctionSummaryEdge sEdge = ((CFunctionCallEdge) edge).getSummaryEdge();
       Element result = printEdge(builder, sEdge);
@@ -329,10 +424,12 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     Element result = builder.createEdgeElement(currentId, nextId);
     dumpCommonInfoForEdge(builder, result, edge);
 
-    String note = getNoteFor(edge);
-    if (!isNullOrEmpty(note)) {
-      String formatted = formatNote(note);
-      builder.addDataElementChild(result, KeyDef.NOTE, formatted);
+    if (notePreparator.isRelevant(edge)) {
+      String note = getNoteFor(edge);
+      if (!isNullOrEmpty(note)) {
+        String formatted = formatNote(note);
+        builder.addDataElementChild(result, KeyDef.NOTE, formatted);
+      }
     }
     currentNode = builder.createNodeElement(nextId, NodeType.ONPATH);
     return result;
