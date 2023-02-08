@@ -61,12 +61,24 @@ class CReferencedFunctionsCollectorWithFieldsMatching extends CReferencedFunctio
     if (decl.getInitializer() != null) {
       decl.getInitializer().accept(collector);
       CInitializer init = decl.getInitializer();
-      if (init instanceof CInitializerList) {
-        saveStructureDeclaration(decl.getType(), (CInitializerList) init);
-      } else if (decl.isGlobal() && init instanceof CInitializerExpression) {
-        //Assignment to global variable and not a structure
-        saveInitializerExpression(getGlobalsMatching(), (CInitializerExpression) init, decl.getName());
+      saveDeclaration(decl, decl.getType(), init);
+    }
+  }
+
+  private void saveDeclaration(CVariableDeclaration decl, CType type, CInitializer init) {
+    if (type instanceof CArrayType && init instanceof CInitializerList) {
+      for (CInitializer cInit : ((CInitializerList) init).getInitializers()) {
+        saveDeclaration(decl, ((CArrayType) type).getType(), cInit);
       }
+    } else if (init instanceof CInitializerList) {
+      // Likely structure
+      saveStructureDeclaration(type, (CInitializerList) init);
+    } else if (decl.isGlobal() && init instanceof CInitializerExpression) {
+      // Assignment to global variable and not a structure
+      saveInitializerExpression(
+          getGlobalsMatching(),
+          (CInitializerExpression) init,
+          decl.getName());
     }
   }
 

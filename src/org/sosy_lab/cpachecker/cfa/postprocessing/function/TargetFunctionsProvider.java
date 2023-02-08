@@ -21,9 +21,11 @@ import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.logging.Level;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
+import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.postprocessing.function.CFunctionPointerResolver.FunctionSet;
@@ -73,15 +75,22 @@ public class TargetFunctionsProvider {
   }
 
   public Set<String> getMatchedFunc(CExpression expression) {
-    if (expression instanceof CFieldReference) {
-      String fieldName = ((CFieldReference) expression).getFieldName();
-      return candidateFunctionsForField.get(fieldName);
-    } else if (expression instanceof CIdExpression) {
-      String variableName = ((CIdExpression) expression).getName();
-      return globalsMatching.get(variableName);
-    } else {
-      return ImmutableSet.of();
-    }
+    CExpression exp = expression;
+    do {
+      if (exp instanceof CPointerExpression) {
+        exp = ((CPointerExpression) exp).getOperand();
+      } else if (exp instanceof CArraySubscriptExpression) {
+        exp = ((CArraySubscriptExpression) exp).getArrayExpression();
+      } else if (exp instanceof CFieldReference) {
+        String fieldName = ((CFieldReference) exp).getFieldName();
+        return candidateFunctionsForField.get(fieldName);
+      } else if (exp instanceof CIdExpression) {
+        String variableName = ((CIdExpression) exp).getName();
+        return globalsMatching.get(variableName);
+      } else {
+        return ImmutableSet.of();
+      }
+    } while (true);
   }
 
   public List<CFunctionEntryNode> getFunctionSet(CFunctionType func) {

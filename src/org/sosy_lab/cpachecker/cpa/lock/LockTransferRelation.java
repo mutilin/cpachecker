@@ -469,8 +469,9 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
             if (previousAcquire != null) {
               if (previousAcquire.getId().equals(effect.getId())) {
                 toRemove = index;
+                break;
               }
-              break;
+              previousAcquire = null;
             }
           } else {
             previousAcquire = null;
