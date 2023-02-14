@@ -29,9 +29,10 @@ public class SimpleThreadState extends ThreadState {
 
   protected SimpleThreadState(
       String pCurrent,
+      int pPrio,
       @SuppressWarnings("unused") Map<String, ThreadStatus> Tset,
       @SuppressWarnings("unused") ImmutableMap<ThreadLabel, ThreadStatus> Rset) {
-    super(pCurrent, Tset, Rset);
+    super(pCurrent, pPrio, Tset, Rset);
   }
 
   @Override
@@ -56,11 +57,11 @@ public class SimpleThreadState extends ThreadState {
   }
 
   public static ThreadState emptyState() {
-    return new SimpleThreadState(mainThread, ImmutableMap.of(), ImmutableMap.of());
+    return new SimpleThreadState(mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
   }
 
   @Override
-  public ThreadState copyWith(String pCurrent, Map<String, ThreadStatus> tSet) {
-    return new SimpleThreadState(pCurrent, tSet, this.removedSet);
+  public ThreadState copyWith(String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+    return new SimpleThreadState(pCurrent, pPrio, tSet, this.removedSet);
   }
 }

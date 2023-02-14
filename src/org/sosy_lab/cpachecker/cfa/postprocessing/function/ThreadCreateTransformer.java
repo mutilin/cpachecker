@@ -10,11 +10,13 @@ package org.sosy_lab.cpachecker.cfa.postprocessing.function;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -31,6 +33,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpressionBuilder;
 import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
+import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionCallStatement;
@@ -94,12 +97,28 @@ public class ThreadCreateTransformer {
     description = "Add assumptions about successfull thread create")
   private boolean addAssumptions = true;
 
+  private final Map<String, ThreadCreateDesc> description;
+
   public boolean isThreadOperation(CFunctionCallExpression pCallExpr) {
     String fName = pCallExpr.getFunctionNameExpression().toString();
     return threadCreate.contains(fName)
         || fName.equals(threadCreateN)
         || fName.equals(threadJoin)
         || fName.equals(threadJoinN);
+  }
+
+  private static class ThreadCreateDesc {
+    public final int entry;
+    public final int variable;
+    public final int priority;
+    public final int arguments;
+
+    public ThreadCreateDesc(int pEntry, int pVar, int pArgs, int pPriority) {
+      entry = pEntry;
+      variable = pVar;
+      priority = pPriority;
+      arguments = pArgs;
+    }
   }
 
   public class ThreadFinder implements CFATraversal.CFAVisitor {
@@ -154,7 +173,37 @@ public class ThreadCreateTransformer {
   public ThreadCreateTransformer(LogManager log, Configuration config)
       throws InvalidConfigurationException {
     config.inject(this);
+    description = new TreeMap<>();
     logger = log;
+    FillDescription(config);
+  }
+
+  private void FillDescription(Configuration config) {
+    for (String fname : threadCreate) {
+      int entryNum = getOrDefault(config, fname + ".entry", 2);
+      int varNum = getOrDefault(config, fname + ".variable", 0);
+      int argNum = getOrDefault(config, fname + ".arguments", 3);
+      int priorityNum = getOrDefault(config, fname + ".priority", -1);
+      description.put(fname, new ThreadCreateDesc(entryNum, varNum, argNum, priorityNum));
+    }
+    int entryNum = getOrDefault(config, threadCreateN + ".entry", 2);
+    int varNum = getOrDefault(config, threadCreateN + ".variable", 0);
+    int argNum = getOrDefault(config, threadCreateN + ".arguments", 3);
+    int priorityNum = getOrDefault(config, threadCreateN + ".priority", -1);
+    description.put(threadCreateN, new ThreadCreateDesc(entryNum, varNum, argNum, priorityNum));
+  }
+
+  @SuppressWarnings("deprecation")
+  private static int getOrDefault(Configuration config, String property, int pDefault) {
+    try {
+      String line = config.getProperty(property);
+      if (line == null) {
+        return pDefault;
+      }
+      return Integer.parseInt(line);
+    } catch (NumberFormatException e) {
+      return pDefault;
+    }
   }
 
   public void transform(CFA cfa) {
@@ -172,19 +221,38 @@ public class ThreadCreateTransformer {
 
       String fName = fCall.getFunctionNameExpression().toString();
       List<CExpression> args = fCall.getParameterExpressions();
-      if (args.size() != 4) {
-        throw new UnsupportedOperationException("More arguments expected: " + fCall);
-      }
+      ThreadCreateDesc tDesc = description.get(fName);
 
-      CIdExpression varName = getThreadVariableName(fCall);
-      CExpression calledFunction = args.get(2);
+      CExpression calledFunction = args.get(tDesc.entry);
       CIdExpression functionNameExpression = getFunctionName(calledFunction);
-      List<CExpression> functionParameters = Lists.newArrayList(args.get(3));
+      if (functionNameExpression == null) {
+        logger.log(
+            Level.WARNING,
+            "Unsupported function name: " + calledFunction + ", full line: " + edge);
+        continue;
+      }
       String newThreadName = functionNameExpression.getName();
       CFunctionEntryNode entryNode = (CFunctionEntryNode) cfa.getFunctionHead(newThreadName);
       if (entryNode == null) {
-        throw new UnsupportedOperationException(
+        logger.log(
+            Level.WARNING,
             "Can not find the body of function " + newThreadName + "(), full line: " + edge);
+        continue;
+      }
+      String varName;
+      if (tDesc.variable >= 0) {
+        varName = getThreadVariableName(fCall, tDesc.variable);
+      } else {
+        // Assignment of return value
+        CStatement stmnt = ((CStatementEdge) edge).getStatement();
+        CLeftHandSide leftSide = ((CAssignment) stmnt).getLeftHandSide();
+        varName = getThreadVariableName(leftSide);
+      }
+      List<CExpression> functionParameters;
+      if (tDesc.arguments > 0) {
+        functionParameters = Lists.newArrayList(args.get(tDesc.arguments));
+      } else {
+        functionParameters = new ArrayList<>();
       }
 
       CFunctionDeclaration functionDeclaration = entryNode.getFunctionDefinition();
@@ -199,9 +267,21 @@ public class ThreadCreateTransformer {
               functionDeclaration);
 
       boolean isSelfParallel = fName.equals(threadCreateN);
+      int priority = 0; // default
+      if (tDesc.priority >= 0) {
+        // Expecting priority
+        CExpression prioExp = args.get(tDesc.priority);
+        if (prioExp instanceof CIntegerLiteralExpression) {
+          priority = ((CIntegerLiteralExpression) prioExp).getValue().intValue();
+        }
+      }
       CFunctionCallStatement pFunctionCall =
           new CThreadCreateStatement(
-              pFileLocation, pFunctionCallExpression, isSelfParallel, varName.getName());
+              pFileLocation,
+              pFunctionCallExpression,
+              isSelfParallel,
+              varName,
+              priority);
 
       if (edge instanceof CStatementEdge) {
         CStatement stmnt = ((CStatementEdge) edge).getStatement();
@@ -275,13 +355,13 @@ public class ThreadCreateTransformer {
     for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.getThreadJoins().entrySet()) {
       CFAEdge edge = entry.getKey();
       CFunctionCallExpression fCall = entry.getValue();
-      CIdExpression varName = getThreadVariableName(fCall);
+      String varName = getThreadVariableName(fCall, 0);
       FileLocation pFileLocation = edge.getFileLocation();
 
       String fName = fCall.getFunctionNameExpression().toString();
       boolean isSelfParallel = !fName.equals(threadJoin);
       CFunctionCallStatement pFunctionCall =
-          new CThreadJoinStatement(pFileLocation, fCall, isSelfParallel, varName.getName());
+          new CThreadJoinStatement(pFileLocation, fCall, isSelfParallel, varName);
 
       replaceEdgeWith(edge, pFunctionCall);
     }
@@ -340,15 +420,25 @@ public class ThreadCreateTransformer {
     } else if (fName instanceof CCastExpression) {
       return getFunctionName(((CCastExpression) fName).getOperand());
     } else {
-      throw new UnsupportedOperationException("Unsupported expression in pthread_create: " + fName);
+      return null;
     }
   }
 
-  private CIdExpression getThreadVariableName(CFunctionCallExpression fCall) {
-    CExpression var = fCall.getParameterExpressions().get(0);
+  private String getThreadVariableName(CFunctionCallExpression fCall, int pos) {
+    return getThreadVariableName(fCall.getParameterExpressions().get(pos));
+  }
 
-    while (!(var instanceof CIdExpression)) {
-      if (var instanceof CUnaryExpression) {
+  private String getThreadVariableName(CExpression pVar) {
+    CExpression var = pVar;
+
+    while (true) {
+      if (var instanceof CIdExpression) {
+        return ((CIdExpression) var).getName();
+      } else if (var instanceof CFieldReference) {
+        return getThreadVariableName(((CFieldReference) var).getFieldOwner())
+            + "."
+            + ((CFieldReference) var).getFieldName();
+      } else if (var instanceof CUnaryExpression) {
         // &t
         var = ((CUnaryExpression) var).getOperand();
       } else if (var instanceof CCastExpression) {
@@ -358,6 +448,5 @@ public class ThreadCreateTransformer {
         throw new UnsupportedOperationException("Unsupported parameter expression " + var);
       }
     }
-    return (CIdExpression) var;
   }
 }

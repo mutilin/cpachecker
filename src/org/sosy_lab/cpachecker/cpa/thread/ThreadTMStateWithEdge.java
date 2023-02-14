@@ -31,10 +31,11 @@ public class ThreadTMStateWithEdge extends ThreadTMState implements AbstractStat
 
   ThreadTMStateWithEdge(
       String pCurrent,
+      int pPrio,
       Map<String, ThreadStatus> Tset,
       ImmutableMap<ThreadLabel, ThreadStatus> Rset,
       ThreadAbstractEdge pEdge) {
-    super(pCurrent, Tset, Rset);
+    super(pCurrent, pPrio, Tset, Rset);
     edge = pEdge;
   }
 

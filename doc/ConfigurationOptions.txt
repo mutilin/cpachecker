@@ -2797,6 +2797,20 @@ cpa.sign.merge = "JOIN"
 cpa.sign.stop = "SEP"
   allowed values: [SEP, JOIN]
 
+# Names of send functions
+cpa.signal.receiveFunctions = no default value
+cpa.signal.sendFunctions = no default value
+
+# Names of signal alloc functions
+cpa.signal.signalAlloc = no default value
+
+# Type of alloc signal
+cpa.signal.signalType = no default value
+
+# type of visitor
+cpa.signal.type = Empty
+  enum:     [Empty]
+
 # max length of a chain of states, -1 for infinity
 cpa.singleSuccessorCompactor.maxChainLength = -1
 
@@ -3229,6 +3243,13 @@ cpa.usage.binderFunctions = {}
 # a list of functions, which do not produce notes
 cpa.usage.disableNotesFor = {}
 
+# keep all notes, in opposite case only notes for the error stack are stored
+cpa.usage.export.keepAllNotes = true
+
+# remove global declarations and local ones withous initializers to save time
+# and memory
+cpa.usage.export.removeGlobalDeclarations = false
+
 # export counterexample core as text file
 cpa.usage.export.witnessTemplate = "witness.%s.graphml"
 
@@ -3329,7 +3350,7 @@ cpa.usage.unsafedetector.intLock = no default value
 
 # defines what is unsafe
 cpa.usage.unsafedetector.unsafeMode = RACE
-  enum:     [RACE, DEADLOCKCIRCULAR, DEADLOCKDISPATCH]
+  enum:     [RACE, DEADLOCKCIRCULAR, DEADLOCKDISPATCH, DEADLOCKSIGNAL]
 
 # Use several threads for usage extraction
 cpa.usage.useConcurrentExtraction = true

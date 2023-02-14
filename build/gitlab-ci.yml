@@ -26,6 +26,7 @@ variables:
   ANT_PROPS_BUILD: "-Divy.disable=true"
   ANT_PROPS_CHECKS: "-Divy.disable=true -DskipBuild=true"
   MASTER_BRANCH: "CPALockator-update"
+  ENABLE_DOCKER: "false"
 
 # Download dependencies and provide them to later stages
 build-dependencies:
@@ -232,8 +233,11 @@ sv-benchmarks-tests:
     - mkdir -p /root/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - /kaniko/executor --dockerfile $CI_PROJECT_DIR/$DOCKERFILE --destination $CI_REGISTRY_IMAGE$IMAGE $EXTRA_ARGS
-  only:
-    - web
+  rules:
+    - if: $ENABLE_DOCKER == "false"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: always
 
 build-docker:base:
   extends: .build-docker

@@ -47,16 +47,19 @@ public class ThreadState
   // Do not remove it now
   protected final ImmutableMap<ThreadLabel, ThreadStatus> removedSet;
   protected final String currentThread;
+  protected final int currentPriority;
 
   protected final static String mainThread = "main";
 
   protected ThreadState(
       String pCurrent,
+      int pPrio,
       Map<String, ThreadStatus> Tset,
       ImmutableMap<ThreadLabel, ThreadStatus> Rset) {
     threadSet = Tset;
     removedSet = Rset;
     currentThread = pCurrent;
+    currentPriority = pPrio;
   }
 
   @Override
@@ -142,7 +145,7 @@ public class ThreadState
   }
 
   public static ThreadState emptyState() {
-    return new ThreadState(mainThread, ImmutableMap.of(), ImmutableMap.of());
+    return new ThreadState(mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
   }
 
   @Override
@@ -188,6 +191,10 @@ public class ThreadState
     return threadSet;
   }
 
+  public int getPriority() {
+    return currentPriority;
+  }
+
   ImmutableMap<ThreadLabel, ThreadStatus> getRemovedSet() {
     return removedSet;
   }
@@ -202,12 +209,12 @@ public class ThreadState
     return this.toString();
   }
 
-  public ThreadState copyWith(String pCurrent, Map<String, ThreadStatus> tSet) {
-    return new ThreadState(pCurrent, tSet, this.removedSet);
+  public ThreadState copyWith(String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+    return new ThreadState(pCurrent, pPrio, tSet, this.removedSet);
   }
 
   public ThreadState copyWith(Map<String, ThreadStatus> tSet) {
-    return copyWith(this.currentThread, tSet);
+    return copyWith(this.currentThread, this.currentPriority, tSet);
   }
 
   @Override

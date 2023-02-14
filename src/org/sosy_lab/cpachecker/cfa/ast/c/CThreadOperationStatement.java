@@ -23,8 +23,10 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
     private static final long serialVersionUID = -1211707394397959801L;
 
     public CThreadCreateStatement(FileLocation pFileLocation, CFunctionCallExpression pFunctionCall,
-        boolean pSelfParallel, String pVarName) {
-      super(pFileLocation, pFunctionCall, pSelfParallel, pVarName);
+        boolean pSelfParallel,
+        String pVarName,
+        int pPrio) {
+      super(pFileLocation, pFunctionCall, pSelfParallel, pVarName, pPrio);
     }
   }
 
@@ -34,26 +36,27 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
 
     public CThreadJoinStatement(FileLocation pFileLocation, CFunctionCallExpression pFunctionCall,
         boolean pSelfParallel, String pVarName) {
-      super(pFileLocation, pFunctionCall, pSelfParallel, pVarName);
+      super(pFileLocation, pFunctionCall, pSelfParallel, pVarName, 0);
     }
   }
 
   private final boolean isSelfParallel;
   private final String assosiatedVariable;
+  private final int priority;
 
   public CThreadOperationStatement(FileLocation pFileLocation, CFunctionCallExpression pFunctionCall
-      , boolean selfParallel, String varName) {
+      , boolean selfParallel, String varName, int pPrio) {
     super(pFileLocation, pFunctionCall);
     isSelfParallel = selfParallel;
     assosiatedVariable = varName;
+    priority = pPrio;
   }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = super.hashCode();
-    result = prime * result + Objects.hashCode(assosiatedVariable);
-    result = prime * result + (isSelfParallel ? 1231 : 1237);
+    result = prime * result + Objects.hash(assosiatedVariable, isSelfParallel, priority);
     return result;
   }
 
@@ -70,6 +73,7 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
     }
     CThreadOperationStatement other = (CThreadOperationStatement) obj;
     return isSelfParallel == other.isSelfParallel
+        && priority == other.priority
         && Objects.equals(assosiatedVariable, other.assosiatedVariable);
   }
 
@@ -79,5 +83,9 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
 
   public String getVariableName() {
     return assosiatedVariable;
+  }
+
+  public int getPriority() {
+    return priority;
   }
 }

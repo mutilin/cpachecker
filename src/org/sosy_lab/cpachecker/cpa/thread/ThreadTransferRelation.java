@@ -165,12 +165,15 @@ public class ThreadTransferRelation implements TransferRelation {
     Map<String, ThreadStatus> newSet = new TreeMap<>(tSet);
     newSet.put(pVarName, status);
     String current;
+    int prio;
     if (pParentThread == ThreadStatus.PARENT_THREAD) {
       current = state.getCurrentThread();
+      prio = state.getPriority();
     } else {
       current = pVarName;
+      prio = tCall.getPriority();
     }
-    return state.copyWith(current, newSet);
+    return state.copyWith(current, prio, newSet);
   }
 
   public ThreadState joinThread(ThreadState state, CThreadJoinStatement jCall) {
@@ -219,8 +222,7 @@ public class ThreadTransferRelation implements TransferRelation {
       if (action == ThreadAction.CREATE) {
         if (tSet.containsKey(threadName)) {
           // Means, we have already apply the create thread
-          return Collections
-              .singleton(stateWithEdge.copyWith(stateWithEdge.getCurrentThread(), tSet));
+          return Collections.singleton(stateWithEdge.copyWith(tSet));
         }
         newSet.put(threadName, status);
       } else if (action == ThreadAction.JOIN) {
@@ -234,11 +236,10 @@ public class ThreadTransferRelation implements TransferRelation {
         throw new UnsupportedOperationException("Unsupported action " + action);
       }
       // Save the current, do not recompute it!
-      return Collections
-          .singleton(stateWithEdge.copyWith(stateWithEdge.getCurrentThread(), newSet));
+      return Collections.singleton(stateWithEdge.copyWith(newSet));
     }
 
     // To reset the edge
-    return Collections.singleton(stateWithEdge.copyWith(stateWithEdge.getCurrentThread(), tSet));
+    return Collections.singleton(stateWithEdge.copyWith(tSet));
   }
 }
