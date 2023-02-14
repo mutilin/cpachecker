@@ -59,7 +59,7 @@ public final class UsageConfiguration {
     return ignoreEmptyLockset;
   }
 
-  UnsafeMode getUnsafeMode() {
+  public UnsafeMode getUnsafeMode() {
     return unsafeMode;
   }
 

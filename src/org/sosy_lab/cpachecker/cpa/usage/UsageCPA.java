@@ -45,6 +45,10 @@ import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
+import org.sosy_lab.cpachecker.cpa.usage.UsageProcessor.DeadLockProcessor;
+import org.sosy_lab.cpachecker.cpa.usage.UsageProcessor.SignalsProcessor;
+import org.sosy_lab.cpachecker.cpa.usage.storage.UnsafeDetector.UnsafeMode;
+import org.sosy_lab.cpachecker.cpa.usage.storage.UsageConfiguration;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
@@ -140,13 +144,34 @@ public class UsageCPA extends AbstractSingleWrapperCPA
 
     PresisionParser parser = new PresisionParser(cfa, logger);
     localMap = parser.parse(outputFileName);
-    usageProcessor =
-        new UsageProcessor(
-            pConfig,
-            logger,
-            localMap,
-            transferRelation.getBinderFunctionInfo(),
-            creator);
+
+    UsageConfiguration uConfig = new UsageConfiguration(config);
+    if (uConfig.getUnsafeMode() == UnsafeMode.DEADLOCKCIRCULAR
+        || uConfig.getUnsafeMode() == UnsafeMode.DEADLOCKDISPATCH) {
+      usageProcessor =
+          new DeadLockProcessor(
+              pConfig,
+              logger,
+              localMap,
+              transferRelation.getBinderFunctionInfo(),
+              creator);
+    } else if (uConfig.getUnsafeMode() == UnsafeMode.DEADLOCKSIGNAL) {
+      usageProcessor =
+          new SignalsProcessor(
+              pConfig,
+              logger,
+              localMap,
+              transferRelation.getBinderFunctionInfo(),
+              creator);
+    } else {
+      usageProcessor =
+          new UsageProcessor(
+              pConfig,
+              logger,
+              localMap,
+              transferRelation.getBinderFunctionInfo(),
+              creator);
+    }
 
     shutdownNotifier = pShutdownNotifier;
   }

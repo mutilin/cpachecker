@@ -29,7 +29,6 @@ import de.uni_freiburg.informatik.ultimate.smtinterpol.util.IdentityHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -60,14 +59,16 @@ import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
-import org.sosy_lab.cpachecker.cpa.callstack.CallstackState;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
+import org.sosy_lab.cpachecker.cpa.lock.DeadLockState;
 import org.sosy_lab.cpachecker.cpa.rcucpa.RCUState;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.Identifiers;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
@@ -80,11 +81,10 @@ public class UsageProcessor {
 
   private final Map<String, BinderFunctionInfo> binderFunctionInfo;
 
-  private final LogManager logger;
+  protected final LogManager logger;
   private final VariableSkipper varSkipper;
 
   private Map<CFANode, Map<GeneralIdentifier, DataType>> precision;
-  private IdentityHashMap<CFAEdge, Collection<Pair<AbstractIdentifier, Access>>> usages;
 
   private final Collection<CFANode> uselessNodes;
   private Collection<SingleIdentifier> redundantIds;
@@ -116,22 +116,17 @@ public class UsageProcessor {
     varSkipper = new VariableSkipper(config);
     precision = pPrecision;
     uselessNodes = new IdentityHashSet<>();
-    usages = new IdentityHashMap<>();
     creator = pCreator;
-    config.inject(this);
+    config.inject(this, UsageProcessor.class);
   }
 
   public void updateRedundantUnsafes(Set<SingleIdentifier> set) {
     redundantIds = set;
   }
 
-  @SuppressWarnings("SynchronizeOnNonFinalField")
   public List<UsageInfo> getUsagesForState(AbstractState pState) {
 
-    // Not a set, as usage.equals do not consider id
-    List<UsageInfo> result;
     // totalTimer.start();
-    result = new ArrayList<>();
 
     ARGState argState = (ARGState) pState;
     CFANode node = AbstractStates.extractLocation(argState);
@@ -139,53 +134,28 @@ public class UsageProcessor {
     synchronized (uselessNodes) {
       if (uselessNodes.contains(node)) {
         // totalTimer.stop();
-        return result;
+        return ImmutableList.of();
       }
     }
     boolean resultComputed = false;
+    // Not a set, as usage.equals do not consider id
+    List<UsageInfo> result = new ArrayList<>();
 
-    // Ignore usages inside of atomic read and write functions, as they were already handled on the
-    // function call
-    String fName = getCurrentFunction(pState);
-    if (!atomicReadFunctions.contains(fName) && !atomicWriteFunctions.contains(fName)) {
-      for (ARGState child : argState.getChildren()) {
-        CFANode childNode = AbstractStates.extractLocation(child);
+    for (ARGState child : argState.getChildren()) {
+      CFANode childNode = AbstractStates.extractLocation(child);
 
-        if (node.hasEdgeTo(childNode)) {
-          // Need the flag to avoid missed cases with applied edges: it may be traversed first,
-          // so put to useless nodes ONLY if there is a normal CFA edge.
-          resultComputed = true;
-          CFAEdge edge = node.getEdgeTo(childNode);
-          Collection<Pair<AbstractIdentifier, Access>> ids;
+      if (node.hasEdgeTo(childNode)) {
+        // Need the flag to avoid missed cases with applied edges: it may be traversed first,
+        // so put to useless nodes ONLY if there is a normal CFA edge.
+        resultComputed = true;
+        CFAEdge edge = node.getEdgeTo(childNode);
 
-          synchronized (usages) {
-            if (usages.containsKey(edge)) {
-              ids = usages.get(edge);
-            } else {
-              ids = getUsagesForEdge(child, edge);
-              if (!ids.isEmpty()) {
-                usages.put(edge, ids);
-              }
-            }
-          }
+        result.addAll(createUsagesForEdge(argState, child, node, edge));
+        // usagePreparationTimer.stop();
 
-          // usagePreparationTimer.start();
-          for (Pair<AbstractIdentifier, Access> pair : ids) {
-            AbstractIdentifier id = pair.getFirst();
-            // Links will be extracted as aliases later
-
-            // searchingCacheTimer.start();
-            // searchingCacheTimer.stop();
-            if (!redundantIds.contains(id)) {
-              createUsages(id, node, child, pair.getSecond(), result);
-            }
-          }
-          // usagePreparationTimer.stop();
-
-        } else {
-          // No edge, for example, due to BAM
-          // Note, function call edge was already handled, we do not miss it
-        }
+      } else {
+        // No edge, for example, due to BAM
+        // Note, function call edge was already handled, we do not miss it
       }
     }
 
@@ -193,50 +163,77 @@ public class UsageProcessor {
       synchronized (uselessNodes) {
         uselessNodes.add(node);
       }
-      synchronized (usages) {
-        for (int i = 0; i < node.getNumLeavingEdges(); i++) {
-          CFAEdge e = node.getLeavingEdge(i);
-          usages.remove(e);
+    }
+    // totalTimer.stop();
+    return ImmutableList.copyOf(result);
+  }
+
+  protected Collection<UsageInfo>
+      createUsagesForEdge(
+          @SuppressWarnings("unused") ARGState parent,
+          ARGState child,
+          CFANode node,
+          CFAEdge edge) {
+    Collection<Pair<AbstractIdentifier, Access>> ids;
+    List<UsageInfo> result = new ArrayList<>();
+
+    // Ignore usages inside of atomic read and write functions, as they were already handled on the
+    // function call
+    String fName = node.getFunctionName();
+    if (!atomicReadFunctions.contains(fName) && !atomicWriteFunctions.contains(fName)) {
+      ids = getIdsForEdge(edge);
+
+      // usagePreparationTimer.start();
+      for (Pair<AbstractIdentifier, Access> pair : ids) {
+        AbstractIdentifier id = pair.getFirst();
+        // Links will be extracted as aliases later
+
+        // searchingCacheTimer.start();
+        // searchingCacheTimer.stop();
+        if (!redundantIds.contains(id)) {
+          createUsages(id, node, child, pair.getSecond(), result);
         }
       }
     }
-    // totalTimer.stop();
     return result;
   }
 
-  public Collection<Pair<AbstractIdentifier, Access>>
-      getUsagesForEdge(AbstractState pChild, CFAEdge pCfaEdge) {
+  protected Collection<Pair<AbstractIdentifier, Access>>
+      getIdsForEdge(CFAEdge pCfaEdge) {
+
+    // From successor!
+    String fName = pCfaEdge.getSuccessor().getFunctionName();
 
     switch (pCfaEdge.getEdgeType()) {
       case DeclarationEdge:
         {
           CDeclarationEdge declEdge = (CDeclarationEdge) pCfaEdge;
-        return handleDeclaration(pChild, declEdge);
+          return handleDeclaration(fName, declEdge);
         }
 
         // if edge is a statement edge, e.g. a = b + c
       case StatementEdge:
         {
           CStatementEdge statementEdge = (CStatementEdge) pCfaEdge;
-        return handleStatement(pChild, statementEdge.getStatement());
+          return handleStatement(fName, statementEdge.getStatement());
         }
 
       case AssumeEdge:
         {
         return visitStatement(
-            pChild,
+            fName,
             ((CAssumeEdge) pCfaEdge).getExpression(),
             Access.READ);
         }
 
       case FunctionCallEdge:
         {
-        return handleFunctionCall(pChild, (CFunctionCallEdge) pCfaEdge);
+          return handleFunctionCall(fName, (CFunctionCallEdge) pCfaEdge);
         }
 
         case ReturnStatementEdge:
         {
-          return handleReturnStatement(pChild, (CReturnStatementEdge) pCfaEdge);
+          return handleReturnStatement(fName, (CReturnStatementEdge) pCfaEdge);
         }
 
       default:
@@ -247,16 +244,16 @@ public class UsageProcessor {
   }
 
   private Collection<Pair<AbstractIdentifier, Access>>
-      handleReturnStatement(AbstractState pChild, CReturnStatementEdge edge) {
+      handleReturnStatement(String fName, CReturnStatementEdge edge) {
     CExpression expr = edge.getExpression().orElse(null);
     if (expr != null) {
-      return visitStatement(pChild, expr, Access.READ);
+      return visitStatement(fName, expr, Access.READ);
     }
     return ImmutableSet.of();
   }
 
   private Collection<Pair<AbstractIdentifier, Access>>
-      handleFunctionCall(AbstractState pChild, CFunctionCallEdge edge) {
+      handleFunctionCall(String fName, CFunctionCallEdge edge) {
     CStatement statement = edge.getFunctionCall();
 
     if (statement instanceof CFunctionCallAssignmentStatement) {
@@ -267,21 +264,22 @@ public class UsageProcessor {
           ((CFunctionCallAssignmentStatement) statement).getRightHandSide();
       CExpression variable = ((CFunctionCallAssignmentStatement) statement).getLeftHandSide();
 
-      List<Pair<AbstractIdentifier, Access>> internalIds = new ArrayList<>(handleFunctionCallExpression(pChild, right));
-      
-      internalIds.addAll(visitStatement(pChild, variable, Access.WRITE));
+      List<Pair<AbstractIdentifier, Access>> internalIds =
+          new ArrayList<>(handleFunctionCallExpression(fName, right));
+
+      internalIds.addAll(visitStatement(fName, variable, Access.WRITE));
       return ImmutableList.copyOf(internalIds);
 
     } else if (statement instanceof CFunctionCallStatement) {
       return handleFunctionCallExpression(
-          pChild,
+          fName,
           ((CFunctionCallStatement) statement).getFunctionCallExpression());
     }
     return ImmutableSet.of();
   }
 
   private Collection<Pair<AbstractIdentifier, Access>>
-      handleDeclaration(AbstractState pChild, CDeclarationEdge declEdge) {
+      handleDeclaration(String fName, CDeclarationEdge declEdge) {
 
     if (declEdge.getDeclaration().getClass() != CVariableDeclaration.class) {
       // not a variable declaration
@@ -304,7 +302,7 @@ public class UsageProcessor {
       CExpression initExpression = ((CInitializerExpression) init).getExpression();
       // Use EdgeType assignment for initializer expression to avoid mistakes related to expressions
       // "int CPACHECKER_TMP_0 = global;"
-      return visitStatement(pChild, initExpression, Access.READ);
+      return visitStatement(fName, initExpression, Access.READ);
 
       // We do not add usage for currently declared variable
       // It can not cause a race
@@ -313,7 +311,7 @@ public class UsageProcessor {
   }
 
   private Collection<Pair<AbstractIdentifier, Access>> handleFunctionCallExpression(
-      AbstractState pChild,
+      String fName,
       final CFunctionCallExpression fcExpression) {
 
     String functionCallName = fcExpression.getFunctionNameExpression().toASTString();
@@ -323,12 +321,12 @@ public class UsageProcessor {
     if (atomicReadFunctions.contains(functionCallName)) {
       List<CExpression> params = fcExpression.getParameterExpressions();
       AbstractIdentifier id =
-          Identifiers.createIdentifier(params.get(0), 1, getCurrentFunction(pChild));
+          Identifiers.createIdentifier(params.get(0), 1, fName);
       internalIds.add(Pair.of(id, Access.ATOMIC_READ));
     } else if (atomicWriteFunctions.contains(functionCallName)) {
       List<CExpression> params = fcExpression.getParameterExpressions();
       AbstractIdentifier id =
-          Identifiers.createIdentifier(params.get(0), 1, getCurrentFunction(pChild));
+          Identifiers.createIdentifier(params.get(0), 1, fName);
       internalIds.add(Pair.of(id, Access.ATOMIC_WRITE));
     }
 
@@ -339,21 +337,21 @@ public class UsageProcessor {
       AbstractIdentifier id;
 
       for (int i = 0; i < params.size(); i++) {
-        id = currentInfo.createParamenterIdentifier(params.get(i), i, getCurrentFunction(pChild));
+        id = currentInfo.createParamenterIdentifier(params.get(i), i, fName);
         internalIds.add(Pair.of(id, currentInfo.getBindedAccess(i)));
       }
     } else {
 
       fcExpression.getParameterExpressions()
-          .forEach(p -> internalIds.addAll(visitStatement(pChild, p, Access.READ)));
+          .forEach(p -> internalIds.addAll(visitStatement(fName, p, Access.READ)));
       internalIds
-          .addAll(visitStatement(pChild, fcExpression.getFunctionNameExpression(), Access.READ));
+          .addAll(visitStatement(fName, fcExpression.getFunctionNameExpression(), Access.READ));
     }
     return internalIds;
   }
 
   private Collection<Pair<AbstractIdentifier, Access>>
-      handleStatement(AbstractState pChild, final CStatement pStatement) {
+      handleStatement(String fName, final CStatement pStatement) {
 
     if (pStatement instanceof CAssignment) {
       // assignment like "a = b" or "a = foo()"
@@ -363,22 +361,22 @@ public class UsageProcessor {
       List<Pair<AbstractIdentifier, Access>> internalIds = new ArrayList<>();
 
       if (right instanceof CExpression) {
-        internalIds.addAll(visitStatement(pChild, (CExpression) right, Access.READ));
+        internalIds.addAll(visitStatement(fName, (CExpression) right, Access.READ));
 
       } else if (right instanceof CFunctionCallExpression) {
-        internalIds.addAll(handleFunctionCallExpression(pChild, (CFunctionCallExpression) right));
+        internalIds.addAll(handleFunctionCallExpression(fName, (CFunctionCallExpression) right));
       }
-      internalIds.addAll(visitStatement(pChild, left, Access.WRITE));
+      internalIds.addAll(visitStatement(fName, left, Access.WRITE));
       return ImmutableList.copyOf(internalIds);
 
     } else if (pStatement instanceof CFunctionCallStatement) {
       return handleFunctionCallExpression(
-          pChild,
+          fName,
           ((CFunctionCallStatement) pStatement).getFunctionCallExpression());
 
     } else if (pStatement instanceof CExpressionStatement) {
       return visitStatement(
-          pChild,
+          fName,
           ((CExpressionStatement) pStatement).getExpression(),
           Access.WRITE);
     }
@@ -386,12 +384,9 @@ public class UsageProcessor {
   }
 
   private Collection<Pair<AbstractIdentifier, Access>>
-      visitStatement(
-      AbstractState pChild,
+      visitStatement(String fName,
       final CExpression expression,
       final Access access) {
-    String fName = getCurrentFunction(pChild);
-
     // To avoid synchronization
     IdentifierCreator localCreator = creator.copy();
     localCreator.setCurrentFunction(fName);
@@ -401,7 +396,7 @@ public class UsageProcessor {
     return handler.getProcessedExpressions();
   }
 
-  private void
+  protected void
       createUsages(
           AbstractIdentifier pId,
           CFANode pNode,
@@ -514,10 +509,6 @@ public class UsageProcessor {
     result.add(usage);
   }
 
-  private String getCurrentFunction(AbstractState pState) {
-    return AbstractStates.extractStateByType(pState, CallstackState.class).getCurrentFunction();
-  }
-
   public void printStatistics(StatisticsWriter pWriter) {
     pWriter.put(totalTimer)
         .beginLevel()
@@ -527,7 +518,85 @@ public class UsageProcessor {
         .put(usageCreationTimer)
         .put(localTimer)
         .endLevel()
-        .put("Number of useless nodes", uselessNodes.size())
-        .put("Number of cached edges", usages.size());
+        .put("Number of useless nodes", uselessNodes.size());
+  }
+
+  public static class DeadLockProcessor extends UsageProcessor {
+
+    public static final GlobalVariableIdentifier deadlockId =
+        new GlobalVariableIdentifier("lock", null, 0);
+
+    public DeadLockProcessor(
+        Configuration pConfig,
+        LogManager pLogger,
+        Map<CFANode, Map<GeneralIdentifier, DataType>> pPrecision,
+        Map<String, BinderFunctionInfo> pBinderFunctionInfo,
+        IdentifierCreator pCreator)
+        throws InvalidConfigurationException {
+      super(pConfig, pLogger, pPrecision, pBinderFunctionInfo, pCreator);
+    }
+
+    @Override
+    protected Collection<UsageInfo>
+        createUsagesForEdge(ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
+
+      DeadLockState pLocks = AbstractStates.extractStateByType(parent, DeadLockState.class);
+      DeadLockState cLocks = AbstractStates.extractStateByType(child, DeadLockState.class);
+
+      if (pLocks == null || cLocks == null) {
+        logger.log(
+            Level.SEVERE,
+            "Missed deadlock state. Likely, you should set cpa.lock.analysisMode=DEADLOCK");
+        return ImmutableList.of();
+      }
+
+      if (cLocks.getSize() > pLocks.getSize()) {
+        // we are interested only in lock acquires
+        UsageInfo usage = UsageInfo.createUsageInfo(Access.WRITE, child, deadlockId);
+        return ImmutableList.of(usage);
+      }
+
+      return ImmutableList.of();
+    }
+  }
+
+  public static class SignalsProcessor extends UsageProcessor {
+
+    public static final GlobalVariableIdentifier signalId =
+        new GlobalVariableIdentifier("signal", null, 0);
+
+    public SignalsProcessor(
+        Configuration pConfig,
+        LogManager pLogger,
+        Map<CFANode, Map<GeneralIdentifier, DataType>> pPrecision,
+        Map<String, BinderFunctionInfo> pBinderFunctionInfo,
+        IdentifierCreator pCreator)
+        throws InvalidConfigurationException {
+      super(pConfig, pLogger, pPrecision, pBinderFunctionInfo, pCreator);
+    }
+
+    @Override
+    protected Collection<UsageInfo>
+        createUsagesForEdge(ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
+
+      SignalState pSignals = AbstractStates.extractStateByType(parent, SignalState.class);
+      SignalState cSignals = AbstractStates.extractStateByType(child, SignalState.class);
+
+      if (pSignals == null || cSignals == null) {
+        logger.log(
+            Level.SEVERE,
+            "Missed signal state. Likely, you should add SignalCPA to your configuration");
+        return ImmutableList.of();
+      }
+
+      if (cSignals.getSignals().size() > pSignals.getSignals().size()) {
+        // we are interested only in signals
+        UsageInfo usage = UsageInfo.createUsageInfo(Access.WRITE, child, signalId);
+        return ImmutableList.of(usage);
+      }
+
+      return ImmutableList.of();
+
+    }
   }
 }
