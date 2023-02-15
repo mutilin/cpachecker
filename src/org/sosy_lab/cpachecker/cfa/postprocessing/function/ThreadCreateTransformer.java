@@ -27,6 +27,7 @@ import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.CFACreationUtils;
 import org.sosy_lab.cpachecker.cfa.MutableCFA;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CAssignment;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpressionBuilder;
@@ -444,6 +445,8 @@ public class ThreadCreateTransformer {
       } else if (var instanceof CCastExpression) {
         // (void *(*)(void * ))(& ldv_factory_scenario_4)
         var = ((CCastExpression) var).getOperand();
+      } else if (var instanceof CArraySubscriptExpression) {
+        var = ((CArraySubscriptExpression) var).getArrayExpression();
       } else {
         throw new UnsupportedOperationException("Unsupported parameter expression " + var);
       }

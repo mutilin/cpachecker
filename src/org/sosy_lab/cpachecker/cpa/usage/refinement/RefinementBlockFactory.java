@@ -32,7 +32,7 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.Pair;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 @Options(prefix = "cpa.usage.refinement")
 public class RefinementBlockFactory {
@@ -144,7 +144,7 @@ public class RefinementBlockFactory {
           case IdentifierIterator:
             currentBlock =
                 new IdentifierIterator(
-                    (ConfigurableRefinementBlock<SingleIdentifier>) currentBlock,
+                    (ConfigurableRefinementBlock<AbstractIdentifier>) currentBlock,
                     config,
                     cpa,
                     bamCpa == null ? null : bamCpa.getTransferRelation(),

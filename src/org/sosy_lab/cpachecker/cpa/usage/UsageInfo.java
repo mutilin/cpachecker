@@ -21,7 +21,6 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageDelta;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsagePoint;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 public final class UsageInfo implements Comparable<UsageInfo> {
 
@@ -29,7 +28,9 @@ public final class UsageInfo implements Comparable<UsageInfo> {
     WRITE(true, false),
     READ(false, false),
     ATOMIC_WRITE(true, true),
-    ATOMIC_READ(false, true);
+    ATOMIC_READ(false, true),
+    SEND(true, false),
+    RECEIVE(true, false);
 
     private final boolean isWrite;
     private final boolean isAtomic;
@@ -53,11 +54,11 @@ public final class UsageInfo implements Comparable<UsageInfo> {
     private final Access accessType;
     private AbstractState keyState;
     private List<CFAEdge> path;
-    private final SingleIdentifier id;
+    private final AbstractIdentifier id;
 
     private boolean isLooped;
 
-    private UsageCore(Access atype, CFANode n, SingleIdentifier ident) {
+    private UsageCore(Access atype, CFANode n, AbstractIdentifier ident) {
       node = n;
       accessType = atype;
       keyState = null;
@@ -81,7 +82,7 @@ public final class UsageInfo implements Comparable<UsageInfo> {
   private UsageInfo(
       Access atype,
       CFANode n,
-      SingleIdentifier ident,
+      AbstractIdentifier ident,
       ImmutableList<CompatibleNode> pStates) {
     this(new UsageCore(atype, n, ident), new UsagePoint(pStates, atype), null);
   }
@@ -94,32 +95,25 @@ public final class UsageInfo implements Comparable<UsageInfo> {
 
   public static UsageInfo createUsageInfo(
       @NonNull Access atype, @NonNull AbstractState state, AbstractIdentifier ident) {
-    if (ident instanceof SingleIdentifier) {
-      ImmutableList.Builder<CompatibleNode> storedStates = ImmutableList.builder();
+    ImmutableList.Builder<CompatibleNode> storedStates = ImmutableList.builder();
 
-      for (CompatibleState s : AbstractStates.asIterable(state).filter(CompatibleState.class)) {
-        if (!s.isRelevantFor((SingleIdentifier) ident)) {
-          return IRRELEVANT_USAGE;
-        }
-        storedStates.add(s.getCompatibleNode());
+    for (CompatibleState s : AbstractStates.asIterable(state).filter(CompatibleState.class)) {
+      if (!s.isRelevantFor(ident)) {
+        return IRRELEVANT_USAGE;
       }
-      UsageInfo result =
-          new UsageInfo(
-              atype,
-              AbstractStates.extractLocation(state),
-              (SingleIdentifier) ident,
-              storedStates.build());
-      result.core.keyState = state;
-      return result;
+      storedStates.add(s.getCompatibleNode());
     }
-    return IRRELEVANT_USAGE;
+    UsageInfo result =
+        new UsageInfo(atype, AbstractStates.extractLocation(state), ident, storedStates.build());
+    result.core.keyState = state;
+    return result;
   }
 
   public CFANode getCFANode() {
     return core.node;
   }
 
-  public SingleIdentifier getId() {
+  public AbstractIdentifier getId() {
     assert (core.id != null);
     return core.id;
   }

@@ -63,12 +63,13 @@ import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.cpa.lock.DeadLockState;
 import org.sosy_lab.cpachecker.cpa.rcucpa.RCUState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState.Action;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.Identifiers;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
@@ -87,7 +88,7 @@ public class UsageProcessor {
   private Map<CFANode, Map<GeneralIdentifier, DataType>> precision;
 
   private final Collection<CFANode> uselessNodes;
-  private Collection<SingleIdentifier> redundantIds;
+  private Collection<AbstractIdentifier> redundantIds;
 
   private IdentifierCreator creator;
 
@@ -120,7 +121,7 @@ public class UsageProcessor {
     config.inject(this, UsageProcessor.class);
   }
 
-  public void updateRedundantUnsafes(Set<SingleIdentifier> set) {
+  public void updateRedundantUnsafes(Set<AbstractIdentifier> set) {
     redundantIds = set;
   }
 
@@ -444,6 +445,10 @@ public class UsageProcessor {
       return;
     }
 
+    if (!(pId instanceof SingleIdentifier)) {
+      return;
+    }
+
     // usageCreationTimer.start();
     UsageInfo usage = UsageInfo.createUsageInfo(pAccess, pChild, pId);
     // usageCreationTimer.stop();
@@ -460,7 +465,7 @@ public class UsageProcessor {
       localInfo = new HashMap<>();
     }
 
-    SingleIdentifier singleId = usage.getId();
+    SingleIdentifier singleId = (SingleIdentifier) usage.getId();
     GeneralIdentifier gId = singleId.getGeneralId();
     if (localInfo.get(gId) == DataType.LOCAL) {
       logger.log(
@@ -522,9 +527,7 @@ public class UsageProcessor {
   }
 
   public static class DeadLockProcessor extends UsageProcessor {
-
-    public static final GlobalVariableIdentifier deadlockId =
-        new GlobalVariableIdentifier("lock", null, 0);
+    public static final ConstantIdentifier deadlockId = new ConstantIdentifier("lock", 0);
 
     public DeadLockProcessor(
         Configuration pConfig,
@@ -562,8 +565,7 @@ public class UsageProcessor {
 
   public static class SignalsProcessor extends UsageProcessor {
 
-    public static final GlobalVariableIdentifier signalId =
-        new GlobalVariableIdentifier("signal", null, 0);
+    public static final ConstantIdentifier signalId = new ConstantIdentifier("signal", 0);
 
     public SignalsProcessor(
         Configuration pConfig,
@@ -593,6 +595,75 @@ public class UsageProcessor {
         // we are interested only in signals
         UsageInfo usage = UsageInfo.createUsageInfo(Access.WRITE, child, signalId);
         return ImmutableList.of(usage);
+      }
+
+      return ImmutableList.of();
+
+    }
+  }
+
+  public static class SignalInversionProcessor extends UsageProcessor {
+    public static final ConstantIdentifier signalId = new ConstantIdentifier("signal", 0);
+
+    public SignalInversionProcessor(
+        Configuration pConfig,
+        LogManager pLogger,
+        Map<CFANode, Map<GeneralIdentifier, DataType>> pPrecision,
+        Map<String, BinderFunctionInfo> pBinderFunctionInfo,
+        IdentifierCreator pCreator)
+        throws InvalidConfigurationException {
+      super(pConfig, pLogger, pPrecision, pBinderFunctionInfo, pCreator);
+    }
+
+    @Override
+    protected Collection<UsageInfo>
+        createUsagesForEdge(ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
+
+      SignalState pSignals = AbstractStates.extractStateByType(parent, SignalState.class);
+      SignalState cSignals = AbstractStates.extractStateByType(child, SignalState.class);
+
+      if (pSignals == null || cSignals == null) {
+        logger.log(
+            Level.SEVERE,
+            "Missed signal state. Likely, you should add SignalCPA to your configuration");
+        return ImmutableList.of();
+      }
+
+      if (!cSignals.getSignals().isEmpty()) {
+        if (cSignals.getSignals().size() > 1) {
+          throw new UnsupportedOperationException(
+              "Multiple signals are not supported. Full edge: " + edge);
+        }
+        Pair<Integer, Action> cLastSignal = cSignals.getSignals().get(0);
+
+        if (!pSignals.getSignals().isEmpty()) {
+          // It is possible, that the last signals are different
+          if (pSignals.getSignals().size() > 1) {
+            throw new UnsupportedOperationException(
+                "Multiple signals are not supported. Full edge: " + edge);
+          }
+          Pair<Integer, Action> pLastSignal = pSignals.getSignals().get(0);
+
+          if (pLastSignal.equals(cLastSignal)) {
+            // Nothing changes
+            return ImmutableList.of();
+          }
+        }
+
+        Action sigAction = cLastSignal.getSecond();
+        Access sigAccess;
+        if (sigAction == Action.SEND) {
+          sigAccess = Access.SEND;
+        } else if (sigAction == Action.RECEIVE) {
+          sigAccess = Access.RECEIVE;
+        } else {
+          throw new UnsupportedOperationException("Unknown signal action: " + sigAction);
+        }
+
+        UsageInfo usage = UsageInfo.createUsageInfo(sigAccess, child, signalId);
+        if (usage.isRelevant()) {
+          return ImmutableList.of(usage);
+        }
       }
 
       return ImmutableList.of();

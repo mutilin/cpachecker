@@ -19,10 +19,11 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsagePoint;
 import org.sosy_lab.cpachecker.util.Pair;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageInfoSet, UsageInfoSet>>{
+public class PointIterator
+    extends GenericIterator<AbstractIdentifier, Pair<UsageInfoSet, UsageInfoSet>> {
 
   private UsageContainer container;
   private UnsafeDetector detector;
@@ -45,7 +46,7 @@ public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageI
   }
 
   @Override
-  protected void init(SingleIdentifier id) {
+  protected void init(AbstractIdentifier id) {
     AbstractUsagePointSet pointSet = container.getUsages(id);
 
     assert (pointSet instanceof UnrefinedUsagePointSet);
@@ -66,7 +67,7 @@ public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageI
   }
 
   @Override
-  protected Pair<UsageInfoSet, UsageInfoSet> getNext(SingleIdentifier pInput) {
+  protected Pair<UsageInfoSet, UsageInfoSet> getNext(AbstractIdentifier pInput) {
     //Sanity check
     AbstractUsagePointSet pointSet = container.getUsages(pInput);
     assert currentUsagePointSet == pointSet;
@@ -111,7 +112,7 @@ public class PointIterator extends GenericIterator<SingleIdentifier, Pair<UsageI
   }
 
   @Override
-  protected void finish(SingleIdentifier pId, RefinementResult r) {
+  protected void finish(AbstractIdentifier pId, RefinementResult r) {
     toRemove.forEach(currentUsagePointSet::remove);
     toRemove.clear();
   }

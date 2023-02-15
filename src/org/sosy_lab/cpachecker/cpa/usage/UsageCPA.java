@@ -46,6 +46,7 @@ import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
 import org.sosy_lab.cpachecker.cpa.usage.UsageProcessor.DeadLockProcessor;
+import org.sosy_lab.cpachecker.cpa.usage.UsageProcessor.SignalInversionProcessor;
 import org.sosy_lab.cpachecker.cpa.usage.UsageProcessor.SignalsProcessor;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UnsafeDetector.UnsafeMode;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageConfiguration;
@@ -158,6 +159,14 @@ public class UsageCPA extends AbstractSingleWrapperCPA
     } else if (uConfig.getUnsafeMode() == UnsafeMode.DEADLOCKSIGNAL) {
       usageProcessor =
           new SignalsProcessor(
+              pConfig,
+              logger,
+              localMap,
+              transferRelation.getBinderFunctionInfo(),
+              creator);
+    } else if (uConfig.getUnsafeMode() == UnsafeMode.SIGNALINVERSION) {
+      usageProcessor =
+          new SignalInversionProcessor(
               pConfig,
               logger,
               localMap,

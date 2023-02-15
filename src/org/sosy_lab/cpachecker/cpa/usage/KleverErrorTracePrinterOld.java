@@ -42,6 +42,7 @@ import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.NodeFlag;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.NodeType;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.WitnessType;
 import org.sosy_lab.cpachecker.util.automaton.VerificationTaskMetaData;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Element;
@@ -66,7 +67,9 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
 
   @Override
   protected void printUnsafe(
-      SingleIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair, boolean refined) {
+      AbstractIdentifier pId,
+      Pair<UsageInfo, UsageInfo> pTmpPair,
+      boolean refined) {
     UsageInfo firstUsage = pTmpPair.getFirst();
     UsageInfo secondUsage = pTmpPair.getSecond();
     List<CFAEdge> firstPath, secondPath;
@@ -117,14 +120,14 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
 
   private Element printPath(UsageInfo usage, int threadId, GraphMlBuilder builder) {
     String currentId = getId(), nextId = currentId;
-    SingleIdentifier pId = usage.getId();
+    AbstractIdentifier pId = usage.getId();
     List<CFAEdge> path = usage.getPath();
 
     Iterator<CFAEdge> iterator = getIterator(path);
     CFAEdge warning =
         Lists.reverse(path).stream()
             .filter(e -> Objects.equals(e.getSuccessor(), usage.getCFANode()))
-            .filter(e -> e.toString().contains(pId.getName()))
+            .filter(e -> e.toString().contains(((SingleIdentifier) pId).getName()))
             .findFirst()
             .orElse(null);
 

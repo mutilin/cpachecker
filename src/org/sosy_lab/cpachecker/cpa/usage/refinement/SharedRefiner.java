@@ -20,7 +20,7 @@ import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
@@ -49,7 +49,7 @@ public class SharedRefiner extends GenericSinglePathRefiner {
 
     Collection<LocalState> successors = Collections.singleton(initialState);
     UsageInfo sharedUsage = pPath.getUsageInfo();
-    SingleIdentifier usageId = pPath.getUsageInfo().getId();
+    AbstractIdentifier usageId = pPath.getUsageInfo().getId();
 
     for (CFAEdge edge : edges) {
       assert(successors.size() <= 1);

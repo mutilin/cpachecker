@@ -36,6 +36,7 @@ import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cpa.bam.BAMMultipleCEXSubgraphComputer;
 import org.sosy_lab.cpachecker.cpa.lock.AbstractLockState;
 import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GlobalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
@@ -89,7 +90,9 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
 
   @Override
   protected void printUnsafe(
-      SingleIdentifier id, Pair<UsageInfo, UsageInfo> pPair, boolean refined) {
+      AbstractIdentifier id,
+      Pair<UsageInfo, UsageInfo> pPair,
+      boolean refined) {
     File name = new File("output/ErrorPath." + createUniqueName(id) + ".txt");
     Writer writer;
     try {
@@ -109,7 +112,10 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
         logger.log(Level.WARNING, "What is it? " + id);
       }
       writer.append(id.getDereference() + "\n");
-      writer.append(id.getType().toASTString(id.getName()) + "\n");
+      if (id instanceof SingleIdentifier) {
+        SingleIdentifier sId = (SingleIdentifier) id;
+        writer.append(sId.getType().toASTString(sId.getName()) + "\n");
+      }
       if (refined) {
         writer.append("Line 0:     N0 -{/*Is true unsafe:*/}-> N0" + "\n");
       }
@@ -131,7 +137,10 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
   }
 
   private void createVisualization(
-      final SingleIdentifier id, final UsageInfo usage, final Writer writer) throws IOException {
+      final AbstractIdentifier id,
+      final UsageInfo usage,
+      final Writer writer)
+      throws IOException {
     AbstractLockState locks = usage.getLockState();
 
     writer.append("Line 0:     N0 -{/*_____________________*/}-> N0\n");
@@ -170,9 +179,11 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
       if (!isNullOrEmpty(caption) && !(edge instanceof CFunctionReturnEdge)) {
         writer.write("Line 0:     N0 -{/*" + caption + "*/}-> N0\n");
         writer.write("Line 0:     N0 -{highlight}-> N0\n");
-      } else if (Objects.equals(edge.getSuccessor(), usage.getCFANode())
-          && edge.toString().contains(id.getName())) {
-        writer.write("Line 0:     N0 -{highlight}-> N0\n");
+      } else if (id instanceof SingleIdentifier) {
+        if (Objects.equals(edge.getSuccessor(), usage.getCFANode())
+            && edge.toString().contains(((SingleIdentifier) id).getName())) {
+          writer.write("Line 0:     N0 -{highlight}-> N0\n");
+        }
       }
       writer.write(edge + "\n");
     }
@@ -185,10 +196,12 @@ public class ETVErrorTracePrinter extends ErrorTracePrinter {
   }
 
   private void printCountStatistics(
-      final Writer writer, final Iterator<SingleIdentifier> idIterator) throws IOException {
+      final Writer writer,
+      final Iterator<AbstractIdentifier> idIterator)
+      throws IOException {
     int global = 0, local = 0, fields = 0;
     int globalPointer = 0, localPointer = 0, fieldPointer = 0;
-    SingleIdentifier id;
+    AbstractIdentifier id;
 
     while (idIterator.hasNext()) {
       id = idIterator.next();

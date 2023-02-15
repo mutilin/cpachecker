@@ -9,6 +9,7 @@
 package org.sosy_lab.cpachecker.cpa.signal;
 
 import com.google.common.collect.ImmutableList;
+import com.google.errorprone.annotations.ForOverride;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class SignalState
     this(ImmutableList.of(), new TreeMap<>());
   }
 
-  private SignalState(
+  protected SignalState(
       ImmutableList<Pair<Integer, Action>> pSignals,
       Map<String, Integer> pPreparedId) {
     signals = pSignals;
@@ -79,13 +80,29 @@ public class SignalState
     }
     Integer id = getId(varName);
     Pair<Integer, Action> newItem = Pair.of(id, pAction);
-    List<Pair<Integer, Action>> list = new ArrayList<>(signals);
+    List<Pair<Integer, Action>> list = getNewList();
     if (!addSignalTo(list, newItem)) {
       return this;
     }
     Map<String, Integer> newIds = new TreeMap<>(localIds);
     newIds.remove(varName);
-    return new SignalState(ImmutableList.copyOf(list), newIds);
+    return copy(ImmutableList.copyOf(list), newIds);
+  }
+
+  @ForOverride
+  protected List<Pair<Integer, Action>> getNewList() {
+    return new ArrayList<>(signals);
+  }
+
+  @ForOverride
+  protected SignalState
+      copy(ImmutableList<Pair<Integer, Action>> pSignals, Map<String, Integer> pPreparedId) {
+    return new SignalState(pSignals, pPreparedId);
+  }
+
+  @ForOverride
+  protected SignalState copy() {
+    return new SignalState();
   }
 
   private boolean addSignalTo(List<Pair<Integer, Action>> pList, Pair<Integer, Action> newItem) {
@@ -98,11 +115,15 @@ public class SignalState
     return true;
   }
 
-  public static SignalState createInitialState(SignalStatistics pStats) {
+  private static void initStats(SignalStatistics pStats) {
     if (stats == null) {
       // Only in tests the method is called several times
       stats = pStats;
     }
+  }
+
+  public static SignalState createInitialState(SignalStatistics pStats) {
+    initStats(pStats);
     return new SignalState();
   }
 
@@ -125,7 +146,7 @@ public class SignalState
     Map<String, Integer> newIds = new TreeMap<>(localIds);
     newIds.put(varName, id);
     stats.createdLocalSignals.inc();
-    return new SignalState(signals, newIds);
+    return copy(signals, newIds);
   }
 
   @Override
@@ -204,20 +225,20 @@ public class SignalState
       return root;
     }
     boolean changed = false;
-    List<Pair<Integer, Action>> list = new ArrayList<>(root.signals);
+    List<Pair<Integer, Action>> list = root.getNewList();
     for (Pair<Integer, Action> pair : this.signals) {
       if (addSignalTo(list, pair)) {
         changed = true;
       }
     }
     if (changed) {
-      return new SignalState(ImmutableList.copyOf(list), root.localIds);
+      return copy(ImmutableList.copyOf(list), root.localIds);
     }
     return root;
   }
 
   public SignalState reduce() {
-    return new SignalState();
+    return copy();
   }
 
   @Override
@@ -252,5 +273,40 @@ public class SignalState
       return localIds.get(varName);
     }
     return globalIds.get(varName);
+  }
+
+  public static class InversionSignalState extends SignalState {
+
+    public InversionSignalState(
+        ImmutableList<Pair<Integer, Action>> pSignals,
+        Map<String, Integer> pPreparedId) {
+      super(pSignals, pPreparedId);
+    }
+
+    public InversionSignalState() {
+    }
+
+    @Override
+    protected List<Pair<Integer, Action>> getNewList() {
+      // store only last event
+      return new ArrayList<>();
+    }
+
+    @Override
+    protected InversionSignalState
+        copy(ImmutableList<Pair<Integer, Action>> pSignals, Map<String, Integer> pPreparedId) {
+      return new InversionSignalState(pSignals, pPreparedId);
+    }
+
+    @Override
+    @ForOverride
+    protected InversionSignalState copy() {
+      return new InversionSignalState();
+    }
+
+    public static InversionSignalState createInitialState(SignalStatistics pStats) {
+      initStats(pStats);
+      return new InversionSignalState();
+    }
   }
 }

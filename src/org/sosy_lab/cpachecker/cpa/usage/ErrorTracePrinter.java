@@ -167,27 +167,34 @@ public abstract class ErrorTracePrinter {
     printedTraces = new HashMap<>();
   }
 
-  protected String createUniqueName(SingleIdentifier id) {
-    CType type = id.getType();
+  protected String createUniqueName(AbstractIdentifier id) {
     String concat;
-    if (type instanceof CCompositeType) {
-      // It includes declarations of all fields
-      concat = ((CCompositeType) type).getQualifiedName() + " " + id;
-    } else if (type instanceof CElaboratedType) {
-      String typeName = ((CElaboratedType) type).getQualifiedName();
-      if (typeName.contains("anonstruct") || typeName.contains("anonunion")) {
-        // The number of fields in anonstruct are unique build to build, and Klever can not match the warnings,
-        // if it have different declaration, thus, remove the number
-        typeName = typeName.replaceAll("_(\\d)*$", "");
+    if (id instanceof SingleIdentifier) {
+      SingleIdentifier sId = (SingleIdentifier) id;
+      CType type = sId.getType();
+      if (type instanceof CCompositeType) {
+        // It includes declarations of all fields
+        concat = ((CCompositeType) type).getQualifiedName() + " " + id;
+      } else if (type instanceof CElaboratedType) {
+        String typeName = ((CElaboratedType) type).getQualifiedName();
+        if (typeName.contains("anonstruct") || typeName.contains("anonunion")) {
+          // The number of fields in anonstruct are unique build to build, and Klever can not match
+          // the warnings,
+          // if it have different declaration, thus, remove the number
+          typeName = typeName.replaceAll("_(\\d)*$", "");
+        }
+        concat = typeName + " " + id;
+      } else {
+        concat = type.toASTString(id.toString());
       }
-      concat = typeName + " " + id;
     } else {
-      concat = id.getType().toASTString(id.toString());
+      concat = id.toString();
     }
     if (concat.contains("cif_")) {
       // CIF also adds numbers of instrumented functions randomly, and Klever cannot match them
       concat = concat.replaceAll("\\d", "");
     }
+
     return concat;
   }
 
@@ -195,7 +202,7 @@ public abstract class ErrorTracePrinter {
     preparationTimer.start();
 
     logger.log(Level.FINEST, "Processing unsafe identifiers");
-    Map<SingleIdentifier, Pair<UsageInfo, UsageInfo>> unsafes = uReached.getUnsafes();
+    Map<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> unsafes = uReached.getUnsafes();
 
     if (unsafes == null) {
       // Means that there are no stable unsafes, nothing to print, but warn
@@ -209,10 +216,10 @@ public abstract class ErrorTracePrinter {
 
     init();
     preparationTimer.stop();
-    for (Entry<SingleIdentifier, Pair<UsageInfo, UsageInfo>> unsafe : unsafes.entrySet()) {
+    for (Entry<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> unsafe : unsafes.entrySet()) {
       UsageInfo uinfo1 = unsafe.getValue().getFirst();
       UsageInfo uinfo2 = unsafe.getValue().getSecond();
-      SingleIdentifier id = unsafe.getKey();
+      AbstractIdentifier id = unsafe.getKey();
       if (id instanceof StructureIdentifier) {
         id = ((StructureIdentifier) id).toStructureFieldIdentifier();
       }
@@ -242,14 +249,14 @@ public abstract class ErrorTracePrinter {
       writingUnsafeTimer.stop();
     }
     if (printFalseUnsafes) {
-      Set<SingleIdentifier> falseUnsafes = container.getFalseUnsafes();
+      Set<AbstractIdentifier> falseUnsafes = container.getFalseUnsafes();
 
       if (!falseUnsafes.isEmpty()) {
         try (Writer writer =
             Files.newBufferedWriter(outputFalseUnsafes, Charset.defaultCharset())) {
           logger.log(Level.FINE, "Print statistics about false unsafes");
 
-          for (SingleIdentifier id : falseUnsafes) {
+          for (AbstractIdentifier id : falseUnsafes) {
             writer.append(createUniqueName(id) + "\n");
           }
         } catch (IOException e) {
@@ -348,7 +355,9 @@ public abstract class ErrorTracePrinter {
   }
 
   protected abstract void printUnsafe(
-      SingleIdentifier id, Pair<UsageInfo, UsageInfo> pair, boolean refined);
+      AbstractIdentifier id,
+      Pair<UsageInfo, UsageInfo> pair,
+      boolean refined);
 
   protected void init() {}
 

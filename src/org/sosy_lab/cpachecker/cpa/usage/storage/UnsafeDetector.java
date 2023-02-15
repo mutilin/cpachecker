@@ -17,7 +17,10 @@ import org.sosy_lab.cpachecker.cpa.lock.DeadLockState.DeadLockTreeNode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState.Action;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState.InversionSignalState;
+import org.sosy_lab.cpachecker.cpa.thread.ThreadState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
+import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.util.Pair;
 
 public class UnsafeDetector {
@@ -27,6 +30,7 @@ public class UnsafeDetector {
     DEADLOCKCIRCULAR,
     DEADLOCKDISPATCH,
     DEADLOCKSIGNAL,
+    SIGNALINVERSION,
   }
 
   private final UsageConfiguration config;
@@ -127,13 +131,15 @@ public class UnsafeDetector {
         case DEADLOCKSIGNAL:
           return isDeadlockSignal(point1, point2);
 
+        case SIGNALINVERSION:
+          return isSignalInversion(point1, point2);
+
         default:
           throw new UnsupportedOperationException("Unknown mode: " + config.getUnsafeMode());
       }
     }
     return false;
   }
-
 
   private boolean isRace(UsagePoint point1, UsagePoint point2) {
     if ((point1.getAccess().isWrite() || point2.getAccess().isWrite())
@@ -238,6 +244,40 @@ public class UnsafeDetector {
     // -1 means 'any' signal
     final int ANY = -1;
     return sig1.equals(sig2) && sig1 != ANY && sig2 != ANY;
+  }
+
+  private boolean isSignalInversion(UsagePoint pPoint1, UsagePoint pPoint2) {
+    SignalState state1 = pPoint1.get(InversionSignalState.class);
+    SignalState state2 = pPoint1.get(InversionSignalState.class);
+
+    if (state1 == null || state2 == null) {
+      throw new UnsupportedOperationException(
+          "Signal inversion check need SignalCPA with inversed states (cpa.signal.deadlockState=false)");
+    }
+
+    List<Pair<Integer, Action>> sState1 = state1.getSignals();
+    List<Pair<Integer, Action>> sState2 = state2.getSignals();
+
+    assert sState1.size() == 1;
+    assert sState2.size() == 1;
+
+    Integer sig1 = sState1.get(0).getFirst();
+    Integer sig2 = sState2.get(0).getFirst();
+
+    if (sameSignal(sig1, sig2)) {
+      ThreadState tState1 = pPoint1.get(ThreadState.class);
+      ThreadState tState2 = pPoint2.get(ThreadState.class);
+
+      Access access1 = pPoint1.getAccess();
+      Access access2 = pPoint2.getAccess();
+
+      if (access1 == Access.SEND && access2 == Access.RECEIVE) {
+        return (tState1.getPriority() > tState2.getPriority());
+      } else if (access2 == Access.SEND && access1 == Access.RECEIVE) {
+        return (tState2.getPriority() > tState1.getPriority());
+      }
+    }
+    return false;
   }
 
  }

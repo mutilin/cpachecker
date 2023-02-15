@@ -25,7 +25,7 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageConfiguration;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.Pair;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class UsageReachedSet extends PartitionedReachedSet {
@@ -107,7 +107,7 @@ public class UsageReachedSet extends PartitionedReachedSet {
     return container;
   }
 
-  public Map<SingleIdentifier, Pair<UsageInfo, UsageInfo>> getUnsafes() {
+  public Map<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> getUnsafes() {
     return container.getStableUnsafes();
   }
 

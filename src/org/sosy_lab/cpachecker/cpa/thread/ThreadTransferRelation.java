@@ -152,7 +152,10 @@ public class ThreadTransferRelation implements TransferRelation {
 
       } else {
         throw new CPATransferException(
-            "Can not create thread " + pFunctionName + ", it was already created");
+            "Can not create thread "
+                + pFunctionName
+                + ", it was already created. Line "
+                + tCall.getFileLocation().getStartingLineNumber());
       }
     }
 

@@ -19,7 +19,8 @@ import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 
 public class AgressiveThreadReducer implements Reducer {
 
-  public AgressiveThreadReducer() {}
+  public AgressiveThreadReducer() {
+  }
 
   @Override
   public AbstractState getVariableReducedState(AbstractState pExpandedState, Block pContext,

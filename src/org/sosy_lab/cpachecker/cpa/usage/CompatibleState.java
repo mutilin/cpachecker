@@ -9,7 +9,7 @@
 package org.sosy_lab.cpachecker.cpa.usage;
 
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 public interface CompatibleState extends Comparable<CompatibleState>, AbstractState {
 
@@ -19,7 +19,7 @@ public interface CompatibleState extends Comparable<CompatibleState>, AbstractSt
 
   public CompatibleNode getCompatibleNode();
 
-  default boolean isRelevantFor(@SuppressWarnings("unused") SingleIdentifier id) {
+  default boolean isRelevantFor(@SuppressWarnings("unused") AbstractIdentifier pIdent) {
     return true;
   }
 }

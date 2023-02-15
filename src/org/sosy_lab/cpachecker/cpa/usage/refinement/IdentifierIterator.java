@@ -49,13 +49,14 @@ import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.Precisions;
-import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 
 @Options(prefix="cpa.usage")
-public class IdentifierIterator extends WrappedConfigurableRefinementBlock<ReachedSet, SingleIdentifier> implements Refiner {
+public class IdentifierIterator
+    extends WrappedConfigurableRefinementBlock<ReachedSet, AbstractIdentifier> implements Refiner {
 
   private class Stats implements Statistics {
 
@@ -107,9 +108,11 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
   int lastFalseUnsafeSize = -1;
   int lastTrueUnsafes = 0;
 
-  private final Map<SingleIdentifier, AdjustablePrecision> precisionMap = new HashMap<>();
+  private final Map<AbstractIdentifier, AdjustablePrecision> precisionMap = new HashMap<>();
 
-  public IdentifierIterator(ConfigurableRefinementBlock<SingleIdentifier> pWrapper, Configuration config,
+  public IdentifierIterator(
+      ConfigurableRefinementBlock<AbstractIdentifier> pWrapper,
+      Configuration config,
       ConfigurableProgramAnalysis pCpa,
       BAMTransferRelation pTransfer,
       boolean pDisableCaching)
@@ -150,7 +153,7 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
       throw new UnsupportedOperationException("UsageRefiner requires UsageReachedSet");
     }
     UsageContainer container = uReached.getUsageContainer();
-    Set<SingleIdentifier> processedUnsafes = new HashSet<>();
+    Set<AbstractIdentifier> processedUnsafes = new HashSet<>();
 
     logger.log(Level.INFO, ("Perform US refinement: " + i++));
     int originUnsafeSize = container.getTotalUnsafeSize();
@@ -163,7 +166,7 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
     sendUpdateSignal(PredicateRefinerAdapter.class, pReached);
     sendUpdateSignal(PointIterator.class, container);
 
-    Iterator<SingleIdentifier> iterator = container.getUnrefinedUnsafeIterator();
+    Iterator<AbstractIdentifier> iterator = container.getUnrefinedUnsafeIterator();
     boolean isPrecisionChanged = false;
     AbstractState firstState = pReached.getFirstState();
     AdjustablePrecision finalPrecision = (AdjustablePrecision) pReached.getPrecision(firstState);
@@ -173,7 +176,7 @@ public class IdentifierIterator extends WrappedConfigurableRefinementBlock<Reach
             StateSpacePartition.getDefaultPartition());
 
     while (iterator.hasNext()) {
-      SingleIdentifier currentId = iterator.next();
+      AbstractIdentifier currentId = iterator.next();
 
       stats.innerRefinementTimer.start();
       RefinementResult result = wrappedRefiner.performBlockRefinement(currentId);

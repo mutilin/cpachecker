@@ -35,14 +35,7 @@ public class ThreadDelta implements Delta<CompatibleNode> {
       return pOther.copyWith(threadSet);
     }
 
-    Map<String, ThreadStatus> newSet = new TreeMap<>(threadSet);
-    for (Entry<String, ThreadStatus> entry : reduced.entrySet()) {
-      if (newSet.containsKey(entry.getKey())) {
-        throw new UnsupportedOperationException(
-            "Cannot expand state with thread " + entry.getKey() + ", it is already present");
-      }
-      newSet.put(entry.getKey(), entry.getValue());
-    }
+    Map<String, ThreadStatus> newSet = mergeMaps(pOther.threadSet);
     return pOther.copyWith(newSet);
   }
 
@@ -62,15 +55,19 @@ public class ThreadDelta implements Delta<CompatibleNode> {
     if (threadSet.isEmpty()) {
       return pDelta;
     }
-    Map<String, ThreadStatus> newSet = new TreeMap<>(threadSet);
-    for (Entry<String, ThreadStatus> entry : pOther.threadSet.entrySet()) {
-      if (newSet.containsKey(entry.getKey())) {
-        throw new UnsupportedOperationException(
-            "Cannot add a thread " + entry.getKey() + ", it is already present");
-      }
-      newSet.put(entry.getKey(), entry.getValue());
-    }
+    Map<String, ThreadStatus> newSet = mergeMaps(pOther.threadSet);
     return new ThreadDelta(newSet);
   }
 
+  private Map<String, ThreadStatus> mergeMaps(Map<String, ThreadStatus> other) {
+    Map<String, ThreadStatus> newSet = new TreeMap<>(threadSet);
+    for (Entry<String, ThreadStatus> entry : other.entrySet()) {
+      if (newSet.containsKey(entry.getKey())) {
+        newSet.put(entry.getKey(), ThreadStatus.SELF_PARALLEL_THREAD);
+      } else {
+        newSet.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return newSet;
+  }
 }

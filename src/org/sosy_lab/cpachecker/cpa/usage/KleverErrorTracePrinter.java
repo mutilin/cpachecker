@@ -65,6 +65,7 @@ import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.NodeType;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.RaceGraphMlBuilder;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.WitnessType;
 import org.sosy_lab.cpachecker.util.automaton.VerificationTaskMetaData;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.w3c.dom.DOMException;
 import org.w3c.dom.Element;
@@ -213,7 +214,8 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   private NoteFilter notePreparator;
 
   @Override
-  protected void printUnsafe(SingleIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair, boolean refined) {
+  protected void
+      printUnsafe(AbstractIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair, boolean refined) {
     UsageInfo firstUsage = pTmpPair.getFirst();
     UsageInfo secondUsage = pTmpPair.getSecond();
 
@@ -360,7 +362,13 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   }
 
   private void printPath(UsageInfo usage, Iterator<CFAEdge> iterator, GraphMlBuilder builder) {
-    String pIdName = usage.getId().getName();
+    AbstractIdentifier id = usage.getId();
+    String pIdName;
+    if (id instanceof SingleIdentifier) {
+      pIdName = ((SingleIdentifier) id).getName();
+    } else {
+      pIdName = id.toString();
+    }
     List<Element> warnings = new ArrayList<>();
 
     while (iterator.hasNext()) {
