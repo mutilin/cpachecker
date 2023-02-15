@@ -193,6 +193,7 @@ def run_simple_tests():
 
     run_common_checks('simple')
     run_common_checks('threads')
+    run_common_checks('pointers')
 
 def run_uppsala_tests():
     def run_uppsala_tests(options, dirs, key_config, verdict_file):
