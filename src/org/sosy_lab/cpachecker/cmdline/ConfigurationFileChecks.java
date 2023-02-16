@@ -545,7 +545,8 @@ public class ConfigurationFileChecks {
         if (option.endsWith(".parameters")
             || option.endsWith(".maxDepth")
             || option.endsWith(".lock")
-            || option.endsWith(".unlock")) {
+            || option.endsWith(".unlock")
+            || option.endsWith(".variable")) {
           iterator.remove();
         }
       }
