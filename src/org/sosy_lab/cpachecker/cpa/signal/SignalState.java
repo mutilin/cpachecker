@@ -9,7 +9,6 @@
 package org.sosy_lab.cpachecker.cpa.signal;
 
 import com.google.common.collect.ImmutableList;
-import com.google.errorprone.annotations.ForOverride;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +35,7 @@ public class SignalState
   private final ImmutableList<Pair<Integer, Action>> signals;
   // Global variables
   private final static Map<String, Integer> globalIds = new TreeMap<>();
-  private final Map<String, Integer> localIds;
+  protected final Map<String, Integer> localIds;
 
   public SignalState() {
     this(ImmutableList.of(), new TreeMap<>());
@@ -89,20 +88,21 @@ public class SignalState
     return copy(ImmutableList.copyOf(list), newIds);
   }
 
-  @ForOverride
   protected List<Pair<Integer, Action>> getNewList() {
     return new ArrayList<>(signals);
   }
 
-  @ForOverride
   protected SignalState
       copy(ImmutableList<Pair<Integer, Action>> pSignals, Map<String, Integer> pPreparedId) {
     return new SignalState(pSignals, pPreparedId);
   }
 
-  @ForOverride
   protected SignalState copy() {
     return new SignalState();
+  }
+
+  protected SignalState resetIfNeeded() {
+    return this;
   }
 
   private boolean addSignalTo(List<Pair<Integer, Action>> pList, Pair<Integer, Action> newItem) {
@@ -299,7 +299,6 @@ public class SignalState
     }
 
     @Override
-    @ForOverride
     protected InversionSignalState copy() {
       return new InversionSignalState();
     }
@@ -307,6 +306,13 @@ public class SignalState
     public static InversionSignalState createInitialState(SignalStatistics pStats) {
       initStats(pStats);
       return new InversionSignalState();
+    }
+
+    @Override
+    protected SignalState resetIfNeeded() {
+      // We need signals only once for inversion detection.
+      // Do not store them further
+      return copy(ImmutableList.of(), this.localIds);
     }
   }
 }

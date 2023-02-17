@@ -272,9 +272,9 @@ public class UnsafeDetector {
       Access access2 = pPoint2.getAccess();
 
       if (access1 == Access.SEND && access2 == Access.RECEIVE) {
-        return (tState1.getPriority() > tState2.getPriority());
+        return (tState1.getPriority() < tState2.getPriority());
       } else if (access2 == Access.SEND && access1 == Access.RECEIVE) {
-        return (tState2.getPriority() > tState1.getPriority());
+        return (tState2.getPriority() < tState1.getPriority());
       }
     }
     return false;

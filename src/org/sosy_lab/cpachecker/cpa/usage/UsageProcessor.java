@@ -92,6 +92,7 @@ public class UsageProcessor {
 
   private IdentifierCreator creator;
 
+  // Timers are disabled due to problems with synchronization
   StatTimer totalTimer = new StatTimer("Total time for usage processing");
   StatTimer localTimer = new StatTimer("Time for sharedness check");
   StatTimer usagePreparationTimer = new StatTimer("Time for usage preparation");

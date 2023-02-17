@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
+import com.google.common.base.Predicate;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
@@ -16,8 +17,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -36,6 +41,9 @@ import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageProcessor;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
+import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 import org.sosy_lab.cpachecker.util.statistics.ThreadSafeTimerContainer;
@@ -51,9 +59,18 @@ public class ConcurrentUsageExtractor {
   private final boolean useConcurrentExtraction;
 
   private final StatTimer totalTimer = new StatTimer("Time for extracting usages");
+  private final StatTimer traversalTimer = new StatTimer("Time for reached sets traversal");
+  private final StatTimer usageTimer = new StatTimer("Time for usage set processing");
+  private final StatInt reachedSetCounter =
+      new StatInt(StatKind.SUM, "Number of traversed reached sets");
+  private final StatInt finalSetCounter =
+      new StatInt(StatKind.SUM, "Number of different reached sets");
   private final AtomicInteger processingSteps;
   private final AtomicInteger numberOfActiveTasks;
   private final ShutdownNotifier notifier;
+  private ExecutorService service;
+  private final Multimap<AbstractState, UsageDelta> processedSets;
+  private final Map<Pair<AbstractState, UsageDelta>, List<AbstractState>> stacks;
 
   @SuppressWarnings("deprecation")
   private final ThreadSafeTimerContainer usageExpandingTimer =
@@ -87,26 +104,66 @@ public class ConcurrentUsageExtractor {
     processingSteps = new AtomicInteger();
     numberOfActiveTasks = new AtomicInteger();
     notifier = usageCpa.getNotifier();
+    processedSets = ArrayListMultimap.create();
+    // Normal map + synchronized shows better performance than ConcurrentHashMap
+    stacks = new HashMap<>();
   }
 
   @SuppressWarnings("FutureReturnValueIgnored")
-  public void extractUsages(AbstractState firstState) {
+  public void extractUsages(ReachedSet reached) {
     totalTimer.start();
+    int threads = useConcurrentExtraction ? Runtime.getRuntime().availableProcessors() : 1;
+    // Reset from the previous iteration
+    service = Executors.newFixedThreadPool(threads);
+    processingSteps.set(0);
+    numberOfActiveTasks.set(0);
     logger.log(Level.INFO, "Analysis is finished, start usage extraction");
-    Multimap<AbstractState, UsageDelta> processedSets = ArrayListMultimap.create();
+    AbstractState firstState = reached.getFirstState();
 
     UsageDelta emptyDelta = UsageDelta.constructDeltaBetween(firstState, firstState);
     processedSets.put(firstState, emptyDelta);
     usageProcessor.updateRedundantUnsafes(container.getNotInterestingUnsafes());
 
     numberOfActiveTasks.incrementAndGet();
-    int threads = useConcurrentExtraction ? Runtime.getRuntime().availableProcessors() : 1;
-    ExecutorService service = Executors.newFixedThreadPool(threads);
+    traversalTimer.start();
     service.submit(
-        new ReachedSetExecutor(firstState, emptyDelta, processedSets, service, ImmutableList.of()));
+        new ReachedSetTraversal(reached, emptyDelta, ImmutableList.of()));
 
+    waitUntill(s -> s != processingSteps.get());
+    logger.log(Level.FINE, "ReachedSet traversion is finished");
+
+    traversalTimer.stop();
+    reachedSetCounter.setNextValue(processingSteps.get());
+    finalSetCounter.setNextValue(processedSets.entries().size());
+    numberOfActiveTasks.set(processedSets.entries().size());
+    usageTimer.start();
+
+    for (Entry<AbstractState, UsageDelta> rSet : processedSets.entries()) {
+      service.submit(
+          new UsageTraversal(
+              rSet.getKey(),
+              rSet.getValue(),
+              stacks.get(Pair.of(rSet.getKey(), rSet.getValue()))));
+    }
+
+    waitUntill(s -> s > 0);
+    logger.log(Level.FINE, "Usage processing is finished");
+    usageTimer.stop();
+
+    // Save memory
+    processedSets.clear();
+    stacks.clear();
+    service.shutdownNow();
+    totalTimer.stop();
+  }
+
+  public BAMDataManager getManager() {
+    return manager;
+  }
+
+  private void waitUntill(Predicate<Integer> pPredicate) {
     try {
-      while (numberOfActiveTasks.get() != processingSteps.get()) {
+      while (pPredicate.apply(numberOfActiveTasks.get())) {
         synchronized (this) {
           this.wait(1000);
         }
@@ -115,113 +172,185 @@ public class ConcurrentUsageExtractor {
           notifier.shutdownIfNecessary();
         }
       }
-      logger.log(Level.INFO, "Usage extraction is finished");
     } catch (InterruptedException e) {
-      logger.log(Level.WARNING, "Usage extraction is interrupted");
+      logger.log(Level.WARNING, "wait is interrupted");
     }
-    service.shutdownNow();
-    totalTimer.stop();
   }
 
   public void printStatistics(StatisticsWriter pWriter) {
     StatisticsWriter writer =
-        pWriter.spacer().put(totalTimer).beginLevel().put(usageProcessingTimer).beginLevel();
-    usageProcessor.printStatistics(writer);
+        pWriter.spacer()
+            .put(totalTimer)
+            .beginLevel()
+            .put(traversalTimer)
+            .put(usageTimer)
+            .beginLevel()
+            .put(usageProcessingTimer)
+            .beginLevel();
+
+    // Timers are disabled due to problems with synchronization
+    // usageProcessor.printStatistics(writer);
     writer.endLevel()
         .put(addingToContainerTimer)
         .put(usageExpandingTimer)
         .endLevel()
-        .put("Number of different reached sets with lock effects", processingSteps);
+        .put(reachedSetCounter)
+        .put(finalSetCounter);
   }
 
-  public BAMDataManager getManager() {
-    return manager;
-  }
-
-  private class ReachedSetExecutor implements Runnable {
+  private class ReachedSetTraversal implements Runnable {
 
     private final UsageDelta currentDelta;
-    private final AbstractState firstState;
-    private final Multimap<AbstractState, UsageDelta> processedSets;
-    private final ExecutorService service;
-    private final Map<AbstractState, List<UsageInfo>> stateToUsage;
+    private final ReachedSet reached;
     private final List<AbstractState> expandedStack;
 
-    private final TimerWrapper expandingTimer;
-    private final TimerWrapper processingTimer;
-    private final TimerWrapper addingTimer;
-
-    ReachedSetExecutor(
-        AbstractState pState,
+    ReachedSetTraversal(
+        ReachedSet pSet,
         UsageDelta pDelta,
-        Multimap<AbstractState, UsageDelta> pSets,
-        ExecutorService pService,
         List<AbstractState> pExpandedStack) {
 
       currentDelta = pDelta;
-      firstState = pState;
-      processedSets = pSets;
-      service = pService;
-      expandingTimer = usageExpandingTimer.getNewTimer();
-      processingTimer = usageProcessingTimer.getNewTimer();
-      addingTimer = addingToContainerTimer.getNewTimer();
-      stateToUsage = new HashMap<>();
+      reached = pSet;
       expandedStack = pExpandedStack;
     }
 
     @Override
     public void run() {
-      // processingSteps.inc();
-      Deque<AbstractState> stateWaitlist = new ArrayDeque<>();
-      stateWaitlist.add(firstState);
+      for (AbstractState state : reached.asCollection()) {
+        ARGState argState = (ARGState) state;
 
-      // Waitlist to be sure in order (not start from the middle point)
-      try {
-        while (!stateWaitlist.isEmpty()) {
-          ARGState argState = (ARGState) stateWaitlist.poll();
-          if (stateToUsage.containsKey(argState)) {
-            continue;
-          }
-
-          List<UsageInfo> expandedUsages = expandUsagesAndAdd(argState);
-
-          if (needToDumpUsages(argState)) {
-            addingTimer.start();
-            for (UsageInfo usage : expandedUsages) {
-              container.add(usage);
-            }
-            addingTimer.stop();
-          } else {
-            stateToUsage.put(argState, expandedUsages);
-          }
-          stateWaitlist.addAll(argState.getSuccessors());
-
-          // Search state in the BAM cache
-          if (manager != null && manager.hasInitialState(argState)) {
-            for (ARGState child : argState.getChildren()) {
-              AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
-              ReachedSet innerReached =
-                  manager.getReachedSetForInitialState(argState, reducedChild);
-
-              processReachedSet(argState, innerReached);
-              notifier.shutdownIfNecessary();
-            }
-          } else if (manager != null && manager.hasInitialStateWithoutExit(argState)) {
-            // Likely thread functions
-            ReachedSet innerReached = manager.getReachedSetForInitialState(argState);
+        // Search state in the BAM cache
+        if (manager != null && manager.hasInitialState(argState)) {
+          for (ARGState child : argState.getChildren()) {
+            AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
+            ReachedSet innerReached = manager.getReachedSetForInitialState(argState, reducedChild);
 
             processReachedSet(argState, innerReached);
-            notifier.shutdownIfNecessary();
           }
+        } else if (manager != null && manager.hasInitialStateWithoutExit(argState)) {
+          // Likely thread functions
+          ReachedSet innerReached = manager.getReachedSetForInitialState(argState);
+
+          processReachedSet(argState, innerReached);
         }
-      } catch (InterruptedException e) {
-        // Likely, timeout, nothing to do, finish here
-      } catch (Throwable e) {
-        // catch to be sure, that we increment the counter
-        logger.logException(Level.WARNING, e, "Exception: ");
       }
 
       if (processingSteps.incrementAndGet() == numberOfActiveTasks.get()) {
+        service.notify();
+      }
+    }
+
+    @SuppressWarnings("FutureReturnValueIgnored")
+    private void processReachedSet(
+        AbstractState rootState,
+        ReachedSet innerReached) {
+
+      AbstractState reducedState = innerReached.getFirstState();
+
+      UsageDelta newDiff = UsageDelta.constructDeltaBetween(reducedState, rootState);
+      UsageDelta difference = currentDelta.add(newDiff);
+
+      if (shouldContinue(reducedState, difference)) {
+        numberOfActiveTasks.incrementAndGet();
+        List<AbstractState> newStack = new ArrayList<>(expandedStack);
+        newStack.add(rootState);
+        synchronized (processedSets) {
+          stacks.put(Pair.of(reducedState, difference), newStack);
+        }
+        service.submit(
+            new ReachedSetTraversal(
+                innerReached,
+                difference,
+                newStack));
+      }
+    }
+
+    private boolean shouldContinue(AbstractState pFirstState, UsageDelta currentDifference) {
+      synchronized (processedSets) {
+        Collection<UsageDelta> processed = processedSets.get(pFirstState);
+
+        if (processCoveredUsages) {
+          boolean b = !processed.contains(currentDifference);
+          if (b) {
+            processedSets.put(pFirstState, currentDifference);
+          }
+          return b;
+        } else {
+          for (UsageDelta delta : processed) {
+            if (delta.covers(currentDifference)) {
+              return false;
+            }
+          }
+          // Remove old deltas, covered by new one
+          Iterator<UsageDelta> iterator = processed.iterator();
+          while (iterator.hasNext()) {
+            UsageDelta delta = iterator.next();
+            if (currentDifference.covers(delta)) {
+              iterator.remove();
+              stacks.remove(Pair.of(pFirstState, delta));
+            }
+          }
+          processedSets.put(pFirstState, currentDifference);
+          return true;
+        }
+      }
+    }
+  }
+
+  private class UsageTraversal implements Runnable {
+
+    private final UsageDelta currentDelta;
+    // Cannot use reached set as we need to traverse the set in order
+    private final AbstractState firstState;
+    private final List<AbstractState> expandedStack;
+    private final Map<AbstractState, List<UsageInfo>> stateToUsage;
+
+    private final TimerWrapper expandingTimer;
+    private final TimerWrapper processingTimer;
+    private final TimerWrapper addingTimer;
+
+    UsageTraversal(
+        AbstractState pState,
+        UsageDelta pDelta,
+        List<AbstractState> pExpandedStack) {
+
+      currentDelta = pDelta;
+      firstState = pState;
+      expandingTimer = usageExpandingTimer.getNewTimer();
+      processingTimer = usageProcessingTimer.getNewTimer();
+      addingTimer = addingToContainerTimer.getNewTimer();
+      expandedStack = pExpandedStack;
+      stateToUsage = new HashMap<>();
+    }
+
+    @Override
+    public void run() {
+      Deque<AbstractState> stateWaitlist = new ArrayDeque<>();
+      stateWaitlist.add(firstState);
+      Set<AbstractState> visitedStates = new HashSet<>();
+
+      // Waitlist to be sure in order (not start from the middle point)
+      while (!stateWaitlist.isEmpty()) {
+        ARGState argState = (ARGState) stateWaitlist.poll();
+        if (visitedStates.contains(argState)) {
+          continue;
+        }
+
+        visitedStates.add(argState);
+        List<UsageInfo> expandedUsages = expandUsagesAndAdd(argState);
+
+        if (needToDumpUsages(argState)) {
+          addingTimer.start();
+          for (UsageInfo usage : expandedUsages) {
+            container.add(usage);
+          }
+          addingTimer.stop();
+        } else {
+          stateToUsage.put(argState, expandedUsages);
+        }
+        stateWaitlist.addAll(argState.getSuccessors());
+      }
+      if (numberOfActiveTasks.decrementAndGet() <= 0) {
         service.notify();
       }
     }
@@ -260,41 +389,6 @@ public class ConcurrentUsageExtractor {
       expandingTimer.stop();
 
       return expandedUsages;
-    }
-
-    @SuppressWarnings("FutureReturnValueIgnored")
-    private void processReachedSet(
-        AbstractState rootState,
-        ReachedSet innerReached) {
-
-      AbstractState reducedState = innerReached.getFirstState();
-
-      UsageDelta newDiff = UsageDelta.constructDeltaBetween(reducedState, rootState);
-      UsageDelta difference = currentDelta.add(newDiff);
-
-      synchronized (ConcurrentUsageExtractor.this) {
-        if (shouldContinue(processedSets.get(reducedState), difference)) {
-          numberOfActiveTasks.incrementAndGet();
-          processedSets.put(reducedState, difference);
-          List<AbstractState> newStack = new ArrayList<>(expandedStack);
-          newStack.add(rootState);
-          service.submit(
-              new ReachedSetExecutor(reducedState, difference, processedSets, service, newStack));
-        }
-      }
-    }
-
-    private boolean shouldContinue(Collection<UsageDelta> processed, UsageDelta currentDifference) {
-      if (processCoveredUsages) {
-        return !processed.contains(currentDifference);
-      } else {
-        for (UsageDelta delta : processed) {
-          if (delta.covers(currentDifference)) {
-            return false;
-          }
-        }
-        return true;
-      }
     }
   }
 }

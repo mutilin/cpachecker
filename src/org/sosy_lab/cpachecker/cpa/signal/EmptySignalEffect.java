@@ -18,7 +18,7 @@ public class EmptySignalEffect implements SignalEffect {
 
   @Override
   public SignalState apply(SignalState pState) {
-    return pState;
+    return pState.resetIfNeeded();
   }
 
 }

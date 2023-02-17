@@ -88,7 +88,7 @@ public class UsageReachedSet extends PartitionedReachedSet {
   @Override
   public boolean wasTargetReached() {
     if (!usagesExtracted) {
-      extractor.extractUsages(getFirstState());
+      extractor.extractUsages(this);
       usagesExtracted = true;
     }
     return container.hasUnsafes();
