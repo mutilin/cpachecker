@@ -42,6 +42,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIntegerLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CLeftHandSide;
+import org.sosy_lab.cpachecker.cfa.ast.c.CPointerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CRightHandSide;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
@@ -447,6 +448,8 @@ public class ThreadCreateTransformer {
         var = ((CCastExpression) var).getOperand();
       } else if (var instanceof CArraySubscriptExpression) {
         var = ((CArraySubscriptExpression) var).getArrayExpression();
+      } else if (var instanceof CPointerExpression) {
+        var = ((CPointerExpression) var).getOperand();
       } else {
         throw new UnsupportedOperationException("Unsupported parameter expression " + var);
       }
