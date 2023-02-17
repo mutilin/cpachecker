@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.predicate;
 
+import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
 import java.util.List;
@@ -16,6 +17,7 @@ import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
 import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
@@ -56,6 +58,16 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
         pAbstractionStatesTrace,
         interpolants,
         pRepeatedCounterexample);
+  }
+
+  @Override
+  public List<ARGState> filterAbstractionStates(ARGPath pPath) {
+    List<ARGState> result =
+        from(pPath.asStatesList()).skip(1)
+            .filter(PredicateAbstractState::containsAbstractionState)
+            .toList();
+
+    return result;
   }
 
 }

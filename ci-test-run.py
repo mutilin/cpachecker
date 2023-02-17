@@ -207,7 +207,8 @@ def run_uppsala_tests():
 
     options = ["-predicateAnalysis-threadmodular",
         "-setprop", "cpa.predicate.refinement.performThreadEffectRefinement=true",
-        "-setprop", "cpa.thread.skipTheSameThread=true"]
+        "-setprop", "cpa.thread.skipTheSameThread=true",
+        "-spec", "sv-comp-reachability"]
     
     benchmark_dirs = [
         os.environ['UPPSALA_BENCHMARKS'] + "/sv-races/",
