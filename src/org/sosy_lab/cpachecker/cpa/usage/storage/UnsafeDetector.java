@@ -243,12 +243,14 @@ public class UnsafeDetector {
   private boolean sameSignal(Integer sig1, Integer sig2) {
     // -1 means 'any' signal
     final int ANY = -1;
-    return sig1.equals(sig2) && sig1 != ANY && sig2 != ANY;
+    // -1 means 'any' signal
+    final int UNKNOWN = -2;
+    return sig1.equals(sig2) || sig1 == ANY || sig2 == ANY || sig1 == UNKNOWN || sig2 == UNKNOWN;
   }
 
   private boolean isSignalInversion(UsagePoint pPoint1, UsagePoint pPoint2) {
     SignalState state1 = pPoint1.get(InversionSignalState.class);
-    SignalState state2 = pPoint1.get(InversionSignalState.class);
+    SignalState state2 = pPoint2.get(InversionSignalState.class);
 
     if (state1 == null || state2 == null) {
       throw new UnsupportedOperationException(
