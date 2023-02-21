@@ -122,18 +122,30 @@ def add_setprop(options):
         result += ["-setprop", option]
     return result
 
-def run_cpachecker_on_set(options, verdicts, benchmarks, prefix = None):
-    pool = Pool(processes=2)
+def run_cpachecker_on_set(options, verdicts, benchmarks, prefix = None, parallel = False):
+    if parallel:
+        procNum = 2
+    else:
+        procNum = 1
+    pool = Pool(processes=procNum)
+    async_res = []
     for test in glob.glob(benchmarks):
         if prefix:            
             expected = verdicts[strip_start(test, prefix)]
         else:
             expected = verdicts[test]
 
-        pool.apply_async(call_cpachecker, args=[options, test, expected])
+        async_res.append(pool.apply_async(call_cpachecker, args=[options, test, expected]))
 
     pool.close()
     pool.join()
+
+    for res in async_res:
+        try:
+            res.get()
+        except ValueError as e:
+            # test failure in subprocess
+            raise e
 
 # Mostly for debug
 def obtain_verdicts(options, benchmarks):
@@ -200,7 +212,7 @@ def run_uppsala_tests():
         with open(verdict_file, 'r') as file:
             test_results = yaml.safe_load(file)
             for dir in dirs:
-                run_cpachecker_on_set(options, test_results[key_config], dir + "*.i", os.environ['UPPSALA_BENCHMARKS'])
+                run_cpachecker_on_set(options, test_results[key_config], dir + "*.i", os.environ['UPPSALA_BENCHMARKS'], True)
 
     # Note, there is no threads
     print("Run uppsala tests")
@@ -387,20 +399,18 @@ def run_sv_benchmarks():
                 "shutdown.timeout=1000",
                 "cpa.thread.supportSelfCreation=true"]) + ["-noout"]
             benchmarks = os.environ['SV_BENCHMARKS'] + directory + "*.i"
-            run_cpachecker_on_set(options, test_results[config], benchmarks , os.environ['SV_BENCHMARKS'])
+            run_cpachecker_on_set(options, test_results[config], benchmarks , os.environ['SV_BENCHMARKS'], True)
 
     print("Run sv benchmarks")
 
     test_config('-predicateAnalysis-threadmodular', "ldv-linux-3.14-races/")
     test_config('-predicateAnalysis-threadmodular', "ldv-races/")
-    # Unsupported parameter expression tids[i]
-    # test_config("-predicateAnalysis-threadmodular", "/pthread/")
+    test_config("-predicateAnalysis-threadmodular", "pthread/")
     test_config('-predicateAnalysis-threadmodular', "pthread-atomic/")
     test_config('-predicateAnalysis-threadmodular', "pthread-ext/")
     test_config('-predicateAnalysis-threadmodular', "pthread-lit/")
     test_config('-predicateAnalysis-threadmodular', "pthread-driver-races/")
-    # Unsupported parameter expression t[i]
-    # test_config("-predicateAnalysis-threadmodular", "/pthread-nondet/")
+    test_config("-predicateAnalysis-threadmodular", "pthread-nondet/")
 
     # fast check of different options on ldv-races
     test_config('-predicateAnalysis-threadmodular-refinement', "ldv-races/")

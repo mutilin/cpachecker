@@ -83,6 +83,9 @@ public class PresisionParser {
           info.put(id, type);
         }
       }
+      // Lots of time faced with problems fue to old precision
+      // Remove it
+      Files.deleteIfExists(file);
       putIntoMap(localStatistics, node, info);
       return ImmutableMap.copyOf(localStatistics);
     } catch (IOException e) {

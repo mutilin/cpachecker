@@ -30,8 +30,7 @@ lockator-threadmodular-linux.properties:
   test/programs/cpalockator/threads/threads-6-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-7-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-7-unsafe.c: 'FALSE'
-  # Strange situation: In CI - True, locally - False
-  test/programs/cpalockator/threads/threads-8-safe.c:
+  test/programs/cpalockator/threads/threads-8-safe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-8-unsafe.c: 'FALSE'
 lockator-linux-lightweight.properties:
   test/programs/cpalockator/threads/threads-1-safe.c: 'TRUE'
