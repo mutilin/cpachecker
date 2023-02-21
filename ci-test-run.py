@@ -203,6 +203,10 @@ def run_simple_tests():
             ["CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.thread.ThreadCPA,cpa.predicate.BAMPredicateCPA"])
         run_simple_with_options(simple_options, test_results['lockStatistics-linux-bam.properties'])
 
+    with open('ci-config/deadlocks-test-verdicts.yml', 'r') as file:
+        test_results = yaml.safe_load(file)
+        run_cpachecker_on_set(["-lockator-deadlocks-linux"], test_results['lockator-deadlocks-linux.properties'], "test/programs/cpalockator/deadlocks/*.c")
+
     run_common_checks('simple')
     run_common_checks('threads')
     run_common_checks('pointers')

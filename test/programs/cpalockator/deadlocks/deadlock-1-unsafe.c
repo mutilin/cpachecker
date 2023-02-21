@@ -1,0 +1,37 @@
+// The test checks deadlock on mutexes
+
+typedef int pthread_mutex_t;
+typedef unsigned long int pthread_t;
+typedef int pthread_attr_t;
+extern void pthread_mutex_lock(pthread_mutex_t *lock) ;
+extern void pthread_mutex_unlock(pthread_mutex_t *lock) ;
+extern int pthread_create(pthread_t *thread_id , pthread_attr_t const   *attr , void *(*func)(void * ) ,
+                          void *arg ) ;
+
+
+int global;
+pthread_mutex_t mutex;
+pthread_mutex_t mutex2;
+
+int f(void *arg) {
+	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mutex2);
+    global = 1;
+	pthread_mutex_unlock(&mutex2);
+	pthread_mutex_unlock(&mutex);
+}
+
+int g(void *arg) {
+	pthread_mutex_lock(&mutex2);
+	pthread_mutex_lock(&mutex);
+    global = 2;
+	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mutex2);
+}
+
+int main() {
+    pthread_t thread;
+    pthread_t thread2;
+	pthread_create(&thread, 0, &f, 0);
+	pthread_create(&thread2, 0, &g, 0);
+}

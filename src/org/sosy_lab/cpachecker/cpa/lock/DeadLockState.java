@@ -76,6 +76,12 @@ public final class DeadLockState extends AbstractLockState {
     }
 
     @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder();
+      return Joiner.on(",").appendTo(sb, lockList).toString();
+    }
+
+    @Override
     public int hashCode() {
       return Objects.hash(lockList);
     }

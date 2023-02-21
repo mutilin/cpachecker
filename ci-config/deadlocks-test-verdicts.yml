@@ -1,0 +1,5 @@
+lockator-deadlocks-linux.properties:
+  test/programs/cpalockator/deadlocks/deadlock-1-safe.c: 'TRUE'
+  test/programs/cpalockator/deadlocks/deadlock-1-unsafe.c: 'FALSE'
+  test/programs/cpalockator/deadlocks/deadlock-2-safe.c: 'TRUE'
+  test/programs/cpalockator/deadlocks/deadlock-2-unsafe.c: 'FALSE'
