@@ -27,6 +27,7 @@ import org.sosy_lab.cpachecker.cpa.usage.UsageState;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.RefinementResult;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AnyIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatInt;
@@ -37,6 +38,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public class UsageContainer {
   private final NavigableMap<AbstractIdentifier, UnrefinedUsagePointSet> unrefinedIds;
   private final NavigableMap<AbstractIdentifier, RefinedUsagePointSet> refinedIds;
+  private final UnrefinedUsagePointSet anyIds;
 
   private Map<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> stableUnsafes = new TreeMap<>();
 
@@ -64,8 +66,9 @@ public class UsageContainer {
     unrefinedIds = new ConcurrentSkipListMap<>();
     refinedIds = new TreeMap<>();
     falseUnsafes = new TreeSet<>();
+    anyIds = new UnrefinedUsagePointSet();
     logger = l;
-    detector = new UnsafeDetector(pConfig);
+    detector = new UnsafeDetector(pConfig, anyIds);
   }
 
   public void add(UsageInfo pUsage) {
@@ -82,9 +85,11 @@ public class UsageContainer {
       return;
     }
 
-    if (!unrefinedIds.containsKey(id)) {
+    if (id == AnyIdentifier.getInstance()) {
+      uset = anyIds;
+    } else if (!unrefinedIds.containsKey(id)) {
       uset = new UnrefinedUsagePointSet();
-      // It is possible, that someone place the set after check
+      // It is possible, that someone placed the set after check
       UnrefinedUsagePointSet present = unrefinedIds.putIfAbsent(id, uset);
       if (present != null) {
         uset = present;
@@ -168,16 +173,21 @@ public class UsageContainer {
     usagesCalculated = false;
     oneTotalIteration = true;
     unrefinedIds.forEach((k, v) -> v.reset());
+    anyIds.reset();
     logger.log(Level.FINE, "Unsafes are reseted");
     resetTimer.stop();
   }
 
   public void removeState(final UsageState pUstate) {
     unrefinedIds.forEach((id, uset) -> uset.remove(pUstate));
+    anyIds.remove(pUstate);
     logger.log(Level.ALL, "All unsafes related to key state " + pUstate + " were removed from reached set");
   }
 
   public AbstractUsagePointSet getUsages(AbstractIdentifier id) {
+    // Not sure, it should be used
+    // Likely, here should be only normal identifiers
+    assert (id != AnyIdentifier.getInstance());
     if (unrefinedIds.containsKey(id)) {
       return unrefinedIds.get(id);
     } else {
@@ -186,6 +196,7 @@ public class UsageContainer {
   }
 
   public void setAsFalseUnsafe(AbstractIdentifier id) {
+    assert (id != AnyIdentifier.getInstance());
     falseUnsafes.add(id);
     unrefinedIds.remove(id);
   }
@@ -248,6 +259,7 @@ public class UsageContainer {
         .put("Initial amount of unsafes (before refinement)", unsafeSize + falseUnsafes.size())
         .put("Initial amount of usages (before refinement)", initialUsages)
         .put("Initial amount of refined false unsafes", falseUnsafes.size())
+        .put("Initial amount of unknown usages", anyIds.size())
         .put("Total amount of unrefined unsafes", generalUnrefinedSize)
         .put(topUsagePoints)
         .put(unrefinedUsages)

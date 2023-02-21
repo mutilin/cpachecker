@@ -12,7 +12,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.NavigableSet;
-import java.util.SortedSet;
+import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cpa.lock.DeadLockState.DeadLockTreeNode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState;
@@ -34,9 +34,11 @@ public class UnsafeDetector {
   }
 
   private final UsageConfiguration config;
+  private final UnrefinedUsagePointSet anyIds;
 
-  public UnsafeDetector(UsageConfiguration pConfig) {
+  public UnsafeDetector(UsageConfiguration pConfig, UnrefinedUsagePointSet pSet) {
     config = pConfig;
+    anyIds = pSet;
   }
 
   public boolean isUnsafe(AbstractUsagePointSet set) {
@@ -47,7 +49,19 @@ public class UnsafeDetector {
   }
 
   private boolean isUnsafe(UnrefinedUsagePointSet set) {
-    return isUnsafe(set.getTopUsages());
+
+    return isUnsafe(getTopPoints(set));
+  }
+
+  private NavigableSet<UsagePoint> getTopPoints(UnrefinedUsagePointSet set) {
+    NavigableSet<UsagePoint> points;
+    if (anyIds.size() == 0) {
+      points = set.getTopUsages();
+    } else {
+      points = new TreeSet<>(set.getTopUsages());
+      points.addAll(anyIds.getTopUsages());
+    }
+    return points;
   }
 
   public Pair<UsageInfo, UsageInfo> getUnsafePair(AbstractUsagePointSet set) {
@@ -57,16 +71,29 @@ public class UnsafeDetector {
       return ((RefinedUsagePointSet)set).getUnsafePair();
     } else {
       UnrefinedUsagePointSet unrefinedSet = (UnrefinedUsagePointSet) set;
-      Pair<UsagePoint, UsagePoint> result = getUnsafePair(unrefinedSet.getTopUsages());
+      Pair<UsagePoint, UsagePoint> result = getUnsafePair(getTopPoints(unrefinedSet));
 
       assert result != null;
 
-      return Pair.of(unrefinedSet.getUsageInfo(result.getFirst()).getOneExample(),
-          unrefinedSet.getUsageInfo(result.getSecond()).getOneExample());
+      UsageInfoSet uset1 = unrefinedSet.getUsageInfo(result.getFirst());
+      if (uset1 == null) {
+        // Likely it is from anyIds
+        uset1 = anyIds.getUsageInfo(result.getFirst());
+        assert (uset1 != null);
+      }
+
+      UsageInfoSet uset2 = unrefinedSet.getUsageInfo(result.getSecond());
+      if (uset2 == null) {
+        // Likely it is from anyIds
+        uset2 = anyIds.getUsageInfo(result.getSecond());
+        assert (uset2 != null);
+      }
+
+      return Pair.of(uset1.getOneExample(), uset2.getOneExample());
     }
   }
 
-  private boolean isUnsafe(SortedSet<UsagePoint> points) {
+  private boolean isUnsafe(NavigableSet<UsagePoint> points) {
     for (UsagePoint point1 : points) {
       for (UsagePoint point2 : points) {
         if (isUnsafePair(point1, point2)) {

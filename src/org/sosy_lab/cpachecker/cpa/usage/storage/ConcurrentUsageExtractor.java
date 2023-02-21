@@ -84,6 +84,10 @@ public class ConcurrentUsageExtractor {
   private final ThreadSafeTimerContainer addingToContainerTimer =
       new ThreadSafeTimerContainer("Time for adding to container");
 
+  @SuppressWarnings("deprecation")
+  private final ThreadSafeTimerContainer reachedSetCheckTimer =
+      new ThreadSafeTimerContainer("Time for checking a reached set");
+
 
   public ConcurrentUsageExtractor(
       ConfigurableProgramAnalysis pCpa,
@@ -183,6 +187,9 @@ public class ConcurrentUsageExtractor {
             .put(totalTimer)
             .beginLevel()
             .put(traversalTimer)
+            .beginLevel()
+            .put(reachedSetCheckTimer)
+            .endLevel()
             .put(usageTimer)
             .beginLevel()
             .put(usageProcessingTimer)
@@ -204,6 +211,8 @@ public class ConcurrentUsageExtractor {
     private final ReachedSet reached;
     private final List<AbstractState> expandedStack;
 
+    private final TimerWrapper checkTimer;
+
     ReachedSetTraversal(
         ReachedSet pSet,
         UsageDelta pDelta,
@@ -212,26 +221,27 @@ public class ConcurrentUsageExtractor {
       currentDelta = pDelta;
       reached = pSet;
       expandedStack = pExpandedStack;
+      checkTimer = reachedSetCheckTimer.getNewTimer();
     }
 
     @Override
     public void run() {
       for (AbstractState state : reached.asCollection()) {
-        ARGState argState = (ARGState) state;
 
         // Search state in the BAM cache
-        if (manager != null && manager.hasInitialState(argState)) {
+        if (manager != null && manager.hasInitialState(state)) {
+          ARGState argState = (ARGState) state;
           for (ARGState child : argState.getChildren()) {
             AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
-            ReachedSet innerReached = manager.getReachedSetForInitialState(argState, reducedChild);
+            ReachedSet innerReached = manager.getReachedSetForInitialState(state, reducedChild);
 
-            processReachedSet(argState, innerReached);
+            processReachedSet(state, innerReached);
           }
-        } else if (manager != null && manager.hasInitialStateWithoutExit(argState)) {
+        } else if (manager != null && manager.hasInitialStateWithoutExit(state)) {
           // Likely thread functions
-          ReachedSet innerReached = manager.getReachedSetForInitialState(argState);
+          ReachedSet innerReached = manager.getReachedSetForInitialState(state);
 
-          processReachedSet(argState, innerReached);
+          processReachedSet(state, innerReached);
         }
       }
 
@@ -250,7 +260,11 @@ public class ConcurrentUsageExtractor {
       UsageDelta newDiff = UsageDelta.constructDeltaBetween(reducedState, rootState);
       UsageDelta difference = currentDelta.add(newDiff);
 
-      if (shouldContinue(reducedState, difference)) {
+      checkTimer.start();
+      boolean res = shouldContinue(reducedState, difference);
+      checkTimer.stop();
+
+      if (res) {
         numberOfActiveTasks.incrementAndGet();
         List<AbstractState> newStack = new ArrayList<>(expandedStack);
         newStack.add(rootState);

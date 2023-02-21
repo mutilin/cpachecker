@@ -68,6 +68,7 @@ import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AnyIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
@@ -652,6 +653,7 @@ public class UsageProcessor {
         }
 
         Action sigAction = cLastSignal.getSecond();
+        AbstractIdentifier sigId;
         Access sigAccess;
         if (sigAction == Action.SEND) {
           sigAccess = Access.SEND;
@@ -661,7 +663,13 @@ public class UsageProcessor {
           throw new UnsupportedOperationException("Unknown signal action: " + sigAction);
         }
 
-        UsageInfo usage = UsageInfo.createUsageInfo(sigAccess, child, signalId);
+        if (cLastSignal.getFirst() == -1) {
+          sigId = AnyIdentifier.getInstance();
+        } else {
+          sigId = new ConstantIdentifier(cLastSignal.getFirst().toString(), 0);
+        }
+
+        UsageInfo usage = UsageInfo.createUsageInfo(sigAccess, child, sigId);
         if (usage.isRelevant()) {
           return ImmutableList.of(usage);
         }
