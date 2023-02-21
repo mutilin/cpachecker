@@ -275,6 +275,9 @@ public class ThreadCreateTransformer {
         CExpression prioExp = args.get(tDesc.priority);
         if (prioExp instanceof CIntegerLiteralExpression) {
           priority = ((CIntegerLiteralExpression) prioExp).getValue().intValue();
+        } else {
+          // Unknown
+          priority = -1;
         }
       }
       CFunctionCallStatement pFunctionCall =

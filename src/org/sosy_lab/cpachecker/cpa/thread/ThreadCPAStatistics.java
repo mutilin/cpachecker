@@ -14,6 +14,7 @@ import java.util.Set;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatInt;
 import org.sosy_lab.cpachecker.util.statistics.StatKind;
@@ -26,7 +27,7 @@ public class ThreadCPAStatistics implements Statistics {
   public final StatCounter threadCreates = new StatCounter("Number of thread creates");
   public final StatCounter threadJoins = new StatCounter("Number of thread joins");
   public final StatInt maxNumberOfThreads = new StatInt(StatKind.COUNT, "Max number of threads");
-  public final Set<String> createdThreads = new HashSet<>();
+  public final Set<Pair<String, Integer>> createdThreads = new HashSet<>();
 
   @Override
   public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {

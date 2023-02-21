@@ -35,6 +35,7 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.thread.ThreadAbstractEdge.ThreadAction;
 import org.sosy_lab.cpachecker.cpa.thread.ThreadState.ThreadStatus;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
+import org.sosy_lab.cpachecker.util.Pair;
 
 @Options(prefix = "cpa.thread")
 public class ThreadTransferRelation implements TransferRelation {
@@ -111,7 +112,10 @@ public class ThreadTransferRelation implements TransferRelation {
     CFunctionCall fCall = pCfaEdge.getSummaryEdge().getExpression();
     if (isThreadCreateFunction(fCall)) {
       newState = handleChildThread(state, (CThreadCreateStatement) fCall);
-      if (threadStatistics.createdThreads.add(pCfaEdge.getSuccessor().getFunctionName())) {
+      if (threadStatistics.createdThreads.add(
+          Pair.of(
+              pCfaEdge.getSuccessor().getFunctionName(),
+              ((CThreadCreateStatement) fCall).getPriority()))) {
         threadStatistics.threadCreates.inc();
         // Just to statistics
         threadStatistics.maxNumberOfThreads.setNextValue(state.getThreadSize());

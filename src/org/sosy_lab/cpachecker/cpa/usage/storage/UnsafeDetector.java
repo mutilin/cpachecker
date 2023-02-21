@@ -240,10 +240,9 @@ public class UnsafeDetector {
     return false;
   }
 
-  private boolean sameSignal(Integer sig1, Integer sig2) {
+  private static boolean sameSignal(Integer sig1, Integer sig2) {
     // -1 means 'any' signal
     final int ANY = -1;
-    // -1 means 'any' signal
     final int UNKNOWN = -2;
     return sig1.equals(sig2) || sig1 == ANY || sig2 == ANY || sig1 == UNKNOWN || sig2 == UNKNOWN;
   }
@@ -274,12 +273,16 @@ public class UnsafeDetector {
       Access access2 = pPoint2.getAccess();
 
       if (access1 == Access.SEND && access2 == Access.RECEIVE) {
-        return (tState1.getPriority() < tState2.getPriority());
+        return lowerPriority(tState1.getPriority(), tState2.getPriority());
       } else if (access2 == Access.SEND && access1 == Access.RECEIVE) {
-        return (tState2.getPriority() < tState1.getPriority());
+        return lowerPriority(tState2.getPriority(), tState1.getPriority());
       }
     }
     return false;
+  }
+
+  private static boolean lowerPriority(int prio1, int prio2) {
+    return (prio1 < prio2) || (prio1 == -1 && prio2 > 0) || (prio2 == -1);
   }
 
  }
