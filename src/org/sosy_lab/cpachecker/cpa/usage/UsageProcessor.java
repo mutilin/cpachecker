@@ -567,8 +567,6 @@ public class UsageProcessor {
 
   public static class SignalsProcessor extends UsageProcessor {
 
-    public static final ConstantIdentifier signalId = new ConstantIdentifier("signal", 0);
-
     public SignalsProcessor(
         Configuration pConfig,
         LogManager pLogger,
@@ -594,8 +592,28 @@ public class UsageProcessor {
       }
 
       if (cSignals.getSignals().size() > pSignals.getSignals().size()) {
+        AbstractIdentifier sigId;
+        Pair<Integer, Action> pLastSignal =
+            cSignals.getSignals().get(cSignals.getSignals().size() - 1);
+
+        if (pLastSignal.getFirst() == -1) {
+          sigId = AnyIdentifier.getInstance();
+        } else {
+          sigId = new ConstantIdentifier(pLastSignal.getFirst().toString(), 0);
+        }
+
+        Action sigAction = pLastSignal.getSecond();
+        Access sigAccess;
+        if (sigAction == Action.SEND) {
+          sigAccess = Access.SEND;
+        } else if (sigAction == Action.RECEIVE) {
+          sigAccess = Access.RECEIVE;
+        } else {
+          throw new UnsupportedOperationException("Unknown signal action: " + sigAction);
+        }
+
         // we are interested only in signals
-        UsageInfo usage = UsageInfo.createUsageInfo(Access.WRITE, child, signalId);
+        UsageInfo usage = UsageInfo.createUsageInfo(sigAccess, child, sigId);
         return ImmutableList.of(usage);
       }
 

@@ -219,6 +219,9 @@ public class UnsafeDetector {
   }
 
   private boolean isDeadlockSignal(UsagePoint point1, UsagePoint point2) {
+    // The last signals in points should be the same
+    // TODO refactor to check only last signals
+
     SignalState node1 = point1.get(SignalState.class);
     SignalState node2 = point2.get(SignalState.class);
 
@@ -309,7 +312,7 @@ public class UnsafeDetector {
   }
 
   private static boolean lowerPriority(int prio1, int prio2) {
-    return (prio1 < prio2) || (prio1 == -1 && prio2 > 0) || (prio2 == -1);
+    return (0 < prio1 && prio1 < prio2) || (prio1 == -1 && prio2 > 0) || (prio2 == -1);
   }
 
  }

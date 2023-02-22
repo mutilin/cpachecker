@@ -63,6 +63,11 @@ public class AnyIdentifier implements AbstractIdentifier {
   }
 
   @Override
+  public String toString() {
+    return "Unknown";
+  }
+
+  @Override
   public Collection<AbstractIdentifier> getComposedIdentifiers() {
     return ImmutableList.of();
   }
