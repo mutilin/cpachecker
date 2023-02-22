@@ -1,0 +1,34 @@
+cfamutation strategy 1:
+  config: "-lockator-threadmodular-linux"
+  setprop:
+    - "cfaMutation=true"
+    - "limits.time.wall=1500s"
+    - "limits.time.cpu=-1ns"
+    - "parser.readLineDirectives=false"
+    - "cfa.threads.addAssumptions=false"
+    - "cpa.usage.outputType=Klever3"
+    - "output.disable=false"
+    - "cfa.export=true"
+    - "cfa.exportPerFunction=true"
+    - "cfa.exportToC=true"
+    - "cfa.serialize=true"
+    - "cfaMutation.strategies=FunctionBodyRemover,AssumeEdgesRemover,StatementChainRemover,StatementEdgeRemover,ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover"
+  benchmarks: test/programs/issues-for-mutation/cpalockator.i
+  timeout: 1600
+cfamutation strategy 2:
+  config: "-lockator-threadmodular-linux"
+  setprop:
+    - "cfaMutation=true"
+    - "limits.time.wall=1500s"
+    - "limits.time.cpu=-1ns"
+    - "parser.readLineDirectives=false"
+    - "cfa.threads.addAssumptions=false"
+    - "cpa.usage.outputType=Klever3"
+    - "output.disable=false"
+    - "cfa.export=true"
+    - "cfa.exportPerFunction=true"
+    - "cfa.exportToC=true"
+    - "cfa.serialize=true"
+    - "cfaMutation.strategies=ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover"
+  benchmarks: test/programs/issues-for-mutation/cpalockator.i
+  timeout: 1600

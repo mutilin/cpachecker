@@ -1,4 +1,4 @@
-lockator-linux.properties:
+-lockator-linux:
   test/programs/cpalockator/threads/threads-1-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-1-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-2-safe.c: 'TRUE'
@@ -15,7 +15,7 @@ lockator-linux.properties:
   test/programs/cpalockator/threads/threads-7-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-8-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-8-unsafe.c: 'FALSE'
-lockator-threadmodular-linux.properties:
+-lockator-threadmodular-linux:
   test/programs/cpalockator/threads/threads-1-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-1-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-2-safe.c: 'TRUE'
@@ -32,7 +32,7 @@ lockator-threadmodular-linux.properties:
   test/programs/cpalockator/threads/threads-7-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-8-safe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-8-unsafe.c: 'FALSE'
-lockator-linux-lightweight.properties:
+-lockator-linux-lightweight:
   test/programs/cpalockator/threads/threads-1-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-1-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-2-safe.c: 'TRUE'

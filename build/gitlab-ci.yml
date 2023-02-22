@@ -159,40 +159,38 @@ refaster:
     - build-dependencies
     - build:jdk-11
   interruptible: true
+  script:
+    - 'python3 ci-test-run.py $JOB_FILE_DESC'
 
 simple-tests:
   <<: *tests
-  script:
-    - 'python3 ci-test-run.py simple'
+  variables:
+    JOB_FILE_DESC: ci-config/simple-job.yml
 
 product-lines:
   <<: *tests
-  script:
-    - 'python3 ci-test-run.py product-lines'
+  variables:
+    JOB_FILE_DESC: ci-config/product-lines-job.yml
 
 cfa-mutation:
   <<: *tests
-  script:
-    - 'python3 ci-test-run.py cfa-mutation'
+  variables:
+    JOB_FILE_DESC: ci-config/cfamutation-job.yml
   rules:
     - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
       when: always
 
 klever-tests:
   <<: *tests
-  script:
-    - 'python3 ci-test-run.py ldv-klever'
   variables:
-    KLEVER_BENCHMARKS: "/opt/ldv-klever-benchmarks/"
+    JOB_FILE_DESC: ci-config/ldv-klever-job.yml
   only:
     - web
 
 uppsala-tests:
   <<: *tests
-  script:
-    - 'python3 ci-test-run.py uppsala'
   variables:
-    UPPSALA_BENCHMARKS: "/opt/uppsala/"
+    JOB_FILE_DESC: ci-config/uppsala-job.yml
 
 # takes a lot of time
 # ldv-benchmarks-tests:
@@ -213,10 +211,8 @@ uppsala-tests:
 
 sv-benchmarks-tests:
   <<: *tests
-  script:
-    - 'python3 ci-test-run.py sv-benchmarks'
   variables:
-    SV_BENCHMARKS: "/opt/sv-benchmarks/"
+    JOB_FILE_DESC: ci-config/sv-benchmarks-job.yml
   only:
     - web
 

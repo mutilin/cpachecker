@@ -1,14 +1,3 @@
-lockStatistics-linux-bam.properties:
-  test/programs/cpalockator/simple/simple-1-safe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-1-unsafe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-2-safe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-2-unsafe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-3-safe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-3-unsafe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-4-safe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-4-unsafe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-5-safe.c: 'TRUE'
-  test/programs/cpalockator/simple/simple-5-unsafe.c: 'TRUE'
 lockStatistics-linux-lightweight.properties:
   test/programs/cpalockator/simple/simple-1-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-1-unsafe.c: 'FALSE'
@@ -42,7 +31,7 @@ lockStatistics-threadmodular-linux.properties:
   test/programs/cpalockator/simple/simple-4-unsafe.c: 'FALSE'
   test/programs/cpalockator/simple/simple-5-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-5-unsafe.c: 'FALSE'
-lockator-linux-lightweight.properties:
+-lockator-linux-lightweight:
   test/programs/cpalockator/simple/simple-1-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-1-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-2-safe.c: 'TRUE'
@@ -53,7 +42,7 @@ lockator-linux-lightweight.properties:
   test/programs/cpalockator/simple/simple-4-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-5-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-5-unsafe.c: 'TRUE'
-lockator-linux.properties:
+-lockator-linux:
   test/programs/cpalockator/simple/simple-1-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-1-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-2-safe.c: 'TRUE'
@@ -64,7 +53,7 @@ lockator-linux.properties:
   test/programs/cpalockator/simple/simple-4-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-5-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-5-unsafe.c: 'TRUE'
-lockator-threadmodular-linux.properties:
+-lockator-threadmodular-linux:
   test/programs/cpalockator/simple/simple-1-safe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-1-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-2-safe.c: 'TRUE'

@@ -1,0 +1,13 @@
+uppsala:
+  config: "-predicateAnalysis-threadmodular"
+  setprop: 
+    - "cpa.predicate.refinement.performThreadEffectRefinement=true"
+    - "cpa.thread.skipTheSameThread=true"
+  spec: "sv-comp-reachability"
+  benchmarks: 
+    - /sv-races/*.i
+    - /ad-hoc/*.i
+    - /*.i
+  verdicts: ci-config/uppsala-verdicts.yml
+  parallel: True
+  prefix: /opt/uppsala

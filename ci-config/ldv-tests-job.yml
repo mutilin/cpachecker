@@ -1,0 +1,28 @@
+ldv tests with tm:
+  config: "-lockator-threadmodular-linux"
+  setprop:
+    - "cpa.predicate.useUndefFunctions=false"
+    - "cpa.predicate.joinEffectsIntoUndefs=false"
+    - "cpa.predicate.refinement.predicateBasisStrategy=subgraph"
+    - "cpa.predicate.applyRelevantEffects=true"
+    - "cpa.lock.refinement=false"
+    - "cpa.usage.refinement.refinementChain=IdentifierIterator,PointIterator,UsageIterator,SinglePathIterator,PredicateRefiner"
+    - "limits.time.cpu=900s"
+    - "shutdown.timeout=1000"
+  benchmarks: 
+    - /Unsafes/*.i
+    #- /Safes/*.i
+    #- /Unknowns/*.i
+  parallel: True
+  prefix: /opt/ldv-benchmarks/
+ldv tests basic:
+  config: "-lockator-linux"
+  setprop:
+    - "limits.time.cpu=900s"
+    - "shutdown.timeout=1000"
+  benchmarks: 
+    - /Unsafes/*.i
+    #- /Safes/*.i
+    #- /Unknowns/*.i
+  parallel: True
+  prefix: /opt/ldv-benchmarks/
