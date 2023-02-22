@@ -53,11 +53,13 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
     List<BooleanFormula> interpolants =
         transformedImmutableListCopy(pInterpolants, f->fmgr.renameFreeVariablesAndUFs(f, ThreadEffectBlockFormulaStrategy::RenameVariablesBack));
 
-    return super.performRefinement(
+    super.performRefinement(
         pReached,
         pAbstractionStatesTrace,
         interpolants,
         pRepeatedCounterexample);
+
+    return true;
   }
 
   @Override
