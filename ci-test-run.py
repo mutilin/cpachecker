@@ -154,13 +154,19 @@ def getOrDefault(dict, key, default = None):
     else:
         return default
 
-def run_job(job_file):
+def run_job(job_file, is_wip_run):
     with open(job_file, 'r') as file:
         job_config = yaml.safe_load(file)
 
         for desc, task_config in job_config.items():
-            print("start job " + desc)
 
+            # Default is not WIP
+            is_wip_task = getOrDefault(task_config, 'wip', True)
+            if is_wip_task is False and is_wip_run is True:
+                # Skip the task
+                continue
+            
+            print("start job " + desc)
             cpa_config = task_config['config']
             to_setprop = getOrDefault(task_config, 'setprop')
 
@@ -195,8 +201,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run integration tests.')
     parser.add_argument('tests', metavar='job_file', type=str, nargs='+',
                         help='job descriptions')
+    parser.add_argument('--is_wip', action='store_true', default=False, help='wip run, which is ')
 
     args = parser.parse_args()
     if args.tests:
         for test_name in args.tests:
-            run_job(test_name)
+            run_job(test_name, args.is_wip)

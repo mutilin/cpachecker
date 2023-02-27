@@ -1,3 +1,14 @@
+uppsala simple:
+  config: "-predicateAnalysis-threadmodular"
+  setprop: 
+    - "cpa.predicate.refinement.performThreadEffectRefinement=true"
+    - "cpa.thread.skipTheSameThread=true"
+  spec: "sv-comp-reachability"
+  benchmarks: 
+    - /ad-hoc/*.i
+  verdicts: ci-config/uppsala-verdicts.yml
+  parallel: True
+  prefix: /opt/uppsala
 uppsala:
   config: "-predicateAnalysis-threadmodular"
   setprop: 
@@ -6,8 +17,8 @@ uppsala:
   spec: "sv-comp-reachability"
   benchmarks: 
     - /sv-races/*.i
-    - /ad-hoc/*.i
     - /*.i
   verdicts: ci-config/uppsala-verdicts.yml
   parallel: True
+  wip: false
   prefix: /opt/uppsala

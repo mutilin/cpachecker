@@ -6,6 +6,7 @@ lockStatistics-linux:
     - "cpa.usage.unsafedetector.ignoreEmptyLockset=false"
   benchmarks: test/programs/cpalockator/simple/*.c
   verdicts: ci-config/simple-test-verdicts.yml
+  wip: false
 lockStatistics-linux-lightweight:
   config: lockStatistics-linux-lightweight.properties
   setprop: 
@@ -13,6 +14,7 @@ lockStatistics-linux-lightweight:
     - "cpa.usage.unsafedetector.ignoreEmptyLockset=false"
   benchmarks: test/programs/cpalockator/simple/*.c
   verdicts: ci-config/simple-test-verdicts.yml
+  wip: false
 lockStatistics-threadmodular-linux:
   config: lockStatistics-threadmodular-linux.properties
   setprop: 
@@ -28,6 +30,7 @@ lockator-linux on simple:
   config: -lockator-linux
   benchmarks: test/programs/cpalockator/simple/*.c
   verdicts: ci-config/simple-test-verdicts.yml
+  wip: false
 lockator-threadmodular-linux on simple:
   config: -lockator-threadmodular-linux
   benchmarks: test/programs/cpalockator/simple/*.c
@@ -36,6 +39,7 @@ lockator-linux-lightweight on simple:
   config: -lockator-linux-lightweight
   benchmarks: test/programs/cpalockator/simple/*.c
   verdicts: ci-config/simple-test-verdicts.yml
+  wip: false
 lockator-linux on threads:
   config: -lockator-linux
   benchmarks: test/programs/cpalockator/threads/*.c
@@ -48,10 +52,12 @@ lockator-linux-lightweight on threads:
   config: -lockator-linux-lightweight
   benchmarks: test/programs/cpalockator/threads/*.c
   verdicts: ci-config/threads-test-verdicts.yml
+  wip: false
 lockator-linux on pointers:
   config: -lockator-linux
   benchmarks: test/programs/cpalockator/pointers/*.c
   verdicts: ci-config/pointers-test-verdicts.yml
+  wip: false
 lockator-threadmodular-linux on pointers:
   config: -lockator-threadmodular-linux
   benchmarks: test/programs/cpalockator/pointers/*.c

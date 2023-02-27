@@ -159,8 +159,10 @@ refaster:
     - build-dependencies
     - build:jdk-11
   interruptible: true
+  before_script:
+    - if [ $CI_PIPELINE_SOURCE == 'web' ] ; then FLAGS="" ; else FLAGS="--is_wip" ; fi
   script:
-    - 'python3 ci-test-run.py $JOB_FILE_DESC'
+    - 'python3 ci-test-run.py $JOB_FILE_DESC $FLAGS'
 
 simple-tests:
   <<: *tests
