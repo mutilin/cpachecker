@@ -62,3 +62,12 @@ lockator-threadmodular-linux on pointers:
   config: -lockator-threadmodular-linux
   benchmarks: test/programs/cpalockator/pointers/*.c
   verdicts: ci-config/pointers-test-verdicts.yml
+lockator-linux on structs:
+  config: -lockator-linux
+  benchmarks: test/programs/cpalockator/structs/*.c
+  verdicts: ci-config/structs-test-verdicts.yml
+  wip: false
+lockator-threadmodular-linux on structs:
+  config: -lockator-threadmodular-linux
+  benchmarks: test/programs/cpalockator/structs/*.c
+  verdicts: ci-config/structs-test-verdicts.yml
