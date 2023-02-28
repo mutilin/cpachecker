@@ -46,18 +46,22 @@ public class ThreadState
   // The removedSet is useless now, but it will be used in future in more complicated cases
   // Do not remove it now
   protected final ImmutableMap<ThreadLabel, ThreadStatus> removedSet;
+  // thread variable
+  protected final String currentId;
   protected final String currentThread;
   protected final int currentPriority;
 
   protected final static String mainThread = "main";
 
   protected ThreadState(
+      String pId,
       String pCurrent,
       int pPrio,
       Map<String, ThreadStatus> Tset,
       ImmutableMap<ThreadLabel, ThreadStatus> Rset) {
     threadSet = Tset;
     removedSet = Rset;
+    currentId = pId;
     currentThread = pCurrent;
     currentPriority = pPrio;
   }
@@ -145,15 +149,19 @@ public class ThreadState
   }
 
   public static ThreadState emptyState() {
-    return new ThreadState(mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
+    return new ThreadState(mainThread, mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
   }
 
   @Override
   public String toString() {
-    return getCurrentThread() + ":" + getThreadSet();
+    return getCurrentId() + " = " + getCurrentThread() + ":" + getThreadSet();
   }
 
-  protected String getCurrentThread() {
+  protected String getCurrentId() {
+    return currentId;
+  }
+
+  public String getCurrentThread() {
     return currentThread;
   }
 
@@ -209,12 +217,13 @@ public class ThreadState
     return this.toString();
   }
 
-  public ThreadState copyWith(String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
-    return new ThreadState(pCurrent, pPrio, tSet, this.removedSet);
+  public ThreadState
+      copyWith(String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+    return new ThreadState(pId, pCurrent, pPrio, tSet, this.removedSet);
   }
 
   public ThreadState copyWith(Map<String, ThreadStatus> tSet) {
-    return copyWith(this.currentThread, this.currentPriority, tSet);
+    return copyWith(this.currentId, this.currentThread, this.currentPriority, tSet);
   }
 
   @Override

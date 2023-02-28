@@ -28,12 +28,13 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 public class ThreadTMState extends ThreadState {
 
   protected ThreadTMState(
+      String pId,
       String pCurrent,
       int pPrio,
       Map<String, ThreadStatus> Tset,
       ImmutableMap<ThreadLabel, ThreadStatus> Rset) {
 
-    super(pCurrent, pPrio, Tset, Rset);
+    super(pId, pCurrent, pPrio, Tset, Rset);
   }
 
   @Override
@@ -84,21 +85,33 @@ public class ThreadTMState extends ThreadState {
   }
 
   public ThreadTMStateWithEdge copyWithEdge(ThreadAbstractEdge pEdge) {
-    return new ThreadTMStateWithEdge(currentThread, currentPriority, threadSet, removedSet, pEdge);
+    return new ThreadTMStateWithEdge(
+        currentId,
+        currentThread,
+        currentPriority,
+        threadSet,
+        removedSet,
+        pEdge);
   }
 
   public static ThreadState emptyState() {
-    return new ThreadTMState(mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
+    return new ThreadTMState(mainThread, mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
   }
 
   @Override
-  public ThreadState copyWith(String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
-    return new ThreadTMState(pCurrent, pPrio, tSet, this.removedSet);
+  public ThreadState
+      copyWith(String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+    return new ThreadTMState(pId, pCurrent, pPrio, tSet, this.removedSet);
   }
 
   @Override
   public ThreadState copyWith(Map<String, ThreadStatus> tSet) {
-    return new ThreadTMState(this.currentThread, this.currentPriority, tSet, this.removedSet);
+    return new ThreadTMState(
+        this.currentId,
+        this.currentThread,
+        this.currentPriority,
+        tSet,
+        this.removedSet);
   }
 
   @Override

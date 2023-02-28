@@ -18,6 +18,7 @@ import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState.Action;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState.InversionSignalState;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState.SignalDesc;
 import org.sosy_lab.cpachecker.cpa.thread.ThreadState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
@@ -225,20 +226,20 @@ public class UnsafeDetector {
     SignalState node1 = point1.get(SignalState.class);
     SignalState node2 = point2.get(SignalState.class);
 
-    List<Pair<Integer, Action>> signals1 = node1.getSignals();
-    List<Pair<Integer, Action>> signals2 = node2.getSignals();
+    List<SignalDesc> signals1 = node1.getSignals();
+    List<SignalDesc> signals2 = node2.getSignals();
 
     for (int i = 0; i < signals1.size(); i++) {
-      Pair<Integer, Action> signal1 = signals1.get(i);
-      if (signal1.getSecond() == Action.SEND) {
+      SignalDesc signal1 = signals1.get(i);
+      if (signal1.direction == Action.SEND) {
         continue;
       }
       for (int j = i + 1; j < signals1.size(); j++) {
-        Pair<Integer, Action> signal2 = signals1.get(j);
-        if (signal2.getSecond() == Action.RECEIVE) {
+        SignalDesc signal2 = signals1.get(j);
+        if (signal2.direction == Action.RECEIVE) {
           continue;
         }
-        if (hasDeadlockOnSignals(signals2, signal1.getFirst(), signal2.getFirst())) {
+        if (hasDeadlockOnSignals(signals2, signal1.num, signal2.num)) {
           return true;
         }
       }
@@ -250,19 +251,19 @@ public class UnsafeDetector {
   // Note, receive and send are from the point of first thread view
   // We need to find them as reverted value (send<->receive) in the second thread
   private boolean
-      hasDeadlockOnSignals(List<Pair<Integer, Action>> signals, Integer receive, Integer send) {
+      hasDeadlockOnSignals(List<SignalDesc> signals, int receive, int send) {
 
     for (int i = 0; i < signals.size(); i++) {
-      Pair<Integer, Action> signal1 = signals.get(i);
+      SignalDesc signal1 = signals.get(i);
       // This thread receives the signal, which was _sent_
-      if (signal1.getSecond() == Action.SEND
-          || !sameSignal(signal1.getFirst(), send)) {
+      if (signal1.direction == Action.SEND
+          || !sameSignal(signal1.num, send)) {
         continue;
       }
       for (int j = i + 1; j < signals.size(); j++) {
-        Pair<Integer, Action> signal2 = signals.get(j);
+        SignalDesc signal2 = signals.get(j);
         // This thread sends the signal, which was _received_
-        if (signal2.getSecond() == Action.SEND && sameSignal(signal2.getFirst(), receive)) {
+        if (signal2.direction == Action.SEND && sameSignal(signal2.num, receive)) {
           return true;
         }
       }
@@ -286,18 +287,29 @@ public class UnsafeDetector {
           "Signal inversion check need SignalCPA with inversed states (cpa.signal.deadlockState=false)");
     }
 
-    List<Pair<Integer, Action>> sState1 = state1.getSignals();
-    List<Pair<Integer, Action>> sState2 = state2.getSignals();
+    List<SignalDesc> sState1 = state1.getSignals();
+    List<SignalDesc> sState2 = state2.getSignals();
 
     assert sState1.size() == 1;
     assert sState2.size() == 1;
 
-    Integer sig1 = sState1.get(0).getFirst();
-    Integer sig2 = sState2.get(0).getFirst();
+    int sig1 = sState1.get(0).num;
+    int sig2 = sState2.get(0).num;
+
+    String target1 = sState1.get(0).target;
+    String target2 = sState2.get(0).target;
 
     if (sameSignal(sig1, sig2)) {
       ThreadState tState1 = pPoint1.get(ThreadState.class);
       ThreadState tState2 = pPoint2.get(ThreadState.class);
+
+      String func1 = tState1.getCurrentThread();
+      String func2 = tState2.getCurrentThread();
+
+      if (!theSameThread(func1, target2) || !theSameThread(func2, target1)) {
+        // different src/dst
+        return false;
+      }
 
       Access access1 = pPoint1.getAccess();
       Access access2 = pPoint2.getAccess();
@@ -309,6 +321,10 @@ public class UnsafeDetector {
       }
     }
     return false;
+  }
+
+  private static boolean theSameThread(String pThread, String pTarget) {
+    return pTarget.isEmpty() || pThread.isEmpty() || pTarget.equals(pThread);
   }
 
   private static boolean lowerPriority(int prio1, int prio2) {

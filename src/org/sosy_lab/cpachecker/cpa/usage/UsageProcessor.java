@@ -64,6 +64,7 @@ import org.sosy_lab.cpachecker.cpa.lock.DeadLockState;
 import org.sosy_lab.cpachecker.cpa.rcucpa.RCUState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState.Action;
+import org.sosy_lab.cpachecker.cpa.signal.SignalState.SignalDesc;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -593,16 +594,16 @@ public class UsageProcessor {
 
       if (cSignals.getSignals().size() > pSignals.getSignals().size()) {
         AbstractIdentifier sigId;
-        Pair<Integer, Action> pLastSignal =
+        SignalDesc pLastSignal =
             cSignals.getSignals().get(cSignals.getSignals().size() - 1);
 
-        if (pLastSignal.getFirst() == -1) {
+        if (pLastSignal.num == -1) {
           sigId = AnyIdentifier.getInstance();
         } else {
-          sigId = new ConstantIdentifier(pLastSignal.getFirst().toString(), 0);
+          sigId = new ConstantIdentifier(Integer.toString(pLastSignal.num), 0);
         }
 
-        Action sigAction = pLastSignal.getSecond();
+        Action sigAction = pLastSignal.direction;
         Access sigAccess;
         if (sigAction == Action.SEND) {
           sigAccess = Access.SEND;
@@ -654,7 +655,7 @@ public class UsageProcessor {
           throw new UnsupportedOperationException(
               "Multiple signals are not supported. Full edge: " + edge);
         }
-        Pair<Integer, Action> cLastSignal = cSignals.getSignals().get(0);
+        SignalDesc cLastSignal = cSignals.getSignals().get(0);
 
         if (!pSignals.getSignals().isEmpty()) {
           // It is possible, that the last signals are different
@@ -662,7 +663,7 @@ public class UsageProcessor {
             throw new UnsupportedOperationException(
                 "Multiple signals are not supported. Full edge: " + edge);
           }
-          Pair<Integer, Action> pLastSignal = pSignals.getSignals().get(0);
+          SignalDesc pLastSignal = pSignals.getSignals().get(0);
 
           if (pLastSignal.equals(cLastSignal)) {
             // Nothing changes
@@ -670,7 +671,7 @@ public class UsageProcessor {
           }
         }
 
-        Action sigAction = cLastSignal.getSecond();
+        Action sigAction = cLastSignal.direction;
         AbstractIdentifier sigId;
         Access sigAccess;
         if (sigAction == Action.SEND) {
@@ -681,10 +682,10 @@ public class UsageProcessor {
           throw new UnsupportedOperationException("Unknown signal action: " + sigAction);
         }
 
-        if (cLastSignal.getFirst() == -1) {
+        if (cLastSignal.num == -1) {
           sigId = AnyIdentifier.getInstance();
         } else {
-          sigId = new ConstantIdentifier(cLastSignal.getFirst().toString(), 0);
+          sigId = new ConstantIdentifier(Integer.toString(cLastSignal.num), 0);
         }
 
         UsageInfo usage = UsageInfo.createUsageInfo(sigAccess, child, sigId);

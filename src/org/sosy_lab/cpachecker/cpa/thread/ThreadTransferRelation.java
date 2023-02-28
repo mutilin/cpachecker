@@ -164,23 +164,23 @@ public class ThreadTransferRelation implements TransferRelation {
     }
 
     if (!tSet.isEmpty()) {
-      if (tSet.get(state.getCurrentThread()) == ThreadStatus.SELF_PARALLEL_THREAD) {
+      if (tSet.get(state.getCurrentId()) == ThreadStatus.SELF_PARALLEL_THREAD) {
         // Can add only the same status
         status = ThreadStatus.SELF_PARALLEL_THREAD;
       }
     }
     Map<String, ThreadStatus> newSet = new TreeMap<>(tSet);
     newSet.put(pVarName, status);
-    String current;
+    String currentId;
     int prio;
     if (pParentThread == ThreadStatus.PARENT_THREAD) {
-      current = state.getCurrentThread();
+      currentId = state.getCurrentThread();
       prio = state.getPriority();
     } else {
-      current = pVarName;
+      currentId = pVarName;
       prio = tCall.getPriority();
     }
-    return state.copyWith(current, prio, newSet);
+    return state.copyWith(currentId, pFunctionName, prio, newSet);
   }
 
   public ThreadState joinThread(ThreadState state, CThreadJoinStatement jCall) {
@@ -218,35 +218,35 @@ public class ThreadTransferRelation implements TransferRelation {
     ThreadTMStateWithEdge stateWithEdge = (ThreadTMStateWithEdge) pState;
     ThreadAbstractEdge edge = stateWithEdge.getAbstractEdge();
     Map<String, ThreadStatus> tSet = stateWithEdge.getThreadSet();
+    Map<String, ThreadStatus> newSet = tSet;
 
     if (edge != null) {
       ThreadAction action = edge.getAction().getFirst();
-      String threadName = edge.getAction().getSecond();
+      String threadId = edge.getAction().getSecond();
 
       // TMP implementation
       ThreadStatus status = ThreadStatus.CREATED_THREAD;
-      Map<String, ThreadStatus> newSet = new TreeMap<>(tSet);
       if (action == ThreadAction.CREATE) {
-        if (tSet.containsKey(threadName)) {
-          // Means, we have already apply the create thread
-          return Collections.singleton(stateWithEdge.copyWith(tSet));
+        // We may already apply the create thread
+        if (!tSet.containsKey(threadId)) {
+          newSet = new TreeMap<>(tSet);
+          newSet.put(threadId, status);
         }
-        newSet.put(threadName, status);
       } else if (action == ThreadAction.JOIN) {
-        if (stateWithEdge.getCurrentThread().equals(threadName)) {
+        if (stateWithEdge.getCurrentId().equals(threadId)) {
           // Means someone wants to join current thread. Stops the branch, as the case is
           // impossible
           return ImmutableList.of();
+        } else {
+          newSet = new TreeMap<>(tSet);
+          newSet.remove(threadId);
         }
-        newSet.remove(threadName);
       } else {
         throw new UnsupportedOperationException("Unsupported action " + action);
       }
-      // Save the current, do not recompute it!
-      return Collections.singleton(stateWithEdge.copyWith(newSet));
     }
 
     // To reset the edge
-    return Collections.singleton(stateWithEdge.copyWith(tSet));
+    return Collections.singleton(stateWithEdge.copyWith(newSet));
   }
 }

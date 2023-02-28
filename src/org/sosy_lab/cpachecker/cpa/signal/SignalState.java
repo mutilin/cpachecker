@@ -19,7 +19,6 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
-import org.sosy_lab.cpachecker.util.Pair;
 
 public class SignalState
     implements LatticeAbstractState<SignalState>, CompatibleNode, Delta<SignalState> {
@@ -29,23 +28,38 @@ public class SignalState
     RECEIVE,
   }
 
+  public static class SignalDesc {
+    public final int num;
+    public final Action direction;
+    public final String target;
+
+    public SignalDesc(int pNum, Action pDirect, String pTarget) {
+      num = pNum;
+      direction = pDirect;
+      target = pTarget;
+    }
+  }
+
   private static SignalStatistics stats;
   private final static int LIMIT = 10;
 
-  private final ImmutableList<Pair<Integer, Action>> signals;
+  private final ImmutableList<SignalDesc> signals;
   // Global variables
   private final static Map<String, Integer> globalIds = new TreeMap<>();
   protected final Map<String, Integer> localIds;
+  protected final String targetTo;
 
   public SignalState() {
-    this(ImmutableList.of(), new TreeMap<>());
+    this(ImmutableList.of(), new TreeMap<>(), "");
   }
 
   protected SignalState(
-      ImmutableList<Pair<Integer, Action>> pSignals,
-      Map<String, Integer> pPreparedId) {
+      ImmutableList<SignalDesc> pSignals,
+      Map<String, Integer> pPreparedId,
+      String pTo) {
     signals = pSignals;
     localIds = pPreparedId;
+    targetTo = pTo;
   }
 
   @Override
@@ -78,23 +92,27 @@ public class SignalState
       return this;
     }
     Integer id = getId(varName);
-    Pair<Integer, Action> newItem = Pair.of(id, pAction);
-    List<Pair<Integer, Action>> list = getNewList();
+    SignalDesc newItem = new SignalDesc(id, pAction, targetTo);
+    List<SignalDesc> list = getNewList();
     if (!addSignalTo(list, newItem)) {
       return this;
     }
     Map<String, Integer> newIds = new TreeMap<>(localIds);
     newIds.remove(varName);
-    return copy(ImmutableList.copyOf(list), newIds);
+    // Reset targetTo
+    return copy(ImmutableList.copyOf(list), newIds, "");
   }
 
-  protected List<Pair<Integer, Action>> getNewList() {
+  protected List<SignalDesc> getNewList() {
     return new ArrayList<>(signals);
   }
 
   protected SignalState
-      copy(ImmutableList<Pair<Integer, Action>> pSignals, Map<String, Integer> pPreparedId) {
-    return new SignalState(pSignals, pPreparedId);
+      copy(
+          ImmutableList<SignalDesc> pSignals,
+          Map<String, Integer> pPreparedId,
+          String pTo) {
+    return new SignalState(pSignals, pPreparedId, pTo);
   }
 
   protected SignalState copy() {
@@ -105,7 +123,7 @@ public class SignalState
     return this;
   }
 
-  private boolean addSignalTo(List<Pair<Integer, Action>> pList, Pair<Integer, Action> newItem) {
+  private boolean addSignalTo(List<SignalDesc> pList, SignalDesc newItem) {
     if (!pList.isEmpty() && pList.contains(newItem)) {
       // TODO skip cases [(0, send), (1, receive), ...]
       // Avoid send in loops
@@ -146,7 +164,11 @@ public class SignalState
     Map<String, Integer> newIds = new TreeMap<>(localIds);
     newIds.put(varName, id);
     stats.createdLocalSignals.inc();
-    return copy(signals, newIds);
+    return copy(signals, newIds, this.targetTo);
+  }
+
+  SignalState addTargetTo(String pName) {
+    return copy(signals, localIds, pName);
   }
 
   @Override
@@ -157,13 +179,13 @@ public class SignalState
       return result;
     }
     for (int i = 0; i < signals.size(); i++) {
-      Pair<Integer, Action> pair1 = signals.get(i);
-      Pair<Integer, Action> pair2 = other.signals.get(i);
-      result = pair1.getFirst().compareTo(pair2.getFirst());
+      SignalDesc pair1 = signals.get(i);
+      SignalDesc pair2 = other.signals.get(i);
+      result = pair1.num - pair2.num;
       if (result != 0) {
         return result;
       }
-      result = pair1.getSecond().compareTo(pair2.getSecond());
+      result = pair1.direction.compareTo(pair2.direction);
       if (result != 0) {
         return result;
       }
@@ -203,11 +225,11 @@ public class SignalState
       if (signals.size() == pOther.signals.size()) {
         return this.equals(pOther);
       } else {
-        List<Pair<Integer, Action>> prefix = pOther.signals.subList(0, signals.size());
+        List<SignalDesc> prefix = pOther.signals.subList(0, signals.size());
         if (prefix.equals(signals)) {
           return true;
         }
-        List<Pair<Integer, Action>> suffix =
+        List<SignalDesc> suffix =
             pOther.signals.subList(pOther.signals.size() - signals.size(), pOther.signals.size());
         return suffix.equals(signals);
       }
@@ -216,7 +238,7 @@ public class SignalState
     }
   }
 
-  public List<Pair<Integer, Action>> getSignals() {
+  public List<SignalDesc> getSignals() {
     return signals;
   }
 
@@ -225,14 +247,14 @@ public class SignalState
       return root;
     }
     boolean changed = false;
-    List<Pair<Integer, Action>> list = root.getNewList();
-    for (Pair<Integer, Action> pair : this.signals) {
+    List<SignalDesc> list = root.getNewList();
+    for (SignalDesc pair : this.signals) {
       if (addSignalTo(list, pair)) {
         changed = true;
       }
     }
     if (changed) {
-      return copy(ImmutableList.copyOf(list), root.localIds);
+      return copy(ImmutableList.copyOf(list), root.localIds, root.targetTo);
     }
     return root;
   }
@@ -278,24 +300,28 @@ public class SignalState
   public static class InversionSignalState extends SignalState {
 
     public InversionSignalState(
-        ImmutableList<Pair<Integer, Action>> pSignals,
-        Map<String, Integer> pPreparedId) {
-      super(pSignals, pPreparedId);
+        ImmutableList<SignalDesc> pSignals,
+        Map<String, Integer> pPreparedId,
+        String pTo) {
+      super(pSignals, pPreparedId, pTo);
     }
 
     public InversionSignalState() {
     }
 
     @Override
-    protected List<Pair<Integer, Action>> getNewList() {
+    protected List<SignalDesc> getNewList() {
       // store only last event
       return new ArrayList<>();
     }
 
     @Override
     protected InversionSignalState
-        copy(ImmutableList<Pair<Integer, Action>> pSignals, Map<String, Integer> pPreparedId) {
-      return new InversionSignalState(pSignals, pPreparedId);
+        copy(
+            ImmutableList<SignalDesc> pSignals,
+            Map<String, Integer> pPreparedId,
+            String pTo) {
+      return new InversionSignalState(pSignals, pPreparedId, pTo);
     }
 
     @Override
@@ -312,7 +338,7 @@ public class SignalState
     protected SignalState resetIfNeeded() {
       // We need signals only once for inversion detection.
       // Do not store them further
-      return copy(ImmutableList.of(), this.localIds);
+      return copy(ImmutableList.of(), this.localIds, "");
     }
   }
 }
