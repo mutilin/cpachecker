@@ -101,6 +101,13 @@ public class ThreadCreateTransformer {
 
   private final Map<String, ThreadCreateDesc> description;
 
+  @Option(
+    secure = true,
+    name = "cfa.threads.preset",
+    description = "Preset values for some threads")
+  private Set<String> presetThreads = ImmutableSet.of("");
+  private final Map<String, Integer> presetThreadInfo;
+
   public boolean isThreadOperation(CFunctionCallExpression pCallExpr) {
     String fName = pCallExpr.getFunctionNameExpression().toString();
     return threadCreate.contains(fName)
@@ -176,6 +183,7 @@ public class ThreadCreateTransformer {
       throws InvalidConfigurationException {
     config.inject(this);
     description = new TreeMap<>();
+    presetThreadInfo = new TreeMap<>();
     logger = log;
     FillDescription(config);
   }
@@ -193,6 +201,13 @@ public class ThreadCreateTransformer {
     int argNum = getOrDefault(config, threadCreateN + ".arguments", 3);
     int priorityNum = getOrDefault(config, threadCreateN + ".priority", -1);
     description.put(threadCreateN, new ThreadCreateDesc(entryNum, varNum, argNum, priorityNum));
+
+    for (String fName : presetThreads) {
+      priorityNum = getOrDefault(config, fName + ".presetPriority", -1);
+      if (priorityNum >= 0) {
+        presetThreadInfo.put(fName, priorityNum);
+      }
+    }
   }
 
   @SuppressWarnings("deprecation")
@@ -269,15 +284,17 @@ public class ThreadCreateTransformer {
               functionDeclaration);
 
       boolean isSelfParallel = fName.equals(threadCreateN);
-      int priority = 0; // default
-      if (tDesc.priority >= 0) {
+      int priority = -1; // Unknown
+      if (presetThreadInfo.containsKey(newThreadName)) {
+        priority = presetThreadInfo.get(newThreadName);
+      } else if (tDesc.priority >= 0) {
         // Expecting priority
         CExpression prioExp = args.get(tDesc.priority);
+        if (prioExp instanceof CCastExpression) {
+          prioExp = ((CCastExpression) prioExp).getOperand();
+        }
         if (prioExp instanceof CIntegerLiteralExpression) {
           priority = ((CIntegerLiteralExpression) prioExp).getValue().intValue();
-        } else {
-          // Unknown
-          priority = -1;
         }
       }
       CFunctionCallStatement pFunctionCall =
