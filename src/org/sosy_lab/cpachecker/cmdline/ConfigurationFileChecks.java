@@ -164,6 +164,7 @@ public class ConfigurationFileChecks {
           "pcc.proof",
           "pcc.partial.stopAddingAtReachedSetSize",
           // ErrorTracePrinter is created lazily
+          "cpa.usage.export.removeGlobalDeclarations",
           "cpa.usage.export.witnessTemplate",
           "cpa.usage.filterMissedFiles",
           "cpa.usage.filterSimilarUnsafes");

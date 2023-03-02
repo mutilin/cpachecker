@@ -38,6 +38,28 @@ public class SignalState
       direction = pDirect;
       target = pTarget;
     }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(direction, num, target);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null) {
+        return false;
+      }
+      if (!(obj instanceof SignalDesc)) {
+        return false;
+      }
+      SignalDesc other = (SignalDesc) obj;
+      return direction == other.direction
+          && num == other.num
+          && Objects.equals(target, other.target);
+    }
   }
 
   private static SignalStatistics stats;
@@ -64,7 +86,7 @@ public class SignalState
 
   @Override
   public int hashCode() {
-    return Objects.hash(signals, localIds);
+    return Objects.hash(signals, localIds, targetTo);
   }
 
   @Override
@@ -79,19 +101,23 @@ public class SignalState
       return false;
     }
     SignalState other = (SignalState) obj;
-    return Objects.equals(signals, other.signals) && Objects.equals(localIds, other.localIds);
+    return Objects.equals(signals, other.signals)
+        && Objects.equals(targetTo, other.targetTo)
+        && Objects.equals(localIds, other.localIds);
   }
 
   private SignalState addSignal(String varName, Action pAction) {
     if (signals.size() > LIMIT) {
       return this;
     }
+    Integer id;
     if (!containsId(varName)) {
       // TODO complicated cases with resend received signals
-      // Skip for now
-      return this;
+      // Unknown signal
+      id = -2;
+    } else {
+      id = getId(varName);
     }
-    Integer id = getId(varName);
     SignalDesc newItem = new SignalDesc(id, pAction, targetTo);
     List<SignalDesc> list = getNewList();
     if (!addSignalTo(list, newItem)) {
@@ -167,7 +193,8 @@ public class SignalState
     return copy(signals, newIds, this.targetTo);
   }
 
-  SignalState addTargetTo(String pName) {
+  SignalState addTargetTo(@SuppressWarnings("unused") String pName) {
+    assert this.targetTo.isEmpty();
     return copy(signals, localIds, pName);
   }
 
@@ -190,7 +217,7 @@ public class SignalState
         return result;
       }
     }
-    return 0;
+    return targetTo.compareTo(other.targetTo);
   }
 
   @Override
@@ -219,6 +246,11 @@ public class SignalState
 
       boolean res = pOther.localIds.entrySet().containsAll(this.localIds.entrySet());
       if (!res) {
+        return false;
+      }
+
+      // Unknown covers concrete
+      if (this.targetTo.isEmpty() && !pOther.targetTo.isEmpty()) {
         return false;
       }
 

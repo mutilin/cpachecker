@@ -9,16 +9,13 @@
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Multimap;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -69,7 +66,7 @@ public class ConcurrentUsageExtractor {
   private final AtomicInteger numberOfActiveTasks;
   private final ShutdownNotifier notifier;
   private ExecutorService service;
-  private final Multimap<AbstractState, UsageDelta> processedSets;
+  private final Map<AbstractState, Collection<UsageDelta>> processedSets;
   private final Map<Pair<AbstractState, UsageDelta>, List<AbstractState>> stacks;
 
   @SuppressWarnings("deprecation")
@@ -87,6 +84,18 @@ public class ConcurrentUsageExtractor {
   @SuppressWarnings("deprecation")
   private final ThreadSafeTimerContainer reachedSetCheckTimer =
       new ThreadSafeTimerContainer("Time for checking a reached set");
+
+  @SuppressWarnings("deprecation")
+  private final ThreadSafeTimerContainer processedSetWaitingTimer =
+      new ThreadSafeTimerContainer("Time for waiting for processed deltas");
+
+  @SuppressWarnings("deprecation")
+  private final ThreadSafeTimerContainer processedSyncTimer =
+      new ThreadSafeTimerContainer("Time for filter processed deltas");
+
+  @SuppressWarnings("deprecation")
+  private final ThreadSafeTimerContainer processedWaitingTimer =
+      new ThreadSafeTimerContainer("Time for waiting processed deltas");
 
 
   public ConcurrentUsageExtractor(
@@ -108,7 +117,7 @@ public class ConcurrentUsageExtractor {
     processingSteps = new AtomicInteger();
     numberOfActiveTasks = new AtomicInteger();
     notifier = usageCpa.getNotifier();
-    processedSets = ArrayListMultimap.create();
+    processedSets = new HashMap<>();
     // Normal map + synchronized shows better performance than ConcurrentHashMap
     stacks = new HashMap<>();
   }
@@ -125,7 +134,9 @@ public class ConcurrentUsageExtractor {
     AbstractState firstState = reached.getFirstState();
 
     UsageDelta emptyDelta = UsageDelta.constructDeltaBetween(firstState, firstState);
-    processedSets.put(firstState, emptyDelta);
+    Collection<UsageDelta> initialSet = new HashSet<>();
+    initialSet.add(emptyDelta);
+    processedSets.put(firstState, initialSet);
     usageProcessor.updateRedundantUnsafes(container.getNotInterestingUnsafes());
 
     numberOfActiveTasks.incrementAndGet();
@@ -138,16 +149,17 @@ public class ConcurrentUsageExtractor {
 
     traversalTimer.stop();
     reachedSetCounter.setNextValue(processingSteps.get());
-    finalSetCounter.setNextValue(processedSets.entries().size());
-    numberOfActiveTasks.set(processedSets.entries().size());
+    finalSetCounter.setNextValue(0);
+    numberOfActiveTasks.set(0);
     usageTimer.start();
 
-    for (Entry<AbstractState, UsageDelta> rSet : processedSets.entries()) {
-      service.submit(
-          new UsageTraversal(
-              rSet.getKey(),
-              rSet.getValue(),
-              stacks.get(Pair.of(rSet.getKey(), rSet.getValue()))));
+    for (Entry<AbstractState, Collection<UsageDelta>> entry : processedSets.entrySet()) {
+      numberOfActiveTasks.addAndGet(entry.getValue().size());
+      finalSetCounter.setNextValue(entry.getValue().size());
+      for (UsageDelta rSet : entry.getValue()) {
+        service.submit(
+            new UsageTraversal(entry.getKey(), rSet, stacks.get(Pair.of(entry.getKey(), rSet))));
+      }
     }
 
     waitUntill(s -> s > 0);
@@ -182,13 +194,22 @@ public class ConcurrentUsageExtractor {
   }
 
   public void printStatistics(StatisticsWriter pWriter) {
+    int threads = useConcurrentExtraction ? Runtime.getRuntime().availableProcessors() : 1;
     StatisticsWriter writer =
         pWriter.spacer()
+            .put("Number of concurrent extractors", threads)
             .put(totalTimer)
             .beginLevel()
             .put(traversalTimer)
             .beginLevel()
             .put(reachedSetCheckTimer)
+            .beginLevel()
+            .put(processedSetWaitingTimer)
+            .put(processedWaitingTimer)
+            .beginLevel()
+            .put(processedSyncTimer)
+            .endLevel()
+            .endLevel()
             .endLevel()
             .put(usageTimer)
             .beginLevel()
@@ -212,6 +233,9 @@ public class ConcurrentUsageExtractor {
     private final List<AbstractState> expandedStack;
 
     private final TimerWrapper checkTimer;
+    private final TimerWrapper procesedTimer;
+    private final TimerWrapper procesedSetWaitTimer;
+    private final TimerWrapper procesedWaitTimer;
 
     ReachedSetTraversal(
         ReachedSet pSet,
@@ -222,6 +246,9 @@ public class ConcurrentUsageExtractor {
       reached = pSet;
       expandedStack = pExpandedStack;
       checkTimer = reachedSetCheckTimer.getNewTimer();
+      procesedTimer = processedSyncTimer.getNewTimer();
+      procesedSetWaitTimer = processedSetWaitingTimer.getNewTimer();
+      procesedWaitTimer = processedWaitingTimer.getNewTimer();
     }
 
     @Override
@@ -280,33 +307,62 @@ public class ConcurrentUsageExtractor {
     }
 
     private boolean shouldContinue(AbstractState pFirstState, UsageDelta currentDifference) {
+      Collection<UsageDelta> processed;
+      procesedSetWaitTimer.start();
       synchronized (processedSets) {
-        Collection<UsageDelta> processed = processedSets.get(pFirstState);
+        if (processedSets.containsKey(pFirstState)) {
+          processed = processedSets.get(pFirstState);
+        } else {
+          processed = new HashSet<>();
+          processedSets.put(pFirstState, processed);
+        }
+      }
+      procesedSetWaitTimer.stop();
 
-        if (processCoveredUsages) {
+      if (processCoveredUsages) {
+
+        procesedWaitTimer.start();
+        synchronized (processed) {
+          procesedTimer.start();
           boolean b = !processed.contains(currentDifference);
           if (b) {
-            processedSets.put(pFirstState, currentDifference);
+            processed.add(currentDifference);
           }
+          procesedTimer.stop();
+          procesedWaitTimer.stop();
           return b;
-        } else {
+        }
+
+      } else {
+        Collection<UsageDelta> toRemove = new HashSet<>();
+
+        procesedWaitTimer.start();
+        synchronized (processed) {
+          procesedTimer.start();
           for (UsageDelta delta : processed) {
             if (delta.covers(currentDifference)) {
+              procesedTimer.stop();
+              procesedWaitTimer.stop();
               return false;
             }
-          }
-          // Remove old deltas, covered by new one
-          Iterator<UsageDelta> iterator = processed.iterator();
-          while (iterator.hasNext()) {
-            UsageDelta delta = iterator.next();
             if (currentDifference.covers(delta)) {
-              iterator.remove();
-              stacks.remove(Pair.of(pFirstState, delta));
+              toRemove.add(delta);
             }
           }
-          processedSets.put(pFirstState, currentDifference);
-          return true;
+
+          processed.removeAll(toRemove);
+          processed.add(currentDifference);
+          procesedTimer.stop();
         }
+        procesedWaitTimer.stop();
+
+        synchronized (processedSets) {
+          for (UsageDelta delta : toRemove) {
+            stacks.remove(Pair.of(pFirstState, delta));
+          }
+        }
+
+        return true;
       }
     }
   }
