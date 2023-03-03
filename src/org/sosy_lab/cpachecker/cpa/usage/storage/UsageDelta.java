@@ -19,6 +19,39 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 
 public class UsageDelta implements Delta<List<CompatibleNode>> {
 
+  private static class EmptyUsageDelta extends UsageDelta {
+    private final static EmptyUsageDelta instance = new EmptyUsageDelta();
+
+    public EmptyUsageDelta() {
+      super(ImmutableList.of());
+    }
+
+    @Override
+    public List<CompatibleNode> apply(List<CompatibleNode> pState) {
+      return pState;
+    }
+
+    @Override
+    public boolean covers(Delta<List<CompatibleNode>> pDelta) {
+      return pDelta == EmptyUsageDelta.instance;
+    }
+
+    @Override
+    public UsageDelta add(Delta<List<CompatibleNode>> pDelta) {
+      return (UsageDelta) pDelta;
+    }
+
+    @Override
+    public boolean equals(Object pDelta) {
+      return pDelta == instance;
+    }
+
+    @Override
+    public int hashCode() {
+      return System.identityHashCode(instance);
+    }
+  }
+
   private final List<Delta<CompatibleNode>> nestedDeltas;
 
   public UsageDelta(List<Delta<CompatibleNode>> pList) {
@@ -51,6 +84,9 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
 
   @Override
   public boolean covers(Delta<List<CompatibleNode>> pDelta) {
+    if (pDelta == EmptyUsageDelta.instance) {
+      return false;
+    }
     UsageDelta pOther = (UsageDelta) pDelta;
     assert nestedDeltas.size() == pOther.nestedDeltas.size();
 
@@ -64,6 +100,9 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
 
   @Override
   public boolean equals(Object pDelta) {
+    if (pDelta == EmptyUsageDelta.instance) {
+      return false;
+    }
     if (pDelta instanceof UsageDelta) {
       UsageDelta pOther = (UsageDelta) pDelta;
       return nestedDeltas.equals(pOther.nestedDeltas);
@@ -92,19 +131,33 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
             .transform(CompatibleState::getCompatibleNode);
 
     assert reducedStates.size() == rootStates.size();
+    boolean nonTrivial = false;
 
     for (int i = 0; i < reducedStates.size(); i++) {
       CompatibleNode nestedReducedState = reducedStates.get(i);
       CompatibleNode nestedRootState = rootStates.get(i);
 
-      storedStates.add((Delta<CompatibleNode>) nestedReducedState.getDeltaBetween(nestedRootState));
+      Delta<CompatibleNode> delta =
+          (Delta<CompatibleNode>) nestedReducedState.getDeltaBetween(nestedRootState);
+
+      storedStates.add(delta);
+      if (delta != GenericDelta.getInstance()) {
+        nonTrivial = true;
+      }
     }
 
-    return new UsageDelta(storedStates.build());
+    if (nonTrivial) {
+      return new UsageDelta(storedStates.build());
+    } else {
+      return EmptyUsageDelta.instance;
+    }
   }
 
   @Override
   public UsageDelta add(Delta<List<CompatibleNode>> pDelta) {
+    if (pDelta == EmptyUsageDelta.instance) {
+      return this;
+    }
     UsageDelta pOther = (UsageDelta) pDelta;
     ImmutableList.Builder<Delta<CompatibleNode>> result = ImmutableList.builder();
     assert nestedDeltas.size() == pOther.nestedDeltas.size();

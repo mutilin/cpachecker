@@ -38,7 +38,7 @@ public class GenericDelta implements Delta<CompatibleNode> {
 
   @Override
   public Delta<CompatibleNode> add(Delta<CompatibleNode> pDelta) {
-    return instance;
+    return pDelta;
   }
 
   @Override

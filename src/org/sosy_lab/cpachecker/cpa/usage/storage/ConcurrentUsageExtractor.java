@@ -253,27 +253,38 @@ public class ConcurrentUsageExtractor {
 
     @Override
     public void run() {
-      for (AbstractState state : reached.asCollection()) {
+      try {
+        for (AbstractState state : reached.asCollection()) {
 
-        // Search state in the BAM cache
-        if (manager != null && manager.hasInitialState(state)) {
-          ARGState argState = (ARGState) state;
-          for (ARGState child : argState.getChildren()) {
-            AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
-            ReachedSet innerReached = manager.getReachedSetForInitialState(state, reducedChild);
+          // Search state in the BAM cache
+          if (manager != null && manager.hasInitialState(state)) {
+            ARGState argState = (ARGState) state;
+            for (ARGState child : argState.getChildren()) {
+              AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
+              ReachedSet innerReached = manager.getReachedSetForInitialState(state, reducedChild);
+
+              processReachedSet(state, innerReached);
+            }
+          } else if (manager != null && manager.hasInitialStateWithoutExit(state)) {
+            // Likely thread functions
+            ReachedSet innerReached = manager.getReachedSetForInitialState(state);
 
             processReachedSet(state, innerReached);
           }
-        } else if (manager != null && manager.hasInitialStateWithoutExit(state)) {
-          // Likely thread functions
-          ReachedSet innerReached = manager.getReachedSetForInitialState(state);
-
-          processReachedSet(state, innerReached);
         }
-      }
 
-      if (processingSteps.incrementAndGet() == numberOfActiveTasks.get()) {
-        service.notify();
+        if (processingSteps.incrementAndGet() == numberOfActiveTasks.get()) {
+          synchronized (ConcurrentUsageExtractor.this) {
+            ConcurrentUsageExtractor.this.notify();
+          }
+        }
+
+      } catch (Throwable e) {
+        // Important to increment processingSteps to avoid hanging
+        // e.printStackTrace() is a forbidden api
+        logger.log(Level.WARNING, e);
+        processingSteps.incrementAndGet();
+        throw e;
       }
     }
 
@@ -298,11 +309,8 @@ public class ConcurrentUsageExtractor {
         synchronized (processedSets) {
           stacks.put(Pair.of(reducedState, difference), newStack);
         }
-        service.submit(
-            new ReachedSetTraversal(
-                innerReached,
-                difference,
-                newStack));
+        ReachedSetTraversal task = new ReachedSetTraversal(innerReached, difference, newStack);
+        service.submit(task);
       }
     }
 

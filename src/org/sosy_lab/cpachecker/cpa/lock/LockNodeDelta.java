@@ -8,11 +8,14 @@
 
 package org.sosy_lab.cpachecker.cpa.lock;
 
+import edu.stanford.CVC4.UnsafeInterruptException;
+import java.util.Objects;
 import org.sosy_lab.cpachecker.cpa.lock.LockState.LockTreeNode;
+import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
+import org.sosy_lab.cpachecker.cpa.usage.storage.GenericDelta;
 
-public class LockNodeDelta implements Delta<LockTreeNode> {
-
+public class LockNodeDelta implements Delta<CompatibleNode> {
   private final LockTreeNode delta;
 
   public LockNodeDelta(LockTreeNode pSet) {
@@ -20,37 +23,71 @@ public class LockNodeDelta implements Delta<LockTreeNode> {
   }
 
   @Override
-  public LockTreeNode apply(LockTreeNode pState) {
+  public CompatibleNode apply(CompatibleNode pState) {
     if (delta.isEmpty()) {
       return pState;
     }
-    if (pState.isEmpty()) {
+    LockTreeNode pNode = (LockTreeNode) pState;
+    if (pNode.isEmpty()) {
       return delta;
     }
 
     LockTreeNode newSet = new LockTreeNode(delta);
-    newSet.addAll(pState);
+    newSet.addAll(pNode);
     return newSet;
   }
 
   @Override
-  public boolean covers(Delta<LockTreeNode> pDelta) {
-    LockNodeDelta pOther = (LockNodeDelta) pDelta;
-    return delta.cover(pOther.delta);
+  public boolean covers(Delta<CompatibleNode> pDelta) {
+    if (pDelta instanceof LockNodeDelta) {
+      LockNodeDelta pOther = (LockNodeDelta) pDelta;
+      return delta.cover(pOther.delta);
+    } else if (pDelta == GenericDelta.getInstance()) {
+      // Empty lock sets do not cover
+      return false;
+    } else {
+      throw new UnsafeInterruptException("Unknown delta " + pDelta.getClass());
+    }
   }
 
   @Override
-  public LockNodeDelta add(Delta<LockTreeNode> pDelta) {
-    LockNodeDelta pOther = (LockNodeDelta) pDelta;
-    if (pOther.delta.isEmpty()) {
+  public Delta<CompatibleNode> add(Delta<CompatibleNode> pDelta) {
+    if (pDelta instanceof LockNodeDelta) {
+      LockNodeDelta pOther = (LockNodeDelta) pDelta;
+      if (pOther.delta.isEmpty()) {
+        return this;
+      }
+      if (delta.isEmpty()) {
+        return pOther;
+      }
+      LockTreeNode newSet = new LockTreeNode(delta);
+      newSet.addAll(pOther.delta);
+      return new LockNodeDelta(newSet);
+    } else if (pDelta == GenericDelta.getInstance()) {
+      // Empty lock sets do not cover
       return this;
+    } else {
+      throw new UnsafeInterruptException("Unknown delta " + pDelta.getClass());
     }
-    if (delta.isEmpty()) {
-      return pOther;
-    }
-    LockTreeNode newSet = new LockTreeNode(delta);
-    newSet.addAll(pOther.delta);
-    return new LockNodeDelta(newSet);
   }
 
+  @Override
+  public int hashCode() {
+    return Objects.hash(delta);
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (!(obj instanceof LockNodeDelta)) {
+      return false;
+    }
+    LockNodeDelta other = (LockNodeDelta) obj;
+    return Objects.equals(delta, other.delta);
+  }
 }

@@ -25,7 +25,8 @@ public interface CompatibleNode extends CompatibleState {
   }
 
   // reducedState.getDeltaBetween(rootState)
-  default Delta<? extends CompatibleNode> getDeltaBetween(CompatibleNode pOther) {
+  default Delta<? extends CompatibleNode>
+      getDeltaBetween(@SuppressWarnings("unused") CompatibleNode pOther) {
     return GenericDelta.getInstance();
   }
 }

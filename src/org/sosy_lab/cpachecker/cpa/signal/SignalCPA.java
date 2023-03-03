@@ -27,7 +27,6 @@ import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.cpa.lock.AbstractLockState;
-import org.sosy_lab.cpachecker.cpa.signal.SignalState.InversionSignalState;
 
 @Options(prefix = "cpa.signal")
 public class SignalCPA extends AbstractCPA

@@ -133,7 +133,6 @@ public class KleverErrorTracePrinterOld extends ErrorTracePrinter {
 
     if (warning == null) {
       logger.log(Level.WARNING, "Can not determine an unsafe edge");
-      warning = null;
     }
     Element result = null;
     Element lastWarningElement = null;

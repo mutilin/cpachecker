@@ -32,6 +32,7 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
+import org.sosy_lab.cpachecker.cpa.usage.storage.GenericDelta;
 import org.sosy_lab.cpachecker.util.Pair;
 
 public class ThreadState
@@ -232,7 +233,9 @@ public class ThreadState
     Map<String, ThreadStatus> expanded = pState.getThreadSet();
     Map<String, ThreadStatus> newSet;
 
-    if (threadSet.isEmpty()) {
+    if (expanded.equals(threadSet)) {
+      return GenericDelta.getInstance();
+    } else if (threadSet.isEmpty()) {
       newSet = expanded;
     } else {
       newSet = new TreeMap<>();

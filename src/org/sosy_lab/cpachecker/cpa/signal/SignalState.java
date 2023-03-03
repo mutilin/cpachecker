@@ -9,6 +9,8 @@
 package org.sosy_lab.cpachecker.cpa.signal;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import edu.stanford.CVC4.UnsafeInterruptException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -18,10 +20,11 @@ import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
+import org.sosy_lab.cpachecker.cpa.usage.storage.GenericDelta;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 
 public class SignalState
-    implements LatticeAbstractState<SignalState>, CompatibleNode, Delta<SignalState> {
+    implements LatticeAbstractState<SignalState>, CompatibleNode, Delta<CompatibleNode> {
 
   public enum Action {
     SEND,
@@ -65,7 +68,7 @@ public class SignalState
   private static SignalStatistics stats;
   private final static int LIMIT = 10;
 
-  private final ImmutableList<SignalDesc> signals;
+  protected final ImmutableList<SignalDesc> signals;
   // Global variables
   private final static Map<String, Integer> globalIds = new TreeMap<>();
   protected final Map<String, Integer> localIds;
@@ -159,7 +162,7 @@ public class SignalState
     return true;
   }
 
-  private static void initStats(SignalStatistics pStats) {
+  protected static void initStats(SignalStatistics pStats) {
     if (stats == null) {
       // Only in tests the method is called several times
       stats = pStats;
@@ -296,26 +299,40 @@ public class SignalState
   }
 
   @Override
-  public SignalState getDeltaBetween(CompatibleNode pOther) {
+  public Delta<CompatibleNode> getDeltaBetween(CompatibleNode pOther) {
     SignalState root = (SignalState) pOther;
     assert this.signals.isEmpty();
-    assert this.localIds.isEmpty();
+    if (root.signals.isEmpty()) {
+      return GenericDelta.getInstance();
+    }
     return root;
   }
 
   @Override
-  public SignalState apply(SignalState pState) {
-    return pState.expand(pState);
+  public CompatibleNode apply(CompatibleNode pState) {
+    return ((SignalState) pState).expand(this);
   }
 
   @Override
-  public boolean covers(Delta<SignalState> pDelta) {
-    return ((SignalState) pDelta).isLessOrEqual(this);
+  public boolean covers(Delta<CompatibleNode> pDelta) {
+    if (pDelta instanceof SignalState) {
+      return ((SignalState) pDelta).isLessOrEqual(this);
+    } else if (pDelta == GenericDelta.getInstance()) {
+      return true;
+    } else {
+      throw new UnsafeInterruptException("Unknown delta " + pDelta.getClass());
+    }
   }
 
   @Override
-  public SignalState add(Delta<SignalState> pDelta) {
-    return ((SignalState) pDelta).expand(this);
+  public Delta<CompatibleNode> add(Delta<CompatibleNode> pDelta) {
+    if (pDelta instanceof SignalState) {
+      return ((SignalState)pDelta).expand(this);
+    } else if (pDelta == GenericDelta.getInstance()) {
+      return this;
+    } else {
+      throw new UnsafeInterruptException("Unknown delta " + pDelta.getClass());
+    }
   }
 
   private boolean containsId(String varName) {
@@ -329,48 +346,8 @@ public class SignalState
     return globalIds.get(varName);
   }
 
-  public static class InversionSignalState extends SignalState {
-
-    public InversionSignalState(
-        ImmutableList<SignalDesc> pSignals,
-        Map<String, Integer> pPreparedId,
-        String pTo) {
-      super(pSignals, pPreparedId, pTo);
-    }
-
-    public InversionSignalState() {
-    }
-
-    @Override
-    protected List<SignalDesc> getNewList() {
-      // store only last event
-      return new ArrayList<>();
-    }
-
-    @Override
-    protected InversionSignalState
-        copy(
-            ImmutableList<SignalDesc> pSignals,
-            Map<String, Integer> pPreparedId,
-            String pTo) {
-      return new InversionSignalState(pSignals, pPreparedId, pTo);
-    }
-
-    @Override
-    protected InversionSignalState copy() {
-      return new InversionSignalState();
-    }
-
-    public static InversionSignalState createInitialState(SignalStatistics pStats) {
-      initStats(pStats);
-      return new InversionSignalState();
-    }
-
-    @Override
-    protected SignalState resetIfNeeded() {
-      // We need signals only once for inversion detection.
-      // Do not store them further
-      return copy(ImmutableList.of(), this.localIds, "");
-    }
+  @Override
+  public CompatibleNode getCompatibleNode() {
+    return new SignalState(signals, ImmutableMap.of(), "");
   }
 }
