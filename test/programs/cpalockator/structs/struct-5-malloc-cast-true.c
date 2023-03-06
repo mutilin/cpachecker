@@ -1,4 +1,4 @@
-// The test contains two pointers to differect structs and two function calls from these structs. Function accesses pointer to next struct.
+// The test contains two pointers to differect structs and two function calls from these  pointers. Function accesses pointer to next struct. Memory is allocated using malloc, with casting.
 
 void pthread_create(int*, int, void * (void *arg), int);
 void __VERIFIER_assume(int);
@@ -28,8 +28,8 @@ void *t2(void* arg) {
 int main() {
   int thread1, thread2;
   
-  s1 = malloc(sizeof(struct numbers));
-  s2 = malloc(sizeof(struct numbers));
+  s1 = (struct numbers *)malloc(sizeof(struct numbers));
+  s2 = (struct numbers *)malloc(sizeof(struct numbers));
   pthread_create(&thread1, 0, t1, 0);
   pthread_create(&thread2, 0, t2, 0);
   

@@ -16,6 +16,7 @@ uppsala:
     - "cpa.thread.skipTheSameThread=true"
   spec: "sv-comp-reachability"
   benchmarks: 
+    - /sv-races/simple/*
     - /sv-races/*.i
     - /*.i
   verdicts: ci-config/uppsala-verdicts.yml

@@ -1,4 +1,4 @@
-// The test contains two pointers to differect structs and two function calls from these structs.
+// The test contains two pointers to differect structs and two function calls from these pointers. Memory is allocated using malloc, no casting.
 
 void pthread_create(int*, int, void * (void *arg), int);
 void __VERIFIER_assume(int);

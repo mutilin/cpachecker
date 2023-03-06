@@ -71,3 +71,13 @@ lockator-threadmodular-linux on structs:
   config: -lockator-threadmodular-linux
   benchmarks: test/programs/cpalockator/structs/*.c
   verdicts: ci-config/structs-test-verdicts.yml
+predicateAnalysis-threadmodular on order:
+  config: "-predicateAnalysis-threadmodular"
+  spec: "sv-comp-reachability"
+  benchmarks: test/programs/cpalockator/order/*.c
+  verdicts: ci-config/order-test-verdicts.yml
+predicateAnalysis-tm-ta on order:
+  config: "-predicateAnalysis-tm-ta"
+  spec: "sv-comp-reachability"
+  benchmarks: test/programs/cpalockator/order/*.c
+  verdicts: ci-config/order-test-verdicts.yml
