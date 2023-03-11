@@ -2,7 +2,7 @@ uppsala simple:
   config: "-predicateAnalysis-threadmodular"
   setprop: 
     - "cpa.predicate.refinement.performThreadEffectRefinement=true"
-    - "cpa.thread.skipTheSameThread=true"
+    - "cpa.thread.handleSameThreads=SKIP"
   spec: "sv-comp-reachability"
   benchmarks: 
     - /ad-hoc/*.i
@@ -13,7 +13,7 @@ uppsala:
   config: "-predicateAnalysis-threadmodular"
   setprop: 
     - "cpa.predicate.refinement.performThreadEffectRefinement=true"
-    - "cpa.thread.skipTheSameThread=true"
+    - "cpa.thread.handleSameThreads=SKIP"
   spec: "sv-comp-reachability"
   benchmarks: 
     - /sv-races/simple/*

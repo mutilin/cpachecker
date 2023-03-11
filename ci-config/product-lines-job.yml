@@ -50,14 +50,14 @@ product line 7:
 product line 8:
   config: "lockStatistics-linux.properties"
   setprop: 
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   benchmarks: 
     - test/programs/cpalockator/threads/*.c
   parallel: True
 product line 9:
   config: "lockStatistics-linux.properties"
   setprop: 
-    - "cpa.thread.skipTheSameThread=true"
+    - "cpa.thread.handleSameThreads=SKIP"
   benchmarks: 
     - test/programs/cpalockator/threads/*.c
   parallel: True
@@ -94,14 +94,14 @@ product line 13:
 product line 14:
   config: "lockStatistics-threadmodular-linux.properties"
   setprop: 
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   benchmarks: 
     - test/programs/cpalockator/threads/*.c
   parallel: True
 product line 15:
   config: "lockStatistics-threadmodular-linux.properties"
   setprop: 
-    - "cpa.thread.skipTheSameThread=true"
+    - "cpa.thread.handleSameThreads=SKIP"
   benchmarks: 
     - test/programs/cpalockator/threads/*.c
   parallel: True

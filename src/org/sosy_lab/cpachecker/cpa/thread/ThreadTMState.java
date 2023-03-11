@@ -23,6 +23,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Objects;
+import org.sosy_lab.cpachecker.cpa.thread.ThreadCPA.SelfSupport;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 
 public class ThreadTMState extends ThreadState {
@@ -94,7 +95,8 @@ public class ThreadTMState extends ThreadState {
         pEdge);
   }
 
-  public static ThreadState emptyState() {
+  public static ThreadState emptyState(SelfSupport pSelf) {
+    selfHandle = pSelf;
     return new ThreadTMState(mainThread, mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
   }
 

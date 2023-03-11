@@ -13,6 +13,7 @@ import static org.sosy_lab.cpachecker.cpa.thread.ThreadTransferRelation.isThread
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -29,6 +30,9 @@ import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryStatementEdge;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ThreadIdProvider;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
+import org.sosy_lab.cpachecker.cpa.thread.ThreadCPA.SelfSupport;
+import org.sosy_lab.cpachecker.cpa.thread.ThreadDelta.SelfParallelDelta;
+import org.sosy_lab.cpachecker.cpa.thread.ThreadDelta.SkipThreadDelta;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.storage.Delta;
@@ -53,6 +57,9 @@ public class ThreadState
   protected final int currentPriority;
 
   protected final static String mainThread = "main";
+  // Spotbug suggests to remove protected, which is worse
+  @SuppressFBWarnings("MS_PKGPROTECT")
+  protected static SelfSupport selfHandle;
 
   protected ThreadState(
       String pId,
@@ -149,7 +156,8 @@ public class ThreadState
     return false;
   }
 
-  public static ThreadState emptyState() {
+  public static ThreadState emptyState(SelfSupport pSelf) {
+    selfHandle = pSelf;
     return new ThreadState(mainThread, mainThread, 0, ImmutableMap.of(), ImmutableMap.of());
   }
 
@@ -250,7 +258,13 @@ public class ThreadState
         }
       }
     }
-    return new ThreadDelta(newSet);
+    if (selfHandle == SelfSupport.SUPPORT) {
+      return new SelfParallelDelta(newSet);
+    } else if (selfHandle == SelfSupport.SKIP) {
+      return new SkipThreadDelta(newSet);
+    } else {
+      return new ThreadDelta(newSet);
+    }
   }
 
   @Override

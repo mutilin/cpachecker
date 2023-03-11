@@ -32,6 +32,7 @@ import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
+import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 @Options(prefix = "cpa.thread")
 public class ThreadCPA extends AbstractCPA
@@ -44,11 +45,21 @@ public class ThreadCPA extends AbstractCPA
     BASE;
   }
 
+  public enum SelfSupport {
+    SUPPORT,
+    SKIP,
+    FAIL
+  }
+
+  @Option(secure = true, description = "How to handle several instances of the same thread")
+  private SelfSupport handleSameThreads = SelfSupport.FAIL;
+
   @Option(secure = true, description = "Use specific mode for thread analysis")
   private ThreadMode mode = ThreadMode.BASE;
 
   @Option(secure = true, description = "Use aggressive reduction mode")
   private boolean useAggressiveReduction = false;
+  private final ThreadCPAStatistics threadStatistics;
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(ThreadCPA.class);
@@ -59,8 +70,9 @@ public class ThreadCPA extends AbstractCPA
         "sep",
         "sep",
         DelegateAbstractDomain.<ThreadState>getInstance(),
-        new ThreadTransferRelation(pConfig));
+        null);
     pConfig.inject(this);
+    threadStatistics = new ThreadCPAStatistics();
   }
 
   @Override
@@ -73,11 +85,11 @@ public class ThreadCPA extends AbstractCPA
     Preconditions.checkNotNull(pNode);
     switch (mode) {
       case SIMPLE:
-        return SimpleThreadState.emptyState();
+        return SimpleThreadState.emptyState(handleSameThreads);
       case ENVIRONMENT:
-        return ThreadTMState.emptyState();
+        return ThreadTMState.emptyState(handleSameThreads);
       case BASE:
-        return ThreadState.emptyState();
+        return ThreadState.emptyState(handleSameThreads);
       default:
         throw new UnsupportedOperationException("Unexpected thread analysis mode: " + mode);
     }
@@ -99,7 +111,7 @@ public class ThreadCPA extends AbstractCPA
 
   @Override
   public void collectStatistics(Collection<Statistics> pStatsCollection) {
-    pStatsCollection.add(((ThreadTransferRelation) getTransferRelation()).getStatistics());
+    pStatsCollection.add(threadStatistics);
   }
 
   @Override
@@ -110,5 +122,10 @@ public class ThreadCPA extends AbstractCPA
       default:
         return new ThreadApplyOperator();
     }
+  }
+
+  @Override
+  public TransferRelation getTransferRelation() {
+    return new ThreadTransferRelation(handleSameThreads, threadStatistics);
   }
 }

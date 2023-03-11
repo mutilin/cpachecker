@@ -51,7 +51,7 @@ public class ThreadDelta implements Delta<CompatibleNode> {
     } else if (pDelta == GenericDelta.getInstance()) {
       return true;
     } else {
-      throw new UnsafeInterruptException("Unknown delta " + pDelta.getClass());
+      throw new UnsupportedOperationException("Unknown delta " + pDelta.getClass());
     }
   }
 
@@ -66,11 +66,11 @@ public class ThreadDelta implements Delta<CompatibleNode> {
         return pDelta;
       }
       Map<String, ThreadStatus> newSet = mergeMaps(pOther.threadSet);
-      return new ThreadDelta(newSet);
+      return copy(newSet);
     } else if (pDelta == GenericDelta.getInstance()) {
       return this;
     } else {
-      throw new UnsafeInterruptException("Unknown delta " + pDelta.getClass());
+      throw new UnsupportedOperationException("Unknown delta " + pDelta.getClass());
     }
   }
 
@@ -78,12 +78,18 @@ public class ThreadDelta implements Delta<CompatibleNode> {
     Map<String, ThreadStatus> newSet = new TreeMap<>(threadSet);
     for (Entry<String, ThreadStatus> entry : other.entrySet()) {
       if (newSet.containsKey(entry.getKey())) {
-        newSet.put(entry.getKey(), ThreadStatus.SELF_PARALLEL_THREAD);
+        addTheSameStatus(newSet, entry.getKey());
       } else {
         newSet.put(entry.getKey(), entry.getValue());
       }
     }
     return newSet;
+  }
+
+  protected void
+      addTheSameStatus(@SuppressWarnings("unused") Map<String, ThreadStatus> pNewSet, String pKey) {
+    // Without options throw exception
+    throw new UnsafeInterruptException(pKey + " already exists");
   }
 
   @Override
@@ -104,5 +110,43 @@ public class ThreadDelta implements Delta<CompatibleNode> {
     }
     ThreadDelta other = (ThreadDelta) obj;
     return Objects.equals(threadSet, other.threadSet);
+  }
+
+  public ThreadDelta copy(Map<String, ThreadStatus> pTSet) {
+    return new ThreadDelta(pTSet);
+  }
+
+  public static class SelfParallelDelta extends ThreadDelta {
+
+    SelfParallelDelta(Map<String, ThreadStatus> pTSet) {
+      super(pTSet);
+    }
+
+    @Override
+    protected void addTheSameStatus(Map<String, ThreadStatus> pNewSet, String pKey) {
+      pNewSet.put(pKey, ThreadStatus.SELF_PARALLEL_THREAD);
+    }
+
+    @Override
+    public SelfParallelDelta copy(Map<String, ThreadStatus> pTSet) {
+      return new SelfParallelDelta(pTSet);
+    }
+  }
+
+  public static class SkipThreadDelta extends ThreadDelta {
+
+    SkipThreadDelta(Map<String, ThreadStatus> pTSet) {
+      super(pTSet);
+    }
+
+    @Override
+    protected void addTheSameStatus(Map<String, ThreadStatus> pNewSet, String pKey) {
+      // Do nothing - skip
+    }
+
+    @Override
+    public SkipThreadDelta copy(Map<String, ThreadStatus> pTSet) {
+      return new SkipThreadDelta(pTSet);
+    }
   }
 }

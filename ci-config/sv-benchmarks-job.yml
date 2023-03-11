@@ -3,7 +3,7 @@ sv-benchmarks main:
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   spec: "sv-comp-reachability"
   benchmarks: 
     - ldv-linux-3.14-races/*.i
@@ -23,7 +23,7 @@ sv-benchmarks refinement:
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   spec: "sv-comp-reachability"
   benchmarks: 
     - ldv-races/*.i
@@ -35,7 +35,7 @@ sv-benchmarks reordered:
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   spec: "sv-comp-reachability"
   benchmarks: 
     - ldv-races/*.i
@@ -47,7 +47,7 @@ sv-benchmarks tm-ta:
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   spec: "sv-comp-reachability"
   benchmarks: 
     - ldv-races/*.i
@@ -59,7 +59,7 @@ sv-benchmarks predicate value tm:
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
-    - "cpa.thread.supportSelfCreation=true"
+    - "cpa.thread.handleSameThreads=SUPPORT"
   spec: "sv-comp-reachability"
   benchmarks: 
     - ldv-races/*.i
