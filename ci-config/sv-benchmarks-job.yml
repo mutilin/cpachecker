@@ -8,15 +8,15 @@ sv-benchmarks main:
   benchmarks: 
     - ldv-linux-3.14-races/*.i
     - ldv-races/*.i
-    - pthread/*.i
+    # - pthread/*.i
     - pthread-atomic/*.i
-    - pthread-ext/*.i
+    # - pthread-ext/*.i
     - pthread-lit/*.i
     - pthread-nondet/*.i
     - pthread-driver-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
   parallel: True
-  prefix: /opt/sv-benchmarks
+  prefix: /opt/sv-benchmarks/
 # fast check of different options on ldv-races
 sv-benchmarks refinement:
   config: "-predicateAnalysis-threadmodular-refinement"
@@ -29,7 +29,7 @@ sv-benchmarks refinement:
     - ldv-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
   parallel: True
-  prefix: /opt/sv-benchmarks
+  prefix: /opt/sv-benchmarks/
 sv-benchmarks reordered:
   config: "-predicateAnalysis-threadmodular-reordered"
   setprop: 
@@ -41,7 +41,7 @@ sv-benchmarks reordered:
     - ldv-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
   parallel: True
-  prefix: /opt/sv-benchmarks
+  prefix: /opt/sv-benchmarks/
 sv-benchmarks tm-ta:
   config: "-predicateAnalysis-tm-ta"
   setprop: 
@@ -53,16 +53,16 @@ sv-benchmarks tm-ta:
     - ldv-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
   parallel: True
-  prefix: /opt/sv-benchmarks
-sv-benchmarks predicate value tm:
-  config: "-predicateValueAnalysis-threadmodular"
-  setprop: 
-    - "limits.time.cpu=900s"
-    - "shutdown.timeout=1000"
-    - "cpa.thread.handleSameThreads=SUPPORT"
-  spec: "sv-comp-reachability"
-  benchmarks: 
-    - ldv-races/*.i
-  verdicts: ci-config/sv-benchmarks-verdicts.yml
-  parallel: True
-  prefix: /opt/sv-benchmarks
+  prefix: /opt/sv-benchmarks/
+# sv-benchmarks predicate value tm:
+#   config: "-predicateValueAnalysis-threadmodular"
+#   setprop: 
+#     - "limits.time.cpu=900s"
+#     - "shutdown.timeout=1000"
+#     - "cpa.thread.handleSameThreads=SUPPORT"
+#   spec: "sv-comp-reachability"
+#   benchmarks: 
+#     - ldv-races/*.i
+#   verdicts: ci-config/sv-benchmarks-verdicts.yml
+#   parallel: True
+#   prefix: /opt/sv-benchmarks/

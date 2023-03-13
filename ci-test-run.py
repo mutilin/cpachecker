@@ -99,7 +99,7 @@ def add_setprop(options):
             result += ["-setprop", option]
     return result
 
-def run_cpachecker_on_set(options, verdicts, benchmarks, prefix = None, parallel = False, timeout=900):
+def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeout):
     if parallel:
         procNum = 2
     else:
@@ -178,7 +178,10 @@ def run_job(job_file, is_wip_run):
             if 'spec' in task_config:
                 options = options + ["-spec", task_config['spec']]
 
-            is_parallel = getOrDefault(task_config, 'parallel')
+            if 'options' in task_config:
+                options = options + task_config['options']
+
+            is_parallel = getOrDefault(task_config, 'parallel', False)
             prefix = getOrDefault(task_config, 'prefix')
 
             if 'verdicts' in task_config:

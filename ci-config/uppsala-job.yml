@@ -5,7 +5,7 @@ uppsala simple:
     - "cpa.thread.handleSameThreads=SKIP"
   spec: "sv-comp-reachability"
   benchmarks: 
-    - /ad-hoc/*.i
+    - /adhoc/*.i
   verdicts: ci-config/uppsala-verdicts.yml
   parallel: True
   prefix: /opt/uppsala
@@ -21,5 +21,5 @@ uppsala:
     - /*.i
   verdicts: ci-config/uppsala-verdicts.yml
   parallel: True
-  wip: false
+  wip: False
   prefix: /opt/uppsala

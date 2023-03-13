@@ -126,12 +126,12 @@ public class ThreadTransferRelation implements TransferRelation {
 
     Map<String, ThreadStatus> tSet = state.getThreadSet();
     ThreadStatus status = pParentThread;
+    // Note, there is possible to have thread_create_N function
+    // We handle it as self_parallel independently from options
     if (tSet.containsKey(pVarName)) {
-      status = ThreadStatus.SELF_PARALLEL_THREAD;
-    }
-
-    if (status == ThreadStatus.SELF_PARALLEL_THREAD) {
-      if (handleSameThreads == SelfSupport.SKIP) {
+      if (handleSameThreads == SelfSupport.SUPPORT) {
+        status = ThreadStatus.SELF_PARALLEL_THREAD;
+      } else if (handleSameThreads == SelfSupport.SKIP) {
         return null;
       } else if (handleSameThreads == SelfSupport.FAIL) {
         throw new CPATransferException(
