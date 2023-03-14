@@ -27,6 +27,7 @@ import org.sosy_lab.cpachecker.core.waitlist.BranchBasedWeightedWaitlist;
 import org.sosy_lab.cpachecker.core.waitlist.CallstackSortedWaitlist;
 import org.sosy_lab.cpachecker.core.waitlist.DepthBasedWeightedWaitlist;
 import org.sosy_lab.cpachecker.core.waitlist.ExplicitSortedWaitlist;
+import org.sosy_lab.cpachecker.core.waitlist.LockSortedWaitlist;
 import org.sosy_lab.cpachecker.core.waitlist.LoopIterationSortedWaitlist;
 import org.sosy_lab.cpachecker.core.waitlist.LoopstackSortedWaitlist;
 import org.sosy_lab.cpachecker.core.waitlist.PostorderSortedWaitlist;
@@ -177,6 +178,12 @@ public class ReachedSetFactory {
 
   @Option(
     secure = true,
+    name = "traversal.useLocksetOrdering",
+    description = "use lockset ordering: states with empty locks considered first")
+  private boolean useLocksetOrdering = false;
+
+  @Option(
+    secure = true,
     name = "reachedSet.useThreadModularWrapper",
     description = "use thread-modular wrapper to support thread-modular approach")
   private boolean useThreadModularWrapper = false;
@@ -289,6 +296,9 @@ public class ReachedSetFactory {
     }
     if (useThreadModularOrdering) {
       waitlistFactory = ThreadModularSortedWaitlist.factory(waitlistFactory);
+    }
+    if (useLocksetOrdering) {
+      waitlistFactory = LockSortedWaitlist.factory(waitlistFactory);
     }
 
     ReachedSet reached;

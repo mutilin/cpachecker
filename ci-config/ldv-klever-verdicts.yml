@@ -52,7 +52,7 @@
   # Linux-Validation-Bugs-found-by-Klever/11-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i: 'TIMEOUT'
   Linux-Validation-Bugs-found-by-Klever/12-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i: 'TIMEOUT'
   # Linux-Validation-Bugs-found-by-Klever/13-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i: 'TIMEOUT'
-  Linux-Validation-Bugs-found-by-Klever/24-drivers---watchdog---rdc321x_wdt.ko-concurrency-safety.cil.i: 'TIMEOUT'
+  Linux-Validation-Bugs-found-by-Klever/24-drivers---watchdog---rdc321x_wdt.ko-concurrency-safety.cil.i: 'FALSE'
   # Linux-Validation-Bugs-found-by-Klever/25-drivers---watchdog---rdc321x_wdt.ko-concurrency-safety.cil.i: 'TIMEOUT'
   Linux-Validation-Bugs-found-by-Klever/31-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/32-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i: 'TRUE'

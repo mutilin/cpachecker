@@ -54,8 +54,6 @@ public class LockIdentifier implements Comparable<LockIdentifier> {
   }
 
   @Override
-  // refactoring would be better, but currently safe for the existing subclass
-  @SuppressWarnings("EqualsGetClass")
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;

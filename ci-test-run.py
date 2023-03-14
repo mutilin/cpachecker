@@ -131,12 +131,20 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
     pool.close()
     pool.join()
 
+    total_num = 0
+    fail_num = 0
+
     for res in async_res:
+        total_num = total_num + 1
         try:
             res.get()
-        except ValueError as e:
+        except ValueError:
             # test failure in subprocess
-            raise e
+            fail_num = fail_num + 1
+
+    print("Run {} benchmarks: {} pass, {} fail".format(total_num, total_num - fail_num, fail_num))
+    if fail_num > 0:
+        raise ValueError("{} failed tests".format(fail_num))
 
 # Mostly for debug
 def obtain_verdicts(options, benchmarks):
