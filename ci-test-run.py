@@ -47,13 +47,13 @@ def parse_verdict(ret):
     if m:
         return 'TIMEOUT'
     
-    m = re.search('Error: ', ret.stderr)
-    if m:
-        return 'ERROR'
-
     m = re.search('Exception in thread', ret.stderr)
     if m:
         return 'EXCEPTION'
+
+    m = re.search('Error: ', ret.stderr)
+    if m:
+        return 'ERROR'
 
     print(" ".join(ret.args))
     print(ret.stdout)
@@ -109,6 +109,13 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
 
     if prefix:
         benchmarks = prefix + benchmarks
+
+    test_set = glob.glob(benchmarks)
+    if len(test_set) == 0:
+        # Likely a bug, fail to avoid missing tests
+        print("There is no tests for {}".format(benchmarks))
+        print("Likely, you are mistaken, in the other case just remove the empty task set")
+        raise ValueError("Empty test set {}".format(benchmarks))
     
     for test in glob.glob(benchmarks):
         if verdicts:
@@ -189,6 +196,7 @@ def run_job(job_file, is_wip_run):
                     test_results = yaml.safe_load(vfile)
                     verdicts = test_results[cpa_config]
             else:
+                print("Ideal verdict are not found")
                 verdicts = None
             
             timeout = getOrDefault(task_config, 'timeout', 900)

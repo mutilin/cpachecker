@@ -1,0 +1,19 @@
+Klever Testing-Requirement-specifications simple:
+  config: "-lockator-threadmodular-linux"
+  setprop: 
+    - "cpa.callstack.unsupportedFunctions=__VERIFIER_nonexisting_dummy_function"
+    - "cpa.predicate.allowedUnsupportedFunctions=memset,memcpy,__builtin_add_overflow,__builtin_mul_overflow,__builtin_va_arg"
+    - "counterexample.export.extendedWitnessFile=witness.%d.graphml"
+    - "cpa.arg.witness.removeInsufficientEdges=false"
+    - "additionalCoverage.file=additionalCoverage.info"
+    - "shutdown.timeout=100"
+    - "counterexample.export.graphml=witness.%d.graphml"
+  options:
+    - "-64"
+  benchmarks: 
+    - Linux-Testing-Requirement-specifications/*--concurrency-safety---simple--*.i
+    - Linux-Testing-Requirement-specifications/*--concurrency-safety---unsorted--*.i
+    - Linux-Testing-Requirement-specifications/*--concurrency-safety---ldv-races--*.i
+    - Linux-Testing-Requirement-specifications/*--concurrency-safety---lock-reduce--*.i
+  verdicts: ci-config/ldv-klever-verdicts.yml
+  prefix: /opt/ldv-klever-benchmarks/

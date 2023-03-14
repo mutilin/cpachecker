@@ -185,7 +185,21 @@ cfa-mutation:
 klever-tests:
   <<: *tests
   variables:
+    JOB_FILE_DESC: ci-config/ldv-klever-simple-job.yml
+  only:
+    - web
+
+klever-found-bugs:
+  <<: *tests
+  variables:
     JOB_FILE_DESC: ci-config/ldv-klever-job.yml
+  only:
+    - web
+
+klever-tests-rcu:
+  <<: *tests
+  variables:
+    JOB_FILE_DESC: ci-config/ldv-klever-rcu-job.yml
   only:
     - web
 
@@ -215,6 +229,13 @@ sv-benchmarks-tests:
   <<: *tests
   variables:
     JOB_FILE_DESC: ci-config/sv-benchmarks-job.yml
+  only:
+    - web
+
+sv-benchmarks-other-configs:
+  <<: *tests
+  variables:
+    JOB_FILE_DESC: ci-config/sv-benchmarks-other-config-job.yml
   only:
     - web
 

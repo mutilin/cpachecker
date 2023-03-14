@@ -8,7 +8,6 @@
 
 package org.sosy_lab.cpachecker.cpa.thread;
 
-import edu.stanford.CVC4.UnsafeInterruptException;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -89,7 +88,7 @@ public class ThreadDelta implements Delta<CompatibleNode> {
   protected void
       addTheSameStatus(@SuppressWarnings("unused") Map<String, ThreadStatus> pNewSet, String pKey) {
     // Without options throw exception
-    throw new UnsafeInterruptException(pKey + " already exists");
+    throw new UnsupportedOperationException(pKey + " already exists");
   }
 
   @Override

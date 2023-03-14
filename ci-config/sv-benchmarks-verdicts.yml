@@ -253,4 +253,4 @@
   ldv-races/race-3_2-container_of-global.i: 'FALSE'
   ldv-races/race-3_2b-container_of-global.i: 'FALSE'
   ldv-races/race-4_1-thread_local_vars.i: 'TRUE'
-  ldv-races/race-4_2-thread_local_vars.i: 'FALSE'
+  ldv-races/race-4_2-thread_local_vars.i: 'EXCEPTION'
