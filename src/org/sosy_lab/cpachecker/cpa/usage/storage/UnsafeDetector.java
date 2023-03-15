@@ -315,9 +315,15 @@ public class UnsafeDetector {
       Access access2 = pPoint2.getAccess();
 
       if (access1 == Access.SEND && access2 == Access.RECEIVE) {
-        return lowerPriority(tState1.getPriority(), tState2.getPriority());
+        return lowerPriority(
+            tState1.getPriority(),
+            tState2.getPriority(),
+            config.isRevertedPriority());
       } else if (access2 == Access.SEND && access1 == Access.RECEIVE) {
-        return lowerPriority(tState2.getPriority(), tState1.getPriority());
+        return lowerPriority(
+            tState2.getPriority(),
+            tState1.getPriority(),
+            config.isRevertedPriority());
       }
     }
     return false;
@@ -327,8 +333,12 @@ public class UnsafeDetector {
     return pTarget.isEmpty() || pThread.isEmpty() || pTarget.equals(pThread);
   }
 
-  private static boolean lowerPriority(int prio1, int prio2) {
-    return (0 < prio1 && prio1 < prio2) || (prio1 == -1 && prio2 > 0) || (prio2 == -1);
+  private static boolean lowerPriority(int prio1, int prio2, boolean reverted) {
+    if (reverted) {
+      return (0 <= prio2 && prio2 < prio1) || (prio2 == -1 && prio1 > 0) || (prio1 == -1);
+    } else {
+      return (0 <= prio1 && prio1 < prio2) || (prio1 == -1 && prio2 > 0) || (prio2 == -1);
+    }
   }
 
  }

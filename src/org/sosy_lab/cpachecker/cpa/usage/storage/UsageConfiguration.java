@@ -47,6 +47,12 @@ public final class UsageConfiguration {
     secure = true)
   private boolean useConcurrentExtraction = true;
 
+  @Option(
+    name = "isRevertedPriority",
+    description = "Reverted priority: zero is the highest",
+    secure = true)
+  private boolean isRevertedPriority = false;
+
   public UsageConfiguration(Configuration config) throws InvalidConfigurationException {
     config.inject(this);
   }
@@ -73,5 +79,9 @@ public final class UsageConfiguration {
 
   public boolean useConcurrentExtraction() {
     return useConcurrentExtraction;
+  }
+
+  public boolean isRevertedPriority() {
+    return isRevertedPriority;
   }
 }
