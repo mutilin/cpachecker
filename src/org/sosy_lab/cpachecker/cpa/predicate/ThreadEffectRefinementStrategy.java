@@ -19,7 +19,6 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
-import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
 import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 
@@ -43,23 +42,15 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
       boolean pRepeatedCounterexample)
       throws CPAException, InterruptedException {
 
-    if (pRepeatedCounterexample) {
-      throw new RefinementFailedException(
-          RefinementFailedException.Reason.RepeatedCounterexample,
-          null);
-    }
-
     // renaming variables back
     List<BooleanFormula> interpolants =
         transformedImmutableListCopy(pInterpolants, f->fmgr.renameFreeVariablesAndUFs(f, ThreadEffectBlockFormulaStrategy::RenameVariablesBack));
 
-    super.performRefinement(
+    return super.performRefinement(
         pReached,
         pAbstractionStatesTrace,
         interpolants,
         pRepeatedCounterexample);
-
-    return true;
   }
 
   @Override

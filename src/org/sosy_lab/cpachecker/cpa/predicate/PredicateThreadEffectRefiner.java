@@ -10,14 +10,18 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 
 import static org.sosy_lab.cpachecker.util.statistics.StatisticsWriter.writingStatisticsTo;
 
+import com.google.common.collect.ImmutableList;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
@@ -27,6 +31,8 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.LoopStructure;
 import org.sosy_lab.cpachecker.util.predicates.PathChecker;
 import org.sosy_lab.cpachecker.util.predicates.interpolation.InterpolationManager;
@@ -52,6 +58,10 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
       new StatCounter("Total amount of paths with effects that were checked");
   private final StatCounter spuriousEffectPath = new StatCounter("Spurious paths with effects");
   private final StatCounter spuriousMainPaths = new StatCounter("Spurious main paths");
+
+  // the previously analyzed counterexample to detect repeated counterexamples
+  private ImmutableList<CFANode> lastErrorPath = null;
+  private final Set<ImmutableList<CFANode>> lastErrorPathsToEffects = new HashSet<>();
 
   public PredicateThreadEffectRefiner(
       final Configuration pConfig,
@@ -91,6 +101,22 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
       ((GlobalRefinementStrategy) strategy).initializeGlobalRefinement();
 
+      final ImmutableList<CFANode> errorPath =
+          allStatesTrace.asStatesList()
+              .stream()
+              .map(AbstractStates::extractLocation)
+              .filter(x -> x != null)
+              .collect(ImmutableList.toImmutableList());
+      if (lastErrorPath != null && lastErrorPath.equals(errorPath)) { // repeatedCEX
+        if (repeatedCEX(allStatesTrace)) {
+          throw new RefinementFailedException(
+              RefinementFailedException.Reason.RepeatedCounterexample,
+              null);
+        }
+      }
+      lastErrorPath = errorPath;
+      lastErrorPathsToEffects.clear();
+
       // First, we check if given path (main path) is spurious.
       mainCheckTime.start();
       CounterexampleInfo cexInfo = super.performRefinementForPath(pReached, allStatesTrace);
@@ -118,6 +144,13 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
             // Note, not getOnePathTo, to be sure, the sequence is the same
             ARGPath pathToEffect = ARGUtils.getOnePathTo(effect);
+
+            lastErrorPathsToEffects.add(
+                pathToEffect.asStatesList()
+                    .stream()
+                    .map(AbstractStates::extractLocation)
+                    .filter(x -> x != null)
+                    .collect(ImmutableList.toImmutableList()));
 
             List<ARGState> mainAndEffect = new ArrayList<>(statesInMainPath);
             mainAndEffect.addAll(pathToEffect.asStatesList());
@@ -164,6 +197,30 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
     } finally {
       totalTime.stop();
     }
+  }
+
+  private boolean repeatedCEX(ARGPath path) {
+    ImmutableList<ARGState> appliedStates =
+        path.asStatesList()
+            .stream()
+            .filter(x -> x.getAppliedFrom() != null)
+            .collect(ImmutableList.toImmutableList());
+
+    for (ARGState state : appliedStates) {
+      for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
+        if (!lastErrorPathsToEffects.contains(
+            ARGUtils.getOnePathTo(effect)
+                .asStatesList()
+                .stream()
+                .map(AbstractStates::extractLocation)
+                .filter(x -> x != null)
+                .collect(ImmutableList.toImmutableList()))) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   @Override
