@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.local;
 
+import com.google.common.base.Joiner;
 import com.google.common.io.MoreFiles;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -16,7 +17,9 @@ import java.io.Writer;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
@@ -62,9 +65,24 @@ public class LocalStatistics implements Statistics {
       MoreFiles.createParentDirectories(outputFileName);
       try (Writer writer = Files.newBufferedWriter(outputFileName, Charset.defaultCharset())) {
         logger.log(Level.FINE, "Write precision to " + outputFileName);
+        Set<CFANode> nodes = new HashSet<>();
+        LocalState previousState = null;
         for (Map.Entry<CFANode, LocalState> entry : reachedStatistics.entrySet()) {
-          writer.append(entry.getKey() + "\n");
-          writer.append(entry.getValue().toLog() + "\n");
+          LocalState current = entry.getValue();
+          String toLog = current.toLog();
+          // TODO
+          // Optimization toLog.contains("local")
+          // Leads to false alarms
+          if (!toLog.isEmpty()) {
+            if (previousState != null && !current.equals(previousState)) {
+              // Dump previous data
+              writer.append(Joiner.on(",").join(nodes) + "\n");
+              writer.append(previousState.toLog() + "\n");
+              nodes.clear();
+            }
+            nodes.add(entry.getKey());
+            previousState = current;
+          }
         }
       }
     } catch (FileNotFoundException e) {

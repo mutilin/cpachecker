@@ -16,8 +16,10 @@ import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.regex.Matcher;
@@ -50,22 +52,36 @@ public class PresisionParser {
 
     try (BufferedReader reader = Files.newBufferedReader(file, Charset.defaultCharset())) {
       String line;
-      CFANode node = null;
-      Map<GeneralIdentifier, DataType> info = null;
+      Set<CFANode> nodes = new HashSet<>();
+      Map<GeneralIdentifier, DataType> info = new TreeMap<>();
       Pattern nodePattern = Pattern.compile("N[0-9]*$");
 
       while ((line = reader.readLine()) != null) {
-        Matcher matcher = nodePattern.matcher(line);
-        if (matcher.find()) {
+        if (line.startsWith("N")) {
           // N1 - it's node identifier
-          // put all previous information into the map
-          putIntoMap(localStatistics, node, info);
-          // Get node number
-          String nodeId = matcher.group().substring(1);
-          node = idToNodeMap.get(Integer.parseInt(nodeId));
-          info = new TreeMap<>();
+          if (!info.isEmpty()) {
+            // put all previous information into the map
+            for (CFANode node : nodes) {
+              putIntoMap(localStatistics, node, info);
+            }
+            info = new TreeMap<>();
+            nodes.clear();
+          }
+          // More than one node is possible
+          List<String> nodeNums = Splitter.on(",").splitToList(line);
+          for (String sNode : nodeNums) {
+            // Get node number
+            Matcher matcher = nodePattern.matcher(sNode);
+            if (!matcher.matches()) {
+              logger.log(Level.WARNING, "Unknown node ", sNode);
+            } else {
+              String nodeId = matcher.group().substring(1);
+              CFANode node = idToNodeMap.get(Integer.parseInt(nodeId));
+              nodes.add(node);
+            }
+          }
         } else if (!line.isEmpty()) {
-          if (info == null) {
+          if (nodes.isEmpty()) {
             logger.log(
                 Level.WARNING,
                 "Cannot parse precision file %s, node id needs to appear first.",
@@ -83,10 +99,12 @@ public class PresisionParser {
           info.put(id, type);
         }
       }
-      // Lots of time faced with problems fue to old precision
+      // Lots of time faced with problems due to old precision
       // Remove it
-      Files.deleteIfExists(file);
-      putIntoMap(localStatistics, node, info);
+      // Files.deleteIfExists(file);
+      for (CFANode node : nodes) {
+        putIntoMap(localStatistics, node, info);
+      }
       return ImmutableMap.copyOf(localStatistics);
     } catch (IOException e) {
       logger.logUserException(Level.WARNING, e, "Cannot parse precision file");
