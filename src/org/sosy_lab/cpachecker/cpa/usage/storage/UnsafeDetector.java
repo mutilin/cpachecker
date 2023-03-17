@@ -19,6 +19,7 @@ import org.sosy_lab.cpachecker.cpa.signal.InversionSignalState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState.Action;
 import org.sosy_lab.cpachecker.cpa.signal.SignalState.SignalDesc;
+import org.sosy_lab.cpachecker.cpa.thread.SimpleThreadState;
 import org.sosy_lab.cpachecker.cpa.thread.ThreadState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
@@ -302,6 +303,11 @@ public class UnsafeDetector {
     if (sameSignal(sig1, sig2)) {
       ThreadState tState1 = pPoint1.get(ThreadState.class);
       ThreadState tState2 = pPoint2.get(ThreadState.class);
+
+      if (tState1 == null) {
+        tState1 = pPoint1.get(SimpleThreadState.class);
+        tState2 = pPoint2.get(SimpleThreadState.class);
+      }
 
       String func1 = tState1.getCurrentThread();
       String func2 = tState2.getCurrentThread();

@@ -101,7 +101,7 @@ public class PresisionParser {
       }
       // Lots of time faced with problems due to old precision
       // Remove it
-      // Files.deleteIfExists(file);
+      Files.deleteIfExists(file);
       for (CFANode node : nodes) {
         putIntoMap(localStatistics, node, info);
       }
