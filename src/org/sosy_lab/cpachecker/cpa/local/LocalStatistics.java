@@ -84,6 +84,10 @@ public class LocalStatistics implements Statistics {
             previousState = current;
           }
         }
+        if (!nodes.isEmpty() && previousState != null) {
+          writer.append(Joiner.on(",").join(nodes) + "\n");
+          writer.append(previousState.toLog() + "\n");
+        }
       }
     } catch (FileNotFoundException e) {
       logger.log(

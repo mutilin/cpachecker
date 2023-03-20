@@ -169,6 +169,16 @@ public class LocalTransferRelation
     CFunctionCall exprOnSummary = cfaEdge.getSummaryEdge().getExpression();
     LocalState newElement = state.getClonedPreviousState();
 
+    boolean isThreadCreate = exprOnSummary instanceof CThreadCreateStatement;
+    if (isThreadCreate) {
+      // EMG may create a dummy thread without parameters
+      // And real thread may get arguments
+      // It is important in probe function,
+      // Where data is allocated and becomes shared
+      // So, we reset all data
+      return newElement.totalReset();
+    }
+
     if (exprOnSummary instanceof CFunctionCallAssignmentStatement) {
       CFunctionCallAssignmentStatement assignExp =
           ((CFunctionCallAssignmentStatement) exprOnSummary);
@@ -214,23 +224,25 @@ public class LocalTransferRelation
       String calledFunctionName) {
     LocalState newState = state.createNextLocalState();
 
-    List<Triple<AbstractIdentifier, AbstractIdentifier, Integer>> toProcess =
-        extractIdentifiers(
-            arguments,
-            parameterTypes,
-            getFunctionName(),
-            calledFunctionName);
     // TODO Make it with config
     boolean isThreadCreate =
         cfaEdge.getSummaryEdge().getExpression() instanceof CThreadCreateStatement;
 
+    if (isThreadCreate) {
+      // EMG may create a dummy thread without parameters
+      // And real thread may get arguments. So, cannot identify, what data becomes shared
+      // And have to reset all
+      // It is important in probe function,
+      // Where data is allocated and becomes shared
+      // So, we reset all data
+      return newState.totalReset();
+    }
+
+    List<Triple<AbstractIdentifier, AbstractIdentifier, Integer>> toProcess =
+        extractIdentifiers(arguments, parameterTypes, getFunctionName(), calledFunctionName);
+
     for (Triple<AbstractIdentifier, AbstractIdentifier, Integer> pairId : toProcess) {
-      if (isThreadCreate) {
-        // Data became shared after thread creation
-        completeSet(newState, pairId.getSecond(), pairId.getThird(), DataType.GLOBAL);
-      } else {
-        completeAssign(newState, pairId.getSecond(), pairId.getThird(), pairId.getFirst());
-      }
+      completeAssign(newState, pairId.getSecond(), pairId.getThird(), pairId.getFirst());
     }
 
     return newState;

@@ -20,7 +20,7 @@ public class LocalReducer extends GenericReducer<LocalState, SingletonPrecision>
   @Override
   protected LocalState getVariableReducedState0(
       LocalState pExpandedState, Block pContext, CFANode pCallNode) throws InterruptedException {
-    return pExpandedState;
+    return pExpandedState.reduce();
   }
 
   @Override

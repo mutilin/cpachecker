@@ -13,12 +13,12 @@ import static com.google.common.collect.FluentIterable.from;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.BiFunction;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -52,6 +52,8 @@ public class LocalState implements LatticeAbstractState<LocalState> {
   protected final Map<AbstractIdentifier, DataType> DataInfo;
   protected final ImmutableSet<String> alwaysLocalData;
 
+  private final static LocalState RESETED_STATE = new LocalState(ImmutableMap.of(), null, null);
+
   protected LocalState(
       Map<AbstractIdentifier, DataType> oldMap, LocalState state, ImmutableSet<String> localData) {
     DataInfo = new HashMap<>(oldMap);
@@ -73,11 +75,24 @@ public class LocalState implements LatticeAbstractState<LocalState> {
   }
 
   public LocalState getClonedPreviousState() {
-    return previousState.copy();
+    if (previousState != RESETED_STATE) {
+      return previousState.copy();
+    } else {
+      // possible after totalReset
+      return createInitialLocalState();
+    }
   }
 
   public LocalState copy() {
     return copy(this.previousState);
+  }
+
+  public LocalState reset() {
+    return copy(new HashMap<>(), this.previousState);
+  }
+
+  public LocalState totalReset() {
+    return copy(new HashMap<>(), RESETED_STATE);
   }
 
   protected LocalState copy(LocalState pPreviousState) {
@@ -88,8 +103,16 @@ public class LocalState implements LatticeAbstractState<LocalState> {
     return new LocalState(oldMap, state, this.alwaysLocalData);
   }
 
+  public LocalState reduce() {
+    return copy(this.DataInfo, null);
+  }
+
   public LocalState expand(LocalState rootState) {
-    return copy(rootState.previousState);
+    if (this.previousState != RESETED_STATE) {
+      return copy(rootState.previousState);
+    } else {
+      return copy(RESETED_STATE);
+    }
   }
 
   public boolean checkIsAlwaysLocal(AbstractIdentifier name) {
@@ -173,23 +196,18 @@ public class LocalState implements LatticeAbstractState<LocalState> {
       return pState2;
     }
     LocalState joinedPreviousState = null;
-    if (this.previousState != null && pState2.previousState == null) {
-      // One of them was already reduced and one not yet
-      return pState2;
-    } else if (this.previousState == null && pState2.previousState != null) {
-      return this;
-    } else if (this.previousState != null
-        && pState2.previousState != null
-        && !this.previousState.equals(pState2.previousState)) {
-      // it can be, when we join states, called from different functions
-      joinedPreviousState = this.previousState.join(pState2.previousState);
-    } else if (this.previousState != null
-        && pState2.previousState != null
-        && this.previousState.equals(pState2.previousState)) {
-      joinedPreviousState = this.previousState;
+    if (this.previousState == RESETED_STATE || pState2.previousState == RESETED_STATE) {
+      joinedPreviousState = RESETED_STATE;
+    } else if (this.previousState != null && pState2.previousState != null) {
+      if (previousState.equals(pState2.previousState)) {
+        joinedPreviousState = previousState;
+      } else {
+        // it can be, when we join states, called from different functions
+        joinedPreviousState = this.previousState.join(pState2.previousState);
+      }
     }
 
-    LocalState joinState = this.copy(joinedPreviousState);
+    LocalState joinState = this.copy(new HashMap<>(), joinedPreviousState);
 
     Sets.union(this.DataInfo.keySet(), pState2.DataInfo.keySet())
         .forEach(
@@ -224,7 +242,7 @@ public class LocalState implements LatticeAbstractState<LocalState> {
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(DataInfo);
+    return Objects.hash(DataInfo, previousState);
   }
 
   @Override
@@ -236,7 +254,8 @@ public class LocalState implements LatticeAbstractState<LocalState> {
       return false;
     }
     LocalState other = (LocalState) obj;
-    return Objects.equals(DataInfo, other.DataInfo);
+    return Objects.equals(DataInfo, other.DataInfo)
+        && Objects.equals(previousState, other.previousState);
   }
 
   public String toLog() {

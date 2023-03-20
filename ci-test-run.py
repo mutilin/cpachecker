@@ -12,14 +12,14 @@ from multiprocessing import Pool
 # CI script, as it has problems with benchexec due to c groups
 cpa_bin = ["./scripts/cpa.sh"]
 
-def fail(ret, expected, real):
-    if ret:
-        print(" ".join(ret.args))
-        print(ret.stdout)
-        print(ret.stderr)
-    raise ValueError("Expected verdict {} and obtain {}".format(expected, real))
-
 def fail_if_incorrect_verdict(ret, expected, real):
+    def fail():
+        if ret:
+            print(" ".join(ret.args))
+            print(ret.stdout)
+            print(ret.stderr)
+        raise ValueError("Expected verdict {} and obtain {}".format(expected, real))
+
     if expected is None:
         # No expected verdict
         return
@@ -28,10 +28,10 @@ def fail_if_incorrect_verdict(ret, expected, real):
         for exp in expected:
             if exp == real:
                 return
-        fail(ret, expected, real)
+        fail()
     else:
         if expected != real:
-            fail(ret, expected, real)
+            fail()
 
 def parse_verdict(ret):
     m = re.search('Verification result: (.*)\. ', ret.stdout)
@@ -80,7 +80,6 @@ def call_cpachecker(options, program, expected, timeout=900):
     except subprocess.TimeoutExpired as e:
         # May not be an error
         print("CPALockator exceeds the timelimit {}".format(timeout))
-        print(" ".join(cmd_line))
 
         verdict = 'TIMEOUT'
         ret = None
@@ -117,7 +116,7 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
         print("Likely, you are mistaken, in the other case just remove the empty task set")
         raise ValueError("Empty test set {}".format(benchmarks))
     
-    for test in glob.glob(benchmarks):
+    for test in test_set:
         if verdicts:
             if prefix:            
                 expected = verdicts[strip_start(test, prefix)]
@@ -146,30 +145,18 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
     if fail_num > 0:
         raise ValueError("{} failed tests".format(fail_num))
 
-# Mostly for debug
-def obtain_verdicts(options, benchmarks):
-    result = {}
-    for test in benchmarks:
-        verdict = call_cpachecker(options, test, None)
-        result.update({strip_start(test, os.environ['UPPSALA_BENCHMARKS']): verdict})
-    return result
-
-def yaml_dump(data):
-    with open('data.yaml', 'w') as fp:
-        yaml.dump(data, fp)
-
 def strip_start(text, prefix):
     if prefix and text.startswith(prefix):
         return text[len(prefix):]
     return text
 
-def getOrDefault(dict, key, default = None):
-    if key in dict:
-        return dict[key]
-    else:
-        return default
-
 def run_job(job_file, is_wip_run):
+    def getOrDefault(dict, key, default = None):
+        if key in dict:
+            return dict[key]
+        else:
+            return default
+
     with open(job_file, 'r') as file:
         job_config = yaml.safe_load(file)
 
