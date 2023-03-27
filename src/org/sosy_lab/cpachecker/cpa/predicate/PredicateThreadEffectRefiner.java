@@ -14,12 +14,16 @@ import com.google.common.collect.ImmutableList;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
+import org.sosy_lab.common.configuration.Option;
+import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
@@ -41,27 +45,39 @@ import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.cpachecker.util.refinement.PrefixProvider;
 import org.sosy_lab.cpachecker.util.refinement.PrefixSelector;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
+@Options(prefix = "cpa.predicate.threadeffect")
 public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
   private final StatTimer totalTime = new StatTimer("Time for refinement");
-  private final StatTimer mainCheckTime = new StatTimer("Checking the main path");
+  private final StatTimer repeatedCEXcheck = new StatTimer("Check if counterexample is repeated");
+  private final StatTimer mainCheckTime = new StatTimer("Refinement of main path");
+  private final StatTimer pathExtraction = new StatTimer("Extracting paths to effects");
   private final StatTimer effectCheckTime =
-      new StatTimer("Checking the paths with effects");
-  private final StatTimer effect1CheckTime =
-      new StatTimer("Checking the main+effect paths");
-  private final StatTimer effect2CheckTime =
-      new StatTimer("Checking the effect+main paths");
-  private final StatCounter pathsWithEffects =
-      new StatCounter("Total amount of paths with effects that were checked");
-  private final StatCounter spuriousEffectPath = new StatCounter("Spurious paths with effects");
-  private final StatCounter spuriousMainPaths = new StatCounter("Spurious main paths");
+      new StatTimer("Refinement of paths with effects by thread effect");
+  private final StatTimer effect1CheckTime = new StatTimer("main+effect paths");
+  private final StatTimer effect2CheckTime = new StatTimer("effect+main paths");
+  private final StatCounter projectionsTotal =
+      new StatCounter("Total amount of projections in paths");
+  private final StatInt amountOfEffects = new StatInt(StatKind.AVG, "Average amount of effects");
+  private final StatCounter spuriousEffectPath =
+      new StatCounter("Number of spurious paths found by thread effect");
+  private final StatCounter spuriousMainPaths = new StatCounter("Number of spurious main paths");
+
+  @Option(
+    secure = true,
+    name = "skipParentEffects",
+    description = "Projections can be projected from states with 'parent-child' relation."
+        + "Only refine paths to child states.")
+  private boolean skipParentEffects = true;
 
   // the previously analyzed counterexample to detect repeated counterexamples
   private ImmutableList<CFANode> lastErrorPath = null;
-  private final Set<ImmutableList<CFANode>> lastErrorPathsToEffects = new HashSet<>();
+  private Set<ImmutableList<CFANode>> lastErrorPathsToEffects = new HashSet<>();
 
   public PredicateThreadEffectRefiner(
       final Configuration pConfig,
@@ -90,6 +106,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
         pPrefixSelector,
         pInvariantsManager,
         pStrategy);
+    pConfig.inject(this);
   }
 
   @Override
@@ -101,6 +118,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
       ((GlobalRefinementStrategy) strategy).initializeGlobalRefinement();
 
+      repeatedCEXcheck.start();
       final ImmutableList<CFANode> errorPath =
           allStatesTrace.asStatesList()
               .stream()
@@ -109,13 +127,14 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
               .collect(ImmutableList.toImmutableList());
       if (lastErrorPath != null && lastErrorPath.equals(errorPath)) { // repeatedCEX
         if (repeatedCEX(allStatesTrace)) {
+          repeatedCEXcheck.stop();
           throw new RefinementFailedException(
               RefinementFailedException.Reason.RepeatedCounterexample,
               null);
         }
       }
       lastErrorPath = errorPath;
-      lastErrorPathsToEffects.clear();
+      repeatedCEXcheck.stop();
 
       // First, we check if given path (main path) is spurious.
       mainCheckTime.start();
@@ -138,19 +157,14 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
       for (ARGState state : allStatesTrace.asStatesList()) {
         if (state.getAppliedFrom() != null) {
 
+          projectionsTotal.inc();
           boolean allEffectsSpurious = true;
-          for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
-            pathsWithEffects.inc();
+          for (ARGState effect : modifySetOfEffects(state.getAppliedFrom().getSecond().getProjectedFrom())) {
 
             // Note, not getOnePathTo, to be sure, the sequence is the same
+            pathExtraction.start();
             ARGPath pathToEffect = ARGUtils.getOnePathTo(effect);
-
-            lastErrorPathsToEffects.add(
-                pathToEffect.asStatesList()
-                    .stream()
-                    .map(AbstractStates::extractLocation)
-                    .filter(x -> x != null)
-                    .collect(ImmutableList.toImmutableList()));
+            pathExtraction.stop();
 
             List<ARGState> mainAndEffect = new ArrayList<>(statesInMainPath);
             mainAndEffect.addAll(pathToEffect.asStatesList());
@@ -166,7 +180,8 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
             CounterexampleInfo cexInfo2 = super.performRefinementForPath(pReached, newPath);
             effect2CheckTime.stop();
 
-            // CexInfo1 and cexInfo2 provide different interpolants => both of them are necessary
+            // cexInfo1 and cexInfo2 are both necessary. They provide different interpolants and
+            // a proper refinement root
 
             assert (cexInfo1.isSpurious() == cexInfo2.isSpurious());
             // If at least one of the effects generates feasible CEX, the state is considered
@@ -179,7 +194,6 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
           }
           if (allEffectsSpurious) {
             spuriousCexFound = true;
-            spuriousEffectPath.inc();
           }
 
         }
@@ -188,6 +202,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
       effectCheckTime.stop();
 
       if (spuriousCexFound) {
+        spuriousEffectPath.inc();
         ((GlobalRefinementStrategy) strategy).updatePrecisionAndARG();
         return CounterexampleInfo.spurious();
       }
@@ -199,6 +214,38 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
     }
   }
 
+  private Collection<ARGState> modifySetOfEffects(Collection<ARGState> effects) {
+    Collection<ARGState> result = effects;
+
+    if (skipParentEffects && effects.size() > 1) {
+      List<ARGState> allEffects = new ArrayList<>(effects);
+      result = new ArrayList<>(effects);
+      // We remove all predecessor states for every effect. We check for every effect if a path to
+      // it contains any other effects. Then we remove those effects.
+      Collections.sort(allEffects, Collections.reverseOrder());
+      // It is optimal to build paths to child states first and remove parent states than to build
+      // paths to parent states that will be removed later. Child states are built later and have
+      // greater IDs.
+
+      for (ARGState state : allEffects) {
+        if (result.contains(state)) {
+          ARGPath path = ARGUtils.getOnePathTo(state);
+
+          Iterator<ARGState> iterator = result.iterator();
+          while (iterator.hasNext()) {
+            ARGState state2 = iterator.next();
+            if (path.asStatesList().contains(state2) && !state.equals(state2)) {
+              iterator.remove();
+            }
+          }
+        }
+      }
+    }
+
+    amountOfEffects.setNextValue(result.size());
+    return result;
+  }
+
   private boolean repeatedCEX(ARGPath path) {
     ImmutableList<ARGState> appliedStates =
         path.asStatesList()
@@ -206,21 +253,26 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
             .filter(x -> x.getAppliedFrom() != null)
             .collect(ImmutableList.toImmutableList());
 
+    Set<ImmutableList<CFANode>> errorPathsToEffects = new HashSet<>();
+
     for (ARGState state : appliedStates) {
       for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
-        if (!lastErrorPathsToEffects.contains(
+        errorPathsToEffects.add(
             ARGUtils.getOnePathTo(effect)
                 .asStatesList()
                 .stream()
                 .map(AbstractStates::extractLocation)
                 .filter(x -> x != null)
-                .collect(ImmutableList.toImmutableList()))) {
-          return false;
-        }
+                .collect(ImmutableList.toImmutableList()));
       }
     }
 
-    return true;
+    if (lastErrorPathsToEffects.equals(errorPathsToEffects)) {
+      return true;
+    }
+
+    lastErrorPathsToEffects = errorPathsToEffects;
+    return false;
   }
 
   @Override
@@ -239,16 +291,17 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
         w0.put("Number of refinements", numberOfRefinements);
         w0.beginLevel()
             .put(spuriousMainPaths)
-            .put(spuriousEffectPath)
-            .put(
-                "Feasible paths",
-                numberOfRefinements - spuriousMainPaths.getValue() - spuriousEffectPath.getValue());
-        w0.put(pathsWithEffects);
+            .put("Number of thread effect refinements", effectCheckTime.getUpdateCount())
+            .put(spuriousEffectPath);
+        w0.put(projectionsTotal);
+        w0.put(amountOfEffects);
         w0.put(totalTime);
         w0.beginLevel()
+            .put(repeatedCEXcheck)
             .put(mainCheckTime)
             .put(effectCheckTime)
             .beginLevel()
+            .put(pathExtraction)
             .put(effect1CheckTime)
             .put(effect2CheckTime);
       }
