@@ -435,11 +435,15 @@ public class ARGState extends AbstractSerializableSingleWrapperState
   }
 
   public Collection<ARGState> getProjectedFrom() {
-    return projectedFrom;
+    return projectedFrom == null
+        ? ImmutableList.of()
+        : Collections.unmodifiableCollection(projectedFrom);
   }
 
   public Collection<ARGState> getProjectedTo() {
-    return projectedTo == null ? ImmutableList.of() : projectedTo;
+    return projectedTo == null
+        ? ImmutableList.of()
+        : Collections.unmodifiableCollection(projectedTo);
   }
 
   void setAsAppliedFrom(ARGState pLeftState, ARGState pRightState) {
@@ -465,7 +469,7 @@ public class ARGState extends AbstractSerializableSingleWrapperState
   }
 
   public Collection<ARGState> getAppliedTo() {
-    return appliedTo == null ? ImmutableList.of() : appliedTo;
+    return appliedTo == null ? ImmutableList.of() : Collections.unmodifiableCollection(appliedTo);
   }
 
   // was-expanded marker so we can identify open leafs
