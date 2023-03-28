@@ -21,11 +21,15 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 
 import static org.sosy_lab.cpachecker.util.statistics.StatisticsWriter.writingStatisticsTo;
 
+import com.google.common.collect.ImmutableList;
 import java.io.PrintStream;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
 import org.sosy_lab.cpachecker.core.counterexample.CounterexampleInfo;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
@@ -37,6 +41,8 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
+import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
+import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
@@ -47,6 +53,10 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
   private final StatCounter numberOfPaths = new StatCounter("Number of paths with effects");
   private final StatCounter numberOfSpuriousPathes =
       new StatCounter("Number of spurious paths with effects");
+
+  // the previously analyzed counterexample to detect repeated counterexamples
+  private ImmutableList<CFANode> lastErrorPath = null;
+  private Set<ImmutableList<CFANode>> lastErrorPathsToEffects = new HashSet<>();
 
   public ThreadEffectRefiner(
       LogManager pLogger,
@@ -63,6 +73,21 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
       performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace)
           throws CPAException, InterruptedException {
     totalTime.start();
+
+    final ImmutableList<CFANode> errorPath =
+        allStatesTrace.asStatesList()
+            .stream()
+            .map(AbstractStates::extractLocation)
+            .filter(x -> x != null)
+            .collect(ImmutableList.toImmutableList());
+    if (lastErrorPath != null && lastErrorPath.equals(errorPath)) { // repeatedCEX
+      if (repeatedCEX(allStatesTrace)) {
+      throw new RefinementFailedException(
+          RefinementFailedException.Reason.RepeatedCounterexample,
+          null);
+      }
+    }
+    lastErrorPath = errorPath;
 
     if (singleRefinementLevel) {
       strategy.initializeGlobalRefinement();
@@ -90,6 +115,35 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
     }
     totalTime.stop();
     return couterexample;
+  }
+
+  private boolean repeatedCEX(ARGPath path) {
+    ImmutableList<ARGState> appliedStates =
+        path.asStatesList()
+            .stream()
+            .filter(x -> x.getAppliedFrom() != null)
+            .collect(ImmutableList.toImmutableList());
+
+    Set<ImmutableList<CFANode>> errorPathsToEffects = new HashSet<>();
+
+    for (ARGState state : appliedStates) {
+      for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
+        errorPathsToEffects.add(
+            ARGUtils.getOnePathTo(effect)
+                .asStatesList()
+                .stream()
+                .map(AbstractStates::extractLocation)
+                .filter(x -> x != null)
+                .collect(ImmutableList.toImmutableList()));
+      }
+    }
+
+    if (lastErrorPathsToEffects.equals(errorPathsToEffects)) {
+      return true;
+    }
+
+    lastErrorPathsToEffects = errorPathsToEffects;
+    return false;
   }
 
   @Override
