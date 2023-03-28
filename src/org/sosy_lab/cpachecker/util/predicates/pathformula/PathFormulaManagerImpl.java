@@ -480,7 +480,16 @@ public class PathFormulaManagerImpl implements PathFormulaManager {
           }
 
           for (ARGState child : childrenOnPath) {
-            CFAEdge currentEdge = child.getEdgeToChild(Iterables.get(child.getChildren(), 0));
+            // there can be null edges to applied states if a projection was applied to a state with
+            // an assumption edge
+            // need to extract a not null edge
+            CFAEdge currentEdge = null;
+            for (ARGState grandchild : child.getChildren()) {
+              if (grandchild.getAppliedFrom() == null) {
+                currentEdge = child.getEdgeToChild(grandchild);
+                break;
+              }
+            }
             if (((AssumeEdge) currentEdge).getTruthAssumption()) {
               branchingElement = child;
             }
