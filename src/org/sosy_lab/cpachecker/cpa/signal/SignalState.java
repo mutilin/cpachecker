@@ -197,8 +197,12 @@ public class SignalState
   }
 
   SignalState addTargetTo(@SuppressWarnings("unused") String pName) {
-    assert this.targetTo.isEmpty();
-    return copy(signals, localIds, pName);
+    assert this.targetTo.isEmpty() || this.targetTo.equals(pName);
+    if (this.targetTo.isEmpty()) {
+      return copy(signals, localIds, pName);
+    } else {
+      return this;
+    }
   }
 
   @Override
