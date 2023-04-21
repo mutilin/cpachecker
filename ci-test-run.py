@@ -125,24 +125,31 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
         else:
             expected = None
 
-        async_res.append(pool.apply_async(call_cpachecker, args=[options, test, expected, timeout]))
+        async_res.append([pool.apply_async(call_cpachecker, args=[options, test, expected, timeout]), test])
 
     pool.close()
     pool.join()
 
     total_num = 0
-    fail_num = 0
+    failed_tests = []
 
     for res in async_res:
         total_num = total_num + 1
+        ret = res[0]
+        test = res[1]
         try:
-            res.get()
+            ret.get()
         except ValueError:
             # test failure in subprocess
-            fail_num = fail_num + 1
+            failed_tests.append(test)
 
+    fail_num = len(failed_tests)
     print("Run {} benchmarks: {} pass, {} fail".format(total_num, total_num - fail_num, fail_num))
     if fail_num > 0:
+        print("Failed tests:")
+        for test_name in failed_tests:
+            print(test_name)
+        
         raise ValueError("{} failed tests".format(fail_num))
 
 def strip_start(text, prefix):

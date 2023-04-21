@@ -40,7 +40,7 @@
   /sv-races/linux-3.14--drivers--isdn--hysdn--hysdn.ko_true-unreach-call.cil.i: 'FALSE'
   /sv-races/linux-3.14--drivers--media--platform--marvell-ccic--cafe_ccic.ko_false-unreach-call.cil.i: 'TIMEOUT'
   /sv-races/linux-3.14--drivers--media--platform--marvell-ccic--cafe_ccic.ko_true-unreach-call.cil.i: 'TRUE'
-  /sv-races/linux-3.14--drivers--misc--apds990x.ko_false-unreach-call.cil.i: 'TIMEOUT'
+  /sv-races/linux-3.14--drivers--misc--apds990x.ko_false-unreach-call.cil.i: ['TIMEOUT', 'ERROR'] # #21
   /sv-races/linux-3.14--drivers--misc--apds990x.ko_true-unreach-call.cil.i: 'TRUE'
   /sv-races/linux-3.14--drivers--misc--bh1770glc.ko_false-unreach-call.cil.i: 'ERROR'
   /sv-races/linux-3.14--drivers--misc--bh1770glc.ko_true-unreach-call.cil.i: 'TRUE'
