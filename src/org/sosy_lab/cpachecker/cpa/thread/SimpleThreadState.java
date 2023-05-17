@@ -43,7 +43,7 @@ public class SimpleThreadState extends ThreadState {
     Preconditions.checkArgument(state instanceof SimpleThreadState);
     SimpleThreadState other = (SimpleThreadState) state;
 
-    String otherThread = other.getCurrentId();
+    String otherThread = other.getCurrentThread();
 
     boolean res = Objects.equals(currentThread, otherThread);
 

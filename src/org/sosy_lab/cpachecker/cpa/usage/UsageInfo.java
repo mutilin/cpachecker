@@ -239,8 +239,11 @@ public final class UsageInfo implements Comparable<UsageInfo> {
     if (newStates.isEmpty()) {
       return IRRELEVANT_USAGE;
     }
-    if (newStates == old) {
+    if (newStates == old && pExpandedStack.equals(this.expandedStack)) {
       return this;
+    }
+    if (newStates == old) {
+      return new UsageInfo(core, this.point, pExpandedStack);
     }
     return new UsageInfo(core, new UsagePoint(newStates, core.accessType), pExpandedStack);
   }

@@ -61,6 +61,7 @@ public class ConcurrentUsageExtractor {
   private final StatTimer totalTimer = new StatTimer("Time for extracting usages");
   private final StatTimer traversalTimer = new StatTimer("Time for reached sets traversal");
   private final StatTimer usageTimer = new StatTimer("Time for usage set processing");
+  private final StatTimer usageInitTimer = new StatTimer("Time for usage tasks initialization");
   private final StatInt reachedSetCounter =
       new StatInt(StatKind.SUM, "Number of traversed reached sets");
   private final StatInt finalSetCounter =
@@ -102,7 +103,7 @@ public class ConcurrentUsageExtractor {
 
   private volatile boolean active;
   // TODO Sorted
-  private final Queue<ReachedSetTask> tasks;
+  private final Queue<AbstractTask> tasks;
 
   public ConcurrentUsageExtractor(
       ConfigurableProgramAnalysis pCpa,
@@ -151,7 +152,7 @@ public class ConcurrentUsageExtractor {
 
     active = true;
     assert(tasks.isEmpty());
-    List<ReachedSetWorker> workers = new ArrayList<>();
+    List<Thread> workers = new ArrayList<>();
 
     synchronized (tasks) {
       // start workers inside synchronized to avoid missed task
@@ -160,40 +161,46 @@ public class ConcurrentUsageExtractor {
         workers.add(worker);
         worker.start();
       }
+      stacks.put(Pair.of(reached.getFirstState(), emptyDelta), ImmutableList.of());
       tasks.add(new ReachedSetTask(reached, emptyDelta, ImmutableList.of()));
     }
 
-    waitUntill(s -> s != processingSteps.get());
+    waitUntill(s -> s != processingSteps.get(), workers);
     logger.log(Level.FINE, "ReachedSet traversion is finished");
-
-    synchronized (tasks) {
-      active = false;
-      tasks.notifyAll();
-    }
-    try {
-      for (int i = 0; i < threads; i++) {
-        workers.get(i).join();
-      }
-    } catch (InterruptedException e) {
-      logger.log(Level.WARNING, "Join is interrupted");
-    }
 
     traversalTimer.stop();
     reachedSetCounter.setNextValue(processingSteps.get());
     finalSetCounter.setNextValue(0);
     numberOfActiveTasks.set(0);
     usageTimer.start();
+    usageInitTimer.start();
 
-    for (Entry<AbstractState, Collection<UsageDelta>> entry : processedSets.entrySet()) {
-      numberOfActiveTasks.addAndGet(entry.getValue().size());
-      finalSetCounter.setNextValue(entry.getValue().size());
-      for (UsageDelta rSet : entry.getValue()) {
-        service.submit(
-            new UsageTraversal(entry.getKey(), rSet, stacks.get(Pair.of(entry.getKey(), rSet))));
+    synchronized (tasks) {
+      // start workers inside synchronized to avoid missed task
+      for (int i = 0; i < threads; i++) {
+        UsageWorker worker = new UsageWorker();
+        workers.add(worker);
+        worker.start();
+      }
+      active = true;
+
+      for (Entry<AbstractState, Collection<UsageDelta>> entry : processedSets.entrySet()) {
+        Collection<UsageDelta> deltas = entry.getValue();
+        numberOfActiveTasks.addAndGet(deltas.size());
+        finalSetCounter.setNextValue(deltas.size());
+
+        List<Pair<UsageDelta, List<AbstractState>>> uStacks = new ArrayList<>();
+        for (UsageDelta delta : deltas) {
+          List<AbstractState> stack = stacks.get(Pair.of(entry.getKey(), delta));
+          assert stack != null;
+          uStacks.add(Pair.of(delta, stack));
+        }
+        tasks.add(new UsageSetTask(entry.getKey(), uStacks));
       }
     }
+    usageInitTimer.stop();
 
-    waitUntill(s -> s > 0);
+    waitUntill(s -> s > 0, workers);
     logger.log(Level.FINE, "Usage processing is finished");
     usageTimer.stop();
 
@@ -208,7 +215,7 @@ public class ConcurrentUsageExtractor {
     return manager;
   }
 
-  private void waitUntill(Predicate<Integer> pPredicate) {
+  private void waitUntill(Predicate<Integer> pPredicate, List<Thread> workers) {
     try {
       while (pPredicate.apply(numberOfActiveTasks.get())) {
         synchronized (this) {
@@ -221,6 +228,18 @@ public class ConcurrentUsageExtractor {
       }
     } catch (InterruptedException e) {
       logger.log(Level.WARNING, "wait is interrupted");
+    }
+
+    synchronized (tasks) {
+      active = false;
+      tasks.notifyAll();
+    }
+    try {
+      for (Thread worker : workers) {
+        worker.join();
+      }
+    } catch (InterruptedException e) {
+      logger.log(Level.WARNING, "Join is interrupted");
     }
   }
 
@@ -244,6 +263,7 @@ public class ConcurrentUsageExtractor {
             .endLevel()
             .put(usageTimer)
             .beginLevel()
+            .put(usageInitTimer)
             .put(usageProcessingTimer)
             .beginLevel();
 
@@ -257,30 +277,54 @@ public class ConcurrentUsageExtractor {
         .put(finalSetCounter);
   }
 
-  private static class ReachedSetTask implements Comparable<ReachedSetTask> {
+  private static abstract class AbstractTask implements Comparable<AbstractTask> {
+    protected final ARGState firstState;
+
+    AbstractTask(ARGState pState) {
+      firstState = pState;
+    }
+
+    @Override
+    public int compareTo(AbstractTask pArg0) {
+      return firstState.getStateId() - pArg0.firstState.getStateId();
+    }
+  }
+
+  private static class ReachedSetTask extends AbstractTask {
     private final UsageDelta currentDelta;
     private final ReachedSet reached;
     private final List<AbstractState> expandedStack;
-    private final ARGState firstState;
 
     ReachedSetTask(
         ReachedSet pSet,
         UsageDelta pDelta,
         List<AbstractState> pExpandedStack) {
 
+      super((ARGState) pSet.getFirstState());
       currentDelta = pDelta;
       reached = pSet;
       expandedStack = pExpandedStack;
-      firstState = (ARGState) reached.getFirstState();
     }
 
     @Override
-    public int compareTo(ReachedSetTask pArg0) {
-      int res = firstState.getStateId() - pArg0.firstState.getStateId();
+    public int compareTo(AbstractTask pArg0) {
+      int res = super.compareTo(pArg0);
       if (res != 0) {
         return res;
       }
-      return expandedStack.size() - pArg0.expandedStack.size();
+
+      ReachedSetTask rTask = (ReachedSetTask) pArg0;
+      int size = Math.min(expandedStack.size(), rTask.expandedStack.size());
+      for (int i = 0; i < size; i++) {
+        ARGState state1 = (ARGState) expandedStack.get(expandedStack.size() - i - 1);
+        ARGState state2 = (ARGState) rTask.expandedStack.get(rTask.expandedStack.size() - i - 1);
+        res = state1.getStateId() - state2.getStateId();
+        if (res != 0) {
+          return res;
+        }
+      }
+
+      throw new AssertionError("Should not be two equal tasks");
     }
 
     @Override
@@ -306,24 +350,12 @@ public class ConcurrentUsageExtractor {
     }
   }
 
-  private class ReachedSetWorker extends Thread {
-
-    private final TimerWrapper checkTimer;
-    private final TimerWrapper procesedTimer;
-    private final TimerWrapper procesedSetWaitTimer;
-    private final TimerWrapper procesedWaitTimer;
-
-    public ReachedSetWorker() {
-      checkTimer = reachedSetCheckTimer.getNewTimer();
-      procesedTimer = processedSyncTimer.getNewTimer();
-      procesedSetWaitTimer = processedSetWaitingTimer.getNewTimer();
-      procesedWaitTimer = processedWaitingTimer.getNewTimer();
-    }
+  private abstract class AbstractWorker extends Thread {
 
     @Override
     public void run() {
       while (active) {
-        ReachedSetTask toProcess = null;
+        AbstractTask toProcess = null;
         synchronized (tasks) {
           if (!tasks.isEmpty()) {
             toProcess = tasks.poll();
@@ -344,11 +376,30 @@ public class ConcurrentUsageExtractor {
       }
     }
 
-    private void process(ReachedSetTask task) {
+    protected abstract void process(AbstractTask task);
+  }
+
+  private class ReachedSetWorker extends AbstractWorker {
+
+    private final TimerWrapper checkTimer;
+    private final TimerWrapper procesedTimer;
+    private final TimerWrapper procesedSetWaitTimer;
+    private final TimerWrapper procesedWaitTimer;
+
+    public ReachedSetWorker() {
+      checkTimer = reachedSetCheckTimer.getNewTimer();
+      procesedTimer = processedSyncTimer.getNewTimer();
+      procesedSetWaitTimer = processedSetWaitingTimer.getNewTimer();
+      procesedWaitTimer = processedWaitingTimer.getNewTimer();
+    }
+
+    @Override
+    protected void process(AbstractTask task) {
       try {
-        ReachedSet reached = task.reached;
-        UsageDelta delta = task.currentDelta;
-        List<AbstractState> stack = task.expandedStack;
+        ReachedSetTask rTask = (ReachedSetTask) task;
+        ReachedSet reached = rTask.reached;
+        UsageDelta delta = rTask.currentDelta;
+        List<AbstractState> stack = rTask.expandedStack;
 
         for (AbstractState state : reached.asCollection()) {
 
@@ -421,7 +472,7 @@ public class ConcurrentUsageExtractor {
         if (processedSets.containsKey(pFirstState)) {
           processed = processedSets.get(pFirstState);
         } else {
-          processed = new HashSet<>();
+          processed = new ArrayList<>();
           processedSets.put(pFirstState, processed);
         }
       }
@@ -475,37 +526,69 @@ public class ConcurrentUsageExtractor {
     }
   }
 
-  private class UsageTraversal implements Runnable {
+  private static class UsageSetTask extends AbstractTask {
+    private final List<Pair<UsageDelta, List<AbstractState>>> stacks;
 
-    private final UsageDelta currentDelta;
-    // Cannot use reached set as we need to traverse the set in order
-    private final AbstractState firstState;
-    private final List<AbstractState> expandedStack;
-    private final Map<AbstractState, List<UsageInfo>> stateToUsage;
+    UsageSetTask(
+        AbstractState pFirst,
+        List<Pair<UsageDelta, List<AbstractState>>> pExpandedStacks) {
+      super((ARGState) pFirst);
+      stacks = pExpandedStacks;
+    }
+
+    @Override
+    public int compareTo(AbstractTask pArg0) {
+      int res = super.compareTo(pArg0);
+      if (res != 0) {
+        return res;
+      }
+      throw new AssertionError("Should not be two equal tasks");
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(firstState, stacks);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (obj == null) {
+        return false;
+      }
+      if (!(obj instanceof UsageSetTask)) {
+        return false;
+      }
+      UsageSetTask other = (UsageSetTask) obj;
+      return Objects.equals(firstState, other.firstState) && Objects.equals(stacks, other.stacks);
+    }
+  }
+
+  private class UsageWorker extends AbstractWorker {
 
     private final TimerWrapper expandingTimer;
     private final TimerWrapper processingTimer;
     private final TimerWrapper addingTimer;
 
-    UsageTraversal(
-        AbstractState pState,
-        UsageDelta pDelta,
-        List<AbstractState> pExpandedStack) {
+    private Map<AbstractState, List<UsageInfo>> stateToUsage;
 
-      currentDelta = pDelta;
-      firstState = pState;
+    UsageWorker() {
       expandingTimer = usageExpandingTimer.getNewTimer();
       processingTimer = usageProcessingTimer.getNewTimer();
       addingTimer = addingToContainerTimer.getNewTimer();
-      expandedStack = pExpandedStack;
-      stateToUsage = new HashMap<>();
     }
 
     @Override
-    public void run() {
+    protected void process(AbstractTask task) {
+      UsageSetTask uTask = (UsageSetTask) task;
+      AbstractState firstState = task.firstState;
+
       Deque<AbstractState> stateWaitlist = new ArrayDeque<>();
       stateWaitlist.add(firstState);
       Set<AbstractState> visitedStates = new HashSet<>();
+      stateToUsage = new HashMap<>();
 
       // Waitlist to be sure in order (not start from the middle point)
       while (!stateWaitlist.isEmpty()) {
@@ -514,22 +597,31 @@ public class ConcurrentUsageExtractor {
           continue;
         }
 
+        addingTimer.start();
         visitedStates.add(argState);
-        List<UsageInfo> expandedUsages = expandUsagesAndAdd(argState);
+        List<UsageInfo> usages = expandUsagesAndAdd(argState);
+        addingTimer.stop();
 
         if (needToDumpUsages(argState)) {
-          addingTimer.start();
-          for (UsageInfo usage : expandedUsages) {
-            container.add(usage);
+          expandingTimer.start();
+          for (UsageInfo usage : usages) {
+            for (Pair<UsageDelta, List<AbstractState>> stack : uTask.stacks) {
+              UsageInfo expanded = usage.expand(stack.getFirst(), stack.getSecond());
+              if (expanded.isRelevant()) {
+                container.add(usage);
+              }
+            }
           }
-          addingTimer.stop();
+          expandingTimer.stop();
         } else {
-          stateToUsage.put(argState, expandedUsages);
+          stateToUsage.put(argState, usages);
         }
         stateWaitlist.addAll(argState.getSuccessors());
       }
       if (numberOfActiveTasks.decrementAndGet() <= 0) {
-        service.notify();
+        synchronized (ConcurrentUsageExtractor.this) {
+          ConcurrentUsageExtractor.this.notify();
+        }
       }
     }
 
@@ -554,17 +646,13 @@ public class ConcurrentUsageExtractor {
       }
 
       processingTimer.start();
-      List<UsageInfo> usages = usageProcessor.getUsagesForState(state);
+      List<UsageInfo> newUsages = usageProcessor.getUsagesForState(state);
       processingTimer.stop();
 
-      expandingTimer.start();
-      for (UsageInfo usage : usages) {
-        UsageInfo expanded = usage.expand(currentDelta, expandedStack);
-        if (expanded.isRelevant()) {
-          expandedUsages.add(expanded);
-        }
+      if (expandedUsages.isEmpty()) {
+        return newUsages;
       }
-      expandingTimer.stop();
+      expandedUsages.addAll(newUsages);
 
       return expandedUsages;
     }
