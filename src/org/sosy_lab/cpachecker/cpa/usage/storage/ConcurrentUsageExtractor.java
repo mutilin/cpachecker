@@ -184,9 +184,9 @@ public class ConcurrentUsageExtractor {
       }
       active = true;
 
+      numberOfActiveTasks.set(processedSets.size());
       for (Entry<AbstractState, Collection<UsageDelta>> entry : processedSets.entrySet()) {
         Collection<UsageDelta> deltas = entry.getValue();
-        numberOfActiveTasks.addAndGet(deltas.size());
         finalSetCounter.setNextValue(deltas.size());
 
         List<Pair<UsageDelta, List<AbstractState>>> uStacks = new ArrayList<>();
@@ -608,7 +608,7 @@ public class ConcurrentUsageExtractor {
             for (Pair<UsageDelta, List<AbstractState>> stack : uTask.stacks) {
               UsageInfo expanded = usage.expand(stack.getFirst(), stack.getSecond());
               if (expanded.isRelevant()) {
-                container.add(usage);
+                container.add(expanded);
               }
             }
           }
