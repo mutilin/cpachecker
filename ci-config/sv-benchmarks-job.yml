@@ -15,5 +15,5 @@ sv-benchmarks main:
     - pthread-nondet/*.i
     - pthread-driver-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
-  parallel: True
+  parallel: true
   prefix: /opt/sv-benchmarks/

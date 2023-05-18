@@ -6,144 +6,85 @@ product line 1:
     - test/programs/cpalockator/threads/*.c
   parallel: True
 product line 2:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.usage.bindArgsFunctions=true"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 3:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.usage.filterAliases=false"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 4:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.usage.useConcurrentExtraction=false"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 5:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.thread.useAggressiveReduction=true"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 6:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.thread.mode=ENVIRONMENT"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 7:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.thread.mode=SIMPLE"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 8:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.thread.handleSameThreads=SUPPORT"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 9:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.thread.handleSameThreads=SKIP"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 10:
-  config: "lockStatistics-linux.properties"
+  extends: product line 1
   setprop: 
     - "cpa.lock.analysisMode=DEADLOCK"
     - "cpa.usage.unsafedetector.intLock=dummy"
     - "cpa.usage.unsafedetector.unsafeMode=DEADLOCKDISPATCH"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 11:
+  extends: product line 1
   config: "lockStatistics-threadmodular-linux.properties"
   setprop: 
     - "cpa.usage.useSoundRegions=true"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 12:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.thread.mode=ENVIRONMENT"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 13:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.thread.mode=SIMPLE"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 14:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.thread.handleSameThreads=SUPPORT"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 15:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.thread.handleSameThreads=SKIP"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 16:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.predicate.joinEffectsIntoUndefs=false"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 17:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.predicate.useUndefFunctions=false"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 18:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.predicate.applyRelevantEffects=true"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 19:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.usage.refinement.refinementChain=IdentifierIterator,PointIterator,UsageIterator,SinglePathIterator,ImprecisePredicateRefiner"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 20:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.predicate.useHavocAbstraction=true"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True
 product line 21:
-  config: "lockStatistics-threadmodular-linux.properties"
+  extends: product line 11
   setprop: 
     - "cpa.predicate.abstractionLattice=true"
-  benchmarks: 
-    - test/programs/cpalockator/threads/*.c
-  parallel: True

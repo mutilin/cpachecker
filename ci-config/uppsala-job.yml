@@ -7,19 +7,13 @@ uppsala simple:
   benchmarks: 
     - /adhoc/*.i
   verdicts: ci-config/uppsala-verdicts.yml
-  parallel: True
+  parallel: true
   prefix: /opt/uppsala
 uppsala:
+  extends: uppsala simple
   config: "-predicateAnalysis-threadmodular"
-  setprop: 
-    - "cpa.predicate.refinement.performThreadEffectRefinement=true"
-    - "cpa.thread.handleSameThreads=SKIP"
-  spec: "sv-comp-reachability"
   benchmarks: 
     - /sv-races/simple/*
     - /sv-races/*.i
     - /*.i
-  verdicts: ci-config/uppsala-verdicts.yml
-  parallel: True
-  wip: False
-  prefix: /opt/uppsala
+  wip: false

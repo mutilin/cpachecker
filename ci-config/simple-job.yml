@@ -8,20 +8,18 @@ lockStatistics-linux:
   verdicts: ci-config/simple-test-verdicts.yml
   wip: false
 lockStatistics-linux-lightweight:
+  extends: lockStatistics-linux
   config: lockStatistics-linux-lightweight.properties
   setprop: 
     - "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA"
     - "cpa.usage.unsafedetector.ignoreEmptyLockset=false"
-  benchmarks: test/programs/cpalockator/simple/*.c
-  verdicts: ci-config/simple-test-verdicts.yml
-  wip: false
 lockStatistics-threadmodular-linux:
+  extends: lockStatistics-linux
   config: lockStatistics-threadmodular-linux.properties
   setprop: 
     - "CompositeCPA.cpas=cpa.location.LocationCPA,cpa.callstack.CallstackCPA,cpa.lock.LockCPA,cpa.predicate.PredicateCPA"
     - "cpa.usage.unsafedetector.ignoreEmptyLockset=false"
-  benchmarks: test/programs/cpalockator/simple/*.c
-  verdicts: ci-config/simple-test-verdicts.yml
+  wip: true
 lockStatistics deadlocks:
   config: -lockator-deadlocks-linux
   benchmarks: test/programs/cpalockator/deadlocks/*.c
@@ -32,26 +30,22 @@ lockator-linux on simple:
   verdicts: ci-config/simple-test-verdicts.yml
   wip: false
 lockator-threadmodular-linux on simple:
+  extends: lockator-linux on simple
   config: -lockator-threadmodular-linux
-  benchmarks: test/programs/cpalockator/simple/*.c
-  verdicts: ci-config/simple-test-verdicts.yml
+  wip: true
 lockator-linux-lightweight on simple:
+  extends: lockator-linux on simple
   config: -lockator-linux-lightweight
-  benchmarks: test/programs/cpalockator/simple/*.c
-  verdicts: ci-config/simple-test-verdicts.yml
-  wip: false
 lockator-linux on threads:
   config: -lockator-linux
   benchmarks: test/programs/cpalockator/threads/*.c
   verdicts: ci-config/threads-test-verdicts.yml
 lockator-threadmodular-linux on threads:
+  extends: lockator-linux on threads
   config: -lockator-threadmodular-linux
-  benchmarks: test/programs/cpalockator/threads/*.c
-  verdicts: ci-config/threads-test-verdicts.yml
 lockator-linux-lightweight on threads:
+  extends: lockator-linux on threads
   config: -lockator-linux-lightweight
-  benchmarks: test/programs/cpalockator/threads/*.c
-  verdicts: ci-config/threads-test-verdicts.yml
   wip: false
 lockator-linux on pointers:
   config: -lockator-linux
@@ -59,25 +53,23 @@ lockator-linux on pointers:
   verdicts: ci-config/pointers-test-verdicts.yml
   wip: false
 lockator-threadmodular-linux on pointers:
+  extends: lockator-linux on pointers
   config: -lockator-threadmodular-linux
-  benchmarks: test/programs/cpalockator/pointers/*.c
-  verdicts: ci-config/pointers-test-verdicts.yml
+  wip: true
 lockator-linux on structs:
   config: -lockator-linux
   benchmarks: test/programs/cpalockator/structs/*.c
   verdicts: ci-config/structs-test-verdicts.yml
   wip: false
 lockator-threadmodular-linux on structs:
+  extends: lockator-linux on structs
   config: -lockator-threadmodular-linux
-  benchmarks: test/programs/cpalockator/structs/*.c
-  verdicts: ci-config/structs-test-verdicts.yml
+  wip: true
 predicateAnalysis-threadmodular on order:
   config: "-predicateAnalysis-threadmodular"
   spec: "sv-comp-reachability"
   benchmarks: test/programs/cpalockator/order/*.c
   verdicts: ci-config/order-test-verdicts.yml
 predicateAnalysis-tm-ta on order:
+  extends: predicateAnalysis-threadmodular on order
   config: "-predicateAnalysis-tm-ta"
-  spec: "sv-comp-reachability"
-  benchmarks: test/programs/cpalockator/order/*.c
-  verdicts: ci-config/order-test-verdicts.yml

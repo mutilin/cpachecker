@@ -17,3 +17,8 @@ Klever Testing-Requirement-specifications simple:
     - Linux-Testing-Requirement-specifications/*--concurrency-safety---lock-reduce--*.i
   verdicts: ci-config/ldv-klever-verdicts.yml
   prefix: /opt/ldv-klever-benchmarks/
+Klever Testing-Requirement-specifications rcu:
+  extends: Klever Testing-Requirement-specifications simple
+  config: "-rcucpa"
+  benchmarks:
+    - Linux-Testing-Requirement-specifications/*--concurrency-safety---rcu--*.i

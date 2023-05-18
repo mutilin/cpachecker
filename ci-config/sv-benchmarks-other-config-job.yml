@@ -9,41 +9,14 @@ sv-benchmarks refinement:
   benchmarks: 
     - ldv-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
-  parallel: True
+  parallel: true
   prefix: /opt/sv-benchmarks/
 sv-benchmarks reordered:
+  extends: sv-benchmarks refinement
   config: "-predicateAnalysis-threadmodular-reordered"
-  setprop: 
-    - "limits.time.cpu=900s"
-    - "shutdown.timeout=1000"
-    - "cpa.thread.handleSameThreads=SUPPORT"
-  spec: "sv-comp-reachability"
-  benchmarks: 
-    - ldv-races/*.i
-  verdicts: ci-config/sv-benchmarks-verdicts.yml
-  parallel: True
-  prefix: /opt/sv-benchmarks/
 sv-benchmarks tm-ta:
+  extends: sv-benchmarks refinement
   config: "-predicateAnalysis-tm-ta"
-  setprop: 
-    - "limits.time.cpu=900s"
-    - "shutdown.timeout=1000"
-    - "cpa.thread.handleSameThreads=SUPPORT"
-  spec: "sv-comp-reachability"
-  benchmarks: 
-    - ldv-races/*.i
-  verdicts: ci-config/sv-benchmarks-verdicts.yml
-  parallel: True
-  prefix: /opt/sv-benchmarks/
 sv-benchmarks predicate value tm:
+  extends: sv-benchmarks refinement
   config: "-predicateValueAnalysis-threadmodular"
-  setprop: 
-    - "limits.time.cpu=900s"
-    - "shutdown.timeout=1000"
-    - "cpa.thread.handleSameThreads=SUPPORT"
-  spec: "sv-comp-reachability"
-  benchmarks: 
-    - ldv-races/*.i
-  verdicts: ci-config/sv-benchmarks-verdicts.yml
-  parallel: True
-  prefix: /opt/sv-benchmarks/

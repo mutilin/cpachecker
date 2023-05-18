@@ -196,13 +196,6 @@ klever-found-bugs:
   only:
     - web
 
-klever-tests-rcu:
-  <<: *tests
-  variables:
-    JOB_FILE_DESC: ci-config/ldv-klever-rcu-job.yml
-  only:
-    - web
-
 uppsala-tests:
   <<: *tests
   variables:
