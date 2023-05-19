@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
@@ -18,90 +19,33 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.util.Pair;
 
 
-public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageInfoSet>, Pair<UsageInfo, UsageInfo>>{
+public class UsagePairIterator
+    extends GenericPairIterator<Pair<UsageInfoSet, UsageInfoSet>, UsageInfo> {
   private final LogManager logger;
 
   //internal state
-  private Iterator<UsageInfo> firstUsageIterator;
-  private Iterator<UsageInfo> secondUsageIterator;
-  private UsageInfo firstUsage = null;
+  private List<Iterator<UsageInfo>> iterators = new ArrayList<>();
   private UsageInfoSet secondUsageInfoSet;
-  private final int iterationLimit;
-  private int[] consideredUsages = new int[2];
 
   public UsagePairIterator(
       ConfigurableRefinementBlock<Pair<UsageInfo, UsageInfo>> pWrapper,
       LogManager l,
       ShutdownNotifier pNotifier,
       int pIterationLimit) {
-    super(pWrapper, pNotifier);
+    super(pWrapper, pNotifier, pIterationLimit);
     logger = l;
-    iterationLimit = pIterationLimit;
   }
 
   @Override
   protected void init(Pair<UsageInfoSet, UsageInfoSet> pInput) {
+    super.init(pInput);
     UsageInfoSet firstUsageInfoSet;
     firstUsageInfoSet = pInput.getFirst();
     secondUsageInfoSet = pInput.getSecond();
 
-    firstUsageIterator = firstUsageInfoSet.iterator();
-    secondUsageIterator = secondUsageInfoSet.iterator();
-
-    firstUsage = null;
-    consideredUsages[0] = 0;
-    consideredUsages[1] = 0;
-  }
-
-  @Override
-  protected Pair<UsageInfo, UsageInfo> getNext(Pair<UsageInfoSet, UsageInfoSet> pInput) {
-    if (consideredUsages[0] >= iterationLimit) {
-      return null;
-    }
-
-    if (firstUsage == null) {
-      //first call - initialize it
-      firstUsage = checkFirstIterator();
-      if (firstUsage == null) {
-        return null;
-      }
-    }
-
-    Pair<UsageInfo, UsageInfo> result = checkSecondIterator();
-
-    if (result == null) {
-      firstUsage = checkFirstIterator();
-      if (firstUsage == null) {
-        return null;
-      }
-      secondUsageIterator = pInput.getSecond().iterator();
-      result = checkSecondIterator();
-      if (result == null) {
-        return null;
-      }
-    }
-    UsageInfo resultFirstUsage = result.getFirst();
-    UsageInfo resultSecondUsage = result.getSecond();
-    if (resultFirstUsage == resultSecondUsage) {
-      resultSecondUsage = resultSecondUsage.copy();
-    }
-    return Pair.of(resultFirstUsage, resultSecondUsage);
-  }
-
-  private UsageInfo checkFirstIterator() {
-    if (consideredUsages[0] < iterationLimit && firstUsageIterator.hasNext()) {
-      consideredUsages[0]++;
-      return firstUsageIterator.next();
-    }
-    return null;
-  }
-
-  private Pair<UsageInfo, UsageInfo> checkSecondIterator() {
-    if (consideredUsages[1] < iterationLimit && secondUsageIterator.hasNext()) {
-      consideredUsages[1]++;
-      return Pair.of(firstUsage, secondUsageIterator.next());
-    }
-    return null;
+    iterators.clear();
+    iterators.add(firstUsageInfoSet.iterator());
+    iterators.add(secondUsageInfoSet.iterator());
   }
 
   @SuppressWarnings("unchecked")
@@ -109,6 +53,8 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
   protected void finishIteration(Pair<UsageInfo, UsageInfo> usagePair, RefinementResult r) {
     UsageInfo first = usagePair.getFirst();
     UsageInfo second = usagePair.getSecond();
+    Iterator<UsageInfo> firstUsageIterator = iterators.get(0);
+    Iterator<UsageInfo> secondUsageIterator = iterators.get(1);
 
     List<UsageInfo> unreachableUsages = (List<UsageInfo>) r.getInfo(PathPairIterator.class);
 
@@ -119,8 +65,8 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
     if (unreachableUsages != null && unreachableUsages.contains(first)) {
       logger.log(Level.FINE, "Usage " + firstUsageIterator + " is not reachable, remove it from container");
       firstUsageIterator.remove();
-      firstUsage = null;
-      secondUsageIterator = secondUsageInfoSet.iterator();
+      firstItem = null;
+      resetSecondIterationFor();
     }
     if ((first.isLooped() || second.isLooped()) && first.equals(second)) {
       first.setAsLooped();
@@ -130,11 +76,33 @@ public class UsagePairIterator extends GenericIterator<Pair<UsageInfoSet, UsageI
 
   @Override
   protected void handleFinishSignal(Class<? extends RefinementInterface> pCallerClass) {
+    super.handleFinishSignal(pCallerClass);
     if (pCallerClass.equals(IdentifierIterator.class)) {
-      firstUsageIterator = null;
-      secondUsageIterator = null;
-      firstUsage = null;
       secondUsageInfoSet = null;
+      iterators.clear();
     }
+  }
+
+  @Override
+  protected UsageInfo getNextIteration0(int pI) {
+    Iterator<UsageInfo> iterator = iterators.get(pI);
+    if (iterator.hasNext()) {
+      UsageInfo item = iterator.next();
+      if (pI == 1 && firstItem == item) {
+        item = item.copy();
+      }
+      return item;
+    }
+    return null;
+  }
+
+  @Override
+  protected void resetSecondIterationFor() {
+    iterators.set(1, secondUsageInfoSet.iterator());
+  }
+
+  @Override
+  protected String getName() {
+    return "UsagePairIterator";
   }
 }

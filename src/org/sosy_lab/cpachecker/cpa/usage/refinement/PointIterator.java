@@ -155,4 +155,9 @@ public class PointIterator
 
   @Override
   protected void printDetailedStatistics(StatisticsWriter pOut) {}
+
+  @Override
+  protected String getName() {
+    return "PointPairIterator";
+  }
 }

@@ -21,7 +21,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinementBlock<I, O> {
-  private StatTimer totalTimer = new StatTimer("Time for generic iterator");
+  private StatTimer totalTimer;
   private StatCounter numOfIterations = new StatCounter("Number of iterations");
 
   Iterable<AdjustablePrecision> completePrecisions;
@@ -33,6 +33,7 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
   protected GenericIterator(ConfigurableRefinementBlock<O> pWrapper, ShutdownNotifier pNotifier) {
     super(pWrapper);
     shutdownNotifier = pNotifier;
+    totalTimer = new StatTimer("Time for " + getName());
   }
 
   @Override
@@ -113,6 +114,8 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
     printDetailedStatistics(writer);
     wrappedRefiner.printStatistics(writer);
   }
+
+  protected abstract String getName();
 
   protected void postpone(O i) {
     postponedIterations.add(i);
