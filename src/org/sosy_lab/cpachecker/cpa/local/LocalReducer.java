@@ -12,10 +12,9 @@ import org.sosy_lab.cpachecker.cfa.blocks.Block;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.core.defaults.GenericReducer;
-import org.sosy_lab.cpachecker.core.defaults.SingletonPrecision;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 
-public class LocalReducer extends GenericReducer<LocalState, SingletonPrecision> {
+public class LocalReducer extends GenericReducer<LocalState, Precision> {
 
   @Override
   protected LocalState getVariableReducedState0(
@@ -31,18 +30,20 @@ public class LocalReducer extends GenericReducer<LocalState, SingletonPrecision>
   }
 
   @Override
-  protected Object getHashCodeForState0(LocalState pStateKey, SingletonPrecision pPrecisionKey) {
+  protected Object getHashCodeForState0(LocalState pStateKey, Precision pPrecisionKey) {
     return pStateKey.hashCode();
   }
 
   @Override
-  protected Precision getVariableReducedPrecision0(SingletonPrecision pPrecision, Block pContext) {
+  protected Precision getVariableReducedPrecision0(Precision pPrecision, Block pContext) {
     return pPrecision;
   }
 
   @Override
-  protected SingletonPrecision getVariableExpandedPrecision0(
-      SingletonPrecision pRootPrecision, Block pRootContext, SingletonPrecision pReducedPrecision) {
+  protected Precision getVariableExpandedPrecision0(
+      Precision pRootPrecision,
+      Block pRootContext,
+      Precision pReducedPrecision) {
     return pRootPrecision;
   }
 

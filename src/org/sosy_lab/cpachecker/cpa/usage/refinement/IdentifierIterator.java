@@ -167,7 +167,6 @@ public class IdentifierIterator
     sendUpdateSignal(PointIterator.class, container);
 
     Iterator<AbstractIdentifier> iterator = container.getUnrefinedUnsafeIterator();
-    boolean isPrecisionChanged = false;
     AbstractState firstState = pReached.getFirstState();
     AdjustablePrecision finalPrecision = (AdjustablePrecision) pReached.getPrecision(firstState);
     AdjustablePrecision initialPrecision =
@@ -181,35 +180,36 @@ public class IdentifierIterator
       stats.innerRefinementTimer.start();
       RefinementResult result = wrappedRefiner.performBlockRefinement(currentId);
       stats.innerRefinementTimer.stop();
-      newPrecisionFound |= result.isFalse();
 
       Collection<AdjustablePrecision> info = result.getPrecisions();
 
-      if (!info.isEmpty()) {
+      if (result.isTrue()) {
+        container.setAsRefined(currentId, result);
+        processedUnsafes.add(currentId);
+      } else if (hideFilteredUnsafes && result.isFalse() && !newPrecisionFound) {
+        // We do not add a precision, but consider the unsafe as false
+        // set it as false now, because it will occur again, as precision is not changed
+        // We can not look at precision size here - the result can be false due to heuristics
+        container.setAsFalseUnsafe(currentId);
+        processedUnsafes.add(currentId);
+      } else if (!info.isEmpty()) {
         stats.precisionTimer.start();
-        AdjustablePrecision updatedPrecision =
+        AdjustablePrecision oldPrecision =
             precisionMap.getOrDefault(currentId, initialPrecision);
+        AdjustablePrecision updatedPrecision = oldPrecision;
 
         for (AdjustablePrecision p : info) {
           updatedPrecision = updatedPrecision.add(p);
         }
 
         assert !updatedPrecision.isEmpty() : "Updated precision is expected to be not empty";
-        precisionMap.put(currentId, updatedPrecision);
-        finalPrecision = finalPrecision.add(updatedPrecision);
-        isPrecisionChanged = true;
+        if (!updatedPrecision.equals(oldPrecision)) {
+          precisionMap.put(currentId, updatedPrecision);
+          finalPrecision = finalPrecision.add(updatedPrecision);
+          newPrecisionFound = true;
+        }
         stats.precisionTimer.stop();
-      }
 
-      if (result.isTrue()) {
-        container.setAsRefined(currentId, result);
-        processedUnsafes.add(currentId);
-      } else if (hideFilteredUnsafes && result.isFalse() && !isPrecisionChanged) {
-        //We do not add a precision, but consider the unsafe as false
-        //set it as false now, because it will occur again, as precision is not changed
-        //We can not look at precision size here - the result can be false due to heuristics
-        container.setAsFalseUnsafe(currentId);
-        processedUnsafes.add(currentId);
       }
     }
     int newTrueUnsafeSize = container.getProcessedUnsafeSize();

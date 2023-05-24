@@ -133,38 +133,35 @@ public class UsageTransferRelation extends AbstractSingleWrapperTransferRelation
 
     Collection<AbstractState> results;
 
-    statistics.transferRelationTimer.start();
-    CFANode node = extractLocation(pElement);
-    results = new ArrayList<>(node.getNumLeavingEdges());
+    try {
+      statistics.transferRelationTimer.start();
 
-    AbstractStateWithLocations locState =
-        extractStateByType(pElement, AbstractStateWithLocations.class);
+      AbstractStateWithLocations locState =
+          extractStateByType(pElement, AbstractStateWithLocations.class);
 
-    if (locState instanceof AbstractStateWithEdge) {
-      AbstractEdge edge = ((AbstractStateWithEdge) locState).getAbstractEdge();
-      if (edge instanceof WrapperCFAEdge) {
-        results.addAll(
-            getAbstractSuccessorsForEdge(
-                pElement,
-                pPrecision,
-                ((WrapperCFAEdge) edge).getCFAEdge()));
+      if (locState instanceof AbstractStateWithEdge) {
+        AbstractEdge edge = ((AbstractStateWithEdge) locState).getAbstractEdge();
+        if (edge instanceof WrapperCFAEdge) {
+          return getAbstractSuccessorsForEdge(
+              pElement,
+              pPrecision,
+              ((WrapperCFAEdge) edge).getCFAEdge());
+        } else {
+          return getAbstractSuccessorForAbstractEdge(pElement, pPrecision);
+        }
       } else {
-        results.addAll(getAbstractSuccessorForAbstractEdge(pElement, pPrecision));
-      }
-    } else {
-      for (int edgeIdx = 0; edgeIdx < node.getNumLeavingEdges(); edgeIdx++) {
-        CFAEdge edge = node.getLeavingEdge(edgeIdx);
-        results.addAll(getAbstractSuccessorsForEdge(pElement, pPrecision, edge));
-      }
-    }
+        CFANode node = extractLocation(pElement);
+        results = new ArrayList<>(node.getNumLeavingEdges());
+        for (int edgeIdx = 0; edgeIdx < node.getNumLeavingEdges(); edgeIdx++) {
+          CFAEdge edge = node.getLeavingEdge(edgeIdx);
+          results.addAll(getAbstractSuccessorsForEdge(pElement, pPrecision, edge));
+        }
 
-    for (int edgeIdx = 0; edgeIdx < node.getNumLeavingEdges(); edgeIdx++) {
-      CFAEdge edge = node.getLeavingEdge(edgeIdx);
-      results.addAll(getAbstractSuccessorsForEdge(pElement, pPrecision, edge));
+        return results;
+      }
+    } finally {
+      statistics.transferRelationTimer.stop();
     }
-
-    statistics.transferRelationTimer.stop();
-    return results;
   }
 
   private Collection<? extends AbstractState>

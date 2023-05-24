@@ -59,7 +59,6 @@ public class UsageContainer {
   private final StatCounter sharedVariables =
       new StatCounter("Number of detected shared variables");
 
-  private boolean usagesCalculated = false;
   private boolean oneTotalIteration = false;
 
   public UsageContainer(UsageConfiguration pConfig, LogManager l) {
@@ -105,37 +104,34 @@ public class UsageContainer {
   }
 
   private void calculateUnsafesIfNecessary() {
-    if (!usagesCalculated) {
-      unsafeDetectionTimer.start();
-      usagesCalculated = true;
+    unsafeDetectionTimer.start();
 
-      Iterator<Entry<AbstractIdentifier, UnrefinedUsagePointSet>> iterator =
-          unrefinedIds.entrySet().iterator();
-      while (iterator.hasNext()) {
-        Entry<AbstractIdentifier, UnrefinedUsagePointSet> entry = iterator.next();
-        UnrefinedUsagePointSet tmpList = entry.getValue();
-        if (detector.isUnsafe(tmpList)) {
-          if (!oneTotalIteration) {
-            initialUsages += tmpList.size();
-          }
-        } else {
-          if (!oneTotalIteration) {
-            sharedVariables.inc();
-          }
-          iterator.remove();
+    Iterator<Entry<AbstractIdentifier, UnrefinedUsagePointSet>> iterator =
+        unrefinedIds.entrySet().iterator();
+    while (iterator.hasNext()) {
+      Entry<AbstractIdentifier, UnrefinedUsagePointSet> entry = iterator.next();
+      UnrefinedUsagePointSet tmpList = entry.getValue();
+      if (detector.isUnsafe(tmpList)) {
+        if (!oneTotalIteration) {
+          initialUsages += tmpList.size();
         }
-      }
-
-      if (!oneTotalIteration) {
-        initialUnsafes = new TreeSet<>(unrefinedIds.keySet());
       } else {
-        falseUnsafes = new TreeSet<>(initialUnsafes);
-        falseUnsafes.removeAll(unrefinedIds.keySet());
-        falseUnsafes.removeAll(refinedIds.keySet());
+        if (!oneTotalIteration) {
+          sharedVariables.inc();
+        }
+        iterator.remove();
       }
-
-      unsafeDetectionTimer.stop();
     }
+
+    if (!oneTotalIteration) {
+      initialUnsafes = new TreeSet<>(unrefinedIds.keySet());
+    } else {
+      falseUnsafes = new TreeSet<>(initialUnsafes);
+      falseUnsafes.removeAll(unrefinedIds.keySet());
+      falseUnsafes.removeAll(refinedIds.keySet());
+    }
+
+    unsafeDetectionTimer.stop();
   }
 
   public Set<AbstractIdentifier> getFalseUnsafes() {
@@ -156,7 +152,6 @@ public class UsageContainer {
   }
 
   public int getTotalUnsafeSize() {
-    calculateUnsafesIfNecessary();
     return unrefinedIds.size() + refinedIds.size();
   }
 
@@ -170,7 +165,6 @@ public class UsageContainer {
 
   public void resetUnrefinedUnsafes() {
     resetTimer.start();
-    usagesCalculated = false;
     oneTotalIteration = true;
     unrefinedIds.forEach((k, v) -> v.reset());
     anyIds.reset();

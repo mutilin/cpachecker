@@ -56,6 +56,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
 import org.sosy_lab.cpachecker.core.defaults.ForwardingTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
+import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.exceptions.HandleCodeException;
 import org.sosy_lab.cpachecker.util.Triple;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -101,6 +102,10 @@ public class LocalTransferRelation
 
   private final LocalStatistics stats;
 
+  // Used in preanalysis
+  @Option(description = "Use refinement procedure", secure = true)
+  private boolean refinement = true;
+
   public LocalTransferRelation(
       Configuration config,
       LogManager pLogger,
@@ -118,7 +123,9 @@ public class LocalTransferRelation
 
   @Override
   protected Collection<LocalState> postProcessing(LocalState successor, CFAEdge edge) {
-    stats.registerState(successor, edge.getSuccessor());
+    if (!refinement) {
+      stats.registerState(successor, edge.getSuccessor());
+    }
     return super.postProcessing(successor, edge);
   }
 
@@ -258,6 +265,12 @@ public class LocalTransferRelation
       assign(newState, assignment.getLeftHandSide(), assignment.getRightHandSide());
     }
     return newState;
+  }
+
+  @Override
+  protected LocalState handleFunctionSummaryEdge(CFunctionSummaryEdge cfaEdge)
+      throws CPATransferException {
+    return state;
   }
 
   @Override

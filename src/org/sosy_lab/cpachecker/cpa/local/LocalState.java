@@ -16,16 +16,20 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
+import org.sosy_lab.cpachecker.cpa.usage.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
-public class LocalState implements LatticeAbstractState<LocalState> {
+public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoProvider {
 
   public enum DataType {
     LOCAL,
@@ -189,6 +193,18 @@ public class LocalState implements LatticeAbstractState<LocalState> {
     return directResult;
   }
 
+  public AbstractIdentifier getIdForPrecision(AbstractIdentifier pName) {
+    if (DataInfo.containsKey(pName)) {
+      return pName;
+    }
+    for (AbstractIdentifier cId : pName.getComposedIdentifiers()) {
+      if (DataInfo.get(cId) == DataType.LOCAL) {
+        return cId;
+      }
+    }
+    return null;
+  }
+
   @Override
   public LocalState join(LocalState pState2) {
     // by definition of Merge operator we should return state2, not this!
@@ -238,6 +254,24 @@ public class LocalState implements LatticeAbstractState<LocalState> {
       }
     }*/
     return true;
+  }
+
+  public LocalState forget(Collection<AbstractIdentifier> pExcept) {
+    Map<AbstractIdentifier, DataType> newData = new HashMap<>();
+    for (AbstractIdentifier pId : pExcept) {
+      DataType type = DataInfo.get(pId);
+      if (type != null) {
+        newData.put(pId, DataInfo.get(pId));
+      }
+    }
+    if (newData.equals(DataInfo)) {
+      return this;
+    }
+    return copy(newData, this.previousState);
+  }
+
+  public Collection<AbstractIdentifier> getStoredIds() {
+    return DataInfo.keySet();
   }
 
   @Override
@@ -300,5 +334,17 @@ public class LocalState implements LatticeAbstractState<LocalState> {
       return new LocalStateComplete(oldMap, state, this.alwaysLocalData);
     }
 
+  }
+
+  @Override
+  public boolean isLocal(GeneralIdentifier pId) {
+    for (Entry<AbstractIdentifier, DataType> entry : DataInfo.entrySet()) {
+      if (entry.getValue() == DataType.LOCAL && entry.getKey() instanceof SingleIdentifier) {
+        if (((SingleIdentifier) entry.getKey()).getGeneralId().equals(pId)) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 }

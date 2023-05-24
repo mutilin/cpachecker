@@ -25,7 +25,6 @@ package org.sosy_lab.cpachecker.cpa.usage;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
-import de.uni_freiburg.informatik.ultimate.smtinterpol.util.IdentityHashSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -89,7 +88,7 @@ public class UsageProcessor {
 
   private Map<CFANode, Map<GeneralIdentifier, DataType>> precision;
 
-  private final Collection<CFANode> uselessNodes;
+  // private final Collection<CFANode> uselessNodes;
   private Collection<AbstractIdentifier> redundantIds;
 
   private IdentifierCreator creator;
@@ -119,7 +118,7 @@ public class UsageProcessor {
 
     varSkipper = new VariableSkipper(config);
     precision = pPrecision;
-    uselessNodes = new IdentityHashSet<>();
+    // uselessNodes = new IdentityHashSet<>();
     creator = pCreator;
     config.inject(this, UsageProcessor.class);
   }
@@ -135,13 +134,11 @@ public class UsageProcessor {
     ARGState argState = (ARGState) pState;
     CFANode node = AbstractStates.extractLocation(argState);
 
-    synchronized (uselessNodes) {
-      if (uselessNodes.contains(node)) {
-        // totalTimer.stop();
-        return ImmutableList.of();
-      }
-    }
-    boolean resultComputed = false;
+    /*
+     * synchronized (uselessNodes) { if (uselessNodes.contains(node)) { // totalTimer.stop(); return
+     * ImmutableList.of(); } }
+     */
+    // boolean resultComputed = false;
     // Not a set, as usage.equals do not consider id
     List<UsageInfo> result = new ArrayList<>();
 
@@ -151,7 +148,7 @@ public class UsageProcessor {
       if (node.hasEdgeTo(childNode)) {
         // Need the flag to avoid missed cases with applied edges: it may be traversed first,
         // so put to useless nodes ONLY if there is a normal CFA edge.
-        resultComputed = true;
+        // resultComputed = true;
         CFAEdge edge = node.getEdgeTo(childNode);
 
         result.addAll(createUsagesForEdge(argState, child, node, edge));
@@ -163,11 +160,10 @@ public class UsageProcessor {
       }
     }
 
-    if (resultComputed && result.isEmpty()) {
-      synchronized (uselessNodes) {
-        uselessNodes.add(node);
-      }
-    }
+    /*
+     * if (resultComputed && result.isEmpty()) { synchronized (uselessNodes) {
+     * uselessNodes.add(node); } }
+     */
     // totalTimer.stop();
     return ImmutableList.copyOf(result);
   }
@@ -524,9 +520,9 @@ public class UsageProcessor {
         .beginLevel()
         .put(searchingCacheTimer)
         .put(usageCreationTimer)
-        .put(localTimer)
-        .endLevel()
-        .put("Number of useless nodes", uselessNodes.size());
+        .put(localTimer);
+    // .endLevel();
+    // .put("Number of useless nodes", uselessNodes.size());
   }
 
   public static class DeadLockProcessor extends UsageProcessor {

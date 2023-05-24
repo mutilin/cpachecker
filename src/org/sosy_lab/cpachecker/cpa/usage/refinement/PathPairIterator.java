@@ -154,8 +154,10 @@ public class PathPairIterator extends
   }
 
   private void handleAffectedStates(List<ARGState> affectedStates) {
-    List<Integer> changedStateNumbers = transformedImmutableListCopy(affectedStates, idExtractor);
-    refinedStates.add(changedStateNumbers);
+    if (affectedStates != null) {
+      List<Integer> changedStateNumbers = transformedImmutableListCopy(affectedStates, idExtractor);
+      refinedStates.add(changedStateNumbers);
+    }
   }
 
   @Override
