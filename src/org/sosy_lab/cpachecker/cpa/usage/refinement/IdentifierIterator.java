@@ -50,6 +50,7 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.Precisions;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
@@ -63,11 +64,12 @@ public class IdentifierIterator
     private final StatTimer innerRefinementTimer = new StatTimer("Time for inner refinement");
     private final StatTimer precisionTimer = new StatTimer("Time for precision operations");
     private final StatTimer finishingTimer = new StatTimer("Time for final operations");
+    private final StatCounter iterations = new StatCounter("Number of refined identifiers");
 
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
       StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(pOut);
-      writer.put(innerRefinementTimer).put(precisionTimer).put(finishingTimer);
+      writer.put(innerRefinementTimer).put(precisionTimer).put(finishingTimer).put(iterations);
       IdentifierIterator.this.printStatistics(writer);
     }
 
@@ -180,6 +182,7 @@ public class IdentifierIterator
       stats.innerRefinementTimer.start();
       RefinementResult result = wrappedRefiner.performBlockRefinement(currentId);
       stats.innerRefinementTimer.stop();
+      stats.iterations.inc();
 
       Collection<AdjustablePrecision> info = result.getPrecisions();
 

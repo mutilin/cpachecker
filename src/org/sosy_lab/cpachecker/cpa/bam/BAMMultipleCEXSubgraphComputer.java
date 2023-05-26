@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
@@ -30,6 +29,9 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.usage.refinement.PathRestorator;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatTimer;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 /**
  * The subgraph computer is used to restore paths not to target states, but to any other.
@@ -40,9 +42,13 @@ import org.sosy_lab.cpachecker.cpa.usage.refinement.PathRestorator;
  */
 
 public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implements PathRestorator {
-
-  private Set<ArrayDeque<Integer>> remainingStates = new HashSet<>();
   private final Function<ARGState, Integer> getStateId;
+
+  private final StatTimer checkRepetitionTimer =
+      new StatTimer("Time for checking repetition of path");
+  private final StatTimer timeForFindPath = new StatTimer("Time for find path");
+  private final StatTimer timeGetOnePathTo = new StatTimer("Time for restore the path in graph");
+  private final StatCounter numOfRepeatedPaths = new StatCounter("Number of repeated paths");
 
   BAMMultipleCEXSubgraphComputer(BAMCPA bamCPA, @NonNull Function<ARGState, Integer> idExtractor) {
     super(bamCPA, true);
@@ -52,7 +58,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
 
   private ARGState findPath(
       BackwardARGState newTreeTarget,
-      Set<List<Integer>> pProcessedStates,
       List<AbstractState> expandedStack)
       throws InterruptedException, MissingBlockException {
 
@@ -60,12 +65,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
     ARGState root = null;
     boolean inCallstackFunction = false;
     List<AbstractState> localExpandedStack = new ArrayList<>(expandedStack);
-
-    //Deep clone to be patient about modification
-    remainingStates.clear();
-    for (List<Integer> newList : pProcessedStates) {
-      remainingStates.add(new ArrayDeque<>(newList));
-    }
 
     ARGState target = newTreeTarget.getARGState();
     elementsMap.put(target, newTreeTarget);
@@ -114,9 +113,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
           // children are a normal successors -> create an connection from parent to children
           for (final BackwardARGState newChild : childrenInSubgraph) {
             newChild.addParent(newCurrentElement);
-            if (checkRepeatitionOfState(newChild)) {
-              return DUMMY_STATE_FOR_REPEATED_STATE;
-            }
           }
 
           //The first state
@@ -152,9 +148,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
           if (tmpState.equals(newCurrentElement)) {
             break;
           }
-          if (checkRepeatitionOfState(tmpState.getARGState())) {
-            return DUMMY_STATE_FOR_REPEATED_STATE;
-          }
           waitlist.addAll(tmpState.getParents());
         }
 
@@ -162,9 +155,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
         // children are normal successors -> create an connection from parent to children
         for (final BackwardARGState newChild : childrenInSubgraph) {
           newChild.addParent(newCurrentElement);
-          if (checkRepeatitionOfState(newChild)) {
-            return DUMMY_STATE_FOR_REPEATED_STATE;
-          }
         }
 
         if (currentState.getParents().isEmpty()) {
@@ -181,21 +171,6 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
     return root;
   }
 
-  private boolean checkRepeatitionOfState(ARGState currentElement) {
-    if (currentElement != null && getStateId != null) {
-      Integer currentId = getStateId.apply(currentElement);
-      for (ArrayDeque<Integer> rest : remainingStates) {
-        if (rest.getLast().equals(currentId)) {
-          rest.removeLast();
-          if (rest.isEmpty()) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
   ARGPath restorePathFrom(
       BackwardARGState pLastElement,
       Set<List<Integer>> pRefinedStates,
@@ -206,13 +181,15 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
     assert (pLastElement != null && !pLastElement.isDestroyed());
 
     try {
-      ARGState rootOfSubgraph = findPath(pLastElement, pRefinedStates, pStack);
+      timeForFindPath.start();
+      ARGState rootOfSubgraph = findPath(pLastElement, pStack);
+      timeForFindPath.stop();
       assert (rootOfSubgraph != null);
-      if (rootOfSubgraph.equals(BAMMultipleCEXSubgraphComputer.DUMMY_STATE_FOR_REPEATED_STATE)) {
-        return null;
-      }
+      timeGetOnePathTo.start();
       ARGPath result = ARGUtils.getRandomPath(rootOfSubgraph);
+      timeGetOnePathTo.stop();
       if (result != null && checkThePathHasRepeatedStates(result, pRefinedStates)) {
+        numOfRepeatedPaths.inc();
         return null;
       }
       return result;
@@ -227,16 +204,30 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
   }
 
   @Override
-  public ARGPath computePath(ARGState pLastElement, Set<List<Integer>> pRefinedStates,
+  public ARGPath computePath(
+      ARGState pLastElement,
+      Set<List<Integer>> pRefinedStates,
       List<AbstractState> pStack) {
     return restorePathFrom(new BackwardARGState(pLastElement), pRefinedStates, pStack);
   }
 
   boolean checkThePathHasRepeatedStates(ARGPath path, Set<List<Integer>> pRefinedStates) {
-    List<Integer> ids = transformedImmutableListCopy(path.asStatesList(), getStateId);
+    checkRepetitionTimer.start();
+    try {
+      List<Integer> ids = transformedImmutableListCopy(path.asStatesList(), getStateId);
 
-    return from(pRefinedStates)
-        .anyMatch(ids::containsAll);
+      return from(pRefinedStates).anyMatch(ids::containsAll);
+    } finally {
+      checkRepetitionTimer.stop();
+    }
+  }
+
+  @Override
+  public void printStatistics(StatisticsWriter pOut) {
+    pOut.put(checkRepetitionTimer)
+        .put(timeForFindPath)
+        .put(timeGetOnePathTo)
+        .put(numOfRepeatedPaths);
   }
 
   /** This states is used for UsageStatisticsRefinement:

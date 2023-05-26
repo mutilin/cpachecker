@@ -23,6 +23,6 @@ import java.util.List;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 
-public interface PathIterator {
+public interface ARGPathIterator {
   public ARGPath nextPath(Set<List<Integer>> pRefinedStatesIds);
 }

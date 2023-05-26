@@ -13,6 +13,7 @@ import java.util.Set;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public interface PathRestorator {
 
@@ -23,6 +24,9 @@ public interface PathRestorator {
       Set<List<Integer>> pRefinedStates,
       List<AbstractState> pStack);
 
-  public PathIterator iterator(ARGState pTarget, List<AbstractState> pStack);
+  public ARGPathIterator iterator(ARGState pTarget, List<AbstractState> pStack);
+
+  default void printStatistics(@SuppressWarnings("unused") StatisticsWriter pOut) {
+  }
 
 }

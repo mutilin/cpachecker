@@ -13,27 +13,40 @@ import static org.sosy_lab.common.collect.Collections3.transformedImmutableListC
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import org.sosy_lab.common.ShutdownNotifier;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.util.Pair;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatKind;
+import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class PathPairIterator extends
     GenericPairIterator<Pair<UsageInfo, UsageInfo>, ExtendedARGPath> {
 
   private final Set<List<Integer>> refinedStates = new HashSet<>();
   private PathRestorator subgraphComputer;
-  private final Set<UsageInfo> skippedUsages;
+  private final Set<Integer> skippedStates;
+  private final Map<UsageInfo, ExtendedARGPath> refinedPaths = new HashMap<>();
+
+  private final StatInt refinedStateNum =
+      new StatInt(StatKind.SUM, "Number of stored refined states");
+  private final StatCounter skippedCounter = new StatCounter("Number of skipped usages");
+  private final StatCounter skippedStatesCounter = new StatCounter("Number of skipped states");
 
   private final Function<ARGState, Integer> idExtractor;
 
-  private UsageInfo[] usages = new UsageInfo[2];
-  private PathIterator[] iterators = new PathIterator[2];
-  private boolean[] isFeasiblePath = new boolean[2];
+  private List<UsageInfo> usages = new ArrayList<>(2);
+  private List<ARGPathIterator> iterators = new ArrayList<>(2);
 
   public PathPairIterator(
       ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper,
@@ -43,22 +56,28 @@ public class PathPairIterator extends
       int pInterationLimit) {
     super(pWrapper, pNotifier, pInterationLimit);
     subgraphComputer = pComputer;
-    skippedUsages = new HashSet<>();
+    skippedStates = new TreeSet<>();
     idExtractor = pExtractor;
   }
 
   @Override
   protected void init(Pair<UsageInfo, UsageInfo> pInput) {
     super.init(pInput);
-    usages[0] = pInput.getFirst();
-    usages[1] = pInput.getSecond();
-    isFeasiblePath[0] = false;
-    isFeasiblePath[1] = false;
+    usages.clear();
+    usages.add(pInput.getFirst());
+    usages.add(pInput.getSecond());
 
-    iterators[0] =
-        subgraphComputer.iterator((ARGState) usages[0].getKeyState(), usages[0].getExpandedStack());
-    iterators[1] =
-        subgraphComputer.iterator((ARGState) usages[1].getKeyState(), usages[1].getExpandedStack());
+    iterators.clear();
+    iterators.add(
+        subgraphComputer
+            .iterator(
+                (ARGState) pInput.getFirst().getKeyState(),
+                pInput.getFirst().getExpandedStack()));
+    iterators.add(
+        subgraphComputer
+            .iterator(
+                (ARGState) pInput.getSecond().getKeyState(),
+                pInput.getSecond().getExpandedStack()));
   }
 
   @SuppressWarnings("unchecked")
@@ -72,50 +91,103 @@ public class PathPairIterator extends
     List<ARGState> firstAffectedStates = null;
     List<ARGState> secondAffectedStates = null;
 
-    Object predicateInfo = wrapperResult.getInfo(PredicateRefinerAdapter.class);
-    if (predicateInfo instanceof List) {
-      //affectedStates may be null, if the path was refined somewhen before
+    if (wrapperResult.isFalse()) {
+      Object predicateInfo = wrapperResult.getInfo(PredicateRefinerAdapter.class);
+      if (predicateInfo instanceof List) {
+        // affectedStates may be null, if the path was refined somewhen before
 
-      //A feature of GenericSinglePathRefiner: if one path is false, the second one is not refined
+        // A feature of GenericSinglePathRefiner: if one path is false, the second one is not
+        // refined
+        if (firstExtendedPath.isUnreachable()) {
+          // This one is false
+          firstAffectedStates = (List<ARGState>) predicateInfo;
+        } else {
+          // The second one must be
+          Preconditions.checkArgument(
+              secondExtendedPath.isUnreachable(),
+              "Either the first path, or the second one must be unreachable here");
+          secondAffectedStates = (List<ARGState>) predicateInfo;
+        }
+      }
+
+      predicateInfo = wrapperResult.getInfo(LockRefiner.class);
+      if (predicateInfo instanceof Pair) {
+        assert firstAffectedStates == null;
+        assert secondAffectedStates == null;
+        Pair<List<ARGState>, List<ARGState>> lockInfo =
+            (Pair<List<ARGState>, List<ARGState>>) predicateInfo;
+
+        firstAffectedStates = lockInfo.getFirst();
+        secondAffectedStates = lockInfo.getSecond();
+      }
+
+      predicateInfo = wrapperResult.getInfo(SharedRefiner.class);
+      if (predicateInfo instanceof List) {
+        assert firstAffectedStates == null;
+        assert secondAffectedStates == null;
+        // affectedStates may be null, if the path was refined somewhen before
+
+        // A feature of GenericSinglePathRefiner: if one path is false, the second one is not
+        // refined
+        if (firstExtendedPath.isUnreachable()) {
+          // This one is false
+          firstAffectedStates = (List<ARGState>) predicateInfo;
+        } else {
+          // The second one must be
+          Preconditions.checkArgument(
+              secondExtendedPath.isUnreachable(),
+              "Either the first path, or the second one must be unreachable here");
+          secondAffectedStates = (List<ARGState>) predicateInfo;
+        }
+      }
+
       if (firstExtendedPath.isUnreachable()) {
-        //This one is false
-        firstAffectedStates = (List<ARGState>)predicateInfo;
+        firstItem = null;
+        handleAffectedStates(firstAffectedStates);
+        removeAsUnreachable(firstExtendedPath);
       } else {
-        // The second one must be
-        Preconditions.checkArgument(
-            secondExtendedPath.isUnreachable(),
-            "Either the first path, or the second one must be unreachable here");
-        secondAffectedStates = (List<ARGState>)predicateInfo;
+        addAsReachable(firstExtendedPath);
+      }
+      if (secondExtendedPath.isUnreachable() && secondExtendedPath != firstExtendedPath) {
+        handleAffectedStates(secondAffectedStates);
+        removeAsUnreachable(secondExtendedPath);
+      } else {
+        if (firstExtendedPath.getUsageInfo() != secondExtendedPath.getUsageInfo()) {
+          addAsReachable(secondExtendedPath);
+        }
       }
     }
+  }
 
-    predicateInfo = wrapperResult.getInfo(LockRefiner.class);
-    if (predicateInfo instanceof Pair) {
-      Pair<List<ARGState>, List<ARGState>> lockInfo =
-          (Pair<List<ARGState>, List<ARGState>>) predicateInfo;
-
-      firstAffectedStates = lockInfo.getFirst();
-      secondAffectedStates = lockInfo.getSecond();
+  private void removeAsUnreachable(ExtendedARGPath pPath) {
+    UsageInfo key = pPath.getUsageInfo();
+    if (refinedPaths.containsKey(key)) {
+      refinedPaths.remove(key);
     }
+  }
 
-    if (firstExtendedPath.isUnreachable()) {
-      firstItem = null;
-      handleAffectedStates(firstAffectedStates);
+  private void addAsReachable(ExtendedARGPath pPath) {
+    UsageInfo key = pPath.getUsageInfo();
+    if (refinedPaths.containsKey(key)) {
+      assert refinedPaths.get(key) == pPath;
     } else {
-      isFeasiblePath[0] = true;
-    }
-    if (secondExtendedPath.isUnreachable() && secondExtendedPath != firstExtendedPath) {
-      handleAffectedStates(secondAffectedStates);
-    } else {
-      isFeasiblePath[1] = true;
+      refinedPaths.put(key, pPath);
     }
   }
 
   @Override
   protected void finish(Pair<UsageInfo, UsageInfo> pInput, RefinementResult pResult) {
-    List<UsageInfo> unreacheableUsages = new ArrayList<>(skippedUsages);
+    if (pResult.isFalse()) {
+      List<UsageInfo> unreacheableUsages = new ArrayList<>();
+      if (!refinedPaths.containsKey(pInput.getFirst())) {
+        unreacheableUsages.add(pInput.getFirst());
+      }
+      if (!refinedPaths.containsKey(pInput.getSecond())) {
+        unreacheableUsages.add(pInput.getSecond());
+      }
 
-    pResult.addInfo(this.getClass(), unreacheableUsages);
+      pResult.addInfo(this.getClass(), unreacheableUsages);
+    }
   }
 
   @Override
@@ -124,12 +196,11 @@ public class PathPairIterator extends
     if (callerClass.equals(IdentifierIterator.class)) {
       //Refinement iteration finishes
       refinedStates.clear();
-      usages[0] = null;
-      usages[1] = null;
-      iterators[0] = null;
-      iterators[1] = null;
+      usages.clear();
+      iterators.clear();
     } else if (callerClass.equals(PointIterator.class)) {
-      skippedUsages.clear();
+      skippedStates.clear();
+      refinedPaths.clear();
     }
   }
 
@@ -137,18 +208,25 @@ public class PathPairIterator extends
   protected ExtendedARGPath getNextIteration0(int pId) {
     ARGPath currentPath;
 
+    if (refinedPaths.containsKey(usages.get(pId))) {
+      return refinedPaths.get(usages.get(pId));
+    }
+    AbstractState keyState = usages.get(pId).getKeyState();
+    if (skippedStates.contains(idExtractor.apply((ARGState) keyState))) {
+      skippedStatesCounter.inc();
+      return null;
+    }
     //try to compute more paths
-    PathIterator pathIterator = iterators[pId];
+    ARGPathIterator pathIterator = iterators.get(pId);
     currentPath = pathIterator.nextPath(refinedStates);
 
     if (currentPath == null) {
       // no path to iterate, finishing
-      if (!isFeasiblePath[pId]) {
-        skippedUsages.add(usages[pId]);
-      }
+      skippedCounter.inc();
+      skippedStates.add(idExtractor.apply((ARGState) usages.get(pId).getKeyState()));
       return null;
     }
-    ExtendedARGPath result = new ExtendedARGPath(currentPath, usages[pId]);
+    ExtendedARGPath result = new ExtendedARGPath(currentPath, usages.get(pId));
     //Not add result now, only after refinement
     return result;
   }
@@ -156,14 +234,25 @@ public class PathPairIterator extends
   private void handleAffectedStates(List<ARGState> affectedStates) {
     if (affectedStates != null) {
       List<Integer> changedStateNumbers = transformedImmutableListCopy(affectedStates, idExtractor);
+      assert !changedStateNumbers.isEmpty();
       refinedStates.add(changedStateNumbers);
+      refinedStateNum.setNextValue(changedStateNumbers.size());
     }
   }
 
   @Override
   protected void resetSecondIterationFor() {
-    iterators[1] =
-        subgraphComputer.iterator((ARGState) usages[1].getKeyState(), usages[1].getExpandedStack());
+    iterators.set(
+        1,
+        subgraphComputer
+            .iterator((ARGState) usages.get(1).getKeyState(), usages.get(1).getExpandedStack()));
+  }
+
+  @Override
+  protected void printDetailedStatistics(StatisticsWriter pOut) {
+    super.printDetailedStatistics(pOut);
+    pOut.put(skippedCounter).put(skippedStatesCounter).put(refinedStateNum).spacer();
+    subgraphComputer.printStatistics(pOut);
   }
 
   @Override

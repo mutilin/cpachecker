@@ -20,6 +20,8 @@
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.collect.FluentIterable.from;
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableSet;
@@ -55,11 +57,7 @@ public class ARGPathRestorator implements PathRestorator {
       ARGState pLastElement,
       Set<List<Integer>> pRefinedStates,
       List<AbstractState> pStack) {
-    Set<ArrayDeque<Integer>> remainingStates = new HashSet<>();
 
-    for (List<Integer> newList : pRefinedStates) {
-      remainingStates.add(new ArrayDeque<>(newList));
-    }
     List<ARGState> states = new ArrayList<>(); // reversed order
     Set<ARGState> seenElements = new HashSet<>();
 
@@ -112,40 +110,28 @@ public class ARGPathRestorator implements PathRestorator {
           }
         }
 
-        if (checkRepeatitionOfState(parentElement, remainingStates)) {
-          return null;
-        }
         seenElements.add(parentElement);
         states.add(parentElement);
 
         currentARGState = parentElement;
       }
     }
+
+    List<ARGState> pathStates = Lists.reverse(states);
+    List<Integer> ids = transformedImmutableListCopy(pathStates, getStateId);
+    if (from(pRefinedStates).anyMatch(ids::containsAll)) {
+      return null;
+    }
+
     return new ARGPath(Lists.reverse(states));
   }
 
-  private boolean
-      checkRepeatitionOfState(ARGState currentElement, Set<ArrayDeque<Integer>> remainingStates) {
-    if (currentElement != null && getStateId != null) {
-      Integer currentId = getStateId.apply(currentElement);
-      for (ArrayDeque<Integer> rest : remainingStates) {
-        if (rest.getLast().equals(currentId)) {
-          rest.removeLast();
-          if (rest.isEmpty()) {
-            return true;
-          }
-        }
-      }
-    }
-    return false;
-  }
-
   @Override
-  public PathIterator iterator(ARGState pTarget, List<AbstractState> pStack) {
+  public ARGPathIterator iterator(ARGState pTarget, List<AbstractState> pStack) {
     return new DummyPathIterator(pTarget, pStack);
   }
 
-  class DummyPathIterator implements PathIterator {
+  class DummyPathIterator implements ARGPathIterator {
     final ARGState target;
     boolean computeOnePath;
     List<AbstractState> stack;

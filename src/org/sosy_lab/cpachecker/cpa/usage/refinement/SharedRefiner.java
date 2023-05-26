@@ -8,6 +8,9 @@
 
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableSetCopy;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
@@ -15,12 +18,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
 import org.sosy_lab.cpachecker.core.defaults.SingletonPrecision;
+import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.local.LocalPrecision;
 import org.sosy_lab.cpachecker.cpa.local.LocalState;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.DataType;
@@ -32,6 +35,9 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatKind;
+import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class SharedRefiner extends GenericSinglePathRefiner {
@@ -42,9 +48,12 @@ public class SharedRefiner extends GenericSinglePathRefiner {
   private StatCounter counter = new StatCounter("Number of cases with empty successors");
   //private final StatInt totalFalseConditions = new StatInt(StatKind.COUNT, "Number of false conditions that were detected by SharedRefiner");
   private StatCounter numOfFalseResults = new StatCounter("Number of false results");
+  private StatInt numOfInterpolants =
+      new StatInt(StatKind.SUM, "Number of discovered interpolants");
+  private StatTimer interpolationTime = new StatTimer("Time for interpolation");
 
   public SharedRefiner(ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper, LocalTransferRelation RelationForSharedRefiner) {
-    super(pWrapper);
+    super(pWrapper, false);
     transferRelation = RelationForSharedRefiner;
   }
 
@@ -77,9 +86,21 @@ public class SharedRefiner extends GenericSinglePathRefiner {
 
         if (usageState.getType(usageId) == LocalState.DataType.LOCAL) {
           result = RefinementResult.createFalse();
-          Set<AbstractIdentifier> newIds = getInterpolants(fullPath, usageId);
+
+          interpolationTime.start();
+          List<Pair<AbstractIdentifier, Integer>> interpolants = getInterpolants(fullPath, usageId);
+          interpolationTime.stop();
+
+          numOfInterpolants.setNextValue(interpolants.size());
+          Set<AbstractIdentifier> newIds =
+              transformedImmutableSetCopy(interpolants, Pair::getFirst);
+          List<ARGState> affectedStates =
+              transformedImmutableListCopy(
+                  interpolants,
+                  s -> pPath.asStatesList().get(s.getSecond()));
           LocalPrecision newPrec = new LocalPrecision(newIds);
           result.addPrecision(newPrec);
+          result.addInfo(SharedRefiner.class, affectedStates);
           numOfFalseResults.inc();
         }
         break;
@@ -94,15 +115,15 @@ public class SharedRefiner extends GenericSinglePathRefiner {
     return result;
   }
 
-  private Set<AbstractIdentifier>
+  private List<Pair<AbstractIdentifier, Integer>>
       getInterpolants(List<Pair<LocalState, CFAEdge>> fullPath, AbstractIdentifier usageId)
           throws CPATransferException, InterruptedException {
 
-    Set<AbstractIdentifier> result = new TreeSet<>();
+    List<Pair<AbstractIdentifier, Integer>> result = new ArrayList<>();
     LocalState sucState = fullPath.get(fullPath.size() - 1).getFirst();
     AbstractIdentifier toPrec = sucState.getIdForPrecision(usageId);
     assert toPrec != null;
-    result.add(toPrec);
+    result.add(Pair.of(toPrec, fullPath.size() - 1));
     CFANode entryFunc = null;
 
     for (int i = fullPath.size() - 2; i > 0; i--) {
@@ -130,7 +151,7 @@ public class SharedRefiner extends GenericSinglePathRefiner {
         } else if (id == toPrec) {
           break;
         }
-        result.add(id);
+        result.add(Pair.of(id, i));
         toPrec = id;
       }
     }
@@ -182,7 +203,9 @@ public class SharedRefiner extends GenericSinglePathRefiner {
   protected void printAdditionalStatistics(StatisticsWriter pOut) {
     pOut.beginLevel()
       .put(counter)
-      .put(numOfFalseResults);
+        .put(numOfFalseResults)
+        .put(numOfInterpolants)
+        .put(interpolationTime);
     //pOut.println(totalFalseConditions);
   }
 }

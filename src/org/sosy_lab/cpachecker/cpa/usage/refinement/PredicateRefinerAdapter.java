@@ -57,7 +57,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
       LogManager pLogger,
       UsageStatisticsRefinementStrategy pStrategy,
       ARGBasedRefiner pRefiner) {
-    super(wrapper);
+    super(wrapper, false);
     logger = pLogger;
     strategy = pStrategy;
     refiner = pRefiner;

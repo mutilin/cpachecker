@@ -25,9 +25,13 @@ public abstract class GenericSinglePathRefiner extends
   private StatCounter numberOfRefinements = new StatCounter("Number of refinements");
   private StatCounter numberOfRepeatedPath = new StatCounter("Number of repeated paths");
 
+  private final boolean continueAfterFalse;
+
   protected GenericSinglePathRefiner(
-      ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper) {
+      ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper,
+      boolean pContinue) {
     super(pWrapper);
+    continueAfterFalse = pContinue;
   }
 
   @Override
@@ -39,20 +43,24 @@ public abstract class GenericSinglePathRefiner extends
       ExtendedARGPath secondPath = pInput.getSecond();
 
       //Refine paths separately
-      RefinementResult result = refinePath(firstPath);
-      if (result.isFalse()) {
-        return result;
+      RefinementResult result1 = refinePath(firstPath);
+      if (result1.isFalse() && !continueAfterFalse) {
+        return result1;
       }
-      Iterable<AdjustablePrecision> completePrecisions = result.getPrecisions();
-      result = refinePath(secondPath);
-      if (!result.isFalse()) {
-        completePrecisions = Iterables.concat(completePrecisions, result.getPrecisions());
-        result = wrappedRefiner.performBlockRefinement(pInput);
+      RefinementResult result2 = refinePath(secondPath);
+      if (!result1.isFalse() && !result2.isFalse()) {
+        return wrappedRefiner.performBlockRefinement(pInput);
+      }
+      Iterable<AdjustablePrecision> completePrecisions =
+          Iterables.concat(result1.getPrecisions(), result2.getPrecisions());
+      if (!result1.isFalse()) {
+        assert result2.isFalse();
+        result1 = result2;
       }
 
       // Do not need add any precision if the result is confirmed
-      result.addPrecisions(completePrecisions);
-      return result;
+      result1.resetPrecision(completePrecisions);
+      return result1;
     } finally {
       totalTimer.stop();
     }

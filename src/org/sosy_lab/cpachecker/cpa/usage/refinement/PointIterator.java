@@ -20,6 +20,8 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsagePoint;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
+import org.sosy_lab.cpachecker.util.statistics.StatInt;
+import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class PointIterator
@@ -38,6 +40,7 @@ public class PointIterator
   private UnrefinedUsagePointSet currentUsagePointSet;
 
   private Set<UsagePoint> toRemove = new HashSet<>();
+  private final StatInt removedPoints = new StatInt(StatKind.SUM, "Removed empty usage points");
 
   public PointIterator(
       ConfigurableRefinementBlock<Pair<UsageInfoSet, UsageInfoSet>> pWrapper,
@@ -55,15 +58,7 @@ public class PointIterator
     firstPointIterator = currentUsagePointSet.getPointIterator();
     secondPointIterator = currentUsagePointSet.getPointIterator();
     firstPoint = firstPointIterator.next();
-    secondPoint = secondPointIterator.next();
     assert firstPoint != null;
-    assert secondPoint == firstPoint;
-    if (detector.isUnsafePair(firstPoint, secondPoint)) {
-      Pair<UsageInfoSet, UsageInfoSet> resultingPair =
-          prepareIterationPair(firstPoint, secondPoint);
-      // because the points are equal
-      postpone(resultingPair);
-    }
   }
 
   @Override
@@ -114,6 +109,7 @@ public class PointIterator
   @Override
   protected void finish(AbstractIdentifier pId, RefinementResult r) {
     toRemove.forEach(currentUsagePointSet::remove);
+    removedPoints.setNextValue(toRemove.size());
     toRemove.clear();
   }
 
@@ -126,7 +122,8 @@ public class PointIterator
       //No reachable usages - remove point
       toRemove.add(firstPoint);
     }
-    if (secondUsageInfoSet.isEmpty()) {
+    if (secondUsageInfoSet.isEmpty()
+        || (firstUsageInfoSet.isEmpty() && firstPoint == secondPoint)) {
       //No reachable usages - remove point
       toRemove.add(secondPoint);
     }
@@ -154,7 +151,9 @@ public class PointIterator
   }
 
   @Override
-  protected void printDetailedStatistics(StatisticsWriter pOut) {}
+  protected void printDetailedStatistics(StatisticsWriter pOut) {
+    pOut.put(removedPoints);
+  }
 
   @Override
   protected String getName() {

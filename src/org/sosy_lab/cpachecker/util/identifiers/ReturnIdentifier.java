@@ -32,7 +32,7 @@ public class ReturnIdentifier extends VariableIdentifier implements GeneralIdent
 
   @Override
   public GeneralIdentifier getGeneralId() {
-    return null;
+    return this;
   }
 
   public static ReturnIdentifier getInstance(int d) {

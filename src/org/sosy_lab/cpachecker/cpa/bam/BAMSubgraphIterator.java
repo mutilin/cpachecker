@@ -23,10 +23,10 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.bam.BAMSubgraphComputer.BackwardARGState;
 import org.sosy_lab.cpachecker.cpa.bam.cache.BAMDataManager;
-import org.sosy_lab.cpachecker.cpa.usage.refinement.PathIterator;
+import org.sosy_lab.cpachecker.cpa.usage.refinement.ARGPathIterator;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 
-public class BAMSubgraphIterator implements PathIterator {
+public class BAMSubgraphIterator implements ARGPathIterator {
 
   private final ARGState targetState;
   private final BAMMultipleCEXSubgraphComputer subgraphComputer;
@@ -55,7 +55,9 @@ public class BAMSubgraphIterator implements PathIterator {
 
   //Actually it is possible to implement an optimization,
   //which allows to search forks not from the first state, but from a some middle state
-  private ARGPath computeNextPath(BackwardARGState lastAffectedState, Set<List<Integer>> pRefinedStates) {
+  private ARGPath computeNextPath(
+      BackwardARGState lastAffectedState,
+      Set<List<Integer>> pRefinedStates) {
     assert lastAffectedState != null;
 
     ARGState nextParent = null;

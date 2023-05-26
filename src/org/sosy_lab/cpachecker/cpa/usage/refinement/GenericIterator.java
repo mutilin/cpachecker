@@ -23,6 +23,8 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinementBlock<I, O> {
   private StatTimer totalTimer;
   private StatCounter numOfIterations = new StatCounter("Number of iterations");
+  private StatCounter numberOfPostponedIterations =
+      new StatCounter("Number of postponed iterations");
 
   Iterable<AdjustablePrecision> completePrecisions;
   private final ShutdownNotifier shutdownNotifier;
@@ -48,7 +50,7 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
 
     try {
       while ((iteration = getNext(pInput)) != null) {
-        shutdownNotifier.shutdownIfNecessary();
+        numOfIterations.inc();
         result = iterate(iteration);
         if (result.isTrue()) {
           return result;
@@ -56,7 +58,7 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
       }
       //Check postponed iterations
       for (O i : postponedIterations) {
-        shutdownNotifier.shutdownIfNecessary();
+        numberOfPostponedIterations.inc();
         result = iterate(i);
         if (result.isTrue()) {
           return result;
@@ -75,7 +77,7 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
   }
 
   private RefinementResult iterate(O iteration) throws CPAException, InterruptedException {
-    numOfIterations.inc();
+    shutdownNotifier.shutdownIfNecessary();
     RefinementResult result = wrappedRefiner.performBlockRefinement(iteration);
 
     if (result.isTrue()) {
@@ -109,7 +111,8 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
   public final void printStatistics(StatisticsWriter pOut) {
     StatisticsWriter writer = pOut.spacer()
         .put(totalTimer)
-        .put(numOfIterations);
+        .put(numOfIterations)
+        .put(numberOfPostponedIterations);
 
     printDetailedStatistics(writer);
     wrappedRefiner.printStatistics(writer);
