@@ -83,7 +83,7 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
       return previousState.copy();
     } else {
       // possible after totalReset
-      return createInitialLocalState();
+      return copy(new HashMap<>(), RESETED_STATE);
     }
   }
 
@@ -96,7 +96,11 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
   }
 
   public LocalState totalReset() {
-    return copy(new HashMap<>(), RESETED_STATE);
+    LocalState newState = copy(new HashMap<>(), RESETED_STATE);
+    for (AbstractIdentifier key : DataInfo.keySet()) {
+      newState.putIntoDataInfo(key, DataType.GLOBAL);
+    }
+    return newState;
   }
 
   protected LocalState copy(LocalState pPreviousState) {
@@ -168,10 +172,11 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
   }
 
   public void set(AbstractIdentifier name, DataType type) {
-    if (name.isGlobal() || !name.isDereferenced() || name instanceof ConstantIdentifier) {
+    if (name.isGlobal() || name instanceof ConstantIdentifier) {
       // Don't save obvious information
       return;
     }
+    // Save not dereferenced memory, as some local variable may be stored into shared collection
 
     // Do not care about old value of the target id
     if (checkSharednessOfComposedIds(name)) {

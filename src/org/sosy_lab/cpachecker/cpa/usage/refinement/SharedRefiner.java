@@ -82,6 +82,7 @@ public class SharedRefiner extends GenericSinglePathRefiner {
       assert (usageState != null);
       fullPath.add(Pair.of(usageState, edge));
 
+      // TODO loops with equal nodes
       if (sharedUsage.getCFANode().equals(edge.getSuccessor())) {
 
         if (usageState.getType(usageId) == LocalState.DataType.LOCAL) {

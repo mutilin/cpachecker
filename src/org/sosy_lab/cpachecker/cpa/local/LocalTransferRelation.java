@@ -97,14 +97,17 @@ public class LocalTransferRelation
   @Option(description = "use region based identifiers", secure = true)
   private boolean regionBasedIdentifiers = false;
 
+  // Used in preanalysis
+  @Option(description = "Use refinement procedure", secure = true)
+  private boolean refinement = true;
+
+  @Option(description = "Set data as shared if the address passed to any function", secure = true)
+  private boolean conservativePointerArgs = false;
+
   private final Map<String, Integer> allocateInfo;
   private final Optional<VariableClassification> varClassification;
 
   private final LocalStatistics stats;
-
-  // Used in preanalysis
-  @Option(description = "Use refinement procedure", secure = true)
-  private boolean refinement = true;
 
   public LocalTransferRelation(
       Configuration config,
@@ -216,6 +219,10 @@ public class LocalTransferRelation
       // Note, index starts from in configuration
       if (allocParameter > 0 && allocParameter == i + 1) {
         completeSet(newElement, pairId.getFirst(), pairId.getThird(), DataType.LOCAL);
+      } else if (conservativePointerArgs && pairId.getThird() > 0) {
+        // An address is transfered to some function
+        // It may become shared
+        completeSet(newElement, pairId.getFirst(), pairId.getThird(), DataType.GLOBAL);
       } else {
         completeAssign(newElement, pairId.getFirst(), pairId.getThird(), pairId.getSecond());
       }
@@ -259,6 +266,16 @@ public class LocalTransferRelation
   protected LocalState handleStatementEdge(CStatementEdge cfaEdge, CStatement statement) {
 
     LocalState newState = state.copy();
+
+    if (statement instanceof CThreadCreateStatement) {
+      // EMG may create a dummy thread without parameters
+      // And real thread may get arguments. So, cannot identify, what data becomes shared
+      // And have to reset all
+      // It is important in probe function,
+      // Where data is allocated and becomes shared
+      // So, we reset all data
+      return newState.totalReset();
+    }
     if (statement instanceof CAssignment) {
       // assignment like "a = b" or "a = foo()"
       CAssignment assignment = (CAssignment) statement;

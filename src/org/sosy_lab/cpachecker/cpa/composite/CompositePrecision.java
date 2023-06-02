@@ -13,13 +13,11 @@ import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
-
+import java.util.List;
+import java.util.function.BiFunction;
 import org.sosy_lab.cpachecker.core.interfaces.AdjustablePrecision;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.WrapperPrecision;
-
-import java.util.List;
-import java.util.function.BiFunction;
 
 class CompositePrecision implements WrapperPrecision, AdjustablePrecision {
 
@@ -123,6 +121,8 @@ class CompositePrecision implements WrapperPrecision, AdjustablePrecision {
       BiFunction<AdjustablePrecision, AdjustablePrecision, AdjustablePrecision> adjustFunction) {
 
     ImmutableList.Builder<Precision> newPrecisions = ImmutableList.builder();
+    boolean changed = false;
+    boolean tried = false;
 
     for (int i = 0; i < this.precisions.size(); i++) {
       Precision currentPrecision = this.get(i);
@@ -147,12 +147,23 @@ class CompositePrecision implements WrapperPrecision, AdjustablePrecision {
           "Precision %s does not support adjusting precision",
           adjustedPrecision.getClass());
 
+      tried = true;
       Precision newPrecision =
               adjustFunction.apply(
                       (AdjustablePrecision) currentPrecision, (AdjustablePrecision) adjustedPrecision);
-      newPrecisions.add(newPrecision);
+      if (newPrecision.equals(currentPrecision)) {
+        newPrecisions.add(currentPrecision);
+      } else {
+        newPrecisions.add(newPrecision);
+        changed = true;
+      }
     }
-    return new CompositePrecision(newPrecisions.build());
+    if (changed) {
+      return new CompositePrecision(newPrecisions.build());
+    } else {
+      assert tried : "Unknown precision to adjust " + pOtherPrecision.getClass();
+      return this;
+    }
   }
 
   @Override

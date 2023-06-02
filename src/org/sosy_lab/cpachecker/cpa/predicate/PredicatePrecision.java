@@ -411,7 +411,8 @@ public final class PredicatePrecision implements AdjustablePrecision {
     if (prec.isEmpty()) {
       return this;
     }
-    return new PredicatePrecision(
+    PredicatePrecision newPrec =
+        new PredicatePrecision(
         Iterables.concat(
             getLocationInstancePredicates().entries(),
             prec.getLocationInstancePredicates().entries()),
@@ -419,6 +420,10 @@ public final class PredicatePrecision implements AdjustablePrecision {
         Iterables.concat(getFunctionPredicates().entries(), prec.getFunctionPredicates().entries()),
         Iterables.concat(getGlobalPredicates(), prec.getGlobalPredicates()),
         Iterables.concat(getNodesWithCompleteFormulas(), prec.getNodesWithCompleteFormulas()));
+    if (this.equals(newPrec)) {
+      return this;
+    }
+    return newPrec;
   }
 
   /**

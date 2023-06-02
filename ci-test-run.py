@@ -17,26 +17,18 @@ def print_ret(ret):
     if ret:
         print(" ".join(ret.args))
         print(ret.stdout)
-        print(ret.stderr)
 
 
-def fail_if_incorrect_verdict(ret, expected, real):
-    def fail():
-        print_ret(ret)
-        raise ValueError("Expected verdict {} and obtain {}".format(expected, real))
-
-    if expected is None:
-        # No expected verdict
-        return
+def check_verdict(expected, real):
+    if not expected:
+        # If there is no expected verdict
+        # and the run failed, need to fail
+        return real not in ['ERROR', 'ASSERTION', 'EXCEPTION']
     if type(expected) is list:
         # Several possible verdicts, like flacky false-timeout
-        for exp in expected:
-            if exp == real:
-                return
-        fail()
+        return real in expected
     else:
-        if expected != real:
-            fail()
+        return expected == real
 
 
 def parse_verdict(ret):
@@ -51,39 +43,32 @@ def parse_verdict(ret):
                       'Error: ': 'ERROR'}
 
     for m, v in match_verdicts.items():
-        if re.search(m, ret.stderr):
+        if re.search(m, ret.stdout):
             return v
 
     print_ret(ret)
     raise ValueError("No verification result")
 
 
-def call_cpachecker(options, program, expected, timeout=900):
+def call_cpachecker(options, program, timeout=900):
     try:
-        print("  Run CPALockator for {}".format(program))
+        # print("  Run CPALockator for {}".format(program))
         cmd_line = cpa_bin + options + [program]
 
-        tic = time.perf_counter()
-        ret = subprocess.run(cmd_line, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=timeout)
-        toc = time.perf_counter()
-        print("  Elapsed time: {:0.2f}s".format(toc - tic))
-
-        if ret.returncode != 0 and not expected:
-            # If there is no expected verdict
-            # and the run failed, need to fail
-            print_ret(ret)
-            raise ValueError("Test failed without expected verdict")
+        # tic = time.perf_counter()
+        ret = subprocess.run(cmd_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=timeout)
+        # toc = time.perf_counter()
+        # print("  Elapsed time: {:0.2f}s".format(toc - tic))
 
         verdict = parse_verdict(ret)
 
     except subprocess.TimeoutExpired as e:
         # May not be an error
-        print("  CPALockator exceeds the timelimit {}".format(timeout))
-
+        # print("  CPALockator exceeds the timelimit {}".format(timeout))
+        ret = e
         verdict = 'TIMEOUT'
-        ret = None
 
-    fail_if_incorrect_verdict(ret, expected, verdict)
+    return [ret, verdict]
 
 
 def prepare_options(config_name, options):
@@ -124,7 +109,7 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
         else:
             expected = None
 
-        async_res.append([pool.apply_async(call_cpachecker, args=[options, test, expected, timeout]), test])
+        async_res.append([pool.apply_async(call_cpachecker, args=[options, test, timeout]), test, expected])
 
     pool.close()
     pool.join()
@@ -135,11 +120,13 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
     for res in async_res:
         ret = res[0]
         test = res[1]
-        try:
-            ret.get()
-        except ValueError:
-            # test failure in subprocess
-            failed_tests.append(test)
+        result = ret.get()
+        real = result[1]
+        expected = res[2]
+
+        if not check_verdict(expected, real):
+            ret = result[0]
+            failed_tests.append([test, expected, real, ret])
 
     toc = time.perf_counter()
     fail_num = len(failed_tests)
@@ -147,7 +134,23 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
     print("Elapsed time: {:0.2f}s".format(toc - tic))
     if fail_num > 0:
         print("Failed tests:")
-        print("\n".join(failed_tests))
+        for triple in failed_tests:
+            print(f"{triple[0]}, expected: {triple[1]}, got: {triple[2]}\n")
+            if triple[3]:
+                f_name = os.path.basename(triple[0]) + "-log.txt"
+                if isinstance(triple[3], subprocess.TimeoutExpired):
+                    # Timeout info
+                    file_p = open(f_name, 'w', encoding="utf-8")
+                    file_p.write(" ".join(triple[3].cmd) + "\n")
+                    file_p.close()
+                    file_p = open(f_name, 'ab')
+                    file_p.write(triple[3].stdout)
+                    file_p.close()
+                else:
+                    # Normal run
+                    with open(f_name, 'w', encoding="utf-8") as file_p:
+                        file_p.write(" ".join(triple[3].args))
+                        file_p.write(triple[3].stdout)
 
         raise ValueError("{} failed tests".format(fail_num))
 
@@ -158,7 +161,7 @@ def strip_start(text, prefix):
     return text
 
 
-def run_job(job_file, is_wip_run):
+def run_job(job_file, is_wip_run, job_name: str):
     def get_from_extends(config, key, default=None):
         if key in config:
             return config[key]
@@ -176,6 +179,9 @@ def run_job(job_file, is_wip_run):
         job_config = yaml.safe_load(file)
 
         for desc, task_config in job_config.items():
+            if job_name:
+                if desc != job_name:
+                    continue
             # Default is not WIP
             is_wip_task = get_from_extends(task_config, 'wip', True)
             if not is_wip_task and is_wip_run:
@@ -190,6 +196,8 @@ def run_job(job_file, is_wip_run):
                 options = prepare_options(cpa_config, to_setprop)
             else:
                 options = [cpa_config] + add_setprop(to_setprop)
+
+            options.append("-stats")
 
             spec = get_from_extends(task_config, 'spec')
             if spec:
@@ -229,8 +237,9 @@ if __name__ == "__main__":
     parser.add_argument('tests', metavar='job_file', type=str, nargs='+',
                         help='job descriptions')
     parser.add_argument('--is_wip', action='store_true', default=False, help='wip run, which is ')
+    parser.add_argument('--job_name', type=str, help='job name to launch')
 
     args = parser.parse_args()
     if args.tests:
         for test_name in args.tests:
-            run_job(test_name, args.is_wip)
+            run_job(test_name, args.is_wip, args.job_name)

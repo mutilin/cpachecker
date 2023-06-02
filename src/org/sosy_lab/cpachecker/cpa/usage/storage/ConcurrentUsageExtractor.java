@@ -407,10 +407,15 @@ public class ConcurrentUsageExtractor {
           if (manager != null && manager.hasInitialState(state)) {
             ARGState argState = (ARGState) state;
             for (ARGState child : argState.getChildren()) {
-              AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
-              ReachedSet innerReached = manager.getReachedSetForInitialState(state, reducedChild);
+              if (manager.hasExpandedState(child)) {
+                // A destroyed state may be in BAM cache because
+                // It is destroyed after stop after expanding in caller block
+                // So, ignore it
+                AbstractState reducedChild = manager.getReducedStateForExpandedState(child);
+                ReachedSet innerReached = manager.getReachedSetForInitialState(state, reducedChild);
 
-              processReachedSet(state, innerReached, delta, stack);
+                processReachedSet(state, innerReached, delta, stack);
+              }
             }
           } else if (manager != null && manager.hasInitialStateWithoutExit(state)) {
             // Likely thread functions

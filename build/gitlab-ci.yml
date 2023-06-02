@@ -159,6 +159,10 @@ refaster:
     - build-dependencies
     - build:jdk-11
   interruptible: true
+  artifacts:
+    paths:
+      - "*-log.txt"
+    when: on_failure
   before_script:
     - if [ $CI_PIPELINE_SOURCE == 'web' ] ; then FLAGS="" ; else FLAGS="--is_wip" ; fi
   script:

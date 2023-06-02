@@ -8,17 +8,11 @@
 
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
-import static com.google.common.collect.FluentIterable.from;
-
-import com.google.common.base.Predicates;
-import com.google.common.collect.Sets;
 import java.io.PrintStream;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -27,10 +21,8 @@ import org.sosy_lab.common.configuration.Options;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.CPAcheckerResult.Result;
-import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AdjustablePrecision;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
-import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Refiner;
 import org.sosy_lab.cpachecker.core.interfaces.StateSpacePartition;
 import org.sosy_lab.cpachecker.core.interfaces.Statistics;
@@ -41,14 +33,12 @@ import org.sosy_lab.cpachecker.core.reachedset.UnmodifiableReachedSet;
 import org.sosy_lab.cpachecker.cpa.bam.BAMTransferRelation;
 import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateCPA;
 import org.sosy_lab.cpachecker.cpa.predicate.BAMPredicateRefiner;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicatePrecision;
 import org.sosy_lab.cpachecker.cpa.usage.UsageCPA;
 import org.sosy_lab.cpachecker.cpa.usage.UsageReachedSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
-import org.sosy_lab.cpachecker.util.Precisions;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
@@ -107,8 +97,8 @@ public class IdentifierIterator
   private final BAMTransferRelation transfer;
 
   int i = 0;
-  int lastFalseUnsafeSize = -1;
-  int lastTrueUnsafes = 0;
+
+  private boolean noNewPrecision = false;
 
   private final Map<AbstractIdentifier, AdjustablePrecision> precisionMap = new HashMap<>();
 
@@ -147,6 +137,13 @@ public class IdentifierIterator
   public RefinementResult performBlockRefinement(ReachedSet pReached) throws CPAException, InterruptedException {
 
     UsageReachedSet uReached;
+
+    if (noNewPrecision) {
+      // No new precision on last iteration
+      logger.log(Level.WARNING, "No new precision found, stop the refinement");
+      return RefinementResult.createFalse();
+    }
+
     if (pReached instanceof UsageReachedSet) {
       uReached = (UsageReachedSet) pReached;
     } else if (pReached instanceof ForwardingReachedSet) {
@@ -155,25 +152,19 @@ public class IdentifierIterator
       throw new UnsupportedOperationException("UsageRefiner requires UsageReachedSet");
     }
     UsageContainer container = uReached.getUsageContainer();
-    Set<AbstractIdentifier> processedUnsafes = new HashSet<>();
 
     logger.log(Level.INFO, ("Perform US refinement: " + i++));
-    int originUnsafeSize = container.getTotalUnsafeSize();
-    if (lastFalseUnsafeSize == -1) {
-      lastFalseUnsafeSize = originUnsafeSize;
-    }
-    int counter = lastFalseUnsafeSize - originUnsafeSize;
-    boolean newPrecisionFound = false;
+    noNewPrecision = true;
+    boolean hasFalseUnsafes = false;
 
     sendUpdateSignal(PredicateRefinerAdapter.class, pReached);
     sendUpdateSignal(PointIterator.class, container);
 
     Iterator<AbstractIdentifier> iterator = container.getUnrefinedUnsafeIterator();
-    AbstractState firstState = pReached.getFirstState();
-    AdjustablePrecision finalPrecision = (AdjustablePrecision) pReached.getPrecision(firstState);
+    CFANode firstNode = AbstractStates.extractLocation(pReached.getFirstState());
     AdjustablePrecision initialPrecision =
-        (AdjustablePrecision) cpa.getInitialPrecision(
-            AbstractStates.extractLocation(firstState),
+        (AdjustablePrecision) cpa
+            .getInitialPrecision(firstNode,
             StateSpacePartition.getDefaultPartition());
 
     while (iterator.hasNext()) {
@@ -188,15 +179,14 @@ public class IdentifierIterator
 
       if (result.isTrue()) {
         container.setAsRefined(currentId, result);
-        processedUnsafes.add(currentId);
-      } else if (hideFilteredUnsafes && result.isFalse() && !newPrecisionFound) {
+      } else if (hideFilteredUnsafes && result.isFalse() && info.isEmpty()) {
         // We do not add a precision, but consider the unsafe as false
         // set it as false now, because it will occur again, as precision is not changed
         // We can not look at precision size here - the result can be false due to heuristics
         container.setAsFalseUnsafe(currentId);
-        processedUnsafes.add(currentId);
       } else if (!info.isEmpty()) {
         stats.precisionTimer.start();
+        hasFalseUnsafes = true;
         AdjustablePrecision oldPrecision =
             precisionMap.getOrDefault(currentId, initialPrecision);
         AdjustablePrecision updatedPrecision = oldPrecision;
@@ -208,64 +198,61 @@ public class IdentifierIterator
         assert !updatedPrecision.isEmpty() : "Updated precision is expected to be not empty";
         if (!updatedPrecision.equals(oldPrecision)) {
           precisionMap.put(currentId, updatedPrecision);
-          finalPrecision = finalPrecision.add(updatedPrecision);
-          newPrecisionFound = true;
+          // Need to restart the analysis to reproduce all unsafes
+          // For example, we may remove some usage points
+          noNewPrecision = false;
         }
         stats.precisionTimer.stop();
 
       }
     }
-    int newTrueUnsafeSize = container.getProcessedUnsafeSize();
-    counter += (newTrueUnsafeSize - lastTrueUnsafes);
+    int counter = container.getFalseUnsafes().size() + container.getProcessedUnsafeSize();
     if (counter >= precisionReset) {
-      Precision p = pReached.getPrecision(pReached.getFirstState());
-      pReached.updatePrecision(pReached.getFirstState(),
-          Precisions.replaceByType(p, PredicatePrecision.empty(), Predicates.instanceOf(PredicatePrecision.class)));
+      precisionMap.clear();
 
       //TODO will we need other finish signal?
       //wrappedRefiner.finish(getClass());
-      lastFalseUnsafeSize = originUnsafeSize;
-      lastTrueUnsafes = newTrueUnsafeSize;
     }
-    if (newPrecisionFound) {
-      stats.finishingTimer.start();
-      if (disableAllCaching) {
-        BAMPredicateCPA bamcpa = CPAs.retrieveCPA(cpa, BAMPredicateCPA.class);
-        if (bamcpa != null) {
-          bamcpa.clearAllCaches();
-        }
+
+    stats.finishingTimer.start();
+    if (disableAllCaching) {
+      BAMPredicateCPA bamcpa = CPAs.retrieveCPA(cpa, BAMPredicateCPA.class);
+      if (bamcpa != null) {
+        bamcpa.clearAllCaches();
       }
-      // ARGState.clearIdGenerator();
-      // Note the following clean should be done always independently from option disableAllCaching
-      if (totalARGCleaning && transfer != null) {
-        transfer.cleanCaches();
-      } else {
-        /* MultipleARGSubtreeRemover subtreesRemover = transfer.getMultipleARGSubtreeRemover();
-        subtreesRemover.cleanCaches();*/
-      }
-      pReached.clear();
-
-      processedUnsafes.addAll(
-          Sets.intersection(precisionMap.keySet(), container.getFalseUnsafes()));
-      for (AdjustablePrecision prec :
-              from(processedUnsafes)
-              .transform(precisionMap::remove)
-              .filter(Predicates.notNull())) {
-        finalPrecision = finalPrecision.subtract(prec);
-      }
-
-      CFANode firstNode = AbstractStates.extractLocation(firstState);
-      //Get new state to remove all links to the old ARG
-      pReached.add(cpa.getInitialState(firstNode, StateSpacePartition.getDefaultPartition()), finalPrecision);
-
-      //TODO should we signal about removed ids?
-
-      sendFinishSignal();
-      stats.finishingTimer.stop();
     }
+    // ARGState.clearIdGenerator();
+    // Note the following clean should be done always independently from option disableAllCaching
+    if (totalARGCleaning && transfer != null) {
+      transfer.cleanCaches();
+    } else {
+      /*
+       * MultipleARGSubtreeRemover subtreesRemover = transfer.getMultipleARGSubtreeRemover();
+       * subtreesRemover.cleanCaches();
+       */
+    }
+
+    // Compose a new final precision, to avoid subtracting
+    // And problems, if we remove precision, which is also present for other id
+    AdjustablePrecision finalPrecision = initialPrecision;
+    for (AdjustablePrecision val : precisionMap.values()) {
+      finalPrecision = finalPrecision.add(val);
+    }
+    pReached.clear();
+
+    // Get new state to remove all links to the old ARG
+    pReached.add(
+        cpa.getInitialState(firstNode, StateSpacePartition.getDefaultPartition()),
+        finalPrecision);
+
+    // TODO should we signal about removed ids?
+
+    sendFinishSignal();
+    stats.finishingTimer.stop();
     logger.log(Level.INFO, container.getUnsafeStatus());
     //pStat.UnsafeCheck.stopIfRunning();
-    if (newPrecisionFound) {
+    if (hasFalseUnsafes) {
+      // Restart analysis in any case
       return RefinementResult.createTrue();
     } else {
       return RefinementResult.createFalse();

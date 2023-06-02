@@ -22,3 +22,6 @@ Klever Testing-Requirement-specifications rcu:
   config: "-rcucpa"
   benchmarks:
     - Linux-Testing-Requirement-specifications/*--concurrency-safety---rcu--*.i
+Klever Testing-Requirement-specifications shared ref:
+  extends: Klever Testing-Requirement-specifications simple
+  config: "-lockator-linux-shared-ref"
