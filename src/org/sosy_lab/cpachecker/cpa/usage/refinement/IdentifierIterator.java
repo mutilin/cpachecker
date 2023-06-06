@@ -98,8 +98,6 @@ public class IdentifierIterator
 
   int i = 0;
 
-  private boolean noNewPrecision = false;
-
   private final Map<AbstractIdentifier, AdjustablePrecision> precisionMap = new HashMap<>();
 
   public IdentifierIterator(
@@ -138,12 +136,6 @@ public class IdentifierIterator
 
     UsageReachedSet uReached;
 
-    if (noNewPrecision) {
-      // No new precision on last iteration
-      logger.log(Level.WARNING, "No new precision found, stop the refinement");
-      return RefinementResult.createFalse();
-    }
-
     if (pReached instanceof UsageReachedSet) {
       uReached = (UsageReachedSet) pReached;
     } else if (pReached instanceof ForwardingReachedSet) {
@@ -154,8 +146,7 @@ public class IdentifierIterator
     UsageContainer container = uReached.getUsageContainer();
 
     logger.log(Level.INFO, ("Perform US refinement: " + i++));
-    noNewPrecision = true;
-    boolean hasFalseUnsafes = false;
+    boolean noNewPrecision = true;
 
     sendUpdateSignal(PredicateRefinerAdapter.class, pReached);
     sendUpdateSignal(PointIterator.class, container);
@@ -186,7 +177,6 @@ public class IdentifierIterator
         container.setAsFalseUnsafe(currentId);
       } else if (!info.isEmpty()) {
         stats.precisionTimer.start();
-        hasFalseUnsafes = true;
         AdjustablePrecision oldPrecision =
             precisionMap.getOrDefault(currentId, initialPrecision);
         AdjustablePrecision updatedPrecision = oldPrecision;
@@ -206,12 +196,14 @@ public class IdentifierIterator
 
       }
     }
+
+    if (noNewPrecision) {
+      return RefinementResult.createFalse();
+    }
+
     int counter = container.getFalseUnsafes().size() + container.getProcessedUnsafeSize();
     if (counter >= precisionReset) {
       precisionMap.clear();
-
-      //TODO will we need other finish signal?
-      //wrappedRefiner.finish(getClass());
     }
 
     stats.finishingTimer.start();
@@ -250,13 +242,7 @@ public class IdentifierIterator
     sendFinishSignal();
     stats.finishingTimer.stop();
     logger.log(Level.INFO, container.getUnsafeStatus());
-    //pStat.UnsafeCheck.stopIfRunning();
-    if (hasFalseUnsafes) {
-      // Restart analysis in any case
-      return RefinementResult.createTrue();
-    } else {
-      return RefinementResult.createFalse();
-    }
+    return RefinementResult.createTrue();
   }
 
   @Override

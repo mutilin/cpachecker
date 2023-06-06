@@ -210,12 +210,13 @@ public class RefinementBlockFactory {
             break;
 
           case SharedRefiner:
-            //LocalCPA CPAForSharedRefiner = CPAs.retrieveCPA(cpa, LocalCPA.class);
-            //assert(CPAForSharedRefiner != null);
-            LocalTransferRelation RelationForSharedRefiner =
+            LocalTransferRelation relationForSharedRefiner =
                 new LocalTransferRelation(config, logger, usCPA.getCFA().getVarClassification());
 
-            currentBlock = new SharedRefiner((ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>>) currentBlock, RelationForSharedRefiner);
+            currentBlock =
+                new SharedRefiner(
+                    (ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>>) currentBlock,
+                    relationForSharedRefiner);
 
             break;
 

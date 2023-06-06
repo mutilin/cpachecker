@@ -8,9 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Set;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.cpachecker.cpa.usage.storage.AbstractUsagePointSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UnrefinedUsagePointSet;
@@ -20,8 +18,7 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsagePoint;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
-import org.sosy_lab.cpachecker.util.statistics.StatInt;
-import org.sosy_lab.cpachecker.util.statistics.StatKind;
+import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class PointIterator
@@ -39,8 +36,7 @@ public class PointIterator
 
   private UnrefinedUsagePointSet currentUsagePointSet;
 
-  private Set<UsagePoint> toRemove = new HashSet<>();
-  private final StatInt removedPoints = new StatInt(StatKind.SUM, "Removed empty usage points");
+  private final StatCounter removedPoints = new StatCounter("Removed empty usage points");
 
   public PointIterator(
       ConfigurableRefinementBlock<Pair<UsageInfoSet, UsageInfoSet>> pWrapper,
@@ -68,22 +64,26 @@ public class PointIterator
     assert currentUsagePointSet == pointSet;
 
     do {
-      if (!secondPointIterator.hasNext()) {
+      if (!secondPointIterator.hasNext() || currentUsagePointSet.getUsageInfo(firstPoint) == null) {
         if (!firstPointIterator.hasNext()) {
           return null;
         }
         firstPoint = firstPointIterator.next();
         //Start from first point to save the time
         secondPointIterator = currentUsagePointSet.getPointIteratorFrom(firstPoint);
-        assert secondPointIterator.hasNext();
+        if (!secondPointIterator.hasNext()) {
+          // All points are removed
+          return null;
+        }
       }
       secondPoint = secondPointIterator.next();
 
       assert firstPoint != null && secondPoint != null;
 
     } while (!detector.isUnsafePair(firstPoint, secondPoint)
-        || toRemove.contains(firstPoint)
-        || toRemove.contains(secondPoint));
+        // The point was removed
+        || currentUsagePointSet.getUsageInfo(firstPoint) == null
+        || currentUsagePointSet.getUsageInfo(secondPoint) == null);
 
     Pair<UsageInfoSet, UsageInfoSet> resultingPair = prepareIterationPair(firstPoint, secondPoint);
     if (firstPoint == secondPoint) {
@@ -102,15 +102,9 @@ public class PointIterator
       secondUsageInfoSet = secondUsageInfoSet.copy();
     }
 
+    assert firstUsageInfoSet != null;
     assert secondUsageInfoSet != null;
     return Pair.of(firstUsageInfoSet, secondUsageInfoSet);
-  }
-
-  @Override
-  protected void finish(AbstractIdentifier pId, RefinementResult r) {
-    toRemove.forEach(currentUsagePointSet::remove);
-    removedPoints.setNextValue(toRemove.size());
-    toRemove.clear();
   }
 
   @Override
@@ -118,14 +112,15 @@ public class PointIterator
     UsageInfoSet firstUsageInfoSet = pPair.getFirst();
     UsageInfoSet secondUsageInfoSet = pPair.getSecond();
 
-    if (firstUsageInfoSet.isEmpty()) {
-      //No reachable usages - remove point
-      toRemove.add(firstPoint);
+    if (secondUsageInfoSet.isEmpty()) {
+      // No reachable usages - remove point
+      currentUsagePointSet.remove(secondPoint);
+      removedPoints.inc();
     }
-    if (secondUsageInfoSet.isEmpty()
-        || (firstUsageInfoSet.isEmpty() && firstPoint == secondPoint)) {
+    if (firstUsageInfoSet.isEmpty() && firstPoint != secondPoint) {
       //No reachable usages - remove point
-      toRemove.add(secondPoint);
+      currentUsagePointSet.remove(firstPoint);
+      removedPoints.inc();
     }
   }
 

@@ -164,7 +164,7 @@ public class SharedRefiner extends GenericSinglePathRefiner {
       getAssignedIds(CFAEdge edge, AbstractIdentifier id, LocalState prev)
           throws CPATransferException, InterruptedException {
 
-    LocalState initialState = prev.totalReset();
+    LocalState initialState = prev.resetWithPrevious();
 
     if (checkStep(initialState, edge, id)) {
       // Result is independent from the state

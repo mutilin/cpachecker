@@ -95,6 +95,10 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
     return copy(new HashMap<>(), this.previousState);
   }
 
+  public LocalState resetWithPrevious() {
+    return copy(new HashMap<>(), createInitialLocalState());
+  }
+
   public LocalState totalReset() {
     LocalState newState = copy(new HashMap<>(), RESETED_STATE);
     for (AbstractIdentifier key : DataInfo.keySet()) {
