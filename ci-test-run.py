@@ -84,7 +84,21 @@ def add_setprop(options):
     return result
 
 
-def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeout):
+def get_from_extends(config, main_config, key, default=None):
+    if key in config:
+        return config[key]
+    if 'extends' in config:
+        ext_name = config['extends']
+        if ext_name in main_config:
+            extended_config = main_config[ext_name]
+            return get_from_extends(extended_config, main_config, key, default)
+        else:
+            print(f"Unknown extends name {ext_name}")
+
+    return default
+
+
+def run_cpachecker_on_set(options, test_results, key, benchmarks, prefix, parallel, timeout):
     proc_num = 2 if parallel else 1
     pool = Pool(processes=proc_num)
     async_res = []
@@ -101,11 +115,13 @@ def run_cpachecker_on_set(options, verdicts, benchmarks, prefix, parallel, timeo
 
     tic = time.perf_counter()
     for test in test_set:
-        if verdicts:
+        if test_results:
+            verdicts = test_results[key]
             if prefix:
-                expected = verdicts[strip_start(test, prefix)]
+                verdict_key = strip_start(test, prefix)
             else:
-                expected = verdicts[test]
+                verdict_key = test
+            expected = get_from_extends(verdicts, test_results, verdict_key)
         else:
             expected = None
 
@@ -162,19 +178,6 @@ def strip_start(text, prefix):
 
 
 def run_job(job_file, is_wip_run, job_name: str):
-    def get_from_extends(config, key, default=None):
-        if key in config:
-            return config[key]
-        if 'extends' in config:
-            ext_name = config['extends']
-            if ext_name in job_config:
-                extended_config = job_config[ext_name]
-                return get_from_extends(extended_config, key, default)
-            else:
-                print(f"Unknown extends name {ext_name}")
-
-        return default
-
     with open(job_file, 'r') as file:
         job_config = yaml.safe_load(file)
 
@@ -183,14 +186,14 @@ def run_job(job_file, is_wip_run, job_name: str):
                 if desc != job_name:
                     continue
             # Default is not WIP
-            is_wip_task = get_from_extends(task_config, 'wip', True)
+            is_wip_task = get_from_extends(task_config, job_config, 'wip', True)
             if not is_wip_task and is_wip_run:
                 # Skip the task
                 continue
 
             print("Start job " + desc)
-            cpa_config = get_from_extends(task_config, 'config')
-            to_setprop = get_from_extends(task_config, 'setprop')
+            cpa_config = get_from_extends(task_config, job_config, 'config')
+            to_setprop = get_from_extends(task_config, job_config, 'setprop')
 
             if "properties" in cpa_config:
                 options = prepare_options(cpa_config, to_setprop)
@@ -199,35 +202,34 @@ def run_job(job_file, is_wip_run, job_name: str):
 
             options.append("-stats")
 
-            spec = get_from_extends(task_config, 'spec')
+            spec = get_from_extends(task_config, job_config, 'spec')
             if spec:
                 options += ["-spec", spec]
 
-            more_options = get_from_extends(task_config, 'options')
+            more_options = get_from_extends(task_config, job_config, 'options')
             if more_options:
                 options += more_options
 
-            is_parallel = get_from_extends(task_config, 'parallel', False)
-            prefix = get_from_extends(task_config, 'prefix')
+            is_parallel = get_from_extends(task_config, job_config, 'parallel', False)
+            prefix = get_from_extends(task_config, job_config, 'prefix')
 
-            v_file = get_from_extends(task_config, 'verdicts')
+            v_file = get_from_extends(task_config, job_config, 'verdicts')
             if v_file:
                 with open(v_file, 'r') as vfile:
                     test_results = yaml.safe_load(vfile)
-                    verdicts = test_results[cpa_config]
             else:
                 print("Ideal verdicts are not found")
-                verdicts = None
+                test_results = None
 
-            timeout = get_from_extends(task_config, 'timeout', 900)
+            timeout = get_from_extends(task_config, job_config, 'timeout', 900)
 
-            benchmarks = get_from_extends(task_config, 'benchmarks')
+            benchmarks = get_from_extends(task_config, job_config, 'benchmarks')
             if benchmarks:
                 if type(benchmarks) is list:
                     for bench in benchmarks:
-                        run_cpachecker_on_set(options, verdicts, bench, prefix, is_parallel, timeout)
+                        run_cpachecker_on_set(options, test_results, cpa_config, bench, prefix, is_parallel, timeout)
                 else:
-                    run_cpachecker_on_set(options, verdicts, benchmarks, prefix, is_parallel, timeout)
+                    run_cpachecker_on_set(options, test_results, cpa_config, benchmarks, prefix, is_parallel, timeout)
             else:
                 print(f"{desc} seems to be abstract job without benchmarks")
 
