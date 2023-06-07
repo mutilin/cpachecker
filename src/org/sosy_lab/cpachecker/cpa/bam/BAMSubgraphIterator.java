@@ -224,25 +224,19 @@ public class BAMSubgraphIterator implements ARGPathIterator {
     if (!hasNextPath) {
       return null;
     }
-    do {
-      if (firstState == null) {
-        // The first time, we have no path to iterate
-        path =
-            subgraphComputer.restorePathFrom(
-                new BackwardARGState(targetState),
-                pRefinedStatesIds,
-                expandedStack);
-      } else {
-        path = computeNextPath(firstState, pRefinedStatesIds);
-      }
-      if (path != null) {
-        // currentPath may become null if it goes through repeated (refined) states
-        firstState = (BackwardARGState) path.getFirstState();
-      }
-    } while (path != null
-        && subgraphComputer.checkThePathHasRepeatedStates(path, pRefinedStatesIds));
-
-    if (path == null) {
+    if (firstState == null) {
+      // The first time, we have no path to iterate
+      path =
+          subgraphComputer
+              .restorePathFrom(new BackwardARGState(targetState), pRefinedStatesIds, expandedStack);
+    } else {
+      path = computeNextPath(firstState, pRefinedStatesIds);
+    }
+    if (path != null) {
+      assert !subgraphComputer.checkThePathHasRepeatedStates(path, pRefinedStatesIds);
+      firstState = (BackwardARGState) path.getFirstState();
+    } else {
+      // currentPath may become null if it goes through repeated (refined) states
       hasNextPath = false;
     }
 

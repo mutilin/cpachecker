@@ -23,9 +23,9 @@
  */
 package org.sosy_lab.cpachecker.cpa.usage;
 
-import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 public interface LocalInfoProvider {
-  boolean isLocal(GeneralIdentifier id);
+  boolean isLocal(AbstractIdentifier id);
 
 }

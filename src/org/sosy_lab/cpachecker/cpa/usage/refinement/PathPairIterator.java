@@ -15,6 +15,7 @@ import com.google.common.base.Preconditions;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -36,7 +37,8 @@ public class PathPairIterator extends
   private final Set<List<Integer>> refinedStates = new HashSet<>();
   private PathRestorator subgraphComputer;
   private final Set<Integer> skippedStates;
-  private final Map<UsageInfo, ExtendedARGPath> refinedPaths = new HashMap<>();
+  // Not only refined, but also not checked
+  private final Map<UsageInfo, ExtendedARGPath> calculatedPaths = new HashMap<>();
 
   private final StatInt refinedStateNum =
       new StatInt(StatKind.SUM, "Number of stored refined states");
@@ -161,17 +163,17 @@ public class PathPairIterator extends
 
   private void removeAsUnreachable(ExtendedARGPath pPath) {
     UsageInfo key = pPath.getUsageInfo();
-    if (refinedPaths.containsKey(key)) {
-      refinedPaths.remove(key);
+    if (calculatedPaths.containsKey(key)) {
+      calculatedPaths.remove(key);
     }
   }
 
   private void addAsReachable(ExtendedARGPath pPath) {
     UsageInfo key = pPath.getUsageInfo();
-    if (refinedPaths.containsKey(key)) {
-      assert refinedPaths.get(key) == pPath;
+    if (calculatedPaths.containsKey(key)) {
+      assert calculatedPaths.get(key) == pPath;
     } else {
-      refinedPaths.put(key, pPath);
+      calculatedPaths.put(key, pPath);
     }
   }
 
@@ -179,10 +181,10 @@ public class PathPairIterator extends
   protected void finish(Pair<UsageInfo, UsageInfo> pInput, RefinementResult pResult) {
     if (pResult.isFalse()) {
       List<UsageInfo> unreacheableUsages = new ArrayList<>();
-      if (!refinedPaths.containsKey(pInput.getFirst())) {
+      if (!calculatedPaths.containsKey(pInput.getFirst())) {
         unreacheableUsages.add(pInput.getFirst());
       }
-      if (!refinedPaths.containsKey(pInput.getSecond())) {
+      if (!calculatedPaths.containsKey(pInput.getSecond())) {
         unreacheableUsages.add(pInput.getSecond());
       }
 
@@ -200,7 +202,7 @@ public class PathPairIterator extends
       iterators.clear();
     } else if (callerClass.equals(PointIterator.class)) {
       skippedStates.clear();
-      refinedPaths.clear();
+      calculatedPaths.clear();
     }
   }
 
@@ -208,8 +210,13 @@ public class PathPairIterator extends
   protected ExtendedARGPath getNextIteration0(int pId) {
     ARGPath currentPath;
 
-    if (refinedPaths.containsKey(usages.get(pId))) {
-      return refinedPaths.get(usages.get(pId));
+    if (calculatedPaths.containsKey(usages.get(pId))) {
+      ExtendedARGPath path = calculatedPaths.get(usages.get(pId));
+      if (!isRepeated(path)) {
+        return path;
+      }
+      // Means, that the path was not refined, when stored in calculatedPaths
+      calculatedPaths.remove(usages.get(pId));
     }
     AbstractState keyState = usages.get(pId).getKeyState();
     if (skippedStates.contains(idExtractor.apply((ARGState) keyState))) {
@@ -226,15 +233,35 @@ public class PathPairIterator extends
       skippedStates.add(idExtractor.apply((ARGState) usages.get(pId).getKeyState()));
       return null;
     }
+
     ExtendedARGPath result = new ExtendedARGPath(currentPath, usages.get(pId));
     //Not add result now, only after refinement
     return result;
+  }
+
+  private boolean isRepeated(ARGPath path) {
+    List<Integer> changedStateNumbers =
+        transformedImmutableListCopy(path.asStatesList(), idExtractor);
+    for (List<Integer> nums : refinedStates) {
+      if (changedStateNumbers.containsAll(nums)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void handleAffectedStates(List<ARGState> affectedStates) {
     if (affectedStates != null) {
       List<Integer> changedStateNumbers = transformedImmutableListCopy(affectedStates, idExtractor);
       assert !changedStateNumbers.isEmpty();
+      Iterator<List<Integer>> numIterator = refinedStates.iterator();
+      while (numIterator.hasNext()) {
+        List<Integer> nums = numIterator.next();
+        if (nums.containsAll(changedStateNumbers)) {
+          numIterator.remove();
+        }
+        assert !changedStateNumbers.containsAll(nums);
+      }
       refinedStates.add(changedStateNumbers);
       refinedStateNum.setNextValue(changedStateNumbers.size());
     }

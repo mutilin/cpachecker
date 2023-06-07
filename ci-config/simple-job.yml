@@ -34,6 +34,11 @@ lockator-linux-shared-ref on simple:
   benchmarks: test/programs/cpalockator/simple/*.c
   verdicts: ci-config/simple-test-verdicts.yml
   wip: false
+lockator-linux-pre-shared-ref on simple:
+  config: -lockator-linux-pre-shared-ref
+  benchmarks: test/programs/cpalockator/simple/*.c
+  verdicts: ci-config/simple-test-verdicts.yml
+  wip: false
 lockator-threadmodular-linux on simple:
   extends: lockator-linux on simple
   config: -lockator-threadmodular-linux
@@ -55,6 +60,10 @@ lockator-linux-lightweight on threads:
 lockator-linux-shared-ref on threads:
   extends: lockator-linux on threads
   config: -lockator-linux-shared-ref
+  wip: false
+lockator-linux-pre-shared-ref on threads:
+  extends: lockator-linux on threads
+  config: -lockator-linux-pre-shared-ref
   wip: false
 lockator-linux on pointers:
   config: -lockator-linux

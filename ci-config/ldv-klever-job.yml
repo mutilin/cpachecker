@@ -1,5 +1,5 @@
 Bugs found by Klever:
-  config: "-lockator-linux-shared-ref"
+  config: "-lockator-linux-pre-shared-ref"
   setprop:
     - "cpa.callstack.unsupportedFunctions=__VERIFIER_nonexisting_dummy_function"
     - "cpa.predicate.allowedUnsupportedFunctions=memset,memcpy,__builtin_add_overflow,__builtin_mul_overflow,__builtin_va_arg"

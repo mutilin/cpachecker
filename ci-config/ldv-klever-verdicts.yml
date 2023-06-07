@@ -82,7 +82,7 @@
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-no_read_lock-false-no-datarace.ko-concurrency-safety-rcu.cil.i: 'FALSE'
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-no_synchronize-false-no-datarace.ko-concurrency-safety-rcu.cil.i: 'TRUE'
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-true-no-datarace.ko-concurrency-safety-rcu.cil.i: 'TRUE'
--lockator-linux-shared-ref:
+-lockator-linux-pre-shared-ref:
   Linux-Testing-Requirement-specifications/10-ext-modules---linux---concurrency-safety---simple---race.ko-concurrency-safety.cil.i: 'FALSE' 
   Linux-Testing-Requirement-specifications/10-ext-modules---linux---concurrency-safety---simple---race2.ko-concurrency-safety.cil.i: 'FALSE' 
   Linux-Testing-Requirement-specifications/10-ext-modules---linux---concurrency-safety---simple---race3.ko-concurrency-safety.cil.i: 'FALSE' 

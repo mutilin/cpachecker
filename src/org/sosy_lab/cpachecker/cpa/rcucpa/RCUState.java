@@ -47,14 +47,13 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.cpa.usage.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 public class RCUState implements LatticeAbstractState<RCUState>,
     CompatibleNode, LocalInfoProvider, AliasInfoProvider {
   private final ImmutableMultimap<AbstractIdentifier, AbstractIdentifier> rcuRelations;
   private final ImmutableSet<AbstractIdentifier> outdatedRCU;
-  private final ImmutableSet<GeneralIdentifier> localAgain;
+  private final ImmutableSet<SingleIdentifier> localAgain;
   private final LockStateRCU lockState;
   private final ImmutableMap<AbstractIdentifier, AbstractIdentifier> temporaryIds;
 
@@ -62,7 +61,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
       LockStateRCU pLockState,
       ImmutableMultimap<AbstractIdentifier, AbstractIdentifier> pRcuRel,
       ImmutableSet<AbstractIdentifier> pOutdatedRCU,
-      ImmutableSet<GeneralIdentifier> pLocalAgain,
+      ImmutableSet<SingleIdentifier> pLocalAgain,
       ImmutableMap<AbstractIdentifier, AbstractIdentifier> pTmpMapping) {
     lockState = pLockState;
     rcuRelations = pRcuRel;
@@ -89,7 +88,7 @@ public class RCUState implements LatticeAbstractState<RCUState>,
     Set<AbstractIdentifier> newOutdated = new TreeSet<>(this.outdatedRCU);
     newOutdated.addAll(other.outdatedRCU);
 
-    Set<GeneralIdentifier> newLocal = new TreeSet<>(this.localAgain);
+    Set<SingleIdentifier> newLocal = new TreeSet<>(this.localAgain);
     newLocal.addAll(other.localAgain);
 
     Map<AbstractIdentifier, AbstractIdentifier> newTmp = new TreeMap<>(this.temporaryIds);
@@ -128,11 +127,10 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   }
 
   RCUState fillLocal() {
-    ImmutableSet<GeneralIdentifier> local =
+    ImmutableSet<SingleIdentifier> local =
         FluentIterable
             .concat(
-                from(outdatedRCU).filter(SingleIdentifier.class)
-                    .transform(SingleIdentifier::getGeneralId),
+                from(outdatedRCU).filter(SingleIdentifier.class),
                 localAgain)
             .toSet();
 
@@ -255,10 +253,10 @@ public class RCUState implements LatticeAbstractState<RCUState>,
   }
 
   @Override
-  public boolean isLocal(GeneralIdentifier id) {
+  public boolean isLocal(AbstractIdentifier id) {
     if (!localAgain.isEmpty()) {
       for (int i = 0; i <= id.getDereference(); i++) {
-        GeneralIdentifier gId = (GeneralIdentifier) id.cloneWithDereference(i);
+        AbstractIdentifier gId = id.cloneWithDereference(i);
         if (localAgain.contains(gId)) {
           return true;
         }

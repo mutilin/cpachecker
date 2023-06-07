@@ -472,39 +472,48 @@ public class UsageProcessor {
           singleId + " is considered to be local, so it wasn't add to statistics");
       // localTimer.stop();
       return;
-    } else {
+    }
 
-      Iterable<LocalInfoProvider> itStates =
-          AbstractStates.asIterable(pChild).filter(LocalInfoProvider.class);
-      boolean isLocal = false;
-      boolean isGlobal = false;
+    Iterable<LocalInfoProvider> itStates =
+        AbstractStates.asIterable(pChild).filter(LocalInfoProvider.class);
 
-      for (AbstractIdentifier id : singleId.getComposedIdentifiers()) {
-        if (id instanceof SingleIdentifier) {
-          GeneralIdentifier gcId = ((SingleIdentifier) id).getGeneralId();
-          DataType type = localInfo.get(gcId);
-          if (type == DataType.GLOBAL) {
-            // Add global var to statistics in any case
-            isGlobal = true;
-            break;
-          } else if (type == DataType.LOCAL) {
-            isLocal = true;
-          }
-          for (LocalInfoProvider state : itStates) {
-            isLocal |= state.isLocal(gcId);
-          }
+    boolean isPreciseLocal = false;
+    for (LocalInfoProvider state : itStates) {
+      isPreciseLocal |= state.isLocal(singleId);
+    }
+
+    if (isPreciseLocal) {
+      logger.log(
+          Level.FINER,
+          singleId + " is considered to be local, so it wasn't add to statistics");
+      return;
+    }
+
+    boolean isLocal = false;
+    boolean isGlobal = false;
+
+    for (AbstractIdentifier id : singleId.getComposedIdentifiers()) {
+      if (id instanceof SingleIdentifier) {
+        GeneralIdentifier gcId = ((SingleIdentifier) id).getGeneralId();
+        DataType type = localInfo.get(gcId);
+        if (type == DataType.GLOBAL) {
+          // Add global var to statistics in any case
+          isGlobal = true;
+          break;
+        } else if (type == DataType.LOCAL) {
+          isLocal = true;
+        }
+        for (LocalInfoProvider state : itStates) {
+          isLocal |= state.isLocal(id);
         }
       }
-      for (LocalInfoProvider state : itStates) {
-        isLocal |= state.isLocal(gId);
-      }
-      if (isLocal && !isGlobal) {
-        logger.log(
-            Level.FINER,
-            singleId + " is supposed to be local, so it wasn't add to statistics");
-        // localTimer.stop();
-        return;
-      }
+    }
+
+    if (isLocal && !isGlobal) {
+      logger
+          .log(Level.FINER, singleId + " is supposed to be local, so it wasn't add to statistics");
+      // localTimer.stop();
+      return;
     }
 
     // localTimer.stop();

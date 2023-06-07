@@ -19,14 +19,12 @@ import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.function.BiFunction;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.ConstantIdentifier;
-import org.sosy_lab.cpachecker.util.identifiers.GeneralIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
 public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoProvider {
@@ -154,7 +152,8 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
     return DataInfo.get(name);
   }
 
-  private boolean isLocal(AbstractIdentifier name) {
+  @Override
+  public boolean isLocal(AbstractIdentifier name) {
     return getDataInfo(name) == DataType.LOCAL;
   }
 
@@ -343,17 +342,5 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
       return new LocalStateComplete(oldMap, state, this.alwaysLocalData);
     }
 
-  }
-
-  @Override
-  public boolean isLocal(GeneralIdentifier pId) {
-    for (Entry<AbstractIdentifier, DataType> entry : DataInfo.entrySet()) {
-      if (entry.getValue() == DataType.LOCAL && entry.getKey() instanceof SingleIdentifier) {
-        if (((SingleIdentifier) entry.getKey()).getGeneralId().equals(pId)) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 }
