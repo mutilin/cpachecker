@@ -11,23 +11,23 @@ package org.sosy_lab.cpachecker.cpa.usage.refinement;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Level;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
-import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 
 public class UsagePairIterator
-    extends GenericPairIterator<Pair<UsageInfoSet, UsageInfoSet>, UsageInfo> {
+    extends GenericPairIterator<Pair<Set<UsageInfo>, Set<UsageInfo>>, UsageInfo> {
   private final LogManager logger;
 
   //internal state
   private List<Iterator<UsageInfo>> iterators = new ArrayList<>();
-  private UsageInfoSet secondUsageInfoSet;
+  private Set<UsageInfo> secondUsageInfoSet;
 
   private final StatCounter removedUsages = new StatCounter("Removed empty usages");
 
@@ -41,9 +41,9 @@ public class UsagePairIterator
   }
 
   @Override
-  protected void init(Pair<UsageInfoSet, UsageInfoSet> pInput) {
+  protected void init(Pair<Set<UsageInfo>, Set<UsageInfo>> pInput) {
     super.init(pInput);
-    UsageInfoSet firstUsageInfoSet;
+    Set<UsageInfo> firstUsageInfoSet;
     firstUsageInfoSet = pInput.getFirst();
     secondUsageInfoSet = pInput.getSecond();
     assert !firstUsageInfoSet.isEmpty();

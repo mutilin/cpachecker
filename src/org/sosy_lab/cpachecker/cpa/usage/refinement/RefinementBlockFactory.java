@@ -12,6 +12,7 @@ import com.google.common.base.Function;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -28,7 +29,6 @@ import org.sosy_lab.cpachecker.cpa.lock.LockReducer;
 import org.sosy_lab.cpachecker.cpa.lock.LockTransferRelation;
 import org.sosy_lab.cpachecker.cpa.usage.UsageCPA;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
-import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.CPAs;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -155,7 +155,7 @@ public class RefinementBlockFactory {
           case PointIterator:
             currentBlock =
                 new PointIterator(
-                    (ConfigurableRefinementBlock<Pair<UsageInfoSet, UsageInfoSet>>) currentBlock,
+                    (ConfigurableRefinementBlock<Pair<Set<UsageInfo>, Set<UsageInfo>>>) currentBlock,
                     notifier);
             currentBlockType = currentInnerBlockType.SingleIdentifier;
             break;

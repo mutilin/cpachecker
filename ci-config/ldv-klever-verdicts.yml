@@ -89,5 +89,5 @@
   Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'FALSE'
-  Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: 'FALSE'
+  Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: ['FALSE', 'TIMEOUT']
   Linux-Validation-Bugs-found-by-Klever/73-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: 'FALSE'

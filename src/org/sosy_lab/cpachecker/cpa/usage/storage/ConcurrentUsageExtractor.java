@@ -23,8 +23,6 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import org.sosy_lab.common.ShutdownNotifier;
@@ -69,7 +67,6 @@ public class ConcurrentUsageExtractor {
   private final AtomicInteger processingSteps;
   private final AtomicInteger numberOfActiveTasks;
   private final ShutdownNotifier notifier;
-  private ExecutorService service;
   private final Map<AbstractState, Collection<UsageDelta>> processedSets;
   private final Map<Pair<AbstractState, UsageDelta>, List<AbstractState>> stacks;
 
@@ -134,8 +131,6 @@ public class ConcurrentUsageExtractor {
   public void extractUsages(ReachedSet reached) {
     totalTimer.start();
     int threads = useConcurrentExtraction ? Runtime.getRuntime().availableProcessors() : 1;
-    // Reset from the previous iteration
-    service = Executors.newFixedThreadPool(threads);
     processingSteps.set(0);
     numberOfActiveTasks.set(0);
     logger.log(Level.INFO, "Analysis is finished, start usage extraction");
@@ -171,18 +166,17 @@ public class ConcurrentUsageExtractor {
     traversalTimer.stop();
     reachedSetCounter.setNextValue(processingSteps.get());
     finalSetCounter.setNextValue(0);
-    numberOfActiveTasks.set(0);
     usageTimer.start();
     usageInitTimer.start();
 
     synchronized (tasks) {
       // start workers inside synchronized to avoid missed task
+      active = true;
       for (int i = 0; i < threads; i++) {
         UsageWorker worker = new UsageWorker();
         workers.add(worker);
         worker.start();
       }
-      active = true;
 
       numberOfActiveTasks.set(processedSets.size());
       for (Entry<AbstractState, Collection<UsageDelta>> entry : processedSets.entrySet()) {
@@ -207,7 +201,6 @@ public class ConcurrentUsageExtractor {
     // Save memory
     processedSets.clear();
     stacks.clear();
-    service.shutdownNow();
     totalTimer.stop();
   }
 
@@ -222,24 +215,19 @@ public class ConcurrentUsageExtractor {
           this.wait(1000);
         }
         if (notifier.shouldShutdown()) {
-          service.shutdown();
           notifier.shutdownIfNecessary();
         }
       }
-    } catch (InterruptedException e) {
-      logger.log(Level.WARNING, "wait is interrupted");
-    }
 
-    synchronized (tasks) {
-      active = false;
-      tasks.notifyAll();
-    }
-    try {
+      synchronized (tasks) {
+        active = false;
+        tasks.notifyAll();
+      }
       for (Thread worker : workers) {
         worker.join();
       }
     } catch (InterruptedException e) {
-      logger.log(Level.WARNING, "Join is interrupted");
+      logger.log(Level.WARNING, "Wait is interrupted");
     }
   }
 

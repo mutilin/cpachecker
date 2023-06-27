@@ -11,15 +11,17 @@ package org.sosy_lab.cpachecker.cpa.usage.storage;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableSet;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageState;
 
 public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
   private final NavigableSet<UsagePoint> topUsages;
-  private final Map<UsagePoint, UsageInfoSet> usageInfoSets;
+  private final Map<UsagePoint, Set<UsageInfo>> usageInfoSets;
 
   public UnrefinedUsagePointSet() {
     topUsages = new ConcurrentSkipListSet<>();
@@ -27,14 +29,14 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
   }
 
   public void add(UsageInfo newInfo) {
-    UsageInfoSet targetSet;
+    Set<UsageInfo> targetSet;
     UsagePoint newPoint = newInfo.getUsagePoint();
     if (usageInfoSets.containsKey(newPoint)) {
       targetSet = usageInfoSets.get(newPoint);
     } else {
-      targetSet = new UsageInfoSet();
+      targetSet = new ConcurrentSkipListSet<>();
       // It is possible, that someone place the set after check
-      UsageInfoSet present = usageInfoSets.putIfAbsent(newPoint, targetSet);
+      Set<UsageInfo> present = usageInfoSets.putIfAbsent(newPoint, targetSet);
       if (present != null) {
         targetSet = present;
       }
@@ -66,7 +68,7 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
     topUsages.add(newPoint);
   }
 
-  public UsageInfoSet getUsageInfo(UsagePoint point) {
+  public Set<UsageInfo> getUsageInfo(UsagePoint point) {
     return usageInfoSets.get(point);
   }
 
@@ -74,7 +76,7 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
   public int size() {
     int result = 0;
 
-    for (UsageInfoSet value : usageInfoSets.values()) {
+    for (Set<UsageInfo> value : usageInfoSets.values()) {
       result += value.size();
     }
 
@@ -89,15 +91,22 @@ public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
   public void remove(UsageState pUstate) {
     //Attention! Use carefully. May not work
     for (UsagePoint point : new TreeSet<>(usageInfoSets.keySet())) {
-      UsageInfoSet uset = usageInfoSets.get(point);
-      boolean b = uset.remove(pUstate);
-      if (b) {
-        if (uset.isEmpty()) {
-          usageInfoSets.remove(point);
+      Set<UsageInfo> uset = usageInfoSets.get(point);
+
+      Iterator<UsageInfo> iterator = uset.iterator();
+      while (iterator.hasNext()) {
+        UsageInfo uinfo = iterator.next();
+        AbstractState keyState = uinfo.getKeyState();
+        assert (keyState != null);
+        if (UsageState.get(keyState).equals(pUstate)) {
+          iterator.remove();
         }
-        //May be two usages related to the same state. This is abstractState !
-        //return;
       }
+
+      if (uset.isEmpty()) {
+        usageInfoSets.remove(point);
+      }
+      // May be two usages related to the same state. This is abstractState !
     }
   }
 

@@ -26,7 +26,7 @@ RUN git clone https://gitlab.com/sosy-lab/software/ldv-klever-benchmarks.git /op
 # ADD linux-4.2.6-races.tar.xz /opt/ldv-benchmarks/
 RUN mkdir /opt/sv-benchmarks/
 RUN curl -L https://nextcloud.ispras.ru/index.php/s/BXc2qdSLPNcYaCx/download/ldv-sv-benchmarks.tar.xz -o /opt/ldv-sv-benchmarks.tar.xz \
-    && tar -xaf /opt/ldv-sv-benchmarks.tar.xz -C /opt/sv-benchmarks/
+    && tar -xaf /opt/ldv-sv-benchmarks.tar.xz -C /opt/sv-benchmarks/ && rm -rf /opt/ldv-sv-benchmarks.tar.xz
 # ADD ldv-sv-benchmarks.tar.xz /opt/sv-benchmarks/
 RUN git clone https://github.com/mutilin/uppsala.git /opt/uppsala/
 # RUN git clone https://gitlab.com/sosy-lab/software/ldv-benchmarks.git /opt/ldv-benchmarks/

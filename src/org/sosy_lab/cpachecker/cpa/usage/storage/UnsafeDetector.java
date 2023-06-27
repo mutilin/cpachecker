@@ -10,8 +10,10 @@ package org.sosy_lab.cpachecker.cpa.usage.storage;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.collect.Iterables;
 import java.util.List;
 import java.util.NavigableSet;
+import java.util.Set;
 import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cpa.lock.DeadLockState.DeadLockTreeNode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
@@ -77,21 +79,21 @@ public class UnsafeDetector {
 
       assert result != null;
 
-      UsageInfoSet uset1 = unrefinedSet.getUsageInfo(result.getFirst());
+      Set<UsageInfo> uset1 = unrefinedSet.getUsageInfo(result.getFirst());
       if (uset1 == null) {
         // Likely it is from anyIds
         uset1 = anyIds.getUsageInfo(result.getFirst());
         assert (uset1 != null);
       }
 
-      UsageInfoSet uset2 = unrefinedSet.getUsageInfo(result.getSecond());
+      Set<UsageInfo> uset2 = unrefinedSet.getUsageInfo(result.getSecond());
       if (uset2 == null) {
         // Likely it is from anyIds
         uset2 = anyIds.getUsageInfo(result.getSecond());
         assert (uset2 != null);
       }
 
-      return Pair.of(uset1.getOneExample(), uset2.getOneExample());
+      return Pair.of(Iterables.get(uset1, 0), Iterables.get(uset2, 0));
     }
   }
 

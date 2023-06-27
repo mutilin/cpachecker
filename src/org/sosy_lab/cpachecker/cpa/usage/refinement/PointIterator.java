@@ -9,12 +9,14 @@
 package org.sosy_lab.cpachecker.cpa.usage.refinement;
 
 import java.util.Iterator;
+import java.util.Set;
+import java.util.TreeSet;
 import org.sosy_lab.common.ShutdownNotifier;
+import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.storage.AbstractUsagePointSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UnrefinedUsagePointSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UnsafeDetector;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
-import org.sosy_lab.cpachecker.cpa.usage.storage.UsageInfoSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsagePoint;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -22,7 +24,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class PointIterator
-    extends GenericIterator<AbstractIdentifier, Pair<UsageInfoSet, UsageInfoSet>> {
+    extends GenericIterator<AbstractIdentifier, Pair<Set<UsageInfo>, Set<UsageInfo>>> {
 
   private UsageContainer container;
   private UnsafeDetector detector;
@@ -39,7 +41,7 @@ public class PointIterator
   private final StatCounter removedPoints = new StatCounter("Removed empty usage points");
 
   public PointIterator(
-      ConfigurableRefinementBlock<Pair<UsageInfoSet, UsageInfoSet>> pWrapper,
+      ConfigurableRefinementBlock<Pair<Set<UsageInfo>, Set<UsageInfo>>> pWrapper,
       ShutdownNotifier pNotifier) {
     super(pWrapper, pNotifier);
   }
@@ -58,7 +60,7 @@ public class PointIterator
   }
 
   @Override
-  protected Pair<UsageInfoSet, UsageInfoSet> getNext(AbstractIdentifier pInput) {
+  protected Pair<Set<UsageInfo>, Set<UsageInfo>> getNext(AbstractIdentifier pInput) {
     //Sanity check
     AbstractUsagePointSet pointSet = container.getUsages(pInput);
     assert currentUsagePointSet == pointSet;
@@ -85,7 +87,8 @@ public class PointIterator
         || currentUsagePointSet.getUsageInfo(firstPoint) == null
         || currentUsagePointSet.getUsageInfo(secondPoint) == null);
 
-    Pair<UsageInfoSet, UsageInfoSet> resultingPair = prepareIterationPair(firstPoint, secondPoint);
+    Pair<Set<UsageInfo>, Set<UsageInfo>> resultingPair =
+        prepareIterationPair(firstPoint, secondPoint);
     if (firstPoint == secondPoint) {
       postpone(resultingPair);
       return getNext(pInput);
@@ -93,13 +96,14 @@ public class PointIterator
     return resultingPair;
   }
 
-  private Pair<UsageInfoSet, UsageInfoSet> prepareIterationPair(UsagePoint first, UsagePoint second) {
-    UsageInfoSet firstUsageInfoSet = currentUsagePointSet.getUsageInfo(first);
-    UsageInfoSet secondUsageInfoSet = currentUsagePointSet.getUsageInfo(second);
+  private Pair<Set<UsageInfo>, Set<UsageInfo>>
+      prepareIterationPair(UsagePoint first, UsagePoint second) {
+    Set<UsageInfo> firstUsageInfoSet = currentUsagePointSet.getUsageInfo(first);
+    Set<UsageInfo> secondUsageInfoSet = currentUsagePointSet.getUsageInfo(second);
 
     if (firstUsageInfoSet == secondUsageInfoSet) {
       // To avoid concurrent modification
-      secondUsageInfoSet = secondUsageInfoSet.copy();
+      secondUsageInfoSet = new TreeSet<>(secondUsageInfoSet);
     }
 
     assert firstUsageInfoSet != null;
@@ -108,9 +112,9 @@ public class PointIterator
   }
 
   @Override
-  protected void finishIteration(Pair<UsageInfoSet, UsageInfoSet> pPair, RefinementResult r) {
-    UsageInfoSet firstUsageInfoSet = pPair.getFirst();
-    UsageInfoSet secondUsageInfoSet = pPair.getSecond();
+  protected void finishIteration(Pair<Set<UsageInfo>, Set<UsageInfo>> pPair, RefinementResult r) {
+    Set<UsageInfo> firstUsageInfoSet = pPair.getFirst();
+    Set<UsageInfo> secondUsageInfoSet = pPair.getSecond();
 
     if (secondUsageInfoSet.isEmpty()) {
       // No reachable usages - remove point
