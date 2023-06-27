@@ -140,7 +140,7 @@ public class ConcurrentUsageExtractor {
     Collection<UsageDelta> initialSet = new HashSet<>();
     initialSet.add(emptyDelta);
     processedSets.put(firstState, initialSet);
-    usageProcessor.updateRedundantUnsafes(container.getNotInterestingUnsafes());
+    usageProcessor.updateInterestingIds(container.getInterestingIds());
 
     numberOfActiveTasks.incrementAndGet();
     traversalTimer.start();

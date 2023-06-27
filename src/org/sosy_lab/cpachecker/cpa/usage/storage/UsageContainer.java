@@ -11,7 +11,6 @@ package org.sosy_lab.cpachecker.cpa.usage.storage;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Sets;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -37,7 +36,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class UsageContainer {
   private final NavigableMap<AbstractIdentifier, UnrefinedUsagePointSet> unrefinedIds;
-  private final NavigableMap<AbstractIdentifier, RefinedUsagePointSet> refinedIds;
+  private final NavigableMap<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> refinedIds;
   private final UnrefinedUsagePointSet anyIds;
 
   private Map<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> stableUnsafes = new TreeMap<>();
@@ -79,11 +78,7 @@ public class UsageContainer {
 
     UnrefinedUsagePointSet uset;
 
-    // searchingInCachesTimer.start();
-    if (oneTotalIteration && !unrefinedIds.containsKey(id)) {
-      // searchingInCachesTimer.stop();
-      return;
-    }
+    assert (!oneTotalIteration || unrefinedIds.containsKey(id));
 
     if (id == AnyIdentifier.getInstance()) {
       uset = anyIds;
@@ -143,25 +138,14 @@ public class UsageContainer {
     return falseUnsafes;
   }
 
-  public Iterator<AbstractIdentifier> getUnsafeIterator() {
-    calculateUnsafesIfNecessary();
-    Set<AbstractIdentifier> result = new TreeSet<>(refinedIds.keySet());
-    result.addAll(unrefinedIds.keySet());
-    return result.iterator();
-  }
-
   public Iterator<AbstractIdentifier> getUnrefinedUnsafeIterator() {
     // New set to avoid concurrent modification exception
     Set<AbstractIdentifier> result = new TreeSet<>(unrefinedIds.keySet());
     return result.iterator();
   }
 
-  public int getTotalUnsafeSize() {
-    return unrefinedIds.size() + refinedIds.size();
-  }
-
   public int getProcessedUnsafeSize() {
-    return refinedIds.size();
+    return falseUnsafes.size() + refinedIds.size();
   }
 
   public UnsafeDetector getUnsafeDetector() {
@@ -184,43 +168,35 @@ public class UsageContainer {
     logger.log(Level.ALL, "All unsafes related to key state " + pUstate + " were removed from reached set");
   }
 
-  public AbstractUsagePointSet getUsages(AbstractIdentifier id) {
+  public UnrefinedUsagePointSet getUnrefinedUsages(AbstractIdentifier id) {
     // Not sure, it should be used
     // Likely, here should be only normal identifiers
     assert (id != AnyIdentifier.getInstance());
-    if (unrefinedIds.containsKey(id)) {
-      return unrefinedIds.get(id);
-    } else {
-      return refinedIds.get(id);
-    }
+    assert unrefinedIds.containsKey(id);
+    return unrefinedIds.get(id);
   }
 
   public void setAsFalseUnsafe(AbstractIdentifier id) {
     assert (id != AnyIdentifier.getInstance());
-    falseUnsafes.add(id);
     unrefinedIds.remove(id);
   }
 
   public void setAsRefined(AbstractIdentifier id, RefinementResult result) {
     Preconditions.checkArgument(result.isTrue(), "Result is not true, can not set the set as refined");
     checkArgument(
-        detector.isUnsafe(getUsages(id)),
+        detector.isUnsafe(getUnrefinedUsages(id)),
         "Refinement is successful, but the unsafe is absent for identifier %s",
         id);
 
     UsageInfo firstUsage = result.getTrueRace().getFirst();
     UsageInfo secondUsage = result.getTrueRace().getSecond();
 
-    RefinedUsagePointSet rSet = RefinedUsagePointSet.create(firstUsage, secondUsage);
-    refinedIds.put(id, rSet);
+    refinedIds.put(id, Pair.of(firstUsage, secondUsage));
     unrefinedIds.remove(id);
-    // We need to update it here, as we may finish this iteration (even without timeout) and output
-    // the old value
-    stableUnsafes.put(id, Pair.of(firstUsage, secondUsage));
   }
 
   public void printUsagesStatistics(StatisticsWriter out) {
-    int unsafeSize = getTotalUnsafeSize();
+    int unsafeSize = unrefinedIds.size() + refinedIds.size();
     StatInt topUsagePoints = new StatInt(StatKind.SUM, "Total amount of unrefined usage points");
     StatInt unrefinedUsages = new StatInt(StatKind.SUM, "Total amount of unrefined usages");
     StatInt refinedUsages = new StatInt(StatKind.SUM, "Total amount of refined usages");
@@ -235,8 +211,7 @@ public class UsageContainer {
     int generalRefinedSize = 0;
     int generalFailedSize = 0;
 
-    for (RefinedUsagePointSet uset : refinedIds.values()) {
-      Pair<UsageInfo, UsageInfo> pair = uset.getUnsafePair();
+    for (Pair<UsageInfo, UsageInfo> pair : refinedIds.values()) {
       UsageInfo firstUsage = pair.getFirst();
       UsageInfo secondUsage = pair.getSecond();
 
@@ -249,7 +224,7 @@ public class UsageContainer {
       }
       if (!firstUsage.isLooped() && !secondUsage.isLooped()) {
         generalRefinedSize++;
-        refinedUsages.setNextValue(uset.size());
+        refinedUsages.setNextValue(2);
       }
     }
 
@@ -282,19 +257,16 @@ public class UsageContainer {
         + " false unsafes";
   }
 
-  public Set<AbstractIdentifier> getNotInterestingUnsafes() {
-    return new TreeSet<>(Sets.union(falseUnsafes, refinedIds.keySet()));
+  public Set<AbstractIdentifier> getInterestingIds() {
+    if (oneTotalIteration) {
+      return new TreeSet<>(unrefinedIds.keySet());
+    }
+    return null;
   }
 
   private void saveStableUnsafes() {
     stableUnsafes.clear();
-    addUnsafesFrom(unrefinedIds);
-  }
-
-  private void addUnsafesFrom(
-      NavigableMap<AbstractIdentifier, ? extends AbstractUsagePointSet> storage) {
-
-    for (Entry<AbstractIdentifier, ? extends AbstractUsagePointSet> entry : storage.entrySet()) {
+    for (Entry<AbstractIdentifier, UnrefinedUsagePointSet> entry : unrefinedIds.entrySet()) {
       Pair<UsageInfo, UsageInfo> tmpPair = detector.getUnsafePair(entry.getValue());
       stableUnsafes.put(entry.getKey(), tmpPair);
     }
@@ -306,7 +278,7 @@ public class UsageContainer {
   }
 
   public Map<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> getStableUnsafes() {
-    addUnsafesFrom(refinedIds);
+    stableUnsafes.putAll(refinedIds);
     return stableUnsafes;
   }
 }

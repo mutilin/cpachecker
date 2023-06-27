@@ -201,7 +201,7 @@ public class IdentifierIterator
       return RefinementResult.createFalse();
     }
 
-    int counter = container.getFalseUnsafes().size() + container.getProcessedUnsafeSize();
+    int counter = container.getProcessedUnsafeSize();
     if (counter >= precisionReset) {
       precisionMap.clear();
     }

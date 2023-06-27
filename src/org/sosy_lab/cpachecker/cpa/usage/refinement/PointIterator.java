@@ -13,7 +13,6 @@ import java.util.Set;
 import java.util.TreeSet;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
-import org.sosy_lab.cpachecker.cpa.usage.storage.AbstractUsagePointSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UnrefinedUsagePointSet;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UnsafeDetector;
 import org.sosy_lab.cpachecker.cpa.usage.storage.UsageContainer;
@@ -48,11 +47,8 @@ public class PointIterator
 
   @Override
   protected void init(AbstractIdentifier id) {
-    AbstractUsagePointSet pointSet = container.getUsages(id);
+    currentUsagePointSet = container.getUnrefinedUsages(id);
 
-    assert (pointSet instanceof UnrefinedUsagePointSet);
-
-    currentUsagePointSet = (UnrefinedUsagePointSet)pointSet;
     firstPointIterator = currentUsagePointSet.getPointIterator();
     secondPointIterator = currentUsagePointSet.getPointIterator();
     firstPoint = firstPointIterator.next();
@@ -62,7 +58,7 @@ public class PointIterator
   @Override
   protected Pair<Set<UsageInfo>, Set<UsageInfo>> getNext(AbstractIdentifier pInput) {
     //Sanity check
-    AbstractUsagePointSet pointSet = container.getUsages(pInput);
+    UnrefinedUsagePointSet pointSet = container.getUnrefinedUsages(pInput);
     assert currentUsagePointSet == pointSet;
 
     do {

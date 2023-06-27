@@ -45,15 +45,7 @@ public class UnsafeDetector {
     anyIds = pSet;
   }
 
-  public boolean isUnsafe(AbstractUsagePointSet set) {
-    if (set instanceof RefinedUsagePointSet) {
-      return true;
-    }
-    return isUnsafe((UnrefinedUsagePointSet)set);
-  }
-
-  private boolean isUnsafe(UnrefinedUsagePointSet set) {
-
+  public boolean isUnsafe(UnrefinedUsagePointSet set) {
     return isUnsafe(getTopPoints(set));
   }
 
@@ -68,33 +60,28 @@ public class UnsafeDetector {
     return points;
   }
 
-  public Pair<UsageInfo, UsageInfo> getUnsafePair(AbstractUsagePointSet set) {
-    assert isUnsafe(set);
+  public Pair<UsageInfo, UsageInfo> getUnsafePair(UnrefinedUsagePointSet unrefinedSet) {
+    assert isUnsafe(unrefinedSet);
 
-    if (set instanceof RefinedUsagePointSet) {
-      return ((RefinedUsagePointSet)set).getUnsafePair();
-    } else {
-      UnrefinedUsagePointSet unrefinedSet = (UnrefinedUsagePointSet) set;
-      Pair<UsagePoint, UsagePoint> result = getUnsafePair(getTopPoints(unrefinedSet));
+    Pair<UsagePoint, UsagePoint> result = getUnsafePair(getTopPoints(unrefinedSet));
 
-      assert result != null;
+    assert result != null;
 
-      Set<UsageInfo> uset1 = unrefinedSet.getUsageInfo(result.getFirst());
-      if (uset1 == null) {
-        // Likely it is from anyIds
-        uset1 = anyIds.getUsageInfo(result.getFirst());
-        assert (uset1 != null);
-      }
-
-      Set<UsageInfo> uset2 = unrefinedSet.getUsageInfo(result.getSecond());
-      if (uset2 == null) {
-        // Likely it is from anyIds
-        uset2 = anyIds.getUsageInfo(result.getSecond());
-        assert (uset2 != null);
-      }
-
-      return Pair.of(Iterables.get(uset1, 0), Iterables.get(uset2, 0));
+    Set<UsageInfo> uset1 = unrefinedSet.getUsageInfo(result.getFirst());
+    if (uset1 == null) {
+      // Likely it is from anyIds
+      uset1 = anyIds.getUsageInfo(result.getFirst());
+      assert (uset1 != null);
     }
+
+    Set<UsageInfo> uset2 = unrefinedSet.getUsageInfo(result.getSecond());
+    if (uset2 == null) {
+      // Likely it is from anyIds
+      uset2 = anyIds.getUsageInfo(result.getSecond());
+      assert (uset2 != null);
+    }
+
+    return Pair.of(Iterables.get(uset1, 0), Iterables.get(uset2, 0));
   }
 
   private boolean isUnsafe(NavigableSet<UsagePoint> points) {

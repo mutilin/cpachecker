@@ -12,67 +12,69 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentSkipListMap;
-import java.util.concurrent.ConcurrentSkipListSet;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.cpa.usage.UsageState;
 
-public class UnrefinedUsagePointSet implements AbstractUsagePointSet {
+public class UnrefinedUsagePointSet {
   private final NavigableSet<UsagePoint> topUsages;
   private final Map<UsagePoint, Set<UsageInfo>> usageInfoSets;
 
   public UnrefinedUsagePointSet() {
-    topUsages = new ConcurrentSkipListSet<>();
-    usageInfoSets = new ConcurrentSkipListMap<>();
+    topUsages = new TreeSet<>();
+    usageInfoSets = new TreeMap<>();
   }
 
   public void add(UsageInfo newInfo) {
     Set<UsageInfo> targetSet;
     UsagePoint newPoint = newInfo.getUsagePoint();
-    if (usageInfoSets.containsKey(newPoint)) {
-      targetSet = usageInfoSets.get(newPoint);
-    } else {
-      targetSet = new ConcurrentSkipListSet<>();
-      // It is possible, that someone place the set after check
-      Set<UsageInfo> present = usageInfoSets.putIfAbsent(newPoint, targetSet);
-      if (present != null) {
-        targetSet = present;
+
+    synchronized (usageInfoSets) {
+      if (usageInfoSets.containsKey(newPoint)) {
+        targetSet = usageInfoSets.get(newPoint);
+      } else {
+        targetSet = new TreeSet<>();
+        // It is possible, that someone place the set after check
+        usageInfoSets.put(newPoint, targetSet);
       }
     }
+
     add(newPoint);
-    targetSet.add(newInfo);
+    synchronized (targetSet) {
+      targetSet.add(newInfo);
+    }
   }
 
   private void add(UsagePoint newPoint) {
     // Put newPoint in the right place in tree
-    for (UsagePoint point : topUsages) {
-      if (point.equals(newPoint)) {
+    synchronized (topUsages) {
+      if (topUsages.contains(newPoint)) {
         // Unknown problem with contains:
         // for skipList it somehow returns false for an element in the set
         return;
       }
-    }
-    Iterator<UsagePoint> iterator = topUsages.iterator();
-    while (iterator.hasNext()) {
-      UsagePoint point = iterator.next();
-      if (newPoint.covers(point)) {
-        iterator.remove();
-        newPoint.addCoveredUsage(point);
-      } else if (point.covers(newPoint)) {
-        point.addCoveredUsage(newPoint);
-        return;
+      Iterator<UsagePoint> iterator = topUsages.iterator();
+      while (iterator.hasNext()) {
+        UsagePoint point = iterator.next();
+        if (newPoint.covers(point)) {
+          iterator.remove();
+          newPoint.addCoveredUsage(point);
+        } else if (point.covers(newPoint)) {
+          point.addCoveredUsage(newPoint);
+          return;
+        }
       }
+      topUsages.add(newPoint);
     }
-    topUsages.add(newPoint);
   }
 
   public Set<UsageInfo> getUsageInfo(UsagePoint point) {
+    // Should be performed in single thread
     return usageInfoSets.get(point);
   }
 
-  @Override
   public int size() {
     int result = 0;
 

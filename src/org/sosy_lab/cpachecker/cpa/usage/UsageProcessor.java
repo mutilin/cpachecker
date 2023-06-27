@@ -75,6 +75,7 @@ import org.sosy_lab.cpachecker.util.identifiers.IdentifierCreator;
 import org.sosy_lab.cpachecker.util.identifiers.Identifiers;
 import org.sosy_lab.cpachecker.util.identifiers.LocalVariableIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
+import org.sosy_lab.cpachecker.util.identifiers.StructureIdentifier;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
@@ -89,7 +90,7 @@ public class UsageProcessor {
   private Map<CFANode, Map<GeneralIdentifier, DataType>> precision;
 
   // private final Collection<CFANode> uselessNodes;
-  private Collection<AbstractIdentifier> redundantIds;
+  private Collection<AbstractIdentifier> interestingIds;
 
   private IdentifierCreator creator;
 
@@ -123,8 +124,8 @@ public class UsageProcessor {
     config.inject(this, UsageProcessor.class);
   }
 
-  public void updateRedundantUnsafes(Set<AbstractIdentifier> set) {
-    redundantIds = set;
+  public void updateInterestingIds(Set<AbstractIdentifier> set) {
+    interestingIds = set;
   }
 
   public List<UsageInfo> getUsagesForState(AbstractState pState) {
@@ -190,8 +191,14 @@ public class UsageProcessor {
 
         // searchingCacheTimer.start();
         // searchingCacheTimer.stop();
-        if (!redundantIds.contains(id)) {
-          createUsages(id, node, child, pair.getSecond(), result);
+
+        // TODO CopyPaste, better to refactore
+        if (id instanceof StructureIdentifier) {
+          id = ((StructureIdentifier) id).toStructureFieldIdentifier();
+        }
+
+        if (interestingIds == null || interestingIds.contains(id)) {
+          createUsages(pair.getFirst(), node, child, pair.getSecond(), result);
         }
       }
     }

@@ -33,10 +33,8 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public class UsageCPAStatistics implements Statistics {
 
   public enum OutputFileType {
-    ETV,
     KLEVER,
-    KLEVER3,
-    KLEVER_OLD
+    KLEVER3
   }
 
   @Option(
@@ -132,13 +130,6 @@ public class UsageCPAStatistics implements Statistics {
             break;
           case KLEVER:
             errPrinter = new KleverErrorTracePrinter(config, computer, cfa, logger, providers);
-            break;
-          case KLEVER_OLD:
-            errPrinter =
-                new KleverErrorTracePrinterOld(config, computer, cfa, logger, providers);
-            break;
-          case ETV:
-            errPrinter = new ETVErrorTracePrinter(config, computer, cfa, logger, providers);
             break;
           default:
             throw new UnsupportedOperationException("Unknown type " + outputFileType);
