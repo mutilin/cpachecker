@@ -164,9 +164,11 @@ refaster:
       - "*-log.txt"
     when: on_failure
   before_script:
-    - if [ $CI_PIPELINE_SOURCE == 'web' ] ; then FLAGS="" ; else FLAGS="--is_wip" ; fi
+    - if [ $CI_PIPELINE_SOURCE != 'web' ] ; then FLAGS="--is_wip" ; fi
+    - if ! [ -z "$JOB_NAME" ] ; then JOB_NAME_ARG="--job_name=$JOB_NAME" ; else JOB_NAME_ARG="" ; fi
   script:
-    - 'python3 ci-test-run.py $JOB_FILE_DESC $FLAGS'
+    - 'echo ci-test-run.py $FLAGS "$JOB_NAME_ARG" $JOB_FILE_DESC'
+    - 'python3 ci-test-run.py $FLAGS "$JOB_NAME_ARG" $JOB_FILE_DESC'
 
 simple-tests:
   <<: *tests
@@ -197,6 +199,15 @@ klever-found-bugs:
   <<: *tests
   variables:
     JOB_FILE_DESC: ci-config/ldv-klever-job.yml
+    JOB_NAME: Bugs found by Klever
+  only:
+    - web
+  
+klever-found-bugs-tm:
+  <<: *tests
+  variables:
+    JOB_FILE_DESC: ci-config/ldv-klever-job.yml
+    JOB_NAME: Bugs found by Klever TM
   only:
     - web
 

@@ -244,4 +244,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.tests:
         for test_name in args.tests:
-            run_job(test_name, args.is_wip, args.job_name)
+            if test_name:
+                run_job(test_name, args.is_wip, args.job_name)
