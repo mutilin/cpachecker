@@ -16,7 +16,7 @@ cfamutation strategy 1:
   benchmarks: test/programs/issues-for-mutation/cpalockator.i
   timeout: 1600
 cfamutation strategy 2:
-  config: "-lockator-threadmodular-linux"
+  extends: cfamutation strategy 1
   setprop:
     - "cfaMutation=true"
     - "limits.time.wall=1500s"
@@ -30,5 +30,3 @@ cfamutation strategy 2:
     - "cfa.exportToC=true"
     - "cfa.serialize=true"
     - "cfaMutation.strategies=ExpressionRemover,DeclarationEdgeRemover,FunctionBodyRemover,GlobalDeclarationRemover"
-  benchmarks: test/programs/issues-for-mutation/cpalockator.i
-  timeout: 1600

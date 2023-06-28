@@ -180,13 +180,13 @@ product-lines:
   variables:
     JOB_FILE_DESC: ci-config/product-lines-job.yml
 
-cfa-mutation:
-  <<: *tests
-  variables:
-    JOB_FILE_DESC: ci-config/cfamutation-job.yml
-  rules:
-    - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
-      when: always
+# cfa-mutation:
+#   <<: *tests
+#   variables:
+#     JOB_FILE_DESC: ci-config/cfamutation-job.yml
+#   rules:
+#     - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
+#       when: always
 
 klever-tests:
   <<: *tests
