@@ -84,10 +84,6 @@
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-true-no-datarace.ko-concurrency-safety-rcu.cil.i: 'TRUE'
 -lockator-linux-pre-shared-ref:
   extends: -lockator-threadmodular-linux
-  Linux-Validation-Bugs-found-by-Klever/12-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i: ['TIMEOUT', 'FALSE']
-  Linux-Validation-Bugs-found-by-Klever/13-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i: ['TIMEOUT', 'FALSE']
   Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'FALSE'
-  Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: ['FALSE', 'TIMEOUT']
-  Linux-Validation-Bugs-found-by-Klever/73-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: 'FALSE'

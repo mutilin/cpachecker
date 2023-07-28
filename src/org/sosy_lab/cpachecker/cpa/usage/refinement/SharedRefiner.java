@@ -82,34 +82,33 @@ public class SharedRefiner extends GenericSinglePathRefiner {
       assert (usageState != null);
       fullPath.add(Pair.of(usageState, edge));
 
-      // TODO loops with equal nodes
-      if (sharedUsage.getCFANode().equals(edge.getSuccessor())) {
+      // TODO Important! Final state is not a state of usage. Think about.
+      successors = transferRelation.getAbstractSuccessorsForEdge(usageState, emptyPrecision, edge);
+    }
 
-        if (usageState.getType(usageId) == LocalState.DataType.LOCAL) {
-          result = RefinementResult.createFalse();
+    assert (successors.size() == 1);
+    LocalState lastUsageState = Iterables.getOnlyElement(successors);
 
-          interpolationTime.start();
-          List<Pair<AbstractIdentifier, Integer>> interpolants = getInterpolants(fullPath, usageId);
-          interpolationTime.stop();
+    assert (sharedUsage.getCFANode().equals(edges.get(edges.size() - 1).getSuccessor()));
 
-          numOfInterpolants.setNextValue(interpolants.size());
-          Set<AbstractIdentifier> newIds =
-              transformedImmutableSetCopy(interpolants, Pair::getFirst);
-          List<ARGState> affectedStates =
-              transformedImmutableListCopy(
-                  interpolants,
-                  s -> pPath.asStatesList().get(s.getSecond()));
-          LocalPrecision newPrec = new LocalPrecision(newIds);
-          result.addPrecision(newPrec);
-          result.addInfo(SharedRefiner.class, affectedStates);
-          numOfFalseResults.inc();
-        }
-        break;
-      } else {
-        //TODO Important! Final state is not a state of usage. Think about.
-        successors =
-            transferRelation.getAbstractSuccessorsForEdge(usageState, emptyPrecision, edge);
-      }
+    if (lastUsageState.getType(usageId) == LocalState.DataType.LOCAL) {
+      result = RefinementResult.createFalse();
+
+      interpolationTime.start();
+      List<Pair<AbstractIdentifier, Integer>> interpolants = getInterpolants(fullPath, usageId);
+      interpolationTime.stop();
+
+      numOfInterpolants.setNextValue(interpolants.size());
+      Set<AbstractIdentifier> newIds =
+          transformedImmutableSetCopy(interpolants, Pair::getFirst);
+      List<ARGState> affectedStates =
+          transformedImmutableListCopy(
+              interpolants,
+              s -> pPath.asStatesList().get(s.getSecond()));
+      LocalPrecision newPrec = new LocalPrecision(newIds);
+      result.addPrecision(newPrec);
+      result.addInfo(SharedRefiner.class, affectedStates);
+      numOfFalseResults.inc();
     }
 
     //totalFalseConditions.setNextValue(numOfFalseResults.getValue());
