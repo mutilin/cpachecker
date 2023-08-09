@@ -92,6 +92,9 @@ public class RefinementBlockFactory {
   @Option(description = "Limit for unique iterations of iterators", secure = true)
   private int iterationLimit = Integer.MAX_VALUE;
 
+  @Option(secure = true, description = "Check simultaneous feasibility of two paths")
+  private boolean performMemoryModelRefinement = false;
+
   public RefinementBlockFactory(
       ConfigurableProgramAnalysis pCpa,
       Configuration pConfig)
@@ -198,6 +201,11 @@ public class RefinementBlockFactory {
             break;
 
           case PredicateRefiner:
+            if (performMemoryModelRefinement) {
+              currentBlock =
+                  factory.createMemoryModelRefiner(
+                      (ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>>) currentBlock);
+            }
             currentBlock =
                 factory.createPlainRefiner(
                     (ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>>) currentBlock);

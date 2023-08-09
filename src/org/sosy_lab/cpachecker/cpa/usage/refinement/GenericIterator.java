@@ -59,6 +59,10 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
       //Check postponed iterations
       for (O i : postponedIterations) {
         numberOfPostponedIterations.inc();
+        // A point can already be refined and removed
+        if (!isRelevant(i)) {
+          continue;
+        }
         result = iterate(i);
         if (result.isTrue()) {
           return result;
@@ -74,6 +78,10 @@ public abstract class GenericIterator<I, O> extends WrappedConfigurableRefinemen
       totalTimer.stop();
       shutdownNotifier.shutdownIfNecessary();
     }
+  }
+
+  protected boolean isRelevant(@SuppressWarnings("unused") O iteration) {
+    return true;
   }
 
   private RefinementResult iterate(O iteration) throws CPAException, InterruptedException {

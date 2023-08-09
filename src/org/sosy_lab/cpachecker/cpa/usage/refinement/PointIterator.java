@@ -56,6 +56,11 @@ public class PointIterator
   }
 
   @Override
+  protected boolean isRelevant(Pair<Set<UsageInfo>, Set<UsageInfo>> iteration) {
+    return !(iteration.getFirst().isEmpty() || iteration.getSecond().isEmpty());
+  }
+
+  @Override
   protected Pair<Set<UsageInfo>, Set<UsageInfo>> getNext(AbstractIdentifier pInput) {
     //Sanity check
     UnrefinedUsagePointSet pointSet = container.getUnrefinedUsages(pInput);

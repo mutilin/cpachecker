@@ -2,7 +2,7 @@
 // a tool for configurable software verification:
 // https://cpachecker.sosy-lab.org
 //
-// SPDX-FileCopyrightText: 2020 Dirk Beyer <https://www.sosy-lab.org>
+// SPDX-FileCopyrightText: 2023 Dirk Beyer <https://www.sosy-lab.org>
 //
 // SPDX-License-Identifier: Apache-2.0
 
@@ -10,13 +10,13 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
-import com.google.common.collect.ImmutableList;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
+import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormulaManager;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.SSAMap;
 import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
@@ -26,83 +26,99 @@ import org.sosy_lab.java_smt.api.FormulaType;
 
 public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
 
-  private final FormulaManagerView fmgr;
-  private final PathFormulaManager pathFmgr;
+  public static enum EqualitiesLocation {
+    MIDDLE,
+    END;
+  }
 
-  public ThreadEffectBlockFormulaStrategy(
+  protected final FormulaManagerView fmgr;
+  protected final PathFormulaManager pathFmgr;
+  protected final EqualitiesLocation variableEqualitiesLocation;
+
+  protected final static String THREAD_PREFIX = "otherpath#";
+
+  public ThreadEffectBlockFormulaStrategy(FormulaManagerView pFmgr, PathFormulaManager pPfgmr) {
+    this(pFmgr, pPfgmr, EqualitiesLocation.MIDDLE);
+  }
+
+  protected ThreadEffectBlockFormulaStrategy(
       FormulaManagerView pFmgr,
-      PathFormulaManager pPfgmr) {
+      PathFormulaManager pPfgmr,
+      EqualitiesLocation pEqualities) {
     fmgr = pFmgr;
     pathFmgr = pPfgmr;
+    variableEqualitiesLocation = pEqualities;
   }
 
-  private String RenameVariables(String s) {
-    String t = s;
-    if (!t.contains("::") && !t.endsWith("@")) {
-      t = "eff#" + t;
-    }
-    return t;
+  private String renameVariables(String s) {
+    return s.endsWith("@") ? s : THREAD_PREFIX + s;
   }
 
-  static String RenameVariablesBack(String s) {
-    String t = s;
-    if (t.startsWith("eff#")) {
-      t = t.substring(4);
-    }
-    return t;
+  public static String renameVariablesBack(String s) {
+    return s.startsWith(THREAD_PREFIX) ? s.substring(THREAD_PREFIX.length()) : s;
   }
 
   @Override
-  BlockFormulas getFormulasForPath(ARGState argRoot, List<ARGState> abstractionStates)
+  public BlockFormulas getFormulasForPath(ARGState argRoot, List<ARGState> abstractionStates)
       throws CPATransferException, InterruptedException {
 
-    List<ARGState> normalPath = new ArrayList<>();
-    SSAMap firstSsa = null, secondSsa;
-    List<BooleanFormula> formulasInMain = null;
-    BlockFormulas blockFormulas;
+    Pair<List<ARGState>, List<ARGState>> paths = divideIntoTwoPaths(abstractionStates);
+    if (paths.getFirst() == null) { // No division
+      return super.getFormulasForPath(argRoot, paths.getSecond());
+    }
+    List<BooleanFormula> formulas1 =
+        modifyFormulas(super.getFormulasForPath(argRoot, paths.getFirst()).getFormulas(), 0);
+    List<BooleanFormula> formulas2 =
+        modifyFormulas(super.getFormulasForPath(argRoot, paths.getSecond()).getFormulas(), 1);
+    SSAMap firstSsa = getSSAMap(paths.getFirst(), 0), secondSsa = getSSAMap(paths.getSecond(), 1);
+    BooleanFormula variableEqualities =
+        makeVariableEqualities(formulas1, formulas2, firstSsa, secondSsa);
+    // TODO Branching formulas
+    // currently branchingFormulas are not used as checkPath does not support interleavings and it
+    // is disabled
+    return new BlockFormulas(
+        combineFormulas(formulas1, formulas2, variableEqualities),
+        pathFmgr.buildBranchingFormula(new HashSet<>(abstractionStates)));
 
-    // Right now looks like a hack: divide the list into two paths
+  }
+
+  private Pair<List<ARGState>, List<ARGState>>
+      divideIntoTwoPaths(List<ARGState> abstractionStates) {
+
+    List<ARGState> path = new ArrayList<>(), firstPath = null;
+
+    // InitialState is filtered from the first part, but not from the second part
     for (ARGState next : abstractionStates) {
-      // initialState is filtered from a path, but not from the second part
-      if (argRoot.equals(next)) {
-        // start of the second part
-        assert formulasInMain == null;
-        formulasInMain = super.getFormulasForPath(argRoot, normalPath).getFormulas();
-        firstSsa = getLastSSAMap(normalPath);
-        normalPath.clear();
+      if (next.getParents().isEmpty()) {
+        assert firstPath == null; // No more than two paths
+        firstPath = path;
+        path = new ArrayList<>();
       }
-      normalPath.add(next);
+      path.add(next);
     }
 
-    blockFormulas = super.getFormulasForPath(argRoot, normalPath);
+    return Pair.of(firstPath, path);
+  }
 
-    if (formulasInMain != null) {
-      secondSsa = getLastSSAMap(normalPath);
-
-      // making list of formulas in path to effect with renamed variables
-      List<BooleanFormula> secondFormulas =
-          transformedImmutableListCopy(blockFormulas.getFormulas(), f->fmgr.renameFreeVariablesAndUFs(f, this::RenameVariables));
-
-      BooleanFormula variableEqualities =
-          makeVariableEqualities(formulasInMain, secondFormulas, firstSsa, secondSsa);
-
-      List<BooleanFormula> allFormulas = new ArrayList<>(formulasInMain);
-      // Need to add the variable equalities to the first formulas in the second part
-      BooleanFormula conjunction = fmgr.makeAnd(secondFormulas.get(0), variableEqualities);
-      allFormulas.add(conjunction);
-      secondFormulas.stream().skip(1).forEach(allFormulas::add);
-
-      // TODO Branching formulas
-      // currently branchingFormulas are not used as checkPath does not support interleavings and it
-      // is disabled
-      return new BlockFormulas(
-          allFormulas,
-          pathFmgr.buildBranchingFormula(new HashSet<>(abstractionStates)));
-
+  protected List<BooleanFormula> modifyFormulas(List<BooleanFormula> formulas, int i) { // TODO
+    if (i == 0) {
+      return formulas;
     } else {
-      // No devision
-      return blockFormulas;
+      return renameFormulas(formulas);
     }
+  }
+
+  private List<BooleanFormula> renameFormulas(List<BooleanFormula> formulas) {
+    return transformedImmutableListCopy(
+        formulas,
+        f -> fmgr.renameFreeVariablesAndUFs(f, this::renameVariables));
+  }
+
+  protected SSAMap getSSAMap(List<ARGState> path, int i) {
+    return AbstractStates
+        .extractStateByType(path.get(path.size() - 1), PredicateAbstractState.class)
+        .getPathFormula()
+        .getSsa();
   }
 
   private BooleanFormula makeVariableEqualities(
@@ -112,32 +128,47 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
       SSAMap lastSsa2) {
 
     BooleanFormula variableEqualities = fmgr.getBooleanFormulaManager().makeTrue();
+
     for (String varName : lastSsa1.allVariables()) {
-      if (lastSsa2.containsVariable(varName)) {
+      if (lastSsa2.containsVariable(varName) && additionalCheck(varName)) {
         FormulaType<Formula> formulaType1, formulaType2;
         formulaType1 = getVariableType(varName, formulas1);
-        formulaType2 = getVariableType(RenameVariables(varName), formulas2);
+        formulaType2 = getVariableType(renameVariables(varName), formulas2);
 
         if (formulaType1 != null && formulaType2 != null && formulaType1 == formulaType2) {
           Formula var1 = fmgr.makeVariable(formulaType1, varName, lastSsa1.getIndex(varName));
           Formula var2 =
-              fmgr.makeVariable(formulaType2, RenameVariables(varName), lastSsa2.getIndex(varName));
+              fmgr.makeVariable(formulaType2, renameVariables(varName), lastSsa2.getIndex(varName));
           variableEqualities = fmgr.makeAnd(variableEqualities, fmgr.makeEqual(var1, var2));
         }
       }
     }
+
     return variableEqualities;
   }
 
-  private SSAMap getLastSSAMap(List<ARGState> trace) {
-    PredicateAbstractState predicateAbstractStateEffect =
-        AbstractStates
-            .extractStateByType(trace.get(trace.size() - 1), PredicateAbstractState.class);
-    return predicateAbstractStateEffect.getPathFormula().getSsa();
+  protected boolean additionalCheck(@SuppressWarnings("unused") String varName) {
+    return true;
+  }
+
+  protected List<BooleanFormula> combineFormulas(
+      List<BooleanFormula> formulas1,
+      List<BooleanFormula> formulas2,
+      BooleanFormula variableEqualities) {
+    List<BooleanFormula> allFormulas = new ArrayList<>(formulas1);
+    allFormulas.addAll(formulas2);
+    int index = 0;
+    if (variableEqualitiesLocation == EqualitiesLocation.MIDDLE) {
+      index = formulas1.size();
+    } else if (variableEqualitiesLocation == EqualitiesLocation.END) {
+      index = allFormulas.size() - 1;
+    }
+    BooleanFormula conjunction = fmgr.makeAnd(allFormulas.get(index), variableEqualities);
+    allFormulas.set(index, conjunction);
+    return allFormulas;
   }
 
   private FormulaType<Formula> getVariableType(String name, List<BooleanFormula> listOfFormulas) {
-    // TODO do not hardcode it
     for (BooleanFormula f : listOfFormulas) {
       for (String s : fmgr.extractVariableNames(f)) {
         if (s.startsWith(name + "@")) {

@@ -44,7 +44,7 @@ public final class BAMBlockFormulaStrategy extends BlockFormulaStrategy {
   }
 
   @Override
-  BlockFormulas getFormulasForPath(final ARGState pRoot, final List<ARGState> pPath)
+  public BlockFormulas getFormulasForPath(final ARGState pRoot, final List<ARGState> pPath)
       throws CPATransferException, InterruptedException {
     // the elements in the path are not expanded, so they contain the path formulas
     // with the wrong indices

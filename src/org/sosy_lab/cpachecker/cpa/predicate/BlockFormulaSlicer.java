@@ -77,7 +77,7 @@ class BlockFormulaSlicer extends BlockFormulaStrategy {
   }
 
   @Override
-  BlockFormulas getFormulasForPath(ARGState initialState, List<ARGState> path)
+  public BlockFormulas getFormulasForPath(ARGState initialState, List<ARGState> path)
       throws CPATransferException, InterruptedException {
     // This map contains all edges that are important.
     // We store the parent- and the child-ARGState, because they are unique,

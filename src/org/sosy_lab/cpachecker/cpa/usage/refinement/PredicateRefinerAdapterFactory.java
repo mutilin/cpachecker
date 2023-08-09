@@ -123,4 +123,49 @@ public class PredicateRefinerAdapterFactory {
 
     return new PredicateRefinerAdapter(wrapper, logger, pStrategy, delegate);
   }
+
+  public MemoryModelRefiner createMemoryModelRefiner(
+      ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> wrapper)
+      throws InvalidConfigurationException {
+
+    @SuppressWarnings("resource")
+    BAMPredicateCPA bamPredicateCpa = ((WrapperCPA) cpa).retrieveWrappedCpa(BAMPredicateCPA.class);
+    PredicateCPA predicateCpa = ((WrapperCPA) cpa).retrieveWrappedCpa(PredicateCPA.class);
+
+    // TODO do we use BAM?
+    boolean withBAM = bamPredicateCpa != null;
+    predicateCpa = withBAM ? bamPredicateCpa : predicateCpa;
+    assert predicateCpa != null;
+
+    PathFormulaManager pfmgr = predicateCpa.getPathFormulaManager();
+
+    // TODO do we need this part?
+    Configuration config = predicateCpa.getConfiguration();
+    ConfigurationBuilder configBuilder = Configuration.builder();
+    configBuilder = configBuilder.copyFrom(config);
+    // We can not use checking paths, as the path contains two parts: to target state and to an
+    // effect. So, the full path will contain interleaving, which causes problems
+    configBuilder.setOption("cpa.predicate.refinement.checkPath", "false");
+
+    Configuration newConfig = configBuilder.build();
+
+    MemoryModelRefinementStrategy pStrategy =
+        new MemoryModelRefinementStrategy(
+            newConfig,
+            logger,
+            predicateCpa.getPredicateManager(),
+            predicateCpa.getSolver());
+
+    BlockFormulaStrategy blockFormulaStrategy =
+        new MemoryModelBlockFormulaStrategy(
+            predicateCpa.getSolver().getFormulaManager(),
+            pfmgr,
+            pStrategy);
+
+    ARGBasedRefiner refiner =
+        new PredicateCPARefinerFactory(cpa).setBlockFormulaStrategy(blockFormulaStrategy)
+            .create(pStrategy);
+
+    return new MemoryModelRefiner(wrapper, refiner, pStrategy);
+  }
 }

@@ -48,7 +48,7 @@
   Linux-Testing-Requirement-specifications/8-ext-modules---linux---concurrency-safety---ldv-races---race-3_2-container_of-global_false-unreach-call.ko-concurrency-safety.cil.i: 'FALSE' 
   Linux-Testing-Requirement-specifications/8-ext-modules---linux---concurrency-safety---ldv-races---race-4_1-thread_local_vars_true-unreach-call.ko-concurrency-safety.cil.i: 'TRUE' 
   Linux-Testing-Requirement-specifications/9-ext-modules---linux---concurrency-safety---lock-reduce---safe.ko-concurrency-safety.cil.i: 'TRUE'
-  Linux-Validation-Bugs-found-by-Klever/10-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i: 'TIMEOUT'
+  Linux-Validation-Bugs-found-by-Klever/10-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i: ['TIMEOUT', 'FALSE']
   Linux-Validation-Bugs-found-by-Klever/11-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i: 'TIMEOUT'
   Linux-Validation-Bugs-found-by-Klever/12-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i: 'TIMEOUT'
   Linux-Validation-Bugs-found-by-Klever/13-drivers---net---ethernet---marvell---pxa168_eth.ko-concurrency-safety.cil.i: 'TIMEOUT'

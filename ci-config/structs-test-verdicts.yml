@@ -8,13 +8,23 @@
   test/programs/cpalockator/structs/struct-5-no-malloc-true.c: 'FALSE'
   test/programs/cpalockator/structs/struct-5-malloc-no-cast-true.c: 'FALSE'
   test/programs/cpalockator/structs/struct-5-malloc-cast-true.c: 'FALSE'
--lockator-threadmodular-linux:
-  test/programs/cpalockator/structs/struct-1-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
-  test/programs/cpalockator/structs/struct-2-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
-  test/programs/cpalockator/structs/struct-3-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
-  test/programs/cpalockator/structs/struct-4-no-malloc-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
+-lockator-linux-mm:
+  test/programs/cpalockator/structs/struct-1-true.c: 'TRUE'
+  test/programs/cpalockator/structs/struct-2-true.c: 'TRUE'
+  test/programs/cpalockator/structs/struct-3-true.c: 'TRUE'
+  test/programs/cpalockator/structs/struct-4-no-malloc-true.c: 'TRUE'
   test/programs/cpalockator/structs/struct-4-malloc-no-cast-true.c: 'FALSE'
-  test/programs/cpalockator/structs/struct-4-malloc-cast-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
-  test/programs/cpalockator/structs/struct-5-no-malloc-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
+  test/programs/cpalockator/structs/struct-4-malloc-cast-true.c: 'TRUE'
+  test/programs/cpalockator/structs/struct-5-no-malloc-true.c: 'TRUE'
   test/programs/cpalockator/structs/struct-5-malloc-no-cast-true.c: 'FALSE'
-  test/programs/cpalockator/structs/struct-5-malloc-cast-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
+  test/programs/cpalockator/structs/struct-5-malloc-cast-true.c: 'TRUE'
+-lockator-threadmodular-linux:
+  test/programs/cpalockator/structs/struct-1-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-2-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-3-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-4-no-malloc-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-4-malloc-no-cast-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-4-malloc-cast-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-5-no-malloc-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-5-malloc-no-cast-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-5-malloc-cast-true.c: 'FALSE'

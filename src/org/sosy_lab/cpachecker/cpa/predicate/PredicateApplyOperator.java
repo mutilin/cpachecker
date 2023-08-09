@@ -436,10 +436,17 @@ public class PredicateApplyOperator implements ApplyOperator {
     return null;
   }
 
-  private boolean compatible(PredicateAbstractState pState1, PredicateProjectedState pState2) {
+  public boolean compatible(PredicateAbstractState pState1, AbstractState pState2) {
 
     BooleanFormula stateFormula = pState1.getAbstractionFormula().asFormula();
-    BooleanFormula objectFormula = pState2.getGuard();
+    BooleanFormula objectFormula;
+
+    if (pState2 instanceof PredicateProjectedState) {
+      objectFormula = ((PredicateProjectedState) pState2).getGuard();
+    } else {
+      assert (pState2 instanceof PredicateAbstractState);
+      objectFormula = ((PredicateAbstractState) pState2).getAbstractionFormula().asFormula();
+    }
 
     BooleanFormula f = mngr.and(stateFormula, objectFormula);
 

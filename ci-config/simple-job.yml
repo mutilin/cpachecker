@@ -70,6 +70,12 @@ lockator-linux on pointers:
   benchmarks: test/programs/cpalockator/pointers/*.c
   verdicts: ci-config/pointers-test-verdicts.yml
   wip: false
+lockator-linux-mm on pointers:
+  extends: lockator-linux on pointers
+  verdict key: -lockator-linux-mm
+  setprop: 
+    - "cpa.usage.refinement.performMemoryModelRefinement=true"
+  wip: true
 lockator-threadmodular-linux on pointers:
   extends: lockator-linux on pointers
   config: -lockator-threadmodular-linux
@@ -79,6 +85,12 @@ lockator-linux on structs:
   benchmarks: test/programs/cpalockator/structs/*.c
   verdicts: ci-config/structs-test-verdicts.yml
   wip: false
+lockator-linux-mm on structs:
+  extends: lockator-linux on structs
+  verdict key: -lockator-linux-mm
+  setprop: 
+    - "cpa.usage.refinement.performMemoryModelRefinement=true"
+  wip: true
 lockator-threadmodular-linux on structs:
   extends: lockator-linux on structs
   config: -lockator-threadmodular-linux

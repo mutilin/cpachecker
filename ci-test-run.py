@@ -223,13 +223,15 @@ def run_job(job_file, is_wip_run, job_name: str):
 
             timeout = get_from_extends(task_config, job_config, 'timeout', 900)
 
+            verdict_key = get_from_extends(task_config, job_config, 'verdict key', cpa_config)
+
             benchmarks = get_from_extends(task_config, job_config, 'benchmarks')
             if benchmarks:
                 if type(benchmarks) is list:
                     for bench in benchmarks:
-                        run_cpachecker_on_set(options, test_results, cpa_config, bench, prefix, is_parallel, timeout)
+                        run_cpachecker_on_set(options, test_results, verdict_key, bench, prefix, is_parallel, timeout)
                 else:
-                    run_cpachecker_on_set(options, test_results, cpa_config, benchmarks, prefix, is_parallel, timeout)
+                    run_cpachecker_on_set(options, test_results, verdict_key, benchmarks, prefix, is_parallel, timeout)
             else:
                 print(f"{desc} seems to be abstract job without benchmarks")
 

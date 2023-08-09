@@ -27,10 +27,9 @@ import org.sosy_lab.cpachecker.cpa.arg.ARGBasedRefiner;
 import org.sosy_lab.cpachecker.cpa.arg.ARGReachedSet;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState;
-import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractionGlobalRefinementStrategy;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractionManager;
 import org.sosy_lab.cpachecker.cpa.predicate.PredicatePrecision;
+import org.sosy_lab.cpachecker.cpa.predicate.ThreadEffectRefinementStrategy;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.RefinementFailedException;
 import org.sosy_lab.cpachecker.util.Pair;
@@ -145,8 +144,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
     ARGReached = new ARGReachedSet(pReached);
   }
 
-  public static class UsageStatisticsRefinementStrategy
-      extends PredicateAbstractionGlobalRefinementStrategy {
+  public static class UsageStatisticsRefinementStrategy extends ThreadEffectRefinementStrategy {
 
     private List<ARGState> affectedStates = new ArrayList<>();
     private Function<ARGState, ARGState> transformer;
@@ -181,11 +179,6 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
           .forEach(affectedStates::add);
     }
 
-    public PredicatePrecision getNewPrecision() {
-      PredicatePrecision newPrecision = PredicatePrecision.empty();
-      return newPrecision.addLocalPredicates(newPredicates.entries());
-    }
-
     @Override
     public void resetGlobalRefinement() {
       super.resetGlobalRefinement();
@@ -200,11 +193,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
 
     @Override
     public List<ARGState> filterAbstractionStates(ARGPath pPath) {
-      List<ARGState> result =
-          from(pPath.asStatesList())
-              .skip(1)
-              .filter(PredicateAbstractState::containsAbstractionState)
-              .toList();
+      List<ARGState> result = super.filterAbstractionStates(pPath);
 
       if (!result.isEmpty() && pPath.getLastState() != result.get(result.size() - 1)) {
         List<ARGState> newResult = new ArrayList<>(result);

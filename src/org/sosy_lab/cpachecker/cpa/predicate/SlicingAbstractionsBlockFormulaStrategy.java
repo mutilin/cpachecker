@@ -44,7 +44,7 @@ public class SlicingAbstractionsBlockFormulaStrategy extends BlockFormulaStrateg
   }
 
   @Override
-  BlockFormulas getFormulasForPath(final ARGState pRoot, final List<ARGState> pPath)
+  public BlockFormulas getFormulasForPath(final ARGState pRoot, final List<ARGState> pPath)
       throws CPATransferException, InterruptedException {
     return BlockFormulas.createFromPathFormulas(
         SlicingAbstractionsUtils.getFormulasForPath(

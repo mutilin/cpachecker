@@ -141,12 +141,14 @@ public class PredicateCPA
   private final WeakeningOptions weakeningOptions;
   private final PredicateAbstractionsStorage abstractionStorage;
   private final PredicatePrecisionAdjustment prec;
+  private final PredicateApplyOperator applyOp;
   private final PredicateAbstractionStatistics abstractionStats =
       new PredicateAbstractionStatistics();
 
   // path formulas for PCC
   private final Map<PredicateAbstractState, PathFormula> computedPathFormulaePcc = new HashMap<>();
 
+  @SuppressWarnings("StaticAssignmentInConstructor")
   protected PredicateCPA(
       Configuration config,
       LogManager logger,
@@ -255,6 +257,7 @@ public class PredicateCPA
             invariantsManager,
             predicateProvider,
             statistics);
+    applyOp = new PredicateApplyOperator(solver, formulaManager, preciseFormulaManager, config);
   }
 
   @Override
@@ -357,6 +360,7 @@ public class PredicateCPA
   @Override
   public AbstractState getInitialState(CFANode node, StateSpacePartition pPartition) {
     return PredicateAbstractState.mkAbstractionState(
+        applyOp,
         preciseFormulaManager.makeEmptyPathFormula(),
         getPredicateManager().makeTrueAbstractionFormula(null),
         PathCopyingPersistentTreeMap.of());
@@ -434,7 +438,7 @@ public class PredicateCPA
 
   @Override
   public ApplyOperator getApplyOperator() {
-    return new PredicateApplyOperator(solver, formulaManager, preciseFormulaManager, config);
+    return applyOp;
   }
 
   public PathFormulaManager createPathFormulaManager(Configuration pConfig)

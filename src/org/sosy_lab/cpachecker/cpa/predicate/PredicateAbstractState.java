@@ -13,6 +13,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.sosy_lab.cpachecker.util.AbstractStates.extractStateByType;
 
 import com.google.common.base.Preconditions;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.Collection;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
@@ -26,6 +27,8 @@ import org.sosy_lab.cpachecker.core.interfaces.Graphable;
 import org.sosy_lab.cpachecker.core.interfaces.NonMergeableAbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Partitionable;
 import org.sosy_lab.cpachecker.cpa.arg.Splitable;
+import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
+import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.expressions.ExpressionTree;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionFormula;
@@ -37,9 +40,10 @@ import org.sosy_lab.java_smt.api.BooleanFormula;
  * AbstractState for Symbolic Predicate Abstraction CPA
  */
 public abstract class PredicateAbstractState
-    implements AbstractState, Partitionable, Serializable, Splitable {
+    implements AbstractState, CompatibleNode, Partitionable, Serializable, Splitable {
 
   private static final long serialVersionUID = -265763837277453447L;
+  private static PredicateApplyOperator applyOp;
 
   public static boolean containsAbstractionState(AbstractState state) {
     return AbstractStates.extractStateByType(state, PredicateAbstractState.class)
@@ -53,6 +57,24 @@ public abstract class PredicateAbstractState
   public static BooleanFormula getBlockFormula(PredicateAbstractState pState) {
     checkArgument(pState.isAbstractionState());
     return pState.getAbstractionFormula().getBlockFormula().getFormula();
+  }
+
+  @Override
+  public boolean cover(CompatibleNode pNode) {
+    return false;
+  }
+
+  @Override
+  @SuppressFBWarnings(
+    value = "EQ_COMPARETO_USE_OBJECT_EQUALS",
+    justification = "PredicateAbstractState does not have class equals")
+  public int compareTo(CompatibleState pArg0) {
+    return (this.hashCode() - pArg0.hashCode());
+  }
+
+  @Override
+  public boolean isCompatibleWith(@SuppressWarnings("unused") CompatibleState state) {
+    return applyOp.compatible(this, state);
   }
 
   /**
@@ -218,6 +240,14 @@ public abstract class PredicateAbstractState
     public boolean shouldBeHighlighted() {
       return true;
     }
+  }
+
+  public static PredicateAbstractState mkAbstractionState(
+      PredicateApplyOperator pApplyOp,
+      PathFormula pF, AbstractionFormula pA,
+      PersistentMap<CFANode, Integer> pAbstractionLocations) {
+    applyOp = pApplyOp;
+    return new AbstractionState(pF, pA, pAbstractionLocations);
   }
 
   public static PredicateAbstractState mkAbstractionState(

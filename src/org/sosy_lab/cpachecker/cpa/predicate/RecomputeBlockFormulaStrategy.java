@@ -27,7 +27,7 @@ public class RecomputeBlockFormulaStrategy extends BlockFormulaStrategy {
   }
 
   @Override
-  BlockFormulas getFormulasForPath(ARGState argRoot, List<ARGState> abstractionStates)
+  public BlockFormulas getFormulasForPath(ARGState argRoot, List<ARGState> abstractionStates)
       throws CPATransferException, InterruptedException {
     List<BooleanFormula> formulas = new ArrayList<>(abstractionStates.size());
 

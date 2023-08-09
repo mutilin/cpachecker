@@ -52,7 +52,7 @@ public class PredicateCPARefinerFactory {
   )
   private boolean performInitialStaticRefinement = false;
 
-  @Option(secure = true, description = "use paths to effects")
+  @Option(secure = true, description = "check simultaneous feasibility of two paths")
   private boolean performThreadEffectRefinement = false;
 
   @Option(secure = true, description = "recompute block formula from ARG path edges")

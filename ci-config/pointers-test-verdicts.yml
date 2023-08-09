@@ -4,9 +4,15 @@
   test/programs/cpalockator/pointers/global-ptr-2-false.c: 'FALSE'
   test/programs/cpalockator/pointers/global-ptr-3-true.c: 'FALSE'
   test/programs/cpalockator/pointers/global-ptr-4-true.c: 'FALSE'
--lockator-threadmodular-linux:
-  test/programs/cpalockator/pointers/global-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
-  test/programs/cpalockator/pointers/global-ptr-1-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
+-lockator-linux-mm:
+  test/programs/cpalockator/pointers/global-true.c: 'TRUE'
+  test/programs/cpalockator/pointers/global-ptr-1-true.c: 'TRUE'
   test/programs/cpalockator/pointers/global-ptr-2-false.c: 'FALSE'
-  test/programs/cpalockator/pointers/global-ptr-3-true.c: 'FALSE' # Change this to TRUE after adding Memory Model analysis
+  test/programs/cpalockator/pointers/global-ptr-3-true.c: 'TRUE'
+  test/programs/cpalockator/pointers/global-ptr-4-true.c: 'FALSE'
+-lockator-threadmodular-linux:
+  test/programs/cpalockator/pointers/global-true.c: 'FALSE'
+  test/programs/cpalockator/pointers/global-ptr-1-true.c: 'FALSE'
+  test/programs/cpalockator/pointers/global-ptr-2-false.c: 'FALSE'
+  test/programs/cpalockator/pointers/global-ptr-3-true.c: 'FALSE'
   test/programs/cpalockator/pointers/global-ptr-4-true.c: 'FALSE'
