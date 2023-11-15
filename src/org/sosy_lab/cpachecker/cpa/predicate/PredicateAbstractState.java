@@ -61,7 +61,7 @@ public abstract class PredicateAbstractState
 
   @Override
   public boolean cover(CompatibleNode pNode) {
-    return false;
+    return true;
   }
 
   @Override
@@ -69,11 +69,13 @@ public abstract class PredicateAbstractState
     value = "EQ_COMPARETO_USE_OBJECT_EQUALS",
     justification = "PredicateAbstractState does not have class equals")
   public int compareTo(CompatibleState pArg0) {
-    return (this.hashCode() - pArg0.hashCode());
+    // Difficult to compare formulas, we cannot distinguish all of them
+    // So, just cover all of them
+    return 0;
   }
 
   @Override
-  public boolean isCompatibleWith(@SuppressWarnings("unused") CompatibleState state) {
+  public boolean isCompatibleWith(CompatibleState state) {
     return applyOp.compatible(this, state);
   }
 
