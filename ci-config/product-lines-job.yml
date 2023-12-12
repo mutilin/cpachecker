@@ -45,46 +45,54 @@ product line 10:
     - "cpa.usage.unsafedetector.unsafeMode=DEADLOCKDISPATCH"
 product line 11:
   extends: product line 1
+  setprop:
+    - "cpa.usage.considerOnlyTrueUnsafes=false"
+product line 12:
+  extends: product line 1
   config: "lockStatistics-threadmodular-linux.properties"
   setprop: 
     - "cpa.usage.useSoundRegions=true"
-product line 12:
-  extends: product line 11
+product line 13:
+  extends: product line 12
   setprop: 
     - "cpa.thread.mode=ENVIRONMENT"
-product line 13:
-  extends: product line 11
+product line 14:
+  extends: product line 12
   setprop: 
     - "cpa.thread.mode=SIMPLE"
-product line 14:
-  extends: product line 11
+product line 15:
+  extends: product line 12
   setprop: 
     - "cpa.thread.handleSameThreads=SUPPORT"
-product line 15:
-  extends: product line 11
+product line 16:
+  extends: product line 12
   setprop: 
     - "cpa.thread.handleSameThreads=SKIP"
-product line 16:
-  extends: product line 11
+product line 17:
+  extends: product line 12
   setprop: 
     - "cpa.predicate.joinEffectsIntoUndefs=false"
-product line 17:
-  extends: product line 11
+product line 18:
+  extends: product line 12
   setprop: 
     - "cpa.predicate.useUndefFunctions=false"
-product line 18:
-  extends: product line 11
+product line 19:
+  extends: product line 12
   setprop: 
     - "cpa.predicate.applyRelevantEffects=true"
-product line 19:
-  extends: product line 11
+product line 20:
+  extends: product line 12
   setprop: 
     - "cpa.usage.refinement.refinementChain=IdentifierIterator,PointIterator,UsageIterator,SinglePathIterator,ImprecisePredicateRefiner"
-product line 20:
-  extends: product line 11
+product line 21:
+  extends: product line 12
   setprop: 
     - "cpa.predicate.useHavocAbstraction=true"
-product line 21:
-  extends: product line 11
-  setprop: 
+product line 22:
+  extends: product line 12
+  setprop:
     - "cpa.predicate.abstractionLattice=true"
+product line 23:
+  extends: product line 12
+  setprop:
+    - "cpa.usage.considerOnlyTrueUnsafes=false"

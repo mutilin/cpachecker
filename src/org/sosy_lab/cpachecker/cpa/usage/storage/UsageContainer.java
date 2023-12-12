@@ -277,6 +277,10 @@ public class UsageContainer {
     return !stableUnsafes.isEmpty() || !refinedIds.isEmpty();
   }
 
+  public boolean hasRefinedIds() {
+    return !refinedIds.isEmpty();
+  }
+
   public Map<AbstractIdentifier, Pair<UsageInfo, UsageInfo>> getStableUnsafes() {
     stableUnsafes.putAll(refinedIds);
     return stableUnsafes;

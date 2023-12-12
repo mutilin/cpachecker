@@ -46,6 +46,9 @@ def parse_verdict(ret):
         if re.search(m, ret.stdout):
             return v
 
+    if re.search('Verification result: UNKNOWN, incomplete analysis.', ret.stdout):
+    	return 'UNKNOWN'
+
     print_ret(ret)
     raise ValueError("No verification result")
 

@@ -553,6 +553,7 @@ public class CPAchecker {
       int counterExampleCount = 0;
       do {
         status = status.update(algorithm.run(reached));
+        status = status.update(reached.getStatus());
 
         if (cexLimit > 0) {
           counterExampleCount =

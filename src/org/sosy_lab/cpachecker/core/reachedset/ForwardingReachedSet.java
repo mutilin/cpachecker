@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
+import org.sosy_lab.cpachecker.core.algorithm.Algorithm.AlgorithmStatus;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
@@ -148,6 +149,11 @@ public class ForwardingReachedSet implements ReachedSet, StatisticsProvider {
   @Override
   public void updatePrecision(AbstractState pE, Precision pNewPrecision) {
     delegate.updatePrecision(pE, pNewPrecision);
+  }
+
+  @Override
+  public AlgorithmStatus getStatus() {
+    return delegate.getStatus();
   }
 
   @Override

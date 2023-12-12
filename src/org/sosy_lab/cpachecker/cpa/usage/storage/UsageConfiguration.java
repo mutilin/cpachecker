@@ -17,8 +17,8 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.UnsafeDetector.UnsafeMode;
 @Options(prefix = "cpa.usage")
 public final class UsageConfiguration {
 
-  @Option(description = "output only true unsafes", secure = true)
-  private boolean printOnlyTrueUnsafes = false;
+  @Option(description = "output FALSE only if there are true unsafes", secure = true)
+  private boolean considerOnlyTrueUnsafes = false;
 
   @Option(
       name = "unsafedetector.ignoreEmptyLockset",
@@ -57,8 +57,8 @@ public final class UsageConfiguration {
     config.inject(this);
   }
 
-  boolean printOnlyTrueUnsafes() {
-    return printOnlyTrueUnsafes;
+  public boolean considerOnlyTrueUnsafes() {
+    return considerOnlyTrueUnsafes;
   }
 
   boolean ignoreEmptyLockset() {

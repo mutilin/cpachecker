@@ -24,6 +24,7 @@ import java.util.function.BiConsumer;
 import java.util.stream.Stream;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
+import org.sosy_lab.cpachecker.core.algorithm.Algorithm.AlgorithmStatus;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
@@ -133,6 +134,11 @@ class DefaultReachedSet implements ReachedSet {
       reached.remove(s);
       throw new IllegalArgumentException("State needs to be in the reached set in order to change the precision.");
     }
+  }
+
+  @Override
+  public AlgorithmStatus getStatus() {
+    return AlgorithmStatus.SOUND_AND_PRECISE;
   }
 
   @Override

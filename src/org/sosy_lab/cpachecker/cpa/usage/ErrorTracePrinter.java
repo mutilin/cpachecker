@@ -102,9 +102,6 @@ public abstract class ErrorTracePrinter {
   @Option(description = "print all unsafe cases in report", secure = true)
   private boolean printFalseUnsafes = false;
 
-  @Option(description = "output only true unsafes", secure = true)
-  private boolean printOnlyTrueUnsafes = false;
-
   @Option(description = "print unsafes with empty lock states", secure = true)
   private boolean printEmptyLockStates = true;
 
@@ -226,7 +223,7 @@ public abstract class ErrorTracePrinter {
 
       boolean refined = uinfo1.getPath() != null && uinfo2.getPath() != null;
 
-      if (printOnlyTrueUnsafes && !refined) {
+      if (uReached.getUsageConfig().considerOnlyTrueUnsafes() && !refined) {
         continue;
       }
 

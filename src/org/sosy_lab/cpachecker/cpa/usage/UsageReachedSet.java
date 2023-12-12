@@ -12,6 +12,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Map;
 import java.util.Set;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.core.algorithm.Algorithm.AlgorithmStatus;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
@@ -92,6 +93,22 @@ public class UsageReachedSet extends PartitionedReachedSet {
       usagesExtracted = true;
     }
     return container.hasUnsafes();
+  }
+
+  public UsageConfiguration getUsageConfig() {
+    return usageConfig;
+  }
+
+  @Override
+  public AlgorithmStatus getStatus() {
+    if (!usagesExtracted) {
+      extractor.extractUsages(this);
+      usagesExtracted = true;
+    }
+    if (usageConfig.considerOnlyTrueUnsafes() && !container.hasRefinedIds()) {
+      return AlgorithmStatus.SOUND_AND_IMPRECISE;
+    }
+    return AlgorithmStatus.SOUND_AND_PRECISE;
   }
 
   @Override

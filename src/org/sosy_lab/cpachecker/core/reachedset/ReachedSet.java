@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.core.reachedset;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Set;
+import org.sosy_lab.cpachecker.core.algorithm.Algorithm.AlgorithmStatus;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.ConfigurableProgramAnalysis;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
@@ -59,6 +60,8 @@ public interface ReachedSet extends UnmodifiableReachedSet {
    * Change the precision of a state that is already in the reached set.
    */
   void updatePrecision(AbstractState s, Precision newPrecision);
+
+  AlgorithmStatus getStatus();
 
   void remove(AbstractState state);
 

@@ -85,5 +85,5 @@
 -lockator-linux-pre-shared-ref:
   extends: -lockator-threadmodular-linux
   Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i: 'FALSE'
-  Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'FALSE'
-  Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'FALSE'
+  Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'UNKNOWN'
+  Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'UNKNOWN'

@@ -13,10 +13,10 @@
   test/programs/cpalockator/structs/struct-2-true.c: 'TRUE'
   test/programs/cpalockator/structs/struct-3-true.c: 'TRUE'
   test/programs/cpalockator/structs/struct-4-no-malloc-true.c: 'TRUE'
-  test/programs/cpalockator/structs/struct-4-malloc-no-cast-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-4-malloc-no-cast-true.c: 'UNKNOWN' # Incomplete refinement
   test/programs/cpalockator/structs/struct-4-malloc-cast-true.c: 'TRUE'
   test/programs/cpalockator/structs/struct-5-no-malloc-true.c: 'TRUE'
-  test/programs/cpalockator/structs/struct-5-malloc-no-cast-true.c: 'FALSE'
+  test/programs/cpalockator/structs/struct-5-malloc-no-cast-true.c: 'UNKNOWN' # Incomplete refinement
   test/programs/cpalockator/structs/struct-5-malloc-cast-true.c: 'TRUE'
 -lockator-threadmodular-linux:
   test/programs/cpalockator/structs/struct-1-true.c: 'FALSE'
