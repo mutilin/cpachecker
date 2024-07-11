@@ -41,15 +41,12 @@ public class SyntacticBlockStructure {
   }
 
   private boolean ignoreEdge(CFAEdge edge) {
-    if (edge instanceof CFunctionCallEdge
+    return edge instanceof CFunctionCallEdge
         || edge.getFileLocation().equals(FileLocation.DUMMY)
-        || edge.getDescription().contains("__CPAchecker_TMP")) {
-      return true;
-    }
-    return false;
+        || edge.getDescription().contains("__CPAchecker_TMP");
   }
 
-  public Set<CFAEdge> getPrevEdges(SyntacticBlock pBlock, FileLocation location) {
+  public Iterable<CFAEdge> getPrevEdges(SyntacticBlock pBlock, FileLocation location) {
     Set<CFAEdge> edges = new HashSet<>();
     for (CFANode node : pBlock.getContainedNodes()) {
       CFAUtils.enteringEdges(node).copyInto(edges);
@@ -74,7 +71,7 @@ public class SyntacticBlockStructure {
 
     SyntacticBlock innermostBlockOfPrevEdge = getInnermostBlockOf(prev.getFileLocation());
     if (innermostBlockOfPrevEdge.equals(pBlock)) {
-      return CFAUtils.enteringEdges(prev.getSuccessor()).toSet();
+      return CFAUtils.enteringEdges(prev.getSuccessor());
     }
 
     // There is at least one block end directly before the specified location, so return all leaving

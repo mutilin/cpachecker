@@ -13,9 +13,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
+import org.sosy_lab.cpachecker.util.globalinfo.SerializationInfoStorage;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing.PointerTargetSet;
 import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
 import org.sosy_lab.java_smt.api.BooleanFormula;
@@ -33,7 +34,7 @@ import org.sosy_lab.java_smt.api.BooleanFormula;
 @javax.annotation.concurrent.Immutable // cannot prove deep immutability
 public final class PathFormula implements Serializable {
 
-  private static final long serialVersionUID = -7716850731790578620L;
+  @Serial private static final long serialVersionUID = -7716850731790578620L;
   private final BooleanFormula formula;
   private final SSAMap ssa;
   private final int length;
@@ -41,10 +42,10 @@ public final class PathFormula implements Serializable {
 
   // Do not make public, cf. createManually()
   PathFormula(BooleanFormula pf, SSAMap ssa, PointerTargetSet pts, int pLength) {
-    this.formula = checkNotNull(pf);
+    formula = checkNotNull(pf);
     this.ssa = checkNotNull(ssa);
     this.pts = checkNotNull(pts);
-    this.length = pLength;
+    length = pLength;
   }
 
   /**
@@ -115,16 +116,11 @@ public final class PathFormula implements Serializable {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof PathFormula)) {
-      return false;
-    }
-
-    PathFormula other = (PathFormula)obj;
-    return (length == other.length)
+    return obj instanceof PathFormula other
+        && (length == other.length)
         && formula.equals(other.formula)
         && ssa.equals(other.ssa)
-        && pts.equals(other.pts)
-        ;
+        && pts.equals(other.pts);
   }
 
   @Override
@@ -138,6 +134,7 @@ public final class PathFormula implements Serializable {
     return result;
   }
 
+  @Serial
   private Object writeReplace() {
     return new SerializationProxy(this);
   }
@@ -148,6 +145,7 @@ public final class PathFormula implements Serializable {
    * @param in the input stream
    */
   @SuppressWarnings("UnusedVariable") // parameter is required by API
+  @Serial
   private void readObject(ObjectInputStream in) throws IOException {
     throw new InvalidObjectException("Proxy required");
   }
@@ -155,7 +153,7 @@ public final class PathFormula implements Serializable {
   private static class SerializationProxy implements Serializable {
     // (de)serialization only works properly for formulae which were built with the same
     // formula manager as used by PredicateCPA
-    private static final long serialVersionUID = 309890892L;
+    @Serial private static final long serialVersionUID = 309890892L;
 
     private final String formulaDump;
     private final SSAMap ssa;
@@ -163,15 +161,18 @@ public final class PathFormula implements Serializable {
     private final PointerTargetSet pts;
 
     public SerializationProxy(PathFormula pPathFormula) {
-      FormulaManagerView mgr = GlobalInfo.getInstance().getPredicateFormulaManagerView();
+      FormulaManagerView mgr =
+          SerializationInfoStorage.getInstance().getPredicateFormulaManagerView();
       formulaDump = mgr.dumpFormula(pPathFormula.formula).toString();
       ssa = pPathFormula.ssa;
       length = pPathFormula.length;
       pts = pPathFormula.pts;
     }
 
+    @Serial
     private Object readResolve() {
-      FormulaManagerView mgr = GlobalInfo.getInstance().getPredicateFormulaManagerView();
+      FormulaManagerView mgr =
+          SerializationInfoStorage.getInstance().getPredicateFormulaManagerView();
       BooleanFormula formula = mgr.parse(formulaDump);
       return new PathFormula(formula, ssa, pts, length);
     }

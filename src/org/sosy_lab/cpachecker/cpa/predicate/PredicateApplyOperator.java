@@ -21,6 +21,7 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -182,14 +183,7 @@ public class PredicateApplyOperator implements ApplyOperator {
 
           CDeclaration newDecl =
               new CVariableDeclaration(
-                  loc,
-                  false,
-                  CStorageClass.AUTO,
-                  type,
-                  name,
-                  origName,
-                  qualifName,
-                  null);
+                  loc, false, CStorageClass.AUTO, type, name, origName, qualifName, null);
 
           return Pair.of(new CIdExpression(loc, newDecl), false);
         }
@@ -203,14 +197,7 @@ public class PredicateApplyOperator implements ApplyOperator {
 
         CVariableDeclaration newDecl =
             new CVariableDeclaration(
-                loc,
-                false,
-                CStorageClass.AUTO,
-                type,
-                name,
-                origName,
-                qualName,
-                null);
+                loc, false, CStorageClass.AUTO, type, name, origName, qualName, null);
 
         return Pair.of(new CIdExpression(loc, newDecl), false);
       }
@@ -262,12 +249,7 @@ public class PredicateApplyOperator implements ApplyOperator {
 
       CBinaryExpression result =
           new CBinaryExpression(
-              loc,
-              type,
-              calcType,
-              newOperand1.getFirst(),
-              newOperand2.getFirst(),
-              operator);
+              loc, type, calcType, newOperand1.getFirst(), newOperand2.getFirst(), operator);
       return Pair.of(result, newOperand1.getSecond() || newOperand2.getSecond());
     }
 
@@ -364,18 +346,15 @@ public class PredicateApplyOperator implements ApplyOperator {
 
       return Pair.of(rhs, false);
     }
-
   }
 
   @Option(
-    secure = true,
-    name = "useUndefFunctions",
-    description = "Use undefined assignments (havoc abstraction)")
+      secure = true,
+      name = "useUndefFunctions",
+      description = "Use undefined assignments (havoc abstraction)")
   private boolean useUndefFuncs = true;
 
-  @Option(
-    secure = true,
-    description = "do not consider abstraction from inference objects")
+  @Option(secure = true, description = "do not consider abstraction from inference objects")
   private boolean emptyAbstraction = false;
 
   @Option(secure = true, description = "reset shared variables values")
@@ -506,9 +485,7 @@ public class PredicateApplyOperator implements ApplyOperator {
 
           newAssignement =
               new CFunctionCallAssignmentStatement(
-                  fExp.getFileLocation(),
-                  (CLeftHandSide) left.getFirst(),
-                  fExp);
+                  fExp.getFileLocation(), (CLeftHandSide) left.getFirst(), fExp);
         } else {
           Pair<CExpression, Boolean> newRight = right.accept(transformer);
 
@@ -545,7 +522,6 @@ public class PredicateApplyOperator implements ApplyOperator {
           return EmptyEdge.getInstance();
         }
 
-
         FormulaDescription desc =
             new FormulaDescription(newAssignement, pFormula.getFormula(), getTypes(pFormula));
 
@@ -566,23 +542,19 @@ public class PredicateApplyOperator implements ApplyOperator {
     return new PredicateProjectedState(newEdge, guard);
   }
 
-  private final static String UNDEF_FUNCTION = "__VERIFIER_nondet_";
+  private static final String UNDEF_FUNCTION = "__VERIFIER_nondet_";
 
   static CFunctionCallExpression prepareUndefFunctionFor(CRightHandSide right) {
 
     FileLocation loc = right.getFileLocation();
     CType type = right.getExpressionType();
 
-    CFunctionType fType =
-        new CFunctionType(right.getExpressionType(), ImmutableList.of(), false);
+    CFunctionType fType = new CFunctionType(right.getExpressionType(), ImmutableList.of(), false);
     String retType = fType.getReturnType().getCanonicalType().toString();
     retType = retType.replace(" ", "_").replace("(", "").replace(")", "").replace("*", "_p_");
     CFunctionDeclaration funcDecl =
         new CFunctionDeclaration(
-            loc,
-            fType,
-            UNDEF_FUNCTION + retType,
-            ImmutableList.of());
+            loc, fType, UNDEF_FUNCTION + retType, ImmutableList.of(), ImmutableSet.of());
     CExpression name = new CIdExpression(loc, funcDecl);
 
     return new CFunctionCallExpression(loc, type, name, ImmutableList.of(), funcDecl);
@@ -656,7 +628,7 @@ public class PredicateApplyOperator implements ApplyOperator {
   }
 
   private CType getTypeForUndefFunction(Collection<CType> types, String nondetVar) {
-    assert (nondetVar.startsWith(UNDEF_FUNCTION));
+    assert nondetVar.startsWith(UNDEF_FUNCTION);
     nondetVar = nondetVar.substring(UNDEF_FUNCTION.length());
     if (nondetVar.endsWith("_p_")) {
       nondetVar = "(" + nondetVar.substring(0, nondetVar.length() - 3) + ")*";
@@ -678,10 +650,9 @@ public class PredicateApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     throw new UnsupportedOperationException(
         "Composite projection is not supported for Predicate Analysis");
   }
-
 }

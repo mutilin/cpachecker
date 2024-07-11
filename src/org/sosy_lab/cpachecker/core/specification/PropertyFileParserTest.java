@@ -34,17 +34,20 @@ public class PropertyFileParserTest {
 
   private static final ImmutableMap<String, Property> TEST_PROPERTIES =
       ImmutableMap.<String, Property>builder()
-          // https://github.com/sosy-lab/sv-benchmarks/tree/master/java/properties
+          // https://gitlab.com/sosy-lab/benchmarking/sv-benchmarks/-/tree/main/java/properties
           .put("CHECK( init(Main.main()), LTL(G assert) )", CommonVerificationProperty.ASSERT)
           .put(
               "CHECK( init(Main.main()), LTL(G !deadlock) )",
               new OtherLtlProperty("G !deadlock")) // TODO fix!
-          // https://github.com/sosy-lab/sv-benchmarks/tree/master/c/properties
+          // https://gitlab.com/sosy-lab/benchmarking/sv-benchmarks/-/tree/main/c/properties
           .put("CHECK( init(main()), LTL(F end) )", CommonVerificationProperty.TERMINATION)
           .put(
               "CHECK( init(main()), LTL(G ! call(reach_error())) )",
               CommonVerificationProperty.REACHABILITY_ERROR)
-          .put("CHECK( init(main()), LTL(G ! data-race) )", CommonVerificationProperty.DATARACE)
+          .put("CHECK( init(main()), LTL(G ! data-race) )", CommonVerificationProperty.DATA_RACE)
+          .put(
+              "CHECK( init(main()), LTL(G ! data-race-ldv) )",
+              CommonVerificationProperty.DATA_RACE_LDV)
           .put("CHECK( init(main()), LTL(G def-behavior) )", new OtherLtlProperty("G def-behavior"))
           .put("CHECK( init(main()), LTL(G ! overflow) )", CommonVerificationProperty.OVERFLOW)
           .put("CHECK( init(main()), LTL(G valid-deref) )", CommonVerificationProperty.VALID_DEREF)
@@ -86,7 +89,7 @@ public class PropertyFileParserTest {
           .put(
               "CHECK( init(main()), LTL( F G (x = 1) ) )",
               new OtherLtlProperty(" F G (x = 1) ")) // TODO should trim
-          .build();
+          .buildOrThrow();
 
   private static final String VALID_ASSERT_PROPERTY = "CHECK( init(main()), LTL(G assert) )";
 

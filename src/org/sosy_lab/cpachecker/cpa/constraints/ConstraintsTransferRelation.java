@@ -48,6 +48,8 @@ import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState;
 import org.sosy_lab.cpachecker.cpa.constraints.constraint.Constraint;
 import org.sosy_lab.cpachecker.cpa.constraints.constraint.ConstraintFactory;
 import org.sosy_lab.cpachecker.cpa.constraints.domain.ConstraintsSolver;
+import org.sosy_lab.cpachecker.cpa.constraints.domain.ConstraintsSolver.SolverResult;
+import org.sosy_lab.cpachecker.cpa.constraints.domain.ConstraintsSolver.SolverResult.Satisfiability;
 import org.sosy_lab.cpachecker.cpa.constraints.domain.ConstraintsState;
 import org.sosy_lab.cpachecker.cpa.constraints.util.StateSimplifier;
 import org.sosy_lab.cpachecker.cpa.value.ValueAnalysisState;
@@ -61,12 +63,15 @@ import org.sosy_lab.java_smt.api.SolverException;
 public class ConstraintsTransferRelation
     extends ForwardingTransferRelation<ConstraintsState, ConstraintsState, SingletonPrecision> {
 
-  private enum CheckStrategy { AT_ASSUME, AT_TARGET }
+  private enum CheckStrategy {
+    AT_ASSUME,
+    AT_TARGET
+  }
 
-  @Option(name = "satCheckStrategy",
+  @Option(
+      name = "satCheckStrategy",
       description = "When to check the satisfiability of constraints")
   private CheckStrategy checkStrategy = CheckStrategy.AT_ASSUME;
-
 
   private final LogManagerWithoutDuplicates logger;
 
@@ -92,14 +97,17 @@ public class ConstraintsTransferRelation
   }
 
   @Override
-  protected ConstraintsState handleFunctionCallEdge(FunctionCallEdge pCfaEdge, List<? extends AExpression> pArguments,
-      List<? extends AParameterDeclaration> pParameters, String pCalledFunctionName) {
+  protected ConstraintsState handleFunctionCallEdge(
+      FunctionCallEdge pCfaEdge,
+      List<? extends AExpression> pArguments,
+      List<? extends AParameterDeclaration> pParameters,
+      String pCalledFunctionName) {
     return state;
   }
 
   @Override
-  protected ConstraintsState handleFunctionReturnEdge(FunctionReturnEdge pCfaEdge,
-      FunctionSummaryEdge pFunctionCallEdge, AFunctionCall pSummaryExpression, String pCallerFunctionName) {
+  protected ConstraintsState handleFunctionReturnEdge(
+      FunctionReturnEdge pCfaEdge, AFunctionCall pSummaryExpression, String pCallerFunctionName) {
     return state;
   }
 
@@ -119,8 +127,8 @@ public class ConstraintsTransferRelation
   }
 
   @Override
-  protected ConstraintsState handleDeclarationEdge(ADeclarationEdge pCfaEdge, ADeclaration pDeclaration)
-      throws CPATransferException {
+  protected ConstraintsState handleDeclarationEdge(
+      ADeclarationEdge pCfaEdge, ADeclaration pDeclaration) throws CPATransferException {
     return state;
   }
 
@@ -134,7 +142,8 @@ public class ConstraintsTransferRelation
   }
 
   @Override
-  protected ConstraintsState handleAssumption(AssumeEdge pCfaEdge, AExpression pExpression, boolean pTruthAssumption) {
+  protected ConstraintsState handleAssumption(
+      AssumeEdge pCfaEdge, AExpression pExpression, boolean pTruthAssumption) {
     return state;
   }
 
@@ -145,8 +154,7 @@ public class ConstraintsTransferRelation
       boolean pTruthAssumption)
       throws UnrecognizedCodeException, SolverException, InterruptedException {
 
-    return computeNewStateByCreatingConstraint(
-        pOldState, pExpression, pFactory, pTruthAssumption);
+    return computeNewStateByCreatingConstraint(pOldState, pExpression, pFactory, pTruthAssumption);
   }
 
   private ConstraintsState computeNewStateByCreatingConstraint(
@@ -159,26 +167,25 @@ public class ConstraintsTransferRelation
     Optional<Constraint> oNewConstraint = createConstraint(pExpression, pFactory, pTruthAssumption);
 
     if (oNewConstraint.isPresent()) {
-      ConstraintsState newState = pOldState.copyOf();
       final Constraint newConstraint = oNewConstraint.orElseThrow();
 
       // If a constraint is trivial, its satisfiability is not influenced by other constraints.
       // So to evade more expensive SAT checks, we just check the constraint on its own.
       if (newConstraint.isTrivial()) {
-        if (solver.isUnsat(newConstraint, ImmutableList.of(), functionName)) {
+        if (solver.checkUnsat(newConstraint, functionName) == Satisfiability.UNSAT) {
           return null;
         }
       } else {
-        newState.add(newConstraint);
-        return newState;
+        return pOldState.copyWithNew(newConstraint);
       }
     }
 
     return pOldState;
   }
 
-  private Optional<Constraint> createConstraint(AExpression pExpression, ConstraintFactory pFactory,
-      boolean pTruthAssumption) throws UnrecognizedCodeException {
+  private Optional<Constraint> createConstraint(
+      AExpression pExpression, ConstraintFactory pFactory, boolean pTruthAssumption)
+      throws UnrecognizedCodeException {
 
     if (pExpression instanceof JBinaryExpression) {
       return createConstraint((JBinaryExpression) pExpression, pFactory, pTruthAssumption);
@@ -187,11 +194,10 @@ public class ConstraintsTransferRelation
       return createConstraint((JUnaryExpression) pExpression, pFactory, pTruthAssumption);
 
     } else if (pExpression instanceof CBinaryExpression) {
-      return createConstraint((CBinaryExpression)pExpression, pFactory, pTruthAssumption);
+      return createConstraint((CBinaryExpression) pExpression, pFactory, pTruthAssumption);
 
-    }
-    // id expressions in assume edges are created by a call of __VERIFIER_assume(x), for example
-    else if (pExpression instanceof AIdExpression) {
+    } else if (pExpression instanceof AIdExpression) {
+      // id expressions in assume edges are created by a call of __VERIFIER_assume(x), for example
       return createConstraint((AIdExpression) pExpression, pFactory, pTruthAssumption);
 
     } else {
@@ -199,8 +205,9 @@ public class ConstraintsTransferRelation
     }
   }
 
-  private Optional<Constraint> createConstraint(JBinaryExpression pExpression, ConstraintFactory pFactory,
-      boolean pTruthAssumption) throws UnrecognizedCodeException {
+  private Optional<Constraint> createConstraint(
+      JBinaryExpression pExpression, ConstraintFactory pFactory, boolean pTruthAssumption)
+      throws UnrecognizedCodeException {
 
     Constraint constraint;
 
@@ -213,8 +220,9 @@ public class ConstraintsTransferRelation
     return Optional.ofNullable(constraint);
   }
 
-  private Optional<Constraint> createConstraint(JUnaryExpression pExpression, ConstraintFactory pFactory,
-      boolean pTruthAssumption) throws UnrecognizedCodeException {
+  private Optional<Constraint> createConstraint(
+      JUnaryExpression pExpression, ConstraintFactory pFactory, boolean pTruthAssumption)
+      throws UnrecognizedCodeException {
     Constraint constraint;
 
     if (pTruthAssumption) {
@@ -226,8 +234,9 @@ public class ConstraintsTransferRelation
     return Optional.ofNullable(constraint);
   }
 
-  private Optional<Constraint> createConstraint(CBinaryExpression pExpression, ConstraintFactory pFactory,
-      boolean pTruthAssumption) throws UnrecognizedCodeException {
+  private Optional<Constraint> createConstraint(
+      CBinaryExpression pExpression, ConstraintFactory pFactory, boolean pTruthAssumption)
+      throws UnrecognizedCodeException {
 
     Constraint constraint;
 
@@ -240,9 +249,9 @@ public class ConstraintsTransferRelation
     return Optional.ofNullable(constraint);
   }
 
-  private Optional<Constraint> createConstraint(AIdExpression pExpression, ConstraintFactory pFactory,
-      boolean pTruthAssumption) {
-   Constraint constraint;
+  private Optional<Constraint> createConstraint(
+      AIdExpression pExpression, ConstraintFactory pFactory, boolean pTruthAssumption) {
+    Constraint constraint;
 
     if (pTruthAssumption) {
       constraint = pFactory.createPositiveConstraint(pExpression);
@@ -254,9 +263,7 @@ public class ConstraintsTransferRelation
   }
 
   private ConstraintsState simplify(
-      final ConstraintsState pState,
-      final ValueAnalysisState pValueState
-  ) {
+      final ConstraintsState pState, final ValueAnalysisState pValueState) {
     return simplifier.simplify(pState, pValueState);
   }
 
@@ -293,7 +300,8 @@ public class ConstraintsTransferRelation
 
       if (strengthenOperator != null) {
         Optional<Collection<ConstraintsState>> oNewStrengthenedStates =
-            strengthenOperator.strengthen(currStateToStrengthen, currStrengtheningState, currentFunctionName, pCfaEdge);
+            strengthenOperator.strengthen(
+                currStateToStrengthen, currStrengtheningState, currentFunctionName, pCfaEdge);
 
         if (oNewStrengthenedStates.isPresent()) {
           newStates.clear(); // remove the old state to replace it with the new, strengthened result
@@ -321,15 +329,34 @@ public class ConstraintsTransferRelation
     }
   }
 
-  private class ValueAnalysisStrengthenOperator implements StrengthenOperator {
+  private static ConstraintsState getIfSatisfiable(
+      ConstraintsState pStateToCheck, String functionName, ConstraintsSolver solver)
+      throws UnrecognizedCodeException, SolverException, InterruptedException {
+    SolverResult solverResult = solver.checkUnsat(pStateToCheck, functionName);
+    if (solverResult.satisfiability() == Satisfiability.SAT) {
+      ConstraintsState newState = pStateToCheck;
+      if (solverResult.model().isPresent()) {
+        newState = pStateToCheck.copyWithSatisfyingModel(solverResult.model().orElseThrow());
+      }
+      if (solverResult.definiteAssignments().isPresent()) {
+        newState =
+            pStateToCheck.copyWithDefiniteAssignment(
+                solverResult.definiteAssignments().orElseThrow());
+      }
+      return newState;
+    }
+    return null;
+  }
+
+  private final class ValueAnalysisStrengthenOperator implements StrengthenOperator {
 
     @Override
     public Optional<Collection<ConstraintsState>> strengthen(
         final ConstraintsState pStateToStrengthen,
         final AbstractState pValueState,
         final String pFunctionName,
-        final CFAEdge pCfaEdge
-    ) throws CPATransferException, InterruptedException {
+        final CFAEdge pCfaEdge)
+        throws CPATransferException, InterruptedException {
 
       assert pValueState instanceof ValueAnalysisState;
 
@@ -340,7 +367,6 @@ public class ConstraintsTransferRelation
       final ValueAnalysisState valueState = (ValueAnalysisState) pValueState;
       final AssumeEdge assume = (AssumeEdge) pCfaEdge;
 
-      Collection<ConstraintsState> newStates = new ArrayList<>();
       final boolean truthAssumption = assume.getTruthAssumption();
       final AExpression edgeExpression = assume.getExpression();
 
@@ -356,15 +382,21 @@ public class ConstraintsTransferRelation
         // (which represents the bottom element for strengthen methods)
         if (newState != null) {
           newState = simplify(newState, valueState);
-          if (checkStrategy != CheckStrategy.AT_ASSUME || !solver.isUnsat(newState, functionName)) {
-            newStates.add(newState);
+          if (checkStrategy == CheckStrategy.AT_ASSUME) {
+            newState = getIfSatisfiable(newState, functionName, solver);
           }
-
-          if (newState.equals(pStateToStrengthen)) {
-            return Optional.empty();
+          if (newState != null) {
+            if (newState.equals(pStateToStrengthen)) {
+              // return of empty optional means state is unchanged
+              return Optional.empty();
+            } else {
+              return Optional.of(ImmutableList.of(newState));
+            }
           }
         }
-        return Optional.of(newStates);
+        assert newState == null : "newState must be null if empty list is returned";
+        // return of an empty list means state is unreachable
+        return Optional.of(ImmutableList.of());
 
       } catch (SolverException e) {
         throw new CPATransferException(
@@ -373,15 +405,15 @@ public class ConstraintsTransferRelation
     }
   }
 
-  private class AutomatonStrengthenOperator implements StrengthenOperator {
+  private final class AutomatonStrengthenOperator implements StrengthenOperator {
 
     @Override
     public Optional<Collection<ConstraintsState>> strengthen(
         final ConstraintsState pStateToStrengthen,
         final AbstractState pStrengtheningState,
         final String pFunctionName,
-        final CFAEdge pEdge
-    ) throws CPATransferException, InterruptedException {
+        final CFAEdge pEdge)
+        throws CPATransferException, InterruptedException {
       assert pStrengtheningState instanceof AutomatonState;
 
       if (checkStrategy != CheckStrategy.AT_TARGET) {
@@ -391,7 +423,8 @@ public class ConstraintsTransferRelation
       final AutomatonState automatonState = (AutomatonState) pStrengtheningState;
 
       try {
-        if (automatonState.isTarget() && solver.isUnsat(pStateToStrengthen, functionName)) {
+        if (automatonState.isTarget()
+            && getIfSatisfiable(pStateToStrengthen, functionName, solver) == null) {
 
           return Optional.of(ImmutableSet.of());
 

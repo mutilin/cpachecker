@@ -1,7 +1,7 @@
--predicateAnalysis-threadmodular:
+--predicateAnalysis-threadmodular:
   ldv-linux-3.14-races/linux-3.14--drivers--media--platform--marvell-ccic--cafe_ccic.ko.cil-1.i: TIMEOUT
-  ldv-linux-3.14-races/linux-3.14--drivers--media--platform--marvell-ccic--cafe_ccic.ko.cil-2.i: TIMEOUT
-  ldv-linux-3.14-races/linux-3.14--drivers--net--irda--nsc-ircc.ko.cil.i: 'ERROR'
+  ldv-linux-3.14-races/linux-3.14--drivers--media--platform--marvell-ccic--cafe_ccic.ko.cil-2.i: 'FALSE'
+  ldv-linux-3.14-races/linux-3.14--drivers--net--irda--nsc-ircc.ko.cil.i: 'FALSE'
   ldv-linux-3.14-races/linux-3.14--drivers--net--irda--w83977af_ir.ko.cil.i: 'FALSE'
   ldv-linux-3.14-races/linux-3.14--drivers--spi--spi-tegra20-slink.ko.cil.i: 'FALSE'
   ldv-linux-3.14-races/linux-3.14--drivers--usb--misc--adutux.ko.cil.i: 'FALSE'
@@ -174,16 +174,16 @@
   pthread/triangular-longest-1.i: 'FALSE'
   pthread/triangular-longest-2.i: 'FALSE'
   pthread/twostage_3.i: 'FALSE'
--predicateAnalysis-threadmodular-refinement:
-  extends: -predicateAnalysis-threadmodular
+--predicateAnalysis-threadmodular-refinement:
+  extends: --predicateAnalysis-threadmodular
   ldv-races/race-4_1-thread_local_vars.i: 'TRUE'
--predicateAnalysis-threadmodular-reordered:
-  extends: -predicateAnalysis-threadmodular
--predicateAnalysis-tm-ta:
-  extends: -predicateAnalysis-threadmodular
+--predicateAnalysis-threadmodular-reordered:
+  extends: --predicateAnalysis-threadmodular
+--predicateAnalysis-tm-ta:
+  extends: --predicateAnalysis-threadmodular
   ldv-races/race-1_1-join.i: 'FALSE'
--predicateValueAnalysis-threadmodular:
-  extends: -predicateAnalysis-threadmodular-refinement
+--predicateValueAnalysis-threadmodular:
+  extends: --predicateAnalysis-threadmodular-refinement
   ldv-races/race-1_2b-join.i: 'ERROR'
   ldv-races/race-1_3b-join.i: 'ERROR'
   ldv-races/race-4_2-thread_local_vars.i: 'EXCEPTION'

@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cpa.smg.graphs.edge;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.SMGHasValueEdges;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.object.SMGObject;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.value.SMGValue;
@@ -45,6 +46,7 @@ public class SMGEdgeHasValueFilter {
   }
 
   public static class SMGEdgeHasValueFilterByObject extends SMGEdgeHasValueFilter {
+    @CanIgnoreReturnValue
     @VisibleForTesting
     @Override
     public SMGEdgeHasValueFilterByObject filterByObject(SMGObject pObject) {
@@ -145,7 +147,7 @@ public class SMGEdgeHasValueFilter {
   }
 
   public boolean holdsFor(SMGEdgeHasValue pEdge) {
-    assert (sizeInBits >= 0 || sizeNotRequired || overlapsWith != null);
+    assert sizeInBits >= 0 || sizeNotRequired || overlapsWith != null;
     if (object != null && object != pEdge.getObject()) {
       return false;
     }
@@ -176,10 +178,7 @@ public class SMGEdgeHasValueFilter {
 
     if (sizeInBits >= 0 && sizeInBits != pEdge.getSizeInBits()) {
       // zero edge with bigger size can hold current edge
-      if (sizeInBits < pEdge.getSizeInBits() && pEdge.getValue().isZero()) {
-        return true;
-      }
-      return false;
+      return sizeInBits < pEdge.getSizeInBits() && pEdge.getValue().isZero();
     }
 
     return true;

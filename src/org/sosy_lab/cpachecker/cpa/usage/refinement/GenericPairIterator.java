@@ -24,8 +24,7 @@ public abstract class GenericPairIterator<I, O> extends GenericIterator<I, Pair<
   // Statistics
   private StatTimer iterationTime = new StatTimer("Time for iteration");
   private StatCounter numberOfIterations = new StatCounter("Number of internal iterations");
-  private StatCounter numberOflimits =
-      new StatCounter("Number of iteration breaks due to limit");
+  private StatCounter numberOflimits = new StatCounter("Number of iteration breaks due to limit");
 
   public GenericPairIterator(
       ConfigurableRefinementBlock<Pair<O, O>> pWrapper,

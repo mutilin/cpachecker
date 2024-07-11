@@ -10,7 +10,7 @@ import time
 from multiprocessing import Pool
 
 # CI script, as it has problems with benchexec due to c groups
-cpa_bin = ["./scripts/cpa.sh"]
+cpa_bin = ["./bin/cpachecker"]
 
 
 def print_ret(ret):
@@ -53,11 +53,8 @@ def parse_verdict(ret):
     raise ValueError("No verification result")
 
 
-def call_cpachecker(options, program, timeout=900):
+def call_cpachecker(cmd_line, timeout=900):
     try:
-        # print("  Run CPALockator for {}".format(program))
-        cmd_line = cpa_bin + options + [program]
-
         # tic = time.perf_counter()
         ret = subprocess.run(cmd_line, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=timeout)
         # toc = time.perf_counter()
@@ -75,7 +72,7 @@ def call_cpachecker(options, program, timeout=900):
 
 
 def prepare_options(config_name, options):
-    result = ["-config", "config/includes/lockator/" + config_name]
+    result = ["--config", "config/includes/lockator/" + config_name]
     return result + add_setprop(options)
 
 
@@ -83,7 +80,7 @@ def add_setprop(options):
     result = []
     if options:
         for option in options:
-            result += ["-setprop", option]
+            result += ["--option", option]
     return result
 
 
@@ -128,7 +125,8 @@ def run_cpachecker_on_set(options, test_results, key, benchmarks, prefix, parall
         else:
             expected = None
 
-        async_res.append([pool.apply_async(call_cpachecker, args=[options, test, timeout]), test, expected])
+        cmd_line = cpa_bin + options + [test]
+        async_res.append([pool.apply_async(call_cpachecker, args=[cmd_line, timeout]), test, expected])
 
     pool.close()
     pool.join()
@@ -159,16 +157,14 @@ def run_cpachecker_on_set(options, test_results, key, benchmarks, prefix, parall
                 f_name = os.path.basename(triple[0]) + "-log.txt"
                 if isinstance(triple[3], subprocess.TimeoutExpired):
                     # Timeout info
-                    file_p = open(f_name, 'w', encoding="utf-8")
-                    file_p.write(" ".join(triple[3].cmd) + "\n")
-                    file_p.close()
-                    file_p = open(f_name, 'ab')
-                    file_p.write(triple[3].stdout)
-                    file_p.close()
+                    with open(f_name, 'w', encoding="utf-8") as file_p:
+                        file_p.write(" ".join(triple[3].cmd) + "\n")
+                    with open(f_name, 'ab') as file_p:
+                        file_p.write(triple[3].stdout)
                 else:
                     # Normal run
                     with open(f_name, 'w', encoding="utf-8") as file_p:
-                        file_p.write(" ".join(triple[3].args))
+                        file_p.write(" ".join(triple[3].args) + "\n")
                         file_p.write(triple[3].stdout)
 
         raise ValueError("{} failed tests".format(fail_num))
@@ -203,11 +199,11 @@ def run_job(job_file, is_wip_run, job_name: str):
             else:
                 options = [cpa_config] + add_setprop(to_setprop)
 
-            options.append("-stats")
+            options.append("--stats")
 
             spec = get_from_extends(task_config, job_config, 'spec')
             if spec:
-                options += ["-spec", spec]
+                options += ["--spec", spec]
 
             more_options = get_from_extends(task_config, job_config, 'options')
             if more_options:

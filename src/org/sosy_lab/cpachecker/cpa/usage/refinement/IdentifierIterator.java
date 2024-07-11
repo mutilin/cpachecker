@@ -44,8 +44,7 @@ import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-
-@Options(prefix="cpa.usage")
+@Options(prefix = "cpa.usage")
 public class IdentifierIterator
     extends WrappedConfigurableRefinementBlock<ReachedSet, AbstractIdentifier> implements Refiner {
 
@@ -67,22 +66,22 @@ public class IdentifierIterator
     public String getName() {
       return "UsageStatisticsRefiner";
     }
-
   }
 
   private final ConfigurableProgramAnalysis cpa;
   private final LogManager logger;
 
-  @Option(name="precisionReset", description="The value of marked unsafes, after which the precision should be cleaned",
+  @Option(
+      name = "precisionReset",
+      description = "The value of marked unsafes, after which the precision should be cleaned",
       secure = true)
   private int precisionReset = Integer.MAX_VALUE;
 
   // TODO Option is broken!!
   @Option(
-    name = "totalARGCleaning",
-    description = "clean all ARG or try to reuse some parts of it (memory consuming)",
-    secure = true
-  )
+      name = "totalARGCleaning",
+      description = "clean all ARG or try to reuse some parts of it (memory consuming)",
+      secure = true)
   private boolean totalARGCleaning = true;
 
   @Option(
@@ -117,9 +116,11 @@ public class IdentifierIterator
     disableAllCaching = pDisableCaching;
   }
 
-  public static Refiner create(ConfigurableProgramAnalysis pCpa) throws InvalidConfigurationException {
+  public static Refiner create(ConfigurableProgramAnalysis pCpa)
+      throws InvalidConfigurationException {
     if (!(pCpa instanceof WrapperCPA)) {
-      throw new InvalidConfigurationException(BAMPredicateRefiner.class.getSimpleName() + " could not find the PredicateCPA");
+      throw new InvalidConfigurationException(
+          BAMPredicateRefiner.class.getSimpleName() + " could not find the PredicateCPA");
     }
 
     UsageCPA usageCpa = ((WrapperCPA) pCpa).retrieveWrappedCpa(UsageCPA.class);
@@ -127,12 +128,12 @@ public class IdentifierIterator
       throw new InvalidConfigurationException(UsageCPA.class.getSimpleName() + " needs a UsageCPA");
     }
 
-    return new RefinementBlockFactory(pCpa, usageCpa.getConfig())
-        .create();
+    return new RefinementBlockFactory(pCpa, usageCpa.getConfig()).create();
   }
 
   @Override
-  public RefinementResult performBlockRefinement(ReachedSet pReached) throws CPAException, InterruptedException {
+  public RefinementResult performBlockRefinement(ReachedSet pReached)
+      throws CPAException, InterruptedException {
 
     UsageReachedSet uReached;
 
@@ -154,9 +155,8 @@ public class IdentifierIterator
     Iterator<AbstractIdentifier> iterator = container.getUnrefinedUnsafeIterator();
     CFANode firstNode = AbstractStates.extractLocation(pReached.getFirstState());
     AdjustablePrecision initialPrecision =
-        (AdjustablePrecision) cpa
-            .getInitialPrecision(firstNode,
-            StateSpacePartition.getDefaultPartition());
+        (AdjustablePrecision)
+            cpa.getInitialPrecision(firstNode, StateSpacePartition.getDefaultPartition());
 
     while (iterator.hasNext()) {
       AbstractIdentifier currentId = iterator.next();
@@ -177,8 +177,7 @@ public class IdentifierIterator
         container.setAsFalseUnsafe(currentId);
       } else if (!info.isEmpty()) {
         stats.precisionTimer.start();
-        AdjustablePrecision oldPrecision =
-            precisionMap.getOrDefault(currentId, initialPrecision);
+        AdjustablePrecision oldPrecision = precisionMap.getOrDefault(currentId, initialPrecision);
         AdjustablePrecision updatedPrecision = oldPrecision;
 
         for (AdjustablePrecision p : info) {
@@ -193,7 +192,6 @@ public class IdentifierIterator
           noNewPrecision = false;
         }
         stats.precisionTimer.stop();
-
       }
     }
 
@@ -234,8 +232,7 @@ public class IdentifierIterator
 
     // Get new state to remove all links to the old ARG
     pReached.add(
-        cpa.getInitialState(firstNode, StateSpacePartition.getDefaultPartition()),
-        finalPrecision);
+        cpa.getInitialState(firstNode, StateSpacePartition.getDefaultPartition()), finalPrecision);
 
     // TODO should we signal about removed ids?
 

@@ -10,7 +10,7 @@ package org.sosy_lab.cpachecker.cpa.signal;
 
 public class EmptySignalEffect implements SignalEffect {
 
-  private final static EmptySignalEffect INSTANCE = new EmptySignalEffect();
+  private static final EmptySignalEffect INSTANCE = new EmptySignalEffect();
 
   public static EmptySignalEffect getInstance() {
     return INSTANCE;
@@ -20,5 +20,4 @@ public class EmptySignalEffect implements SignalEffect {
   public SignalState apply(SignalState pState) {
     return pState.resetIfNeeded();
   }
-
 }

@@ -20,6 +20,7 @@ import org.sosy_lab.cpachecker.cpa.usage.storage.GenericDelta;
 public class ThreadDelta implements Delta<CompatibleNode> {
 
   protected final Map<String, ThreadStatus> threadSet;
+
   // Do not support rSet now
 
   ThreadDelta(Map<String, ThreadStatus> tSet) {
@@ -85,8 +86,8 @@ public class ThreadDelta implements Delta<CompatibleNode> {
     return newSet;
   }
 
-  protected void
-      addTheSameStatus(@SuppressWarnings("unused") Map<String, ThreadStatus> pNewSet, String pKey) {
+  protected void addTheSameStatus(
+      @SuppressWarnings("unused") Map<String, ThreadStatus> pNewSet, String pKey) {
     // Without options throw exception
     throw new UnsupportedOperationException(pKey + " already exists");
   }
@@ -101,14 +102,7 @@ public class ThreadDelta implements Delta<CompatibleNode> {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof ThreadDelta)) {
-      return false;
-    }
-    ThreadDelta other = (ThreadDelta) obj;
-    return Objects.equals(threadSet, other.threadSet);
+    return obj instanceof ThreadDelta other && threadSet.equals(other.threadSet);
   }
 
   public ThreadDelta copy(Map<String, ThreadStatus> pTSet) {

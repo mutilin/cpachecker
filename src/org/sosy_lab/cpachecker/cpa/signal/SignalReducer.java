@@ -18,17 +18,14 @@ import org.sosy_lab.cpachecker.core.interfaces.Precision;
 public class SignalReducer extends GenericReducer<SignalState, SingletonPrecision> {
 
   @Override
-  protected SignalState
-      getVariableReducedState0(SignalState pExpandedState, Block pContext, CFANode pCallNode)
-          throws InterruptedException {
+  protected SignalState getVariableReducedState0(
+      SignalState pExpandedState, Block pContext, CFANode pCallNode) throws InterruptedException {
     return pExpandedState.reduce();
   }
 
   @Override
   protected SignalState getVariableExpandedState0(
-      SignalState pRootState,
-      Block pReducedContext,
-      SignalState pReducedState)
+      SignalState pRootState, Block pReducedContext, SignalState pReducedState)
       throws InterruptedException {
     return pReducedState.expand(pRootState);
   }
@@ -45,9 +42,7 @@ public class SignalReducer extends GenericReducer<SignalState, SingletonPrecisio
 
   @Override
   protected SingletonPrecision getVariableExpandedPrecision0(
-      SingletonPrecision pRootPrecision,
-      Block pRootContext,
-      SingletonPrecision pReducedPrecision) {
+      SingletonPrecision pRootPrecision, Block pRootContext, SingletonPrecision pReducedPrecision) {
     return pRootPrecision;
   }
 
@@ -59,5 +54,4 @@ public class SignalReducer extends GenericReducer<SignalState, SingletonPrecisio
       FunctionExitNode pExitLocation) {
     return pExpandedState;
   }
-
 }

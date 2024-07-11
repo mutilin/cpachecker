@@ -44,10 +44,7 @@ public abstract class ThreadModularPredicateRefiner implements Refiner {
 
     GlobalRefinementStrategy strategy =
         new PredicateAbstractionGlobalRefinementStrategy(
-            config,
-            logger,
-            predicateCpa.getPredicateManager(),
-            solver);
+            config, logger, predicateCpa.getPredicateManager(), solver);
 
     ConfigurationBuilder configBuilder = Configuration.builder();
     configBuilder = configBuilder.copyFrom(predicateCpa.getConfiguration());
@@ -58,11 +55,6 @@ public abstract class ThreadModularPredicateRefiner implements Refiner {
     ARGBasedRefiner refiner = factory.create(strategy);
 
     return AbstractARGBasedRefiner.forARGBasedRefiner(
-        new ThreadModularCPARefiner(
-        logger,
-        strategy,
-        config,
-            refiner),
-        pCpa);
+        new ThreadModularCPARefiner(logger, strategy, config, refiner), pCpa);
   }
 }

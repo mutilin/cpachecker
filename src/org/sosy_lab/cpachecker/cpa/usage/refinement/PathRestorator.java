@@ -20,13 +20,9 @@ public interface PathRestorator {
   public ARGPath computePath(ARGState pLastElement, List<AbstractState> pStack);
 
   public ARGPath computePath(
-      ARGState pLastElement,
-      Set<List<Integer>> pRefinedStates,
-      List<AbstractState> pStack);
+      ARGState pLastElement, Set<List<Integer>> pRefinedStates, List<AbstractState> pStack);
 
   public ARGPathIterator iterator(ARGState pTarget, List<AbstractState> pStack);
 
-  default void printStatistics(@SuppressWarnings("unused") StatisticsWriter pOut) {
-  }
-
+  default void printStatistics(@SuppressWarnings("unused") StatisticsWriter pOut) {}
 }

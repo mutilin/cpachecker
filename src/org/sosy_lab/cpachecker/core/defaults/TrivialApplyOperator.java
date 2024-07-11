@@ -26,7 +26,7 @@ import org.sosy_lab.cpachecker.core.interfaces.ApplyOperator;
 
 public class TrivialApplyOperator implements ApplyOperator {
 
-  private final static TrivialApplyOperator instance = new TrivialApplyOperator();
+  private static final TrivialApplyOperator instance = new TrivialApplyOperator();
 
   private TrivialApplyOperator() {}
 
@@ -60,10 +60,9 @@ public class TrivialApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     assert pStates.size() >= 2;
     return pStates.get(0);
   }
-
 }

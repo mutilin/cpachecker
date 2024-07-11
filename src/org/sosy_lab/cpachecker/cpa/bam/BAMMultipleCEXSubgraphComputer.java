@@ -34,13 +34,13 @@ import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 /**
- * The subgraph computer is used to restore paths not to target states, but to any other.
- * The difficulty is to determine the outer block.
+ * The subgraph computer is used to restore paths not to target states, but to any other. The
+ * difficulty is to determine the outer block.
  *
- * One more feature of the computer is skipping such paths, which contains special (repeated) states.
- * The feature is extremely important for refinement optimization: we do not refine and even not compute the similar paths
+ * <p>One more feature of the computer is skipping such paths, which contains special (repeated)
+ * states. The feature is extremely important for refinement optimization: we do not refine and even
+ * not compute the similar paths
  */
-
 public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implements PathRestorator {
   private final Function<ARGState, Integer> getStateId;
 
@@ -55,10 +55,7 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
     getStateId = idExtractor;
   }
 
-
-  private ARGState findPath(
-      BackwardARGState newTreeTarget,
-      List<AbstractState> expandedStack)
+  private ARGState findPath(BackwardARGState newTreeTarget, List<AbstractState> expandedStack)
       throws InterruptedException, MissingBlockException {
 
     Map<ARGState, BackwardARGState> elementsMap = new HashMap<>();
@@ -115,13 +112,13 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
             newChild.addParent(newCurrentElement);
           }
 
-          //The first state
+          // The first state
           root = newCurrentElement;
           break;
         }
 
-        //Try to find path.
-        //Exchange the reduced state by the expanded one
+        // Try to find path.
+        // Exchange the reduced state by the expanded one
         currentState = (ARGState) expandedStates.iterator().next();
         newCurrentElement = new BackwardARGState(currentState);
         elementsMap.put(currentState, newCurrentElement);
@@ -134,9 +131,12 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
       if (data.hasInitialState(currentState) && !inCallstackFunction) {
         // If child-state is an expanded state, the child is at the exit-location of a block.
         // In this case, we enter the block (backwards).
-        // We must use a cached reachedSet to process further, because the block has its own reachedSet.
-        // The returned 'innerTreeRoot' is the rootNode of the subtree, created from the cached reachedSet.
-        // The current subtree (successors of child) is appended beyond the innerTree, to get a complete subgraph.
+        // We must use a cached reachedSet to process further, because the block has its own
+        // reachedSet.
+        // The returned 'innerTreeRoot' is the rootNode of the subtree, created from the cached
+        // reachedSet.
+        // The current subtree (successors of child) is appended beyond the innerTree, to get a
+        // complete subgraph.
         computeCounterexampleSubgraphForBlock(newCurrentElement, childrenInSubgraph);
         assert childrenInSubgraph.size() == 1;
         BackwardARGState tmpState = childrenInSubgraph.iterator().next();
@@ -158,7 +158,7 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
         }
 
         if (currentState.getParents().isEmpty()) {
-          //The first state
+          // The first state
           root = newCurrentElement;
           break;
         }
@@ -175,9 +175,8 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
       BackwardARGState pLastElement,
       Set<List<Integer>> pRefinedStates,
       List<AbstractState> pStack) {
-    //Note pLastElement may not be the last indeed
-    //The path may be recomputed from the middle
-
+    // Note pLastElement may not be the last indeed
+    // The path may be recomputed from the middle
     assert (pLastElement != null && !pLastElement.isDestroyed());
 
     try {
@@ -205,9 +204,7 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
 
   @Override
   public ARGPath computePath(
-      ARGState pLastElement,
-      Set<List<Integer>> pRefinedStates,
-      List<AbstractState> pStack) {
+      ARGState pLastElement, Set<List<Integer>> pRefinedStates, List<AbstractState> pStack) {
     return restorePathFrom(new BackwardARGState(pLastElement), pRefinedStates, pStack);
   }
 
@@ -230,15 +227,12 @@ public class BAMMultipleCEXSubgraphComputer extends BAMSubgraphComputer implemen
         .put(numOfRepeatedPaths);
   }
 
-  /** This states is used for UsageStatisticsRefinement:
-   *  If after some refinement iterations the path goes through already processed states,
-   *  this marked state is returned.
-   */
-  public final static BackwardARGState DUMMY_STATE_FOR_REPEATED_STATE = new BackwardARGState(new ARGState(null, null));
   /**
-   * This is a ARGState, that counts backwards, used to build the Pseudo-ARG for CEX-retrieval.
-   * As the Pseudo-ARG is build backwards starting at its end-state, we count the ID backwards.
+   * This states is used for UsageStatisticsRefinement: If after some refinement iterations the path
+   * goes through already processed states, this marked state is returned.
    */
+  public static final BackwardARGState DUMMY_STATE_FOR_REPEATED_STATE =
+      new BackwardARGState(new ARGState(null, null));
 
   @Override
   public BAMSubgraphIterator iterator(ARGState target, List<AbstractState> pStack) {

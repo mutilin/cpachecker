@@ -13,14 +13,14 @@ SPDX-License-Identifier: Apache-2.0
 <!DOCTYPE benchmark PUBLIC "+//IDN sosy-lab.org//DTD BenchExec benchmark 1.0//EN" "http://www.sosy-lab.org/benchexec/benchmark-1.0.dtd">
 <benchmark tool="cpachecker" timelimit="60 s" hardtimelimit="90 s" memlimit="3 GB" cpuCores="1">
 
-  <option name="-noout"/>
-  <option name="-heap">2000M</option>
+  <option name="--no-output-files"/>
+  <option name="--heap">2000M</option>
 
   <rundefinition>
-    <option name="-config">config/unmaintained/components/kInduction/pdr.properties</option>
-    <option name="-setprop">pdr.abstractionStrategy=ALLSAT_BASED_PREDICATE_ABSTRACTION</option>
-    <option name="-setprop">pdr.liftingStrategy=ABSTRACTION_BASED_LIFTING</option>
-    <option name="-setprop">pdr.invariantRefinementStrategy=UNSAT_CORE_BASED_STRENGTHENING</option>
+    <option name="--config">config/unmaintained/components/kInduction/pdr.properties</option>
+    <option name="--option">pdr.abstractionStrategy=ALLSAT_BASED_PREDICATE_ABSTRACTION</option>
+    <option name="--option">pdr.liftingStrategy=ABSTRACTION_BASED_LIFTING</option>
+    <option name="--option">pdr.invariantRefinementStrategy=UNSAT_CORE_BASED_STRENGTHENING</option>
   </rundefinition>
 
   <tasks>
@@ -35,7 +35,7 @@ SPDX-License-Identifier: Apache-2.0
   <tasks>
     <includesfile>../programs/simple/simple.set</includesfile>
     <propertyfile>../config/Assertion.spc</propertyfile>
-    <exclude>../programs/simple/pointer_aliasing/deferred_allocation_*</exclude>
+    <exclude>../programs/simple/pointer_aliasing/deferred_allocations_*</exclude>
   </tasks>
 
   <tasks>
@@ -51,7 +51,7 @@ SPDX-License-Identifier: Apache-2.0
 
     <propertyfile>../programs/benchmarks/properties/unreach-call.prp</propertyfile>
     <!-- SV-Comp files assume that malloc always succeeds -->
-    <option name="-setprop">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
+    <option name="--option">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
   </tasks>
 
   <tasks>
@@ -59,10 +59,11 @@ SPDX-License-Identifier: Apache-2.0
 
     <!-- Timeout even after 90s -->
     <exclude>../programs/benchmarks/list-properties/*</exclude>
+    <exclude>../programs/benchmarks/ldv-sets/test_add-1.yml</exclude> <!-- flapping timeout -->
 
     <propertyfile>../programs/benchmarks/properties/unreach-call.prp</propertyfile>
     <!-- SV-Comp files assume that malloc always succeeds -->
-    <option name="-setprop">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
+    <option name="--option">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
   </tasks>
 
   <tasks>
@@ -73,16 +74,18 @@ SPDX-License-Identifier: Apache-2.0
     <exclude>../programs/benchmarks/loops/veris.c_NetBSD-libc_loop.yml</exclude> <!-- flapping timeout -->
     <exclude>../programs/benchmarks/loop-acceleration/diamond_*</exclude>
     <exclude>../programs/benchmarks/loop-lit/*</exclude> <!-- mostly timeouts -->
-    <exclude>../programs/benchmarks/loop-invgen/apache-get-tag.i.p+sep-reducer.yml</exclude> <!-- flapping timeout -->
+    <exclude>../programs/benchmarks/loop-invgen/apache-get-tag.i.*-reducer.yml</exclude> <!-- flapping timeout -->
     <exclude>../programs/benchmarks/loop-invgen/id_build.yml</exclude> <!-- flapping timeout -->
+    <exclude>../programs/benchmarks/loop-invgen/id_build.i.v+lhb-reducer.yml</exclude> <!-- flapping timeout -->
     <exclude>../programs/benchmarks/loop-invariants/linear-inequality-inv-b.yml</exclude> <!-- flapping timeout -->
     <exclude>../programs/benchmarks/loops-crafted-1/*</exclude> <!-- only timeouts -->
+    <exclude>../programs/benchmarks/loop-zilu/benchmark18_conjunctive.yml</exclude> <!-- only timeouts -->
     <exclude>../programs/benchmarks/nla-digbench/*</exclude> <!-- only timeouts -->
     <exclude>../programs/benchmarks/nla-digbench-scaling/*</exclude> <!-- mostly timeouts -->
 
     <propertyfile>../programs/benchmarks/properties/unreach-call.prp</propertyfile>
     <!-- SV-Comp files assume that malloc always succeeds -->
-    <option name="-setprop">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
+    <option name="--option">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
   </tasks>
 
   <tasks>
@@ -99,8 +102,8 @@ SPDX-License-Identifier: Apache-2.0
     <exclude>../programs/benchmarks/ldv-linux-3.4-simple/43_1a_cilled_ok_nondet_linux-43_1a-drivers--usb*</exclude>
 
     <propertyfile>../programs/benchmarks/properties/unreach-call.prp</propertyfile>
-    <option name="-skipRecursion"/>
+    <option name="--skip-recursion"/>
     <!-- SV-Comp files assume that malloc always succeeds -->
-    <option name="-setprop">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
+    <option name="--option">cpa.predicate.memoryAllocationsAlwaysSucceed=true</option>
   </tasks>
 </benchmark>

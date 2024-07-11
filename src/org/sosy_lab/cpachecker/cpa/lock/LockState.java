@@ -10,11 +10,15 @@ package org.sosy_lab.cpachecker.cpa.lock;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Comparators;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.HashMultiset;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multiset;
 import com.google.common.collect.Sets;
+import java.io.Serial;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -35,6 +39,7 @@ public final class LockState extends AbstractLockState {
   public static class LockTreeNode implements CompatibleNode {
 
     private final Set<LockIdentifier> locks;
+    @Serial private static final long serialVersionUID = 5757759799394605077L;
 
     public LockTreeNode(Set<LockIdentifier> pLocks) {
       locks = pLocks;
@@ -52,21 +57,15 @@ public final class LockState extends AbstractLockState {
 
     @Override
     public int compareTo(CompatibleState pArg0) {
-      Preconditions.checkArgument(pArg0 instanceof LockTreeNode);
-      LockTreeNode o = (LockTreeNode) pArg0;
-      int result = locks.size() - o.locks.size();
-      if (result != 0) {
-        return result;
-      }
-      Iterator<LockIdentifier> lockIterator = locks.iterator();
-      Iterator<LockIdentifier> lockIterator2 = o.locks.iterator();
-      while (lockIterator.hasNext()) {
-        result = lockIterator.next().compareTo(lockIterator2.next());
-        if (result != 0) {
-          return result;
-        }
-      }
-      return 0;
+      LockTreeNode other = (LockTreeNode) pArg0;
+      return ComparisonChain.start()
+          .compare(other.locks.size(), locks.size()) // decreasing queue
+          .compare(
+              other.locks,
+              locks,
+              Comparators.lexicographical(Comparator.<LockIdentifier>naturalOrder())) // Sizes are
+          // equal
+          .result();
     }
 
     @Override
@@ -75,6 +74,7 @@ public final class LockState extends AbstractLockState {
       LockTreeNode o = (LockTreeNode) pNode;
 
       // empty locks do not cover all others (special case
+
       if (this.locks.isEmpty()) {
         return o.locks.isEmpty();
       } else {
@@ -128,11 +128,7 @@ public final class LockState extends AbstractLockState {
       if (this == obj) {
         return true;
       }
-      if (!(obj instanceof LockTreeNode)) {
-        return false;
-      }
-      LockTreeNode other = (LockTreeNode) obj;
-      return Objects.equals(locks, other.locks);
+      return obj instanceof LockTreeNode other && locks.equals(other.locks);
     }
 
     @Override
@@ -298,7 +294,6 @@ public final class LockState extends AbstractLockState {
           mutableLocks.put(lockId, rootLocks.get(lockId));
         }
       }
-
     }
 
     @Override
@@ -312,7 +307,12 @@ public final class LockState extends AbstractLockState {
     }
   }
 
+  private static final Comparator<Iterable<Entry<LockIdentifier, Integer>>> LOCKS_COMPARATOR =
+      Comparators.lexicographical(
+          Entry.<LockIdentifier, Integer>comparingByKey().thenComparing(Entry.comparingByValue()));
+
   private final ImmutableMap<LockIdentifier, Integer> locks;
+
   // if we need restore state, we save it here
   // Used for function annotations like annotate.function_name.restore
   public LockState() {
@@ -321,7 +321,7 @@ public final class LockState extends AbstractLockState {
 
   LockState(Map<LockIdentifier, Integer> gLocks, LockState state) {
     super(state);
-    this.locks = ImmutableMap.copyOf(gLocks);
+    locks = ImmutableMap.copyOf(gLocks);
   }
 
   @Override
@@ -372,29 +372,10 @@ public final class LockState extends AbstractLockState {
   @Override
   public int compareTo(CompatibleState pOther) {
     LockState other = (LockState) pOther;
-
-    int result = other.getSize() - this.getSize(); // decreasing queue
-
-    if (result != 0) {
-      return result;
-    }
-
-    Iterator<Entry<LockIdentifier, Integer>> iterator1 = locks.entrySet().iterator();
-    Iterator<Entry<LockIdentifier, Integer>> iterator2 = other.locks.entrySet().iterator();
-    // Sizes are equal
-    while (iterator1.hasNext()) {
-      Entry<LockIdentifier, Integer> entry1 = iterator1.next();
-      Entry<LockIdentifier, Integer> entry2 = iterator2.next();
-      result = entry1.getKey().compareTo(entry2.getKey());
-      if (result != 0) {
-        return result;
-      }
-      Integer Result = entry1.getValue() - entry2.getValue();
-      if (Result != 0) {
-        return Result;
-      }
-    }
-    return 0;
+    return ComparisonChain.start()
+        .compare(other.getSize(), getSize()) // decreasing queue
+        .compare(locks.entrySet(), other.locks.entrySet(), LOCKS_COMPARATOR) // Sizes are equal
+        .result();
   }
 
   @Override
@@ -463,7 +444,7 @@ public final class LockState extends AbstractLockState {
     Map<LockIdentifier, Integer> overlappedMap = new TreeMap<>();
     Map<LockIdentifier, Integer> otherMap = ((LockState) pOther).locks;
 
-    for (Entry<LockIdentifier, Integer> entry : this.locks.entrySet()) {
+    for (Entry<LockIdentifier, Integer> entry : locks.entrySet()) {
       LockIdentifier id = entry.getKey();
       Integer value = entry.getValue();
       if (otherMap.containsKey(id)) {
@@ -471,6 +452,6 @@ public final class LockState extends AbstractLockState {
         overlappedMap.put(id, Integer.min(value, otherVal));
       }
     }
-    return new LockState(overlappedMap, (LockState) this.toRestore);
+    return new LockState(overlappedMap, (LockState) toRestore);
   }
 }

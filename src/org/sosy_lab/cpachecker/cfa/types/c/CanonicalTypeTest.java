@@ -35,7 +35,9 @@ public class CanonicalTypeTest {
     assertThat(CNumericTypes.SIGNED_INT.getCanonicalType()).isEqualTo(CNumericTypes.SIGNED_INT);
     assertThat(CNumericTypes.UNSIGNED_INT.getCanonicalType()).isEqualTo(CNumericTypes.UNSIGNED_INT);
 
-    CType longType = new CSimpleType(false, false, CBasicType.UNSPECIFIED, true, false, false, false, false, false, false);
+    CType longType =
+        new CSimpleType(
+            false, false, CBasicType.UNSPECIFIED, true, false, false, false, false, false, false);
     assertThat(longType.getCanonicalType()).isEqualTo(CNumericTypes.SIGNED_LONG_INT);
   }
 
@@ -49,28 +51,28 @@ public class CanonicalTypeTest {
 
   @Test
   public void arrayQualifiers() {
-    CArrayType array = new CArrayType(true, true, CNumericTypes.INT, null);
+    CArrayType array = new CArrayType(true, true, CNumericTypes.INT);
 
     // arrays push their qualifiers to the element type (C11 § 6.7.3 (9))
-    CArrayType expected = new CArrayType(false, false, VOLATILE_CONST_INT, null);
+    CArrayType expected = new CArrayType(false, false, VOLATILE_CONST_INT);
     assertThat(array.getCanonicalType()).isEqualTo(expected);
   }
 
   @Test
   public void arrayTypedefQualifiers() {
     CTypedefType typedef = new CTypedefType(true, false, "TYPEDEF", CNumericTypes.INT);
-    CArrayType array = new CArrayType(false, true, typedef, null);
+    CArrayType array = new CArrayType(false, true, typedef);
 
-    CArrayType expected = new CArrayType(false, false, VOLATILE_CONST_INT, null);
+    CArrayType expected = new CArrayType(false, false, VOLATILE_CONST_INT);
     assertThat(array.getCanonicalType()).isEqualTo(expected);
   }
 
   @Test
   public void typedefArrayQualifiers() {
-    CArrayType array = new CArrayType(false, true, CNumericTypes.INT, null);
+    CArrayType array = new CArrayType(false, true, CNumericTypes.INT);
     CTypedefType typedef = new CTypedefType(true, false, "TYPEDEF", array);
 
-    CArrayType expected = new CArrayType(false, false, VOLATILE_CONST_INT, null);
+    CArrayType expected = new CArrayType(false, false, VOLATILE_CONST_INT);
     assertThat(typedef.getCanonicalType()).isEqualTo(expected);
   }
 

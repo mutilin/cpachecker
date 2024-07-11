@@ -10,25 +10,23 @@ package org.sosy_lab.cpachecker.cpa.smg2;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 import org.sosy_lab.common.collect.PersistentLinkedList;
 import org.sosy_lab.common.collect.PersistentList;
-import org.sosy_lab.cpachecker.cpa.smg.graphs.object.SMGObject;
 
 /**
  * Simple flags are not enough, this class contains more about the nature of the error.
  *
  * <p>This class is immutable.
  */
-class SMGErrorInfo {
+public class SMGErrorInfo {
 
   enum Property {
     INVALID_READ,
     INVALID_WRITE,
     INVALID_FREE,
-    INVALID_HEAP
+    INVALID_HEAP,
+    UNDEFINED_BEHAVIOR
   }
 
   private final boolean invalidWrite;
@@ -109,54 +107,6 @@ class SMGErrorInfo {
     return invalidWrite || invalidRead || invalidFree || hasMemoryLeak;
   }
 
-  SMGErrorInfo mergeWith(SMGErrorInfo pOther) {
-    return new SMGErrorInfo(
-        invalidWrite || pOther.invalidWrite,
-        invalidRead || pOther.invalidRead,
-        invalidFree || pOther.invalidFree,
-        hasMemoryLeak || pOther.hasMemoryLeak,
-        errorDescription,
-        invalidChain,
-        currentChain);
-  }
-
-  SMGErrorInfo withClearChain() {
-    return new SMGErrorInfo(
-        invalidWrite,
-        invalidRead,
-        invalidFree,
-        hasMemoryLeak,
-        errorDescription,
-        PersistentLinkedList.of(),
-        PersistentLinkedList.of());
-  }
-
-  SMGErrorInfo moveCurrentChainToInvalidChain() {
-    return new SMGErrorInfo(
-        invalidWrite,
-        invalidRead,
-        invalidFree,
-        hasMemoryLeak,
-        errorDescription,
-        invalidChain.withAll(currentChain),
-        currentChain);
-  }
-
-  public SMGErrorInfo withObject(Object o) {
-    return new SMGErrorInfo(
-        invalidWrite,
-        invalidRead,
-        invalidFree,
-        hasMemoryLeak,
-        errorDescription,
-        invalidChain,
-        currentChain.with(o));
-  }
-
-  SMGErrorInfo withInvalidObject(SMGObject pSmgObject) {
-    return withInvalidObjects(Collections.singleton(pSmgObject));
-  }
-
   public SMGErrorInfo withInvalidObjects(Collection<?> pObjects) {
     return new SMGErrorInfo(
         invalidWrite,
@@ -176,11 +126,8 @@ class SMGErrorInfo {
 
   @Override
   public boolean equals(Object pOther) {
-    if (!(pOther instanceof SMGErrorInfo)) {
-      return false;
-    }
-    SMGErrorInfo o = (SMGErrorInfo) pOther;
-    return invalidWrite == o.invalidWrite
+    return pOther instanceof SMGErrorInfo o
+        && invalidWrite == o.invalidWrite
         && invalidRead == o.invalidRead
         && invalidFree == o.invalidFree
         && hasMemoryLeak == o.hasMemoryLeak
@@ -191,7 +138,7 @@ class SMGErrorInfo {
   @Override
   public String toString() {
     StringBuilder str = new StringBuilder("ErrorInfo {");
-    str.append(errorDescription.isEmpty() ? "<>" : errorDescription).append(", ");
+    str.append(errorDescription.isEmpty() ? "<>" : errorDescription).append("; Errors: ");
     if (invalidWrite) {
       str.append("invalid write").append(", ");
     }
@@ -227,11 +174,32 @@ class SMGErrorInfo {
     return hasMemoryLeak;
   }
 
-  List<Object> getCurrentChain() {
-    return currentChain;
+  public Property getPropertyViolated() {
+    if (invalidFree) {
+      return Property.INVALID_FREE;
+    } else if (invalidWrite) {
+      return Property.INVALID_WRITE;
+    } else if (invalidRead) {
+      return Property.INVALID_READ;
+    } else if (hasMemoryLeak) {
+      return Property.INVALID_HEAP;
+    }
+    // Will not happen
+    throw new RuntimeException("Undefined memory error");
   }
 
-  List<Object> getInvalidChain() {
+  public PersistentList<Object> getInvalidChain() {
+    if (invalidChain == null) {
+      return PersistentLinkedList.of();
+    }
     return invalidChain;
+  }
+
+  @SuppressWarnings("unused")
+  public PersistentList<Object> getCurrentChain() {
+    if (currentChain == null) {
+      return PersistentLinkedList.of();
+    }
+    return currentChain;
   }
 }

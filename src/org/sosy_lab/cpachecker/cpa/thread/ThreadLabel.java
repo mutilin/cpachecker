@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cpa.thread;
 
+import com.google.common.collect.ComparisonChain;
 import java.util.Objects;
 
 public final class ThreadLabel implements Comparable<ThreadLabel> {
@@ -15,11 +16,12 @@ public final class ThreadLabel implements Comparable<ThreadLabel> {
   public enum LabelStatus {
     PARENT_THREAD,
     CREATED_THREAD,
-    SELF_PARALLEL_THREAD;
+    SELF_PARALLEL_THREAD,
   }
 
   private final String threadName;
   private final String varName;
+
   // private final LabelStatus status;
 
   public ThreadLabel(String name, String vName) {
@@ -37,22 +39,19 @@ public final class ThreadLabel implements Comparable<ThreadLabel> {
     if (this == obj) {
       return true;
     }
-    if (obj == null ||
-        getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     ThreadLabel other = (ThreadLabel) obj;
-    return Objects.equals(threadName, other.threadName)
-        && Objects.equals(varName, other.varName);
+    return Objects.equals(threadName, other.threadName) && Objects.equals(varName, other.varName);
   }
 
   @Override
   public int compareTo(ThreadLabel pO) {
-    int result = this.threadName.compareTo(pO.threadName);
-    if (result != 0) {
-      return result;
-    }
-    return this.varName.compareTo(pO.varName);
+    return ComparisonChain.start()
+        .compare(threadName, pO.threadName)
+        .compare(varName, pO.varName)
+        .result();
   }
 
   public String getName() {

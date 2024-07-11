@@ -14,6 +14,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSet;
 import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
@@ -30,14 +31,14 @@ import org.sosy_lab.cpachecker.cpa.smg.graphs.object.SMGObject;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.value.SMGKnownAddressValue;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.value.SMGValue;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.value.SMGZeroValue;
-import org.sosy_lab.cpachecker.cpa.smg.util.PersistentMultimap;
-import org.sosy_lab.cpachecker.cpa.smg.util.PersistentSet;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentMultimap;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentSet;
 
 /**
  * A graph-based representation of memory-structures. The most important part is the bipartite
  * directed graph of {@link SMGValue}s and {@link SMGObject}s connected by {@link SMGEdge}s.
  */
-public class SMG implements UnmodifiableSMG {
+public sealed class SMG implements UnmodifiableSMG permits CLangSMG {
   private PersistentSet<SMGObject> objects;
   private PersistentSet<SMGValue> values;
   private SMGHasValueEdges hv_edges;
@@ -55,7 +56,8 @@ public class SMG implements UnmodifiableSMG {
 
   private final MachineModel machine_model;
 
-  private final static SMGEdgePointsTo NULL_POINTER = new SMGEdgePointsTo(SMGZeroValue.INSTANCE, SMGNullObject.INSTANCE, 0);
+  private static final SMGEdgePointsTo NULL_POINTER =
+      new SMGEdgePointsTo(SMGZeroValue.INSTANCE, SMGNullObject.INSTANCE, 0);
 
   /**
    * Constructor.
@@ -117,10 +119,7 @@ public class SMG implements UnmodifiableSMG {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     SMG other = (SMG) obj;
@@ -137,12 +136,11 @@ public class SMG implements UnmodifiableSMG {
   /**
    * Add an object to the SMG.
    *
-   * Keeps consistency: no.
+   * <p>Keeps consistency: no.
    *
    * @param pObj object to add.
-   *
    */
-  final public void addObject(final SMGObject pObj) {
+  public final void addObject(final SMGObject pObj) {
     Preconditions.checkArgument(
         SMGNullObject.INSTANCE != pObj, "NULL can not be added as valid object");
     addObject(pObj, true, false);
@@ -164,16 +162,17 @@ public class SMG implements UnmodifiableSMG {
     errorPredicate.removeValue(pValue);
     assert !hv_edges.filter(SMGEdgeHasValueFilter.valueFilter(pValue)).iterator().hasNext();
   }
+
   /**
-   * Remove pObj from the SMG. This method does not remove
-   * any edges leading from/to the removed object.
+   * Remove pObj from the SMG. This method does not remove any edges leading from/to the removed
+   * object.
    *
-   * Keeps consistency: no
+   * <p>Keeps consistency: no
    *
    * @param pObj Object to remove
    */
   @VisibleForTesting
-  final public void removeObject(final SMGObject pObj) {
+  public final void removeObject(final SMGObject pObj) {
     objects = objects.removeAndCopy(pObj);
     validObjects = validObjects.removeAndCopy(pObj);
     externalObjectAllocation = externalObjectAllocation.removeAndCopy(pObj);
@@ -199,13 +198,13 @@ public class SMG implements UnmodifiableSMG {
   /**
    * Add pObj object to the SMG, with validity set to pValidity.
    *
-   * Keeps consistency: no.
+   * <p>Keeps consistency: no.
    *
-   * @param pObj      Object to add
+   * @param pObj Object to add
    * @param pValidity Validity of the newly added object.
-   *
    */
-  final public void addObject(final SMGObject pObj, final boolean pValidity, final boolean pExternal) {
+  public final void addObject(
+      final SMGObject pObj, final boolean pValidity, final boolean pExternal) {
     objects = objects.addAndCopy(pObj);
     setValidity(pObj, pValidity);
     setExternallyAllocatedFlag(pObj, pExternal);
@@ -225,11 +224,11 @@ public class SMG implements UnmodifiableSMG {
   /**
    * Add pEdge Points-To edge to the SMG.
    *
-   * Keeps consistency: no.
+   * <p>Keeps consistency: no.
    *
    * @param pEdge Points-To edge to add.
    */
-  final public void addPointsToEdge(SMGEdgePointsTo pEdge) {
+  public final void addPointsToEdge(SMGEdgePointsTo pEdge) {
     Preconditions.checkArgument(values.contains(pEdge.getValue()), "adding an edge without source");
     pt_edges = pt_edges.addAndCopy(pEdge);
   }
@@ -237,11 +236,11 @@ public class SMG implements UnmodifiableSMG {
   /**
    * Add pEdge Has-Value edge to the SMG.
    *
-   * Keeps consistency: no
+   * <p>Keeps consistency: no
    *
    * @param pEdge Has-Value edge to add
    */
-  final public void addHasValueEdge(SMGEdgeHasValue pEdge) {
+  public final void addHasValueEdge(SMGEdgeHasValue pEdge) {
     Preconditions.checkArgument(values.contains(pEdge.getValue()), "adding edge without target");
     hv_edges = hv_edges.addEdgeAndCopy(pEdge);
   }
@@ -257,14 +256,15 @@ public class SMG implements UnmodifiableSMG {
     // TODO: add values check
     hv_edges = hv_edges.addEdgesForObject(pEdgesSet);
   }
+
   /**
    * Remove pEdge Has-Value edge from the SMG.
    *
-   * Keeps consistency: no
+   * <p>Keeps consistency: no
    *
    * @param pEdge Has-Value edge to remove
    */
-  final public void removeHasValueEdge(SMGEdgeHasValue pEdge) {
+  public final void removeHasValueEdge(SMGEdgeHasValue pEdge) {
     hv_edges = hv_edges.removeEdgeAndCopy(pEdge);
   }
 
@@ -281,11 +281,10 @@ public class SMG implements UnmodifiableSMG {
   }
 
   /**
-   * Sets the validity of the object pObject to pValidity.
-   * Throws {@link IllegalArgumentException} if pObject is
-   * not present in SMG.
+   * Sets the validity of the object pObject to pValidity. Throws {@link IllegalArgumentException}
+   * if pObject is not present in SMG.
    *
-   * Keeps consistency: no
+   * <p>Keeps consistency: no
    *
    * @param pObject An object.
    * @param pValidity Validity to set.
@@ -300,11 +299,10 @@ public class SMG implements UnmodifiableSMG {
   }
 
   /**
-   * Sets the ExternallyAllocatedFlag of the object pObject to pExternal.
-   * Throws {@link IllegalArgumentException} if pObject is
-   * not present in SMG.
+   * Sets the ExternallyAllocatedFlag of the object pObject to pExternal. Throws {@link
+   * IllegalArgumentException} if pObject is not present in SMG.
    *
-   * Keeps consistency: no
+   * <p>Keeps consistency: no
    *
    * @param pObject An object.
    * @param pExternal Validity to set.
@@ -430,16 +428,16 @@ public class SMG implements UnmodifiableSMG {
   }
 
   /**
-   * Getter for determining if the object pObject is valid. Constant.
-   * Throws {@link IllegalArgumentException} if pObject is
-   * not present in the SMG.
+   * Getter for determining if the object pObject is valid. Constant. Throws {@link
+   * IllegalArgumentException} if pObject is not present in the SMG.
    *
    * @param pObject An object.
    * @return True if Object is valid, False if it is invalid.
    */
   @Override
-  final public boolean isObjectValid(SMGObject pObject) {
-    // Preconditions.checkArgument(objects.contains(pObject), "Object [" + pObject + "] not in SMG");
+  public final boolean isObjectValid(SMGObject pObject) {
+    // Preconditions.checkArgument(objects.contains(pObject), "Object [" + pObject + "] not in
+    // SMG");
     return validObjects.contains(pObject);
   }
 
@@ -449,16 +447,18 @@ public class SMG implements UnmodifiableSMG {
    */
   @Override
   public final boolean isObjectExternallyAllocated(SMGObject pObject) {
-    // Preconditions.checkArgument(objects.contains(pObject), "Object [" + pObject + "] not in SMG");
+    // Preconditions.checkArgument(objects.contains(pObject), "Object [" + pObject + "] not in
+    // SMG");
     return externalObjectAllocation.contains(pObject);
   }
 
   /**
    * Getter for obtaining SMG machine model. Constant.
+   *
    * @return SMG machine model
    */
   @Override
-  final public MachineModel getMachineModel() {
+  public final MachineModel getMachineModel() {
     return machine_model;
   }
 
@@ -487,7 +487,7 @@ public class SMG implements UnmodifiableSMG {
    *     object to NULL value
    */
   @Override
-  public TreeMap<Long, Long> getNullEdgesMapOffsetToSizeForObject(SMGObject pObj) {
+  public NavigableMap<Long, Long> getNullEdgesMapOffsetToSizeForObject(SMGObject pObj) {
 
     SMGEdgeHasValueFilter nullValueFilter =
         SMGEdgeHasValueFilter.objectFilter(pObj)
@@ -533,7 +533,7 @@ public class SMG implements UnmodifiableSMG {
   private boolean isCoveredByNullifiedBlocks(SMGObject pObject, long pOffset, long size) {
     long expectedMinClear = pOffset + size;
 
-    TreeMap<Long, Long> nullEdgesOffsetToSize = getNullEdgesMapOffsetToSizeForObject(pObject);
+    NavigableMap<Long, Long> nullEdgesOffsetToSize = getNullEdgesMapOffsetToSizeForObject(pObject);
     Entry<Long, Long> floorEntry = nullEdgesOffsetToSize.floorEntry(pOffset);
     return (floorEntry != null && floorEntry.getValue() + floorEntry.getKey() >= expectedMinClear);
   }
@@ -562,10 +562,7 @@ public class SMG implements UnmodifiableSMG {
     for (SMGEdgeHasValue old_hve : getHVEdges(SMGEdgeHasValueFilter.valueFilter(old))) {
       SMGEdgeHasValue newHvEdge =
           new SMGEdgeHasValue(
-              old_hve.getSizeInBits(),
-              old_hve.getOffset(),
-              old_hve.getObject(),
-              fresh);
+              old_hve.getSizeInBits(), old_hve.getOffset(), old_hve.getObject(), fresh);
       hv_edges = hv_edges.removeEdgeAndCopy(old_hve);
       hv_edges = hv_edges.addEdgeAndCopy(newHvEdge);
     }

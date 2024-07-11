@@ -11,12 +11,15 @@ package org.sosy_lab.cpachecker.cpa.usage.storage;
 import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
+import com.google.common.collect.Ordering;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo.Access;
+import org.sosy_lab.cpachecker.util.Pair;
 
 public final class UsagePoint implements Comparable<UsagePoint> {
 
@@ -64,60 +67,40 @@ public final class UsagePoint implements Comparable<UsagePoint> {
     if (this == obj) {
       return true;
     }
-    if (obj == null ||
-        getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     UsagePoint other = (UsagePoint) obj;
-    return access == other.access
-        && Objects.equals(compatibleNodes, other.compatibleNodes);
+    return access == other.access && Objects.equals(compatibleNodes, other.compatibleNodes);
   }
 
   @Override
   public int compareTo(UsagePoint o) {
-    //It is very important to compare at first the accesses, because an algorithm base on this suggestion
-    int result = access.compareTo(o.access);
-    if (result != 0) {
-      return result;
-    }
+    // It is very important to compare at first the accesses, because an algorithm base on this
+    // suggestion
     Preconditions.checkArgument(compatibleNodes.size() == o.compatibleNodes.size());
-    for (int i = 0; i < compatibleNodes.size(); i++) {
-      CompatibleNode currentNode = compatibleNodes.get(i);
-      CompatibleNode otherNode = o.compatibleNodes.get(i);
-      result = currentNode.compareTo(otherNode);
-      if (result != 0) {
-        return result;
-      }
-    }
-    return result;
+    return ComparisonChain.start()
+        .compare(access, o.access)
+        // Revert order to negate the result:
+        // Usages without locks are more convenient to analyze
+        .compare(compatibleNodes, o.compatibleNodes, Ordering.natural().reverse().lexicographical())
+        .result();
   }
 
-  //TODO CompareTo? with enums
+  // TODO CompareTo? with enums
   public boolean covers(UsagePoint o) {
     // access 'write' is higher than 'read', but only for nonempty locksets
     if (access.compareTo(o.access) > 0) {
       return false;
     }
 
-    for (int i = 0; i < compatibleNodes.size(); i++) {
-      CompatibleNode node = compatibleNodes.get(i);
-      CompatibleNode otherNode = o.compatibleNodes.get(i);
-      if (!node.cover(otherNode)) {
-        return false;
-      }
-    }
-    return true;
+    return from(Pair.zipList(compatibleNodes, o.compatibleNodes))
+        .allMatch(p -> p.getFirst().cover(p.getSecond()));
   }
 
   public boolean isCompatible(UsagePoint other) {
-    for (int i = 0; i < compatibleNodes.size(); i++) {
-      CompatibleNode node = compatibleNodes.get(i);
-      CompatibleNode otherNode = other.compatibleNodes.get(i);
-      if (!node.isCompatibleWith(otherNode)) {
-        return false;
-      }
-    }
-    return true;
+    return from(Pair.zipList(compatibleNodes, other.compatibleNodes))
+        .allMatch(p -> p.getFirst().isCompatibleWith(p.getSecond()));
   }
 
   public boolean isEmpty() {

@@ -23,9 +23,10 @@
  */
 package org.sosy_lab.cpachecker.cpa.rcucpa;
 
+import com.google.common.collect.ComparisonChain;
 import java.util.Objects;
 
-public class LockStateRCU {
+public class LockStateRCU implements Comparable<LockStateRCU> {
   public enum HeldLock {
     NO_LOCK,
     READ_LOCK,
@@ -89,21 +90,23 @@ public class LockStateRCU {
     return readLockCount <= other.readLockCount && lockType == other.lockType;
   }
 
+  @Override
   public int compareTo(LockStateRCU other) {
-    int res = lockType.compareTo(other.lockType);
-    if (res != 0) {
-      return res;
-    }
-    return readLockCount - other.readLockCount;
+    return ComparisonChain.start()
+        .compare(lockType, other.lockType)
+        .compare(readLockCount, other.readLockCount)
+        .result();
   }
 
   boolean isCompatible(LockStateRCU other) {
-    boolean first = this.lockType == HeldLock.READ_LOCK &&
-                    this.readLockCount > 0
-                    && other.lockType == HeldLock.WRITE_LOCK;
-    boolean second = this.lockType == HeldLock.WRITE_LOCK
-                      && other.lockType == HeldLock.READ_LOCK
-                      && other.readLockCount > 0;
+    boolean first =
+        this.lockType == HeldLock.READ_LOCK
+            && this.readLockCount > 0
+            && other.lockType == HeldLock.WRITE_LOCK;
+    boolean second =
+        this.lockType == HeldLock.WRITE_LOCK
+            && other.lockType == HeldLock.READ_LOCK
+            && other.readLockCount > 0;
     return !first && !second;
   }
 
@@ -117,11 +120,8 @@ public class LockStateRCU {
     if (this == pO) {
       return true;
     }
-    if (!(pO instanceof LockStateRCU)) {
-      return false;
-    }
-
-    LockStateRCU that = (LockStateRCU) pO;
-    return readLockCount == that.readLockCount && lockType == that.lockType;
+    return pO instanceof LockStateRCU other
+        && readLockCount == other.readLockCount
+        && lockType == other.lockType;
   }
 }

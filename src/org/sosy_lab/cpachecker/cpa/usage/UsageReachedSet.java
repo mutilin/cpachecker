@@ -51,7 +51,9 @@ public class UsageReachedSet extends PartitionedReachedSet {
 
   public UsageReachedSet(
       ConfigurableProgramAnalysis pCpa,
-      WaitlistFactory waitlistFactory, UsageConfiguration pConfig, LogManager pLogger) {
+      WaitlistFactory waitlistFactory,
+      UsageConfiguration pConfig,
+      LogManager pLogger) {
     super(pCpa, waitlistFactory);
     logger = pLogger;
     container = new UsageContainer(pConfig, logger);
@@ -135,5 +137,4 @@ public class UsageReachedSet extends PartitionedReachedSet {
   public BAMDataManager getBAMDataManager() {
     return extractor.getManager();
   }
-
 }

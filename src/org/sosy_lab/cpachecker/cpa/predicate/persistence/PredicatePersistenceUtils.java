@@ -16,6 +16,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableList;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.Serial;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -36,12 +37,11 @@ public class PredicatePersistenceUtils {
   public static final Joiner LINE_JOINER = Joiner.on('\n');
 
   public static class PredicateParsingFailedException extends CPAException {
-    private static final long serialVersionUID = 5034288100943314517L;
+    @Serial private static final long serialVersionUID = 5034288100943314517L;
 
     public PredicateParsingFailedException(String msg, String source, int lineNo) {
       super("Parsing failed in line " + lineNo + " of " + source + ": " + msg);
     }
-
 
     public PredicateParsingFailedException(Throwable cause, String source, int lineNo) {
       this(cause.getMessage(), source, lineNo);
@@ -70,14 +70,18 @@ public class PredicatePersistenceUtils {
       declarations = LINE_SPLITTER.splitToList(declarationsString);
     }
 
-    assert formulaString.startsWith("(assert ") && formulaString.endsWith(")") : "Unexpected formula format: " + formulaString;
+    assert formulaString.startsWith("(assert ") && formulaString.endsWith(")")
+        : "Unexpected formula format: " + formulaString;
 
     return Pair.of(formulaString, declarations);
   }
 
-  static void writeSetOfPredicates(Appendable sb, String key,
+  static void writeSetOfPredicates(
+      Appendable sb,
+      String key,
       Collection<AbstractionPredicate> predicates,
-      Map<AbstractionPredicate, String> predToString) throws IOException {
+      Map<AbstractionPredicate, String> predToString)
+      throws IOException {
     if (!predicates.isEmpty()) {
       sb.append(key);
       sb.append(":\n");
@@ -89,7 +93,9 @@ public class PredicatePersistenceUtils {
     }
   }
 
-  static Pair<Integer, String> parseCommonDefinitions(BufferedReader reader, String sourceIdentifier) throws PredicateParsingFailedException, IOException {
+  static Pair<Integer, String> parseCommonDefinitions(
+      BufferedReader reader, String sourceIdentifier)
+      throws PredicateParsingFailedException, IOException {
     // first, read first section with initial set of function definitions
     StringBuilder functionDefinitionsBuffer = new StringBuilder();
 
@@ -113,11 +119,11 @@ public class PredicatePersistenceUtils {
         functionDefinitionsBuffer.append('\n');
 
       } else {
-        throw new PredicateParsingFailedException(currentLine + " is not a valid SMTLIB2 definition", sourceIdentifier, lineNo);
+        throw new PredicateParsingFailedException(
+            currentLine + " is not a valid SMTLIB2 definition", sourceIdentifier, lineNo);
       }
     }
 
     return Pair.of(lineNo, functionDefinitionsBuffer.toString());
   }
-
 }

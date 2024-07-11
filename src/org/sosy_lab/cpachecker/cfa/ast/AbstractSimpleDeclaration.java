@@ -9,27 +9,27 @@
 package org.sosy_lab.cpachecker.cfa.ast;
 
 import com.google.common.base.Strings;
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.Type;
 
 /**
- * This interface represents the core components that occur in each declaration:
- * a type and an (optional) name.
+ * This interface represents the core components that occur in each declaration: a type and an
+ * (optional) name.
  *
- * This class is only SuperClass of all abstract Classes and their Subclasses.
- * The Interface {@link ASimpleDeclaration} contains all language specific
- * AST Nodes as well.
+ * <p>This class is only SuperClass of all abstract Classes and their Subclasses. The Interface
+ * {@link ASimpleDeclaration} contains all language specific AST Nodes as well.
  */
-public abstract class AbstractSimpleDeclaration extends AbstractAstNode implements ASimpleDeclaration {
+public abstract class AbstractSimpleDeclaration extends AbstractAstNode
+    implements ASimpleDeclaration {
 
-  private static final long serialVersionUID = 1078153969461542233L;
-  private  Type type;
+  @Serial private static final long serialVersionUID = 1078153969461542233L;
 
   /**
    * The name of the declared item as it should be used by analyses in CPAchecker. This is a
    * (possibly unique) name that might, but does not have to match the {@link #origName}.
    *
-   * We should use this name in all cases where conflicting names could cause problems in
+   * <p>We should use this name in all cases where conflicting names could cause problems in
    * CPAchecker, e.g., when decoding variables in an abstract state.
    */
   private final String name;
@@ -37,57 +37,49 @@ public abstract class AbstractSimpleDeclaration extends AbstractAstNode implemen
   /**
    * The name of the declared item as written in the source code of the analyzed task.
    *
-   * <p>
-   * We should use this name in all cases where data is imported or exported, e.g., for automaton
+   * <p>We should use this name in all cases where data is imported or exported, e.g., for automaton
    * transition matching and counterexample export.
    */
   private final String origName;
 
   protected AbstractSimpleDeclaration(
-      FileLocation pFileLocation, final Type pType, final String pName, final String pOrigName) {
+      FileLocation pFileLocation, final String pName, final String pOrigName) {
     super(pFileLocation);
-    type = pType;
     name = pName;
     origName = pOrigName;
   }
 
-  protected AbstractSimpleDeclaration(
-      final FileLocation pFileLocation, final Type pType, final String pName) {
-    this(pFileLocation, pType, pName, pName);
+  protected AbstractSimpleDeclaration(final FileLocation pFileLocation, final String pName) {
+    this(pFileLocation, pName, pName);
   }
 
   @Override
   public String getName() {
     return name;
   }
+
   @Override
   public String getOrigName() {
     return origName;
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
-    String nameAsString;
-    if (pQualified) {
-      nameAsString = Strings.nullToEmpty(getQualifiedName()).replace("::", "__");
-    } else {
-      nameAsString = Strings.nullToEmpty(getName());
-    }
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
+    String nameAsString =
+        switch (pAAstNodeRepresentation) {
+          case DEFAULT -> Strings.nullToEmpty(getName());
+          case QUALIFIED -> Strings.nullToEmpty(getQualifiedName()).replace("::", "__");
+          case ORIGINAL_NAMES -> Strings.nullToEmpty(getOrigName());
+        };
     return getType().toASTString(nameAsString) + ";";
   }
 
   @Override
-  public Type getType() {
-    return type;
-  }
-
-  protected void setType(Type pType) {
-    type = pType;
-  }
+  public abstract Type getType();
 
   @Override
   public int hashCode() {
-    return 31 * Objects.hash(type, name, origName) + super.hashCode();
+    return 31 * Objects.hash(getType(), name, origName) + super.hashCode();
   }
 
   @Override
@@ -96,16 +88,10 @@ public abstract class AbstractSimpleDeclaration extends AbstractAstNode implemen
       return true;
     }
 
-    if (!(obj instanceof AbstractSimpleDeclaration)
-        || !super.equals(obj)) {
-      return false;
-    }
-
-    AbstractSimpleDeclaration other = (AbstractSimpleDeclaration) obj;
-
-    return Objects.equals(other.type, type)
-            && Objects.equals(other.name, name)
-            && Objects.equals(other.origName, origName);
+    return obj instanceof AbstractSimpleDeclaration other
+        && super.equals(obj)
+        && Objects.equals(other.getType(), getType())
+        && Objects.equals(other.name, name)
+        && Objects.equals(other.origName, origName);
   }
-
 }

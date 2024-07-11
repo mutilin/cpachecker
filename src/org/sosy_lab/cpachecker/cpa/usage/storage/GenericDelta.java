@@ -12,10 +12,9 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 
 public class GenericDelta implements Delta<CompatibleNode> {
 
-  private final static GenericDelta instance = new GenericDelta();
+  private static final GenericDelta instance = new GenericDelta();
 
-  private GenericDelta() {
-  }
+  private GenericDelta() {}
 
   @Override
   public CompatibleNode apply(CompatibleNode pState) {
@@ -45,5 +44,4 @@ public class GenericDelta implements Delta<CompatibleNode> {
   public int hashCode() {
     return System.identityHashCode(instance);
   }
-
 }

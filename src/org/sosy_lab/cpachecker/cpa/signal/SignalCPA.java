@@ -30,8 +30,9 @@ import org.sosy_lab.cpachecker.cpa.lock.AbstractLockState;
 
 @Options(prefix = "cpa.signal")
 public class SignalCPA extends AbstractCPA
-    implements ConfigurableProgramAnalysisTM, StatisticsProvider,
-    ConfigurableProgramAnalysisWithBAM {
+    implements ConfigurableProgramAnalysisTM,
+        StatisticsProvider,
+        ConfigurableProgramAnalysisWithBAM {
 
   @Option(secure = true, description = "type of state", name = "deadlockState")
   private boolean deadlock = true;
@@ -54,11 +55,10 @@ public class SignalCPA extends AbstractCPA
       throws InterruptedException {
     if (deadlock) {
       return SignalState.createInitialState(
-        (SignalStatistics) ((SignalTransferRelation) getTransferRelation()).getStatistics());
+          (SignalStatistics) ((SignalTransferRelation) getTransferRelation()).getStatistics());
     } else {
       return InversionSignalState.createInitialState(
           (SignalStatistics) ((SignalTransferRelation) getTransferRelation()).getStatistics());
-
     }
   }
 

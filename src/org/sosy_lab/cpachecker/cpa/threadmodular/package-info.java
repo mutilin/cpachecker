@@ -21,7 +21,5 @@
  *  CPAchecker web page:
  *    http://cpachecker.sosy-lab.org
  */
-/**
- * This CPA allows to analyze concurrent programs.
- */
+/** This CPA allows to analyze concurrent programs. */
 package org.sosy_lab.cpachecker.cpa.threadmodular;

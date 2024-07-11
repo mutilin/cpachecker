@@ -456,11 +456,9 @@ public class CPAcheckerMutator extends CPAchecker {
       if (this == obj) {
         return true;
       }
-      if (!(obj instanceof AnalysisResult)) {
-        return false;
-      }
-      AnalysisResult other = (AnalysisResult) obj;
-      return Objects.equals(result, other.result) && Objects.equals(thrown, other.thrown);
+      return obj instanceof AnalysisResult other
+          && Objects.equals(result, other.result)
+          && Objects.equals(thrown, other.thrown);
     }
   }
 

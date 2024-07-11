@@ -37,18 +37,17 @@ public class LocationStateWithEdge extends LocationState implements AbstractStat
   private static final long serialVersionUID = 2798558767388783223L;
 
   private AbstractEdge edge;
-  private final static CFANode dummy =
+  private static final CFANode dummy =
       new CFANode(
           new CFunctionDeclaration(
               FileLocation.DUMMY,
               CFunctionType.NO_ARGS_VOID_FUNCTION,
               "Projection",
-              ImmutableList.of()));
+              ImmutableList.of(),
+              ImmutableSet.of()));
 
   public LocationStateWithEdge(
-      CFANode pLocationNode,
-      boolean pFollowFunctionCalls,
-      AbstractEdge pEdge) {
+      CFANode pLocationNode, boolean pFollowFunctionCalls, AbstractEdge pEdge) {
     super(pLocationNode, pFollowFunctionCalls);
     edge = pEdge;
   }
@@ -56,7 +55,7 @@ public class LocationStateWithEdge extends LocationState implements AbstractStat
   static class ProjectedLocationStateWithEdge extends LocationStateWithEdge {
 
     private static final long serialVersionUID = 6825257572921009531L;
-    private final static ProjectedLocationStateWithEdge instance =
+    private static final ProjectedLocationStateWithEdge instance =
         new ProjectedLocationStateWithEdge();
 
     private ProjectedLocationStateWithEdge() {
@@ -69,7 +68,7 @@ public class LocationStateWithEdge extends LocationState implements AbstractStat
     }
 
     @Override
-    public Iterable<CFAEdge> getIngoingEdges() {
+    public Iterable<CFAEdge> getIncomingEdges() {
       return ImmutableSet.of();
     }
 
@@ -83,22 +82,19 @@ public class LocationStateWithEdge extends LocationState implements AbstractStat
     private static final long serialVersionUID = 6825257572921009531L;
 
     public BackwardsLocationStateWithEdge(
-        CFANode locationNode,
-        boolean pFollowFunctionCalls,
-        AbstractEdge pEdge) {
+        CFANode locationNode, boolean pFollowFunctionCalls, AbstractEdge pEdge) {
       super(locationNode, pFollowFunctionCalls, pEdge);
     }
 
     @Override
     public Iterable<CFAEdge> getOutgoingEdges() {
-      return super.getIngoingEdges();
+      return super.getIncomingEdges();
     }
 
     @Override
-    public Iterable<CFAEdge> getIngoingEdges() {
+    public Iterable<CFAEdge> getIncomingEdges() {
       return super.getOutgoingEdges();
     }
-
   }
 
   @Override
@@ -116,22 +112,13 @@ public class LocationStateWithEdge extends LocationState implements AbstractStat
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof LocationStateWithEdge)) {
-      return false;
-    }
-    LocationStateWithEdge other = (LocationStateWithEdge) obj;
-
-    return Objects.equals(edge, other.edge) && locationNode == other.locationNode;
+    return obj instanceof LocationStateWithEdge other
+        && edge.equals(other.edge)
+        && locationNode == other.locationNode;
   }
 
   public LocationStateWithEdge updateEdge(AbstractEdge pEdge) {
-    return new LocationStateWithEdge(
-        locationNode,
-        this.followFunctionCalls,
-        pEdge);
+    return new LocationStateWithEdge(locationNode, this.followFunctionCalls, pEdge);
   }
 
   @Override

@@ -17,7 +17,7 @@ public abstract class UnaryFormula implements LtlFormula {
   private final LtlFormula operand;
 
   UnaryFormula(LtlFormula pOperand) {
-    this.operand = requireNonNull(pOperand);
+    operand = requireNonNull(pOperand);
   }
 
   public LtlFormula getOperand() {
@@ -34,14 +34,9 @@ public abstract class UnaryFormula implements LtlFormula {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof UnaryFormula)) {
-      return false;
-    }
-    UnaryFormula other = (UnaryFormula) obj;
-    return getSymbol().equals(other.getSymbol()) && operand.equals(other.operand);
+    return obj instanceof UnaryFormula other
+        && getSymbol().equals(other.getSymbol())
+        && operand.equals(other.operand);
   }
 
   public abstract String getSymbol();

@@ -8,16 +8,18 @@
 
 package org.sosy_lab.cpachecker.util.floatingpoint;
 
+import java.io.Serial;
+
 /**
  * This {@link Exception} class is meant to mark exceptional events in the communication between the
  * C part and the Java part of the {@link CFloatNativeAPI}.
- * <p>
- * Such exceptional events should normally indicate some false usage of the library like trying to
- * use an unimplemented type-flag or a type that cannot be used for the desired operation.
+ *
+ * <p>Such exceptional events should normally indicate some false usage of the library like trying
+ * to use an unimplemented type-flag or a type that cannot be used for the desired operation.
  */
 public class NativeComputationException extends Exception {
 
-  private static final long serialVersionUID = 1L;
+  @Serial private static final long serialVersionUID = 1L;
 
   public NativeComputationException(String message) {
     super(message);

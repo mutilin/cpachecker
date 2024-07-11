@@ -9,6 +9,7 @@
 package org.sosy_lab.cpachecker.cpa.automaton.tests;
 
 import static com.google.common.truth.Truth.assertThat;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.collect.ImmutableList;
 import java.io.IOException;
@@ -69,7 +70,6 @@ public class ARGToAutomatonConverterTest extends AbstractTranslationTest {
             .setOption("cpa.arg.export.code.header", "false");
     config = configBuilder.build();
 
-
     converter = new ARGToAutomatonConverter(config, MachineModel.LINUX32, logger);
   }
 
@@ -102,11 +102,11 @@ public class ARGToAutomatonConverterTest extends AbstractTranslationTest {
 
     // generate ARG:
     resetCFANodeCounter();
-    ARGState root = run(config,fullPath);
+    ARGState root = run(config, fullPath);
 
     // generate joint automaton
     Automaton aut = converter.getAutomaton(root, true);
-    Files.write(automatonPath, aut.toString().getBytes("utf-8"));
+    Files.write(automatonPath, aut.toString().getBytes(UTF_8));
 
     for (String analysis :
         ImmutableList.of("predicateAnalysis.properties", "valueAnalysis.properties")) {
@@ -121,7 +121,7 @@ public class ARGToAutomatonConverterTest extends AbstractTranslationTest {
               .build();
       TestResults results = null;
       try {
-      resetCFANodeCounter();
+        resetCFANodeCounter();
         results = CPATestRunner.run(reConfig, fullPath.toString());
       } catch (NoClassDefFoundError | UnsatisfiedLinkError e) {
         throw new AssertionError(e);
@@ -139,7 +139,7 @@ public class ARGToAutomatonConverterTest extends AbstractTranslationTest {
       for (Automaton a : res) {
         resetCFANodeCounter();
         Path newAutomatonPath = newTempFile();
-        Files.write(newAutomatonPath, a.toString().getBytes("utf-8"));
+        Files.write(newAutomatonPath, a.toString().getBytes(UTF_8));
         reConfig =
             TestDataTools.configurationForTest()
                 .loadFromResource(ARGToAutomatonConverterTest.class, analysis)
@@ -193,5 +193,4 @@ public class ARGToAutomatonConverterTest extends AbstractTranslationTest {
     nextId.setAccessible(false);
     idGenerator.setAccessible(false);
   }
-
 }

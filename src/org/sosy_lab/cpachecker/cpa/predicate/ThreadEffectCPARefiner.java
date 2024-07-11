@@ -44,10 +44,7 @@ public abstract class ThreadEffectCPARefiner implements Refiner {
 
     GlobalRefinementStrategy strategy =
         new PredicateAbstractionGlobalRefinementStrategy(
-            config,
-            logger,
-            predicateCpa.getPredicateManager(),
-            solver);
+            config, logger, predicateCpa.getPredicateManager(), solver);
 
     ConfigurationBuilder configBuilder = Configuration.builder();
     configBuilder = configBuilder.copyFrom(predicateCpa.getConfiguration());
@@ -57,7 +54,7 @@ public abstract class ThreadEffectCPARefiner implements Refiner {
     PredicateCPARefinerFactory factory = new PredicateCPARefinerFactory(pCpa, newConfig);
     ARGBasedRefiner refiner = factory.create(strategy);
 
-    return AbstractARGBasedRefiner
-        .forARGBasedRefiner(new ThreadEffectRefiner(logger, strategy, config, refiner), pCpa);
+    return AbstractARGBasedRefiner.forARGBasedRefiner(
+        new ThreadEffectRefiner(logger, strategy, config, refiner), pCpa);
   }
 }

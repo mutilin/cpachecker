@@ -13,10 +13,12 @@ import static org.sosy_lab.cpachecker.util.CFAUtils.allLeavingEdges;
 import static org.sosy_lab.cpachecker.util.CFAUtils.enteringEdges;
 import static org.sosy_lab.cpachecker.util.CFAUtils.leavingEdges;
 
+import com.google.common.base.Ascii;
 import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
@@ -32,11 +34,12 @@ import org.sosy_lab.cpachecker.core.interfaces.Partitionable;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.globalinfo.CFAInfo;
-import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
+import org.sosy_lab.cpachecker.util.globalinfo.SerializationInfoStorage;
 
-public class LocationState implements AbstractStateWithLocation, AbstractQueryableState, Partitionable, Serializable {
+public class LocationState
+    implements AbstractStateWithLocation, AbstractQueryableState, Partitionable, Serializable {
 
-  private static final long serialVersionUID = -801176497691618779L;
+  @Serial private static final long serialVersionUID = -801176497691618779L;
 
   private static boolean isNoFunctionCall(CFAEdge e) {
     return !(e instanceof FunctionCallEdge || e instanceof FunctionReturnEdge);
@@ -44,7 +47,7 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
 
   static class BackwardsLocationState extends LocationState {
 
-    private static final long serialVersionUID = 6825257572921009531L;
+    @Serial private static final long serialVersionUID = 6825257572921009531L;
 
     BackwardsLocationState(CFANode locationNode, boolean pFollowFunctionCalls) {
       super(locationNode, pFollowFunctionCalls);
@@ -52,14 +55,13 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
 
     @Override
     public Iterable<CFAEdge> getOutgoingEdges() {
-      return super.getIngoingEdges();
+      return super.getIncomingEdges();
     }
 
     @Override
-    public Iterable<CFAEdge> getIngoingEdges() {
+    public Iterable<CFAEdge> getIncomingEdges() {
       return super.getOutgoingEdges();
     }
-
   }
 
   protected transient CFANode locationNode;
@@ -72,7 +74,7 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
 
   @Override
   public CFANode getLocationNode() {
-      return locationNode;
+    return locationNode;
   }
 
   @Override
@@ -86,7 +88,7 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
   }
 
   @Override
-  public Iterable<CFAEdge> getIngoingEdges() {
+  public Iterable<CFAEdge> getIncomingEdges() {
     if (followFunctionCalls) {
       return enteringEdges(locationNode);
 
@@ -98,71 +100,72 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
   @Override
   public String toString() {
     String loc = locationNode.describeFileLocation();
-    return locationNode
-        + (loc.isEmpty() ? "" : " (" + loc + ")");
+    return locationNode + (loc.isEmpty() ? "" : " (" + loc + ")");
   }
 
   @Override
   public boolean checkProperty(String pProperty) throws InvalidQueryException {
     List<String> parts = Splitter.on("==").trimResults().splitToList(pProperty);
     if (parts.size() != 2) {
-      throw new InvalidQueryException("The Query \"" + pProperty
-          + "\" is invalid. Could not split the property string correctly.");
+      throw new InvalidQueryException(
+          "The Query \""
+              + pProperty
+              + "\" is invalid. Could not split the property string correctly.");
     } else {
-      switch (parts.get(0).toLowerCase()) {
-      case "line":
-        try {
-          int queryLine = Integer.parseInt(parts.get(1));
-          for (CFAEdge edge : CFAUtils.enteringEdges(this.locationNode)) {
-            if (edge.getLineNumber() == queryLine) {
+      switch (Ascii.toLowerCase(parts.get(0))) {
+        case "line":
+          try {
+            int queryLine = Integer.parseInt(parts.get(1));
+            for (CFAEdge edge : CFAUtils.enteringEdges(locationNode)) {
+              if (edge.getLineNumber() == queryLine) {
+                return true;
+              }
+            }
+            return false;
+          } catch (NumberFormatException nfe) {
+            throw new InvalidQueryException(
+                "The Query \""
+                    + pProperty
+                    + "\" is invalid. Could not parse the integer \""
+                    + parts.get(1)
+                    + "\"");
+          }
+        case "functionname":
+          return locationNode.getFunctionName().equals(parts.get(1));
+        case "label":
+          return locationNode instanceof CFALabelNode
+              ? ((CFALabelNode) locationNode).getLabel().equals(parts.get(1))
+              : false;
+        case "nodenumber":
+          try {
+            int queryNumber = Integer.parseInt(parts.get(1));
+            return locationNode.getNodeNumber() == queryNumber;
+          } catch (NumberFormatException nfe) {
+            throw new InvalidQueryException(
+                "The Query \""
+                    + pProperty
+                    + "\" is invalid. Could not parse the integer \""
+                    + parts.get(1)
+                    + "\"");
+          }
+        case "mainentry":
+          if (locationNode.getNumEnteringEdges() == 1
+              && locationNode.getFunctionName().equals(parts.get(1))) {
+            CFAEdge enteringEdge = locationNode.getEnteringEdge(0);
+            if (enteringEdge.getDescription().equals("Function start dummy edge")
+                && enteringEdge.getEdgeType() == CFAEdgeType.BlankEdge
+                && FileLocation.DUMMY.equals(enteringEdge.getFileLocation())) {
               return true;
             }
           }
           return false;
-        } catch (NumberFormatException nfe) {
+        default:
           throw new InvalidQueryException(
               "The Query \""
                   + pProperty
-                  + "\" is invalid. Could not parse the integer \""
-                  + parts.get(1)
-                  + "\"");
-        }
-      case "functionname":
-        return this.locationNode.getFunctionName().equals(parts.get(1));
-      case "label":
-        return this.locationNode instanceof CFALabelNode
-            ? ((CFALabelNode) this.locationNode).getLabel().equals(parts.get(1))
-            : false;
-      case "nodenumber":
-        try {
-          int queryNumber = Integer.parseInt(parts.get(1));
-          return this.locationNode.getNodeNumber() == queryNumber;
-        } catch (NumberFormatException nfe) {
-          throw new InvalidQueryException(
-              "The Query \""
-                  + pProperty
-                  + "\" is invalid. Could not parse the integer \""
-                  + parts.get(1)
-                  + "\"");
-        }
-      case "mainentry":
-        if (locationNode.getNumEnteringEdges() == 1
-            && locationNode.getFunctionName().equals(parts.get(1))) {
-          CFAEdge enteringEdge = locationNode.getEnteringEdge(0);
-          if (enteringEdge.getDescription().equals("Function start dummy edge")
-              && enteringEdge.getEdgeType() == CFAEdgeType.BlankEdge
-              && FileLocation.DUMMY.equals(enteringEdge.getFileLocation())) {
-            return true;
-          }
-        }
-        return false;
-      default:
-        throw new InvalidQueryException(
-            "The Query \""
-                + pProperty
-                + "\" is invalid. \""
-                + parts.get(0)
-                + "\" is no valid keyword");
+                  + "\" is invalid. \""
+                  + parts.get(0)
+                  + "\" is no valid keyword");
       }
     }
   }
@@ -173,11 +176,10 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
   }
 
   @Override
-  public Object evaluateProperty(String pProperty)
-      throws InvalidQueryException {
+  public Object evaluateProperty(String pProperty) throws InvalidQueryException {
     if (pProperty.equalsIgnoreCase("lineno")) {
-      if (this.locationNode.getNumEnteringEdges() > 0) {
-        return this.locationNode.getEnteringEdge(0).getLineNumber();
+      if (locationNode.getNumEnteringEdges() > 0) {
+        return locationNode.getEnteringEdge(0).getLineNumber();
       }
       return 0; // DUMMY
     } else {
@@ -192,6 +194,7 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
 
   // no equals and hashCode because there is always only one element per CFANode
 
+  @Serial
   private Object writeReplace() {
     return new SerialProxy(locationNode.getNodeNumber());
   }
@@ -202,20 +205,22 @@ public class LocationState implements AbstractStateWithLocation, AbstractQueryab
    * @param in the input stream
    */
   @SuppressWarnings("UnusedVariable") // parameter is required by API
+  @Serial
   private void readObject(ObjectInputStream in) throws IOException {
     throw new InvalidObjectException("Proxy required");
   }
 
   private static class SerialProxy implements Serializable {
-    private static final long serialVersionUID = 6889568471468710163L;
+    @Serial private static final long serialVersionUID = 6889568471468710163L;
     private final int nodeNumber;
 
     public SerialProxy(int nodeNumber) {
       this.nodeNumber = nodeNumber;
     }
 
+    @Serial
     private Object readResolve() {
-      CFAInfo cfaInfo = GlobalInfo.getInstance().getCFAInfo().orElseThrow();
+      CFAInfo cfaInfo = SerializationInfoStorage.getInstance().getCFAInfo().orElseThrow();
       return cfaInfo.getLocationStateFactory().getState(cfaInfo.getNodeByNodeNumber(nodeNumber));
     }
   }

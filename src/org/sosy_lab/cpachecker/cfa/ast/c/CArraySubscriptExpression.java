@@ -8,21 +8,37 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AArraySubscriptExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.types.c.CArrayType;
+import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
+import org.sosy_lab.cpachecker.cfa.types.c.CProblemType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
+import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
 
-public final class CArraySubscriptExpression extends AArraySubscriptExpression implements CLeftHandSide {
+public final class CArraySubscriptExpression extends AArraySubscriptExpression
+    implements CLeftHandSide {
 
+  @Serial private static final long serialVersionUID = 129923340158722862L;
 
-
-  private static final long serialVersionUID = 129923340158722862L;
-
-  public CArraySubscriptExpression(final FileLocation pFileLocation,
-                                      final CType pType,
-                                      final CExpression pArrayExpression,
-                                      final CExpression pSubscriptExpression) {
+  public CArraySubscriptExpression(
+      final FileLocation pFileLocation,
+      final CType pType,
+      final CExpression pArrayExpression,
+      final CExpression pSubscriptExpression) {
     super(pFileLocation, pType, pArrayExpression, pSubscriptExpression);
+
+    CType arrayType = pArrayExpression.getExpressionType().getCanonicalType();
+    checkArgument(
+        arrayType instanceof CArrayType
+            || arrayType instanceof CPointerType
+            || arrayType instanceof CProblemType
+            || arrayType instanceof CTypedefType,
+        "Array subscript of non-array type %s",
+        arrayType);
   }
 
   @Override
@@ -71,10 +87,6 @@ public final class CArraySubscriptExpression extends AArraySubscriptExpression i
       return true;
     }
 
-    if (!(obj instanceof CArraySubscriptExpression)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CArraySubscriptExpression && super.equals(obj);
   }
 }

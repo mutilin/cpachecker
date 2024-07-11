@@ -11,16 +11,14 @@ package org.sosy_lab.cpachecker.util.identifiers;
 import com.google.common.collect.ImmutableList;
 import java.util.Collection;
 
-public class AnyIdentifier implements AbstractIdentifier {
+public final class AnyIdentifier implements AbstractIdentifier {
 
-  private final static AnyIdentifier instance = new AnyIdentifier();
+  private static final AnyIdentifier instance = new AnyIdentifier();
 
   @Override
   public int compareTo(AbstractIdentifier pArg0) {
-    if (pArg0 == instance) {
-      return 0;
-    }
-    return -1;
+    // Special compare with instance
+    return pArg0 == instance ? 0 : -1;
   }
 
   @Override
@@ -35,10 +33,7 @@ public class AnyIdentifier implements AbstractIdentifier {
 
   @Override
   public boolean equals(Object pOther) {
-    if (pOther == instance) {
-      return true;
-    }
-    return false;
+    return pOther == instance;
   }
 
   @Override

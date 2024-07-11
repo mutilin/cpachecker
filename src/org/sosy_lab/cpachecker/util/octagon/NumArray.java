@@ -28,15 +28,11 @@ public class NumArray {
 
   @Override
   public boolean equals(Object pObj) {
-    if (!(pObj instanceof NumArray)) {
-      return false;
-    }
-    NumArray otherArr = (NumArray) pObj;
-    return this.array == otherArr.array;
+    return pObj instanceof NumArray otherArr && array == otherArr.array;
   }
 
   @Override
   public int hashCode() {
-    return (int)array;
+    return (int) array;
   }
 }

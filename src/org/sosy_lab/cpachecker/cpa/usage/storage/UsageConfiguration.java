@@ -36,21 +36,21 @@ public final class UsageConfiguration {
   private String intLockName = null;
 
   @Option(
-    name = "processCoveredUsages",
-    description = "Should we process the same blocks with covered sets of locks",
-    secure = true)
+      name = "processCoveredUsages",
+      description = "Should we process the same blocks with covered sets of locks",
+      secure = true)
   private boolean processCoveredUsages = true;
 
   @Option(
-    name = "useConcurrentExtraction",
-    description = "Use several threads for usage extraction",
-    secure = true)
+      name = "useConcurrentExtraction",
+      description = "Use several threads for usage extraction",
+      secure = true)
   private boolean useConcurrentExtraction = true;
 
   @Option(
-    name = "isRevertedPriority",
-    description = "Reverted priority: zero is the highest",
-    secure = true)
+      name = "isRevertedPriority",
+      description = "Reverted priority: zero is the highest",
+      secure = true)
   private boolean isRevertedPriority = false;
 
   public UsageConfiguration(Configuration config) throws InvalidConfigurationException {

@@ -47,5 +47,4 @@ public abstract class AccessSignalEffect implements SignalEffect {
   public AccessSignalEffect(String pId) {
     varName = pId;
   }
-
 }

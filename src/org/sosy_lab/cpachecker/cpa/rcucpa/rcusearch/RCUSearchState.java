@@ -56,31 +56,22 @@ public class RCUSearchState extends AbstractSingleWrapperState
 
   @Override
   public boolean equals(Object pO) {
+    // Special equals to measure time
     RCUSearchStateStatistics.getInstance().equalsTimer.start();
     try {
       if (this == pO) {
         return true;
       }
-      if (!(pO instanceof RCUSearchState)) {
-        return false;
+      if (pO instanceof RCUSearchState that && rcuPointers.equals(that.rcuPointers)) {
+        // Not super.equals!
+        PointerState thisState = (PointerState) getWrappedState();
+        PointerState otherState = (PointerState) that.getWrappedState();
+        RCUSearchStateStatistics.getInstance().equalsPointerTimer.start();
+        boolean b = thisState.equals(otherState);
+        RCUSearchStateStatistics.getInstance().equalsPointerTimer.stop();
+        return b;
       }
-
-      RCUSearchState that = (RCUSearchState) pO;
-
-      if (!rcuPointers.equals(that.rcuPointers)) {
-        return false;
-      }
-      // Not super.equals!
-      PointerState thisState = (PointerState) getWrappedState();
-      PointerState otherState = (PointerState) that.getWrappedState();
-      RCUSearchStateStatistics.getInstance().equalsPointerTimer.start();
-      boolean b = thisState.equals(otherState);
-      RCUSearchStateStatistics.getInstance().equalsPointerTimer.stop();
-      if (!b) {
-        return false;
-      }
-
-      return true;
+      return false;
     } finally {
       RCUSearchStateStatistics.getInstance().equalsTimer.stop();
     }
@@ -89,25 +80,25 @@ public class RCUSearchState extends AbstractSingleWrapperState
   @Override
   public int hashCode() {
     int result = rcuPointers.hashCode();
-    result = 31 * result + super.hashCode();
+    result = 31 * result + getWrappedState().hashCode();
     return result;
   }
 
   @Override
   public String toString() {
-    return rcuPointers.toString() + (rcuPointers.isEmpty() ? " EMPTY" : " NOT EMPTY") + " # " +
-        ((PointerState) getWrappedState()).getPointsToMap();
+    return rcuPointers.toString()
+        + (rcuPointers.isEmpty() ? " EMPTY" : " NOT EMPTY")
+        + " # "
+        + ((PointerState) getWrappedState()).getPointsToMap();
   }
 
   public static RCUSearchState copyOf(RCUSearchState pState) {
-    return new RCUSearchState(
-        pState.rcuPointers,
-        (PointerState) pState.getWrappedState());
+    return new RCUSearchState(pState.rcuPointers, (PointerState) pState.getWrappedState());
   }
 
   public Map<MemoryLocation, Set<MemoryLocation>> getPointsTo() {
-    return PointerStatistics
-        .replaceTopsAndBots(((PointerState) getWrappedState()).getPointsToMap());
+    return PointerStatistics.replaceTopsAndBots(
+        ((PointerState) getWrappedState()).getPointsToMap());
   }
 
   @Override
@@ -147,11 +138,7 @@ public class RCUSearchState extends AbstractSingleWrapperState
     PointerState pState2 = (PointerState) pOther.getWrappedState();
 
     RCUSearchStateStatistics.getInstance().lessOrEqualsTimer.start();
-    boolean b =
-        pOther
-        .getRcuPointers()
-        .containsAll(
-                this.getRcuPointers());
+    boolean b = pOther.getRcuPointers().containsAll(this.getRcuPointers());
 
     if (b) {
       RCUSearchStateStatistics.getInstance().lessOrEqualsPointerTimer.start();

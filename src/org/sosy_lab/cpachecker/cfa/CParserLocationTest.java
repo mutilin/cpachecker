@@ -9,7 +9,6 @@
 package org.sosy_lab.cpachecker.cfa;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
 
 import com.google.common.collect.ImmutableList;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -23,7 +22,6 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 import org.sosy_lab.common.ShutdownNotifier;
 import org.sosy_lab.common.configuration.Configuration;
-import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CParser.FileContentToParse;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
@@ -64,7 +62,7 @@ public class CParserLocationTest {
   @Test
   public void singleFileTest() throws CParserException, InterruptedException {
     String code = "void main() { }";
-    ParseResult result = parser.parseString(fileName, code);
+    ParseResult result = parser.parseString(Path.of(fileName), code);
     FileLocation mainLoc = result.getFunctions().get("main").getFileLocation();
 
     assertThat(mainLoc.getFileName()).isEqualTo(Path.of(expectedFileName));
@@ -76,13 +74,12 @@ public class CParserLocationTest {
   }
 
   @Test
-  public void singleFileTest_lineDirectiveIgnored()
-      throws CParserException, InvalidConfigurationException, InterruptedException {
+  public void singleFileTest_lineDirectiveIgnored() throws Exception {
     parser =
         new CParserWithLocationMapper(
             Configuration.defaultConfiguration(), LogManager.createTestLogManager(), parser, false);
     String code = "#line 5 \"foo.c\"\nvoid main() { }";
-    ParseResult result = parser.parseString(fileName, code);
+    ParseResult result = parser.parseString(Path.of(fileName), code);
     FileLocation mainLoc = result.getFunctions().get("main").getFileLocation();
 
     assertThat(mainLoc.getFileName()).isEqualTo(Path.of(expectedFileName));
@@ -94,13 +91,12 @@ public class CParserLocationTest {
   }
 
   @Test
-  public void singleFileTest_lineDirective()
-      throws CParserException, InvalidConfigurationException, InterruptedException {
+  public void singleFileTest_lineDirective() throws Exception {
     parser =
         new CParserWithLocationMapper(
             Configuration.defaultConfiguration(), LogManager.createTestLogManager(), parser, true);
     String code = "#line 5\nvoid main() { }";
-    ParseResult result = parser.parseString(fileName, code);
+    ParseResult result = parser.parseString(Path.of(fileName), code);
     FileLocation mainLoc = result.getFunctions().get("main").getFileLocation();
 
     assertThat(mainLoc.getFileName()).isEqualTo(Path.of(expectedFileName));
@@ -112,13 +108,12 @@ public class CParserLocationTest {
   }
 
   @Test
-  public void singleFileTest_lineDirectiveWithFilename()
-      throws CParserException, InvalidConfigurationException, InterruptedException {
+  public void singleFileTest_lineDirectiveWithFilename() throws Exception {
     parser =
         new CParserWithLocationMapper(
             Configuration.defaultConfiguration(), LogManager.createTestLogManager(), parser, true);
     String code = "#line 5 \"foo.c\"\nvoid main() { }";
-    ParseResult result = parser.parseString(fileName, code);
+    ParseResult result = parser.parseString(Path.of(fileName), code);
     FileLocation mainLoc = result.getFunctions().get("main").getFileLocation();
 
     assertThat(mainLoc.getFileName()).isEqualTo(Path.of("foo.c"));
@@ -140,8 +135,12 @@ public class CParserLocationTest {
     String expectedAdditionalFileName = expectedFileName.replace("test", "additional");
     FileContentToParse additional =
         new FileContentToParse(Path.of(additionalFileName), additionalCode);
-    ParseResult result =
-        parser.parseString(ImmutableList.of(main, additional), new CSourceOriginMapping());
+    CSourceOriginMapping sourceOriginMapping = new CSourceOriginMapping();
+    ImmutableList<FileContentToParse> programFragments = ImmutableList.of(main, additional);
+    programFragments.forEach(
+        f -> sourceOriginMapping.addFileInformation(f.getFileName(), f.getFileContent()));
+
+    ParseResult result = parser.parseString(programFragments, sourceOriginMapping);
 
     FileLocation mainLoc = result.getFunctions().get("main").getFileLocation();
     assertThat(mainLoc.getFileName()).isEqualTo(Path.of(expectedFileName));

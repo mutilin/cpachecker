@@ -12,18 +12,18 @@ import java.util.Objects;
 import org.sosy_lab.cpachecker.cpa.invariants.TypeInfo;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-
-public class Variable<ConstantType> extends AbstractFormula<ConstantType> implements NumeralFormula<ConstantType> {
+public class Variable<ConstantType> extends AbstractFormula<ConstantType>
+    implements NumeralFormula<ConstantType> {
 
   private final MemoryLocation memoryLocation;
 
   private Variable(TypeInfo pInfo, MemoryLocation pMemoryLocation) {
     super(pInfo);
-    this.memoryLocation = pMemoryLocation;
+    memoryLocation = pMemoryLocation;
   }
 
   public MemoryLocation getMemoryLocation() {
-    return this.memoryLocation;
+    return memoryLocation;
   }
 
   @Override
@@ -36,12 +36,9 @@ public class Variable<ConstantType> extends AbstractFormula<ConstantType> implem
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof Variable) {
-      Variable<?> other = (Variable<?>) pOther;
-      return getTypeInfo().equals(other.getTypeInfo())
-          && getMemoryLocation().equals(other.getMemoryLocation());
-    }
-    return false;
+    return pOther instanceof Variable<?> other
+        && getTypeInfo().equals(other.getTypeInfo())
+        && getMemoryLocation().equals(other.getMemoryLocation());
   }
 
   @Override
@@ -56,7 +53,8 @@ public class Variable<ConstantType> extends AbstractFormula<ConstantType> implem
 
   @Override
   public <ReturnType, ParamType> ReturnType accept(
-      ParameterizedNumeralFormulaVisitor<ConstantType, ParamType, ReturnType> pVisitor, ParamType pParameter) {
+      ParameterizedNumeralFormulaVisitor<ConstantType, ParamType, ReturnType> pVisitor,
+      ParamType pParameter) {
     return pVisitor.visit(this, pParameter);
   }
 
@@ -65,7 +63,6 @@ public class Variable<ConstantType> extends AbstractFormula<ConstantType> implem
    *
    * @param pInfo the type information.
    * @param pMemoryLocation the memory location of the variable.
-   *
    * @return an invariants formula representing the variable with the given memory location.
    */
   static <ConstantType> Variable<ConstantType> of(TypeInfo pInfo, MemoryLocation pMemoryLocation) {

@@ -1,12 +1,11 @@
 sv-benchmarks main:
-  config: "-predicateAnalysis-threadmodular"
+  config: --predicateAnalysis-threadmodular
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
     - "cpa.thread.handleSameThreads=SUPPORT"
-  spec: "sv-comp-reachability"
-  benchmarks: 
-    - ldv-linux-3.14-races/*.i
+  spec: sv-comp-reachability
+  benchmarks:
     - ldv-races/*.i
     - pthread/*.i
     - pthread-atomic/*.i
@@ -17,3 +16,11 @@ sv-benchmarks main:
   verdicts: ci-config/sv-benchmarks-verdicts.yml
   parallel: true
   prefix: /opt/sv-benchmarks/
+sv-benchmarks ldv:
+  extends: sv-benchmarks main
+  benchmarks: 
+    - ldv-linux-3.14-races/*.i
+sv-benchmarks pthread:
+  extends: sv-benchmarks main
+  benchmarks: 
+    - pthread-driver-races/*.i

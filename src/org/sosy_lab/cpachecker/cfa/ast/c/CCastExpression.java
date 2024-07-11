@@ -8,13 +8,14 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.ACastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public final class CCastExpression extends ACastExpression implements CExpression {
 
-  private static final long serialVersionUID = 3935774068573745972L;
+  @Serial private static final long serialVersionUID = 3935774068573745972L;
 
   /**
    * Create instance.
@@ -28,16 +29,15 @@ public final class CCastExpression extends ACastExpression implements CExpressio
     super(pFileLocation, pExpressionType, pOperand);
   }
 
-  /** returns the target-type of the cast-expression.
-   * The operand is casted to this type. */
+  /** returns the target-type of the cast-expression. The operand is casted to this type. */
   @Override
   public CType getExpressionType() {
-    return (CType)super.getExpressionType();
+    return (CType) super.getExpressionType();
   }
 
   @Override
   public CExpression getOperand() {
-    return (CExpression)super.getOperand();
+    return (CExpression) super.getOperand();
   }
 
   @Override
@@ -71,11 +71,6 @@ public final class CCastExpression extends ACastExpression implements CExpressio
       return true;
     }
 
-    if (!(obj instanceof CCastExpression)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CCastExpression && super.equals(obj);
   }
-
 }

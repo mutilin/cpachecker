@@ -32,7 +32,7 @@ public class LocalPrecisionAdjustment implements PrecisionAdjustment {
 
     if (pPrecision instanceof SingletonPrecision) {
       // No refinement
-      return Optional.of(PrecisionAdjustmentResult.create(pState, pPrecision, Action.CONTINUE));
+      return Optional.of(new PrecisionAdjustmentResult(pState, pPrecision, Action.CONTINUE));
     }
 
     LocalState oldState = (LocalState) pState;
@@ -41,7 +41,6 @@ public class LocalPrecisionAdjustment implements PrecisionAdjustment {
 
     resultState = resultState.equals(oldState) ? oldState : resultState;
 
-    return Optional.of(PrecisionAdjustmentResult.create(resultState, pPrecision, Action.CONTINUE));
+    return Optional.of(new PrecisionAdjustmentResult(resultState, pPrecision, Action.CONTINUE));
   }
-
 }

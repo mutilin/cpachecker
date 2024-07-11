@@ -69,13 +69,13 @@ public class RCUSearchStatistics implements Statistics {
     final StatTimer lessOrEqualsPointerTimer =
         new StatTimer("Time for isLessOrEquals of pointer states");
 
-    private final static RCUSearchStateStatistics instance = new RCUSearchStateStatistics();
+    private static final RCUSearchStateStatistics instance = new RCUSearchStateStatistics();
 
-    private RCUSearchStateStatistics() {
-    }
+    private RCUSearchStateStatistics() {}
 
     public void printStatistics(StatisticsWriter writer) {
-      writer.beginLevel()
+      writer
+          .beginLevel()
           .put(equalsTimer)
           .beginLevel()
           .put(equalsPointerTimer)
@@ -94,8 +94,10 @@ public class RCUSearchStatistics implements Statistics {
     }
   }
 
-  @Option(secure = true, name = "output", description = "name of a file to hold information about"
-      + " RCU pointers and their aliases")
+  @Option(
+      secure = true,
+      name = "output",
+      description = "name of a file to hold information about" + " RCU pointers and their aliases")
   @FileOption(Type.OUTPUT_FILE)
   private Path output = Path.of("RCUPointers");
 
@@ -110,16 +112,15 @@ public class RCUSearchStatistics implements Statistics {
   final StatInt rcuPointers = new StatInt(StatKind.SUM, "Number of RCU pointers");
   final StatInt rcuAliases = new StatInt(StatKind.SUM, "Number of RCU aliases");
 
-  RCUSearchStatistics(Configuration config, LogManager pLogger) throws
-                                                                 InvalidConfigurationException {
+  RCUSearchStatistics(Configuration config, LogManager pLogger)
+      throws InvalidConfigurationException {
     logger = pLogger;
     config.inject(this);
   }
 
   @Override
   @SuppressWarnings("serial")
-  public void printStatistics(
-      PrintStream out, Result result, UnmodifiableReachedSet reached) {
+  public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
 
     Set<MemoryLocation> rcuAndAliases = new TreeSet<>();
 
@@ -148,8 +149,8 @@ public class RCUSearchStatistics implements Statistics {
           writer.write(loc.toString() + "\n");
         }
         logger.log(Level.INFO, "Ended dump of RCU-aliases in file " + output);
-      } catch (IOException pE) {
-        logger.log(Level.WARNING, pE.getMessage());
+      } catch (IOException e) {
+        logger.log(Level.WARNING, e.getMessage());
       }
     }
     String info = "";
@@ -157,7 +158,8 @@ public class RCUSearchStatistics implements Statistics {
     out.append(info);
     logger.log(Level.ALL, "RCU with aliases: " + rcuAndAliases);
     StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(out);
-    writer.beginLevel()
+    writer
+        .beginLevel()
         .put(rcuPointers)
         .put(rcuAliases)
         .spacer()
@@ -181,8 +183,8 @@ public class RCUSearchStatistics implements Statistics {
     return "RCU Search";
   }
 
-  private Collection<MemoryLocation>
-      getAliases(PointerState pState, Set<MemoryLocation> targetPointers) {
+  private Collection<MemoryLocation> getAliases(
+      PointerState pState, Set<MemoryLocation> targetPointers) {
 
     rcuPointers.setNextValue(targetPointers.size());
     Collection<MemoryLocation> result = new TreeSet<>();

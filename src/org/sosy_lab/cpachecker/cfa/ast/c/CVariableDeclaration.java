@@ -11,6 +11,7 @@ package org.sosy_lab.cpachecker.cfa.ast.c;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.AVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
@@ -19,28 +20,42 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CVoidType;
 
 /**
- * This class represents variable declarations.
- * Example code:
+ * This class represents variable declarations. Example code:
  *
- * int x = 0;
- * struct s { ... } st;
+ * <p>int x = 0; struct s { ... } st;
  */
 public final class CVariableDeclaration extends AVariableDeclaration implements CDeclaration {
 
-  private static final long serialVersionUID = 8303959164064236061L;
-  private final CStorageClass    cStorageClass;
+  @Serial private static final long serialVersionUID = 8303959164064236061L;
+  private final CStorageClass cStorageClass;
 
-  public CVariableDeclaration(FileLocation pFileLocation, boolean pIsGlobal,
-      CStorageClass pCStorageClass, CType pType, String pName, String pOrigName,
+  public CVariableDeclaration(
+      FileLocation pFileLocation,
+      boolean pIsGlobal,
+      CStorageClass pCStorageClass,
+      CType pType,
+      String pName,
+      String pOrigName,
       String pQualifiedName,
       CInitializer pInitializer) {
 
-    super(pFileLocation, pIsGlobal, pType, checkNotNull(pName), pOrigName, pQualifiedName, pInitializer);
+    super(
+        pFileLocation,
+        pIsGlobal,
+        pType,
+        checkNotNull(pName),
+        pOrigName,
+        pQualifiedName,
+        pInitializer);
     cStorageClass = pCStorageClass;
 
-    checkArgument(!(cStorageClass == CStorageClass.EXTERN && getInitializer() != null), "Extern declarations cannot have an initializer");
-    checkArgument(cStorageClass == CStorageClass.EXTERN || cStorageClass == CStorageClass.AUTO,
-        "CStorageClass is %s", cStorageClass);
+    checkArgument(
+        !(cStorageClass == CStorageClass.EXTERN && getInitializer() != null),
+        "Extern declarations cannot have an initializer");
+    checkArgument(
+        cStorageClass == CStorageClass.EXTERN || cStorageClass == CStorageClass.AUTO,
+        "CStorageClass is %s",
+        cStorageClass);
     checkArgument(pIsGlobal || cStorageClass == CStorageClass.AUTO);
     checkArgument(
         cStorageClass == CStorageClass.EXTERN || !(pType.getCanonicalType() instanceof CVoidType),
@@ -50,12 +65,10 @@ public final class CVariableDeclaration extends AVariableDeclaration implements 
 
   @Override
   public CType getType() {
-    return (CType)super.getType();
+    return (CType) super.getType();
   }
 
-  /**
-   * The storage class of this variable (either extern or auto).
-   */
+  /** The storage class of this variable (either extern or auto). */
   public CStorageClass getCStorageClass() {
     return cStorageClass;
   }
@@ -66,9 +79,9 @@ public final class CVariableDeclaration extends AVariableDeclaration implements 
   }
 
   /**
-   * Add an initializer.
-   * This is only possible if there is no initializer already.
-   * DO NOT CALL this method after CFA construction!
+   * Add an initializer. This is only possible if there is no initializer already. DO NOT CALL this
+   * method after CFA construction!
+   *
    * @param pCInitializer the new initializer
    */
   public void addInitializer(CInitializer pCInitializer) {
@@ -76,19 +89,20 @@ public final class CVariableDeclaration extends AVariableDeclaration implements 
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     StringBuilder lASTString = new StringBuilder();
 
     lASTString.append(cStorageClass.toASTString());
-    if (pQualified) {
-      lASTString.append(getType().toASTString(getQualifiedName().replace("::", "__")));
-    } else {
-      lASTString.append(getType().toASTString(getName()));
-    }
+    lASTString.append(
+        switch (pAAstNodeRepresentation) {
+          case DEFAULT -> getType().toASTString(getName());
+          case QUALIFIED -> getType().toASTString(getQualifiedName().replace("::", "__"));
+          case ORIGINAL_NAMES -> getType().toASTString(getOrigName());
+        });
 
     if (getInitializer() != null) {
       lASTString.append(" = ");
-      lASTString.append(getInitializer().toASTString(pQualified));
+      lASTString.append(getInitializer().toASTString(pAAstNodeRepresentation));
     }
 
     lASTString.append(";");
@@ -107,16 +121,13 @@ public final class CVariableDeclaration extends AVariableDeclaration implements 
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) { return true; }
-
-    if (!(obj instanceof CVariableDeclaration)
-        || !super.equals(obj)) {
-      return false;
+    if (this == obj) {
+      return true;
     }
 
-    CVariableDeclaration other = (CVariableDeclaration) obj;
-
-    return Objects.equals(other.cStorageClass, cStorageClass);
+    return obj instanceof CVariableDeclaration other
+        && super.equals(obj)
+        && Objects.equals(other.cStorageClass, cStorageClass);
   }
 
   public int hashCodeWithOutStorageClass() {
@@ -138,5 +149,4 @@ public final class CVariableDeclaration extends AVariableDeclaration implements 
   public <R, X extends Exception> R accept(CAstNodeVisitor<R, X> pV) throws X {
     return pV.visit(this);
   }
-
 }

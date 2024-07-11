@@ -54,8 +54,8 @@ public class RCUSearchReducer implements Reducer {
     PointerState wrappedState = (PointerState) rcuState.getWrappedState();
 
     stats.pointerReducerTimer.start();
-    PointerState pointerState = (PointerState) pointerReducer.getVariableReducedState(wrappedState,
-                                                                                  context, callNode);
+    PointerState pointerState =
+        (PointerState) pointerReducer.getVariableReducedState(wrappedState, context, callNode);
     stats.pointerReducerTimer.stop();
 
     stats.rcuSearchReducerTimer.start();
@@ -85,8 +85,10 @@ public class RCUSearchReducer implements Reducer {
     stats.pointerReducerTimer.start();
     PointerState rootPointerState = (PointerState) rcuRoot.getWrappedState();
     PointerState reducedPointerState = (PointerState) rcuReduced.getWrappedState();
-    PointerState expandedPointerState = (PointerState) pointerReducer.getVariableExpandedState
-        (rootPointerState, reducedContext, reducedPointerState);
+    PointerState expandedPointerState =
+        (PointerState)
+            pointerReducer.getVariableExpandedState(
+                rootPointerState, reducedContext, reducedPointerState);
     stats.pointerReducerTimer.stop();
 
     stats.rcuSearchReducerTimer.start();
@@ -103,8 +105,7 @@ public class RCUSearchReducer implements Reducer {
   }
 
   @Override
-  public Precision getVariableReducedPrecision(
-      Precision precision, Block context) {
+  public Precision getVariableReducedPrecision(Precision precision, Block context) {
     return precision;
   }
 
@@ -115,8 +116,7 @@ public class RCUSearchReducer implements Reducer {
   }
 
   @Override
-  public Object getHashCodeForState(
-      AbstractState stateKey, Precision precisionKey) {
+  public Object getHashCodeForState(AbstractState stateKey, Precision precisionKey) {
     return Pair.of((RCUSearchState) stateKey, precisionKey);
   }
 

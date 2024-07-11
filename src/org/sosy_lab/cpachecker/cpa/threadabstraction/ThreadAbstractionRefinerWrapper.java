@@ -26,5 +26,4 @@ public abstract class ThreadAbstractionRefinerWrapper implements Refiner {
       throws InvalidConfigurationException {
     return new ThreadAbstractionRefiner(pConfig);
   }
-
 }

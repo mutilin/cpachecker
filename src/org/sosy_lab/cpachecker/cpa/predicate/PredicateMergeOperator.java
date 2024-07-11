@@ -14,6 +14,7 @@ import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkAbs
 import static org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.mkNonAbstractionStateWithNewPathFormula;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import java.util.Collection;
 import java.util.HashSet;
@@ -47,11 +48,10 @@ import org.sosy_lab.java_smt.api.BooleanFormula;
 import org.sosy_lab.java_smt.api.BooleanFormulaManager;
 
 /**
- * Merge operator for symbolic predicate abstraction.
- * This is not a trivial merge operator in the sense that it implements
- * mergeSep and mergeJoin together. If the abstract state is on an
- * abstraction location we don't merge, otherwise we merge two elements
- * and update the {@link PredicateAbstractState}'s pathFormula.
+ * Merge operator for symbolic predicate abstraction. This is not a trivial merge operator in the
+ * sense that it implements mergeSep and mergeJoin together. If the abstract state is on an
+ * abstraction location we don't merge, otherwise we merge two elements and update the {@link
+ * PredicateAbstractState}'s pathFormula.
  */
 public class PredicateMergeOperator implements MergeOperator {
 
@@ -88,8 +88,8 @@ public class PredicateMergeOperator implements MergeOperator {
   }
 
   @Override
-  public AbstractState merge(AbstractState element1,
-                               AbstractState element2, Precision precision) throws InterruptedException {
+  public AbstractState merge(AbstractState element1, AbstractState element2, Precision precision)
+      throws InterruptedException {
 
     if (element1 instanceof PredicateProjectedState) {
 
@@ -177,10 +177,7 @@ public class PredicateMergeOperator implements MergeOperator {
     Collection<FormulaDescription> desc1 = predEdge1.getFormulas();
     Collection<FormulaDescription> desc2 = predEdge2.getFormulas();
 
-    Collection<FormulaDescription> newDesc1 =
-        from(desc1)
-            .filter(s -> !desc2.contains(s))
-            .toSet();
+    Collection<FormulaDescription> newDesc1 = from(desc1).filter(s -> !desc2.contains(s)).toSet();
 
     if (newDesc1.isEmpty()) {
       return edge2;
@@ -222,10 +219,11 @@ public class PredicateMergeOperator implements MergeOperator {
 
                 CFunctionDeclaration dummy =
                     new CFunctionDeclaration(
-                    FileLocation.DUMMY,
-                    CFunctionType.NO_ARGS_VOID_FUNCTION,
+                        FileLocation.DUMMY,
+                        CFunctionType.NO_ARGS_VOID_FUNCTION,
                         "dummy",
-                        ImmutableList.of());
+                        ImmutableList.of(),
+                        ImmutableSet.of());
 
                 CFAEdge fakeEdge =
                     new CStatementEdge(
@@ -244,8 +242,8 @@ public class PredicateMergeOperator implements MergeOperator {
                 }
 
                 // TODO finish
-                newFormulas
-                    .add(new FormulaDescription(newAssignement, pFormula.getFormula(), null));
+                newFormulas.add(
+                    new FormulaDescription(newAssignement, pFormula.getFormula(), null));
                 newFormulasFound = true;
               }
             }
@@ -279,9 +277,8 @@ public class PredicateMergeOperator implements MergeOperator {
     }
   }
 
-  private PredicateAbstractState
-      merge(PredicateAbstractState elem1, PredicateAbstractState elem2)
-          throws InterruptedException {
+  private PredicateAbstractState merge(PredicateAbstractState elem1, PredicateAbstractState elem2)
+      throws InterruptedException {
     // this will be the merged element
     PredicateAbstractState merged;
 
@@ -294,7 +291,8 @@ public class PredicateMergeOperator implements MergeOperator {
         AbstractionFormula newAbstractionFormula =
             predAbsManager.makeOr(elem1.getAbstractionFormula(), elem2.getAbstractionFormula());
         PathFormula newPathFormula =
-            formulaManager.makeEmptyPathFormulaWithContextFrom(newAbstractionFormula.getBlockFormula());
+            formulaManager.makeEmptyPathFormulaWithContextFrom(
+                newAbstractionFormula.getBlockFormula());
         merged =
             mkAbstractionState(
                 newPathFormula,
@@ -310,9 +308,11 @@ public class PredicateMergeOperator implements MergeOperator {
       // we don't merge if this is an abstraction location
       merged = elem2;
     } else {
-      // don't merge if the elements are in different blocks (they have different abstraction formulas)
+      // don't merge if the elements are in different blocks (they have different abstraction
+      // formulas)
       // or if the path formulas are equal (no new information would be added)
-      if (!elem1.getAbstractionFormula().equals(elem2.getAbstractionFormula()) || elem1.getPathFormula().equals(elem2.getPathFormula())) {
+      if (!elem1.getAbstractionFormula().equals(elem2.getAbstractionFormula())
+          || elem1.getPathFormula().equals(elem2.getPathFormula())) {
         merged = elem2;
 
       } else {
@@ -322,15 +322,14 @@ public class PredicateMergeOperator implements MergeOperator {
 
         logger.log(Level.FINEST, "Merging two non-abstraction nodes.");
 
-        PathFormula pathFormula = formulaManager.makeOr(elem1.getPathFormula(), elem2.getPathFormula());
+        PathFormula pathFormula =
+            formulaManager.makeOr(elem1.getPathFormula(), elem2.getPathFormula());
 
         logger.log(Level.ALL, "New path formula is", pathFormula);
 
         merged =
             mkNonAbstractionStateWithNewPathFormula(
-                pathFormula,
-                elem1,
-                elem2.getPreviousAbstractionState());
+                pathFormula, elem1, elem2.getPreviousAbstractionState());
 
         // now mark elem1 so that coverage check can find out it was merged
         elem1.setMergedInto(merged);

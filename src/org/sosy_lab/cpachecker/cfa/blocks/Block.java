@@ -8,9 +8,10 @@
 
 package org.sosy_lab.cpachecker.cfa.blocks;
 
+import static org.sosy_lab.common.collect.Collections3.transformedImmutableSetCopy;
+
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedSet;
-import com.google.common.collect.Iterables;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cfa.ast.ASimpleDeclaration;
@@ -19,9 +20,7 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-/**
- * Represents a block as described in the BAM paper.
- */
+/** Represents a block as described in the BAM paper. */
 public class Block {
 
   private final ImmutableSet<ReferencedVariable> referencedVariables;
@@ -59,8 +58,10 @@ public class Block {
     return callNodes.iterator().next();
   }
 
-  /** returns a collection of variables used in the block.
-   * For soundness this must be a superset of the actually used variables. */
+  /**
+   * returns a collection of variables used in the block. For soundness this must be a superset of
+   * the actually used variables.
+   */
   @Deprecated
   // TODO unused method, potentially dangerous,
   // because dependencies between variables are potentially incomplete.
@@ -72,8 +73,10 @@ public class Block {
     return capturedLocks;
   }
 
-  /** returns a collection of variables used in the block.
-   * For soundness this must be a superset of the actually used variables. */
+  /**
+   * returns a collection of variables used in the block. For soundness this must be a superset of
+   * the actually used variables.
+   */
   public Set<String> getVariables() {
     if (variables == null) {
       ImmutableSet.Builder<String> builder = ImmutableSet.builder();
@@ -100,8 +103,7 @@ public class Block {
         // TODO should we also handle a function return variable?
       }
       outOfScopeVariables =
-          ImmutableSet
-              .copyOf(Iterables.transform(declarations, ASimpleDeclaration::getQualifiedName));
+          transformedImmutableSetCopy(declarations, ASimpleDeclaration::getQualifiedName);
     }
     return outOfScopeVariables;
   }
@@ -137,10 +139,16 @@ public class Block {
 
   @Override
   public String toString() {
-    return "Block " +
-            "(CallNodes: " + callNodes + ") " +
-            "(Nodes: " + (nodes.size() < 10 ? nodes : "[#=" + nodes.size() + "]") + ") " +
-            "(ReturnNodes: " + returnNodes + ")";
+    return "Block "
+        + "(CallNodes: "
+        + callNodes
+        + ") "
+        + "(Nodes: "
+        + (nodes.size() < 10 ? nodes : "[#=" + nodes.size() + "]")
+        + ") "
+        + "(ReturnNodes: "
+        + returnNodes
+        + ")";
   }
 
   @Override
@@ -148,12 +156,9 @@ public class Block {
     if (this == o) {
       return true;
     }
-    if (!(o instanceof Block)) {
-      return false;
-    }
-    Block other = (Block) o;
     // optimization: first compare the smaller collections like call- or return-nodes
-    return callNodes.equals(other.callNodes)
+    return o instanceof Block other
+        && callNodes.equals(other.callNodes)
         && returnNodes.equals(other.returnNodes)
         && nodes.equals(other.nodes)
         && referencedVariables.equals(other.referencedVariables)

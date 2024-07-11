@@ -18,7 +18,7 @@ public final class SimpleTargetInformation implements TargetInformation {
   private final String text;
 
   private SimpleTargetInformation(String pText) {
-    this.text = Preconditions.checkNotNull(pText);
+    text = Preconditions.checkNotNull(pText);
   }
 
   @Override
@@ -28,10 +28,7 @@ public final class SimpleTargetInformation implements TargetInformation {
 
   @Override
   public boolean equals(Object pOther) {
-    if (!(pOther instanceof SimpleTargetInformation)) {
-      return false;
-    }
-    return this.text.equals(pOther.toString());
+    return pOther instanceof SimpleTargetInformation && text.equals(pOther.toString());
   }
 
   @Override
@@ -46,5 +43,4 @@ public final class SimpleTargetInformation implements TargetInformation {
   public static ImmutableSet<TargetInformation> singleton(final String pText) {
     return ImmutableSet.of(SimpleTargetInformation.create(pText));
   }
-
 }

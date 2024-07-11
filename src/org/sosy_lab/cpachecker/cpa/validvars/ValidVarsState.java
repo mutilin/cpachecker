@@ -8,17 +8,17 @@
 
 package org.sosy_lab.cpachecker.cpa.validvars;
 
+import java.io.Serial;
+import java.io.Serializable;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractQueryableState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Graphable;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 
-import java.io.Serializable;
+public class ValidVarsState
+    implements AbstractState, AbstractQueryableState, Graphable, Serializable {
 
-
-public class ValidVarsState implements AbstractState, AbstractQueryableState, Graphable, Serializable {
-
-  private static final long serialVersionUID = 9159663474411886276L;
+  @Serial private static final long serialVersionUID = 9159663474411886276L;
   private final ValidVars validVariables;
 
   public ValidVarsState(ValidVars pValidVars) {

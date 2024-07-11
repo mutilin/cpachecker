@@ -67,10 +67,9 @@ import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.WitnessType
 import org.sosy_lab.cpachecker.util.automaton.VerificationTaskMetaData;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
-import org.w3c.dom.DOMException;
 import org.w3c.dom.Element;
 
-@Options(prefix="cpa.usage.export")
+@Options(prefix = "cpa.usage.export")
 public class KleverErrorTracePrinter extends ErrorTracePrinter {
 
   @Option(
@@ -81,14 +80,15 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   private PathTemplate errorPathFile = PathTemplate.ofFormatString("witness.%s.graphml");
 
   @Option(
-    secure = true,
-    name = "removeGlobalDeclarations",
-    description = "remove global declarations and local ones withous initializers to save time and memory")
+      secure = true,
+      name = "removeGlobalDeclarations",
+      description =
+          "remove global declarations and local ones withous initializers to save time and memory")
   private boolean removeUselessDecl = false;
 
   @Option(
-    secure = true,
-    description = "keep all notes, in opposite case only notes for the error stack are stored")
+      secure = true,
+      description = "keep all notes, in opposite case only notes for the error stack are stored")
   private boolean keepAllNotes = true;
 
   String defaultSourcefileName;
@@ -166,7 +166,8 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
                 } else {
                   // Two providers filtered the edges in a different way
                   throw new UnsafeInterruptException(
-                      "Two witness providers filtered notes in the different way. Merge is not supported now");
+                      "Two witness providers filtered notes in the different way. Merge is not"
+                          + " supported now");
                 }
               }
               notes.addAll(filteredFuncs);
@@ -174,7 +175,6 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
           }
           currentFunc = stack.pop();
         }
-
       }
       // Save the rest: error stack
       notes.addAll(currentFunc);
@@ -214,8 +214,8 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
   private NoteFilter notePreparator;
 
   @Override
-  protected void
-      printUnsafe(AbstractIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair, boolean refined) {
+  protected void printUnsafe(
+      AbstractIdentifier pId, Pair<UsageInfo, UsageInfo> pTmpPair, boolean refined) {
     UsageInfo firstUsage = pTmpPair.getFirst();
     UsageInfo secondUsage = pTmpPair.getSecond();
 
@@ -243,8 +243,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
 
     int forkThread = 0;
 
-    defaultSourcefileName =
-        firstEdge.getFileLocation().getFileName().toString();
+    defaultSourcefileName = firstEdge.getFileLocation().getFileName().toString();
 
     String status;
 
@@ -274,8 +273,8 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
 
       int commonIndex = getCommonPrefix(firstPath, secondPath);
       if (commonIndex < 0) {
-        logger
-            .log(Level.WARNING, "No thread create found, likely, you need another WitnessPrinter");
+        logger.log(
+            Level.WARNING, "No thread create found, likely, you need another WitnessPrinter");
         return;
       }
       for (int i = 0; i < commonIndex; i++) {
@@ -296,9 +295,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
         // Means we split not on thread create, manually create thread
         Element edge = printEdge(builder, secondEdge);
         builder.addDataElementChild(
-            edge,
-            KeyDef.CREATETHREAD,
-            Integer.toString(threadIterator.next()));
+            edge, KeyDef.CREATETHREAD, Integer.toString(threadIterator.next()));
       }
       printPath(secondUsage, secondIterator, builder);
       builder.addDataElementChild(currentNode, NodeFlag.ISVIOLATION.key, "true");
@@ -314,10 +311,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
       IO.writeFile(currentPath, Charset.defaultCharset(), (Appender) a -> builder.appendTo(a));
       printedUnsafes.inc();
 
-    } catch (IOException
-        | ParserConfigurationException
-        | DOMException
-        | InvalidConfigurationException e) {
+    } catch (IOException | ParserConfigurationException | InvalidConfigurationException e) {
       logger.logfUserException(Level.WARNING, e, "Exception during printing unsafe %s", pId);
     }
   }
@@ -454,13 +448,11 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     if (functionName != null) {
       builder.addDataElementChild(result, KeyDef.FUNCTIONENTRY, functionName);
     }
-    if (pEdge.getSuccessor() instanceof FunctionExitNode) {
-      FunctionExitNode out = (FunctionExitNode) pEdge.getSuccessor();
+    if (pEdge.getSuccessor() instanceof FunctionExitNode out) {
       builder.addDataElementChild(result, KeyDef.FUNCTIONEXIT, out.getFunctionName());
     }
 
-    if (pEdge instanceof AssumeEdge) {
-      AssumeEdge a = (AssumeEdge) pEdge;
+    if (pEdge instanceof AssumeEdge a) {
       AssumeCase assumeCase = a.getTruthAssumption() ? AssumeCase.THEN : AssumeCase.ELSE;
       builder.addDataElementChild(result, KeyDef.CONTROLCASE, assumeCase.toString());
     }
@@ -477,25 +469,21 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
     if (min != null) {
       builder.addDataElementChild(result, KeyDef.ORIGINFILE, min.getFileName().toString());
       builder.addDataElementChild(
-          result,
-          KeyDef.STARTLINE,
-          Integer.toString(min.getStartingLineInOrigin()));
+          result, KeyDef.STARTLINE, Integer.toString(min.getStartingLineInOrigin()));
     }
     if (max != null) {
       builder.addDataElementChild(
-          result,
-          KeyDef.ENDLINE,
-          Integer.toString(max.getEndingLineInOrigin()));
+          result, KeyDef.ENDLINE, Integer.toString(max.getEndingLineInOrigin()));
     }
 
     if (min != null && min.isOffsetRelatedToOrigin()) {
       builder.addDataElementChild(result, KeyDef.OFFSET, Integer.toString(min.getNodeOffset()));
     }
     if (max != null && max.isOffsetRelatedToOrigin()) {
-          builder.addDataElementChild(
-              result,
-              KeyDef.ENDOFFSET,
-              Integer.toString(max.getNodeOffset() + max.getNodeLength() - 1));
+      builder.addDataElementChild(
+          result,
+          KeyDef.ENDOFFSET,
+          Integer.toString(max.getNodeOffset() + max.getNodeLength() - 1));
     }
 
     if (!pEdge.getRawStatement().trim().isEmpty()) {
@@ -512,8 +500,7 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
 
   private CThreadCreateStatement getThreadCreateStatementIfExists(CFAEdge pEdge) {
     if (pEdge instanceof CFunctionCallEdge) {
-      CFunctionSummaryEdge sEdge = ((CFunctionCallEdge) pEdge).getSummaryEdge();
-      CFunctionCall fCall = sEdge.getExpression();
+      CFunctionCall fCall = ((CFunctionCallEdge) pEdge).getFunctionCall();
       if (fCall instanceof CThreadCreateStatement) {
         return (CThreadCreateStatement) fCall;
       }
@@ -527,8 +514,8 @@ public class KleverErrorTracePrinter extends ErrorTracePrinter {
         return false;
       }
       if (edge.getSuccessor() instanceof FunctionExitNode) {
-        return AutomatonGraphmlCommon
-            .isEmptyStub(((FunctionExitNode) edge.getSuccessor()).getEntryNode());
+        return AutomatonGraphmlCommon.isEmptyStub(
+            ((FunctionExitNode) edge.getSuccessor()).getEntryNode());
       }
       if (AutomatonGraphmlCommon.treatAsTrivialAssume(edge)) {
         return false;

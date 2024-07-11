@@ -12,6 +12,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableSet;
+import java.io.Serial;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -29,9 +30,10 @@ import org.sosy_lab.cpachecker.cfa.ast.java.VisibilityModifier;
  *   <li>the enclosing type of the described class or interface, if one exists
  * </ul>
  */
-public abstract class JClassOrInterfaceType implements JReferenceType {
+public abstract sealed class JClassOrInterfaceType implements JReferenceType
+    permits JClassType, JInterfaceType {
 
-  private static final long serialVersionUID = -9116725120756000396L;
+  @Serial private static final long serialVersionUID = -9116725120756000396L;
 
   private final VisibilityModifier visibility;
   private final String name;
@@ -117,7 +119,7 @@ public abstract class JClassOrInterfaceType implements JReferenceType {
     while (!nextEnclosingType.isTopLevel()) {
       nextEnclosingType = nextEnclosingType.getEnclosingType();
       checkArgument(
-          !found.contains(this), "Class % may not be a nested type of itself.", getName());
+          !found.contains(this), "Class %s may not be a nested type of itself.", getName());
       found.add(nextEnclosingType);
     }
   }
@@ -161,13 +163,7 @@ public abstract class JClassOrInterfaceType implements JReferenceType {
       return true;
     }
 
-    if (!(pObj instanceof JClassOrInterfaceType)) {
-      return false;
-    }
-
-    JClassOrInterfaceType other = (JClassOrInterfaceType) pObj;
-
-    return Objects.equals(name, other.name);
+    return pObj instanceof JClassOrInterfaceType other && Objects.equals(name, other.name);
   }
 
   @Override

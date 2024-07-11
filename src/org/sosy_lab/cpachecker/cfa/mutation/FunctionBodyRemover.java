@@ -67,7 +67,7 @@ class RemovedFunction {
  */
 public class FunctionBodyRemover extends GenericDeltaDebuggingStrategy<String, RemovedFunction> {
 
-  private final static String retVarName = "CPAchecker_CFAmutator_dummy_retval";
+  private static final String retVarName = "CPAchecker_CFAmutator_dummy_retval";
 
   private ImmutableSet<String> bodiesNeeded;
 
@@ -112,7 +112,7 @@ public class FunctionBodyRemover extends GenericDeltaDebuggingStrategy<String, R
       for (String name : bodiesNeeded) {
         FunctionEntryNode entry = pCfa.getFunctions().get(name);
         assert entry.getNumLeavingEdges() == 1;
-        if (entry.getLeavingEdge(0).getSuccessor() == entry.getExitNode()) {
+        if (entry.getLeavingEdge(0).getSuccessor() == entry.getExitNode().get()) {
           // already simple body of single edge
           result.remove(name);
         }
@@ -132,7 +132,7 @@ public class FunctionBodyRemover extends GenericDeltaDebuggingStrategy<String, R
       }
 
       FunctionEntryNode entry = pCfa.getFunctions().get(pChosen);
-      FunctionExitNode exit = entry.getExitNode();
+      FunctionExitNode exit = entry.getExitNode().get();
 
       // remove all nodes
       SortedSet<CFANode> nodes = pCfa.getCFANodes().removeAll(pChosen);
@@ -156,7 +156,7 @@ public class FunctionBodyRemover extends GenericDeltaDebuggingStrategy<String, R
   private ImmutableList<CFAEdge> insertDummyReturn(
       SortedSet<CFANode> pFunctionNodes, FunctionEntryNode entry) {
     FileLocation loc = FileLocation.DUMMY;
-    FunctionExitNode exit = entry.getExitNode();
+    FunctionExitNode exit = entry.getExitNode().get();
     ImmutableList.Builder<CFAEdge> halfConnected = ImmutableList.builder();
 
     assert entry.getNumLeavingEdges() == 1;
@@ -201,8 +201,7 @@ public class FunctionBodyRemover extends GenericDeltaDebuggingStrategy<String, R
 
     CReturnStatement rst = new CReturnStatement(loc, Optional.of(rexp), Optional.empty());
     CFACreationUtils.addEdgeToCFA(
-        new CReturnStatementEdge(rst.toASTString(), rst, loc, lastNode, exit),
-        logger);
+        new CReturnStatementEdge(rst.toASTString(), rst, loc, lastNode, exit), logger);
     return halfConnected.build();
   }
 
@@ -221,7 +220,7 @@ public class FunctionBodyRemover extends GenericDeltaDebuggingStrategy<String, R
     }
     pRemoved.entry.removeLeavingEdge(pRemoved.entry.getLeavingEdge(0));
     pRemoved.entry.addLeavingEdge(pRemoved.halfConnectedEdges.get(0));
-    FunctionExitNode exit = pRemoved.entry.getExitNode();
+    FunctionExitNode exit = pRemoved.entry.getExitNode().get();
     CFAMutationUtils.removeAllEnteringEdges(exit);
     for (int i = 1; i < pRemoved.halfConnectedEdges.size(); i++) {
       exit.addEnteringEdge(pRemoved.halfConnectedEdges.get(i));

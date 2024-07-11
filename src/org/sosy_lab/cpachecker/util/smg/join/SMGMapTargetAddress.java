@@ -19,11 +19,8 @@ import org.sosy_lab.cpachecker.util.smg.graph.SMGPointsToEdge;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGTargetSpecifier;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGValue;
 
-/**
- * Class implementing join algorithm from FIT-TR-2013-4 (Appendix C.3)
- */
+/** Class implementing join algorithm from FIT-TR-2013-4 (Appendix C.3) */
 public class SMGMapTargetAddress extends SMGAbstractJoin {
-
 
   public SMGMapTargetAddress(
       SMGJoinStatus pStatus,
@@ -70,17 +67,13 @@ public class SMGMapTargetAddress extends SMGAbstractJoin {
       value = matchingAddressOptional.orElseThrow().getKey();
     } else {
       // Step 5
-      value = SMGValue.of(0); // TODO nesting level zero???
-      destSMG = destSMG.copyAndAddValue(value);
+      value = SMGValue.of(); // TODO nesting level zero???
+      destSMG = destSMG.copyAndAddValue(value, 0);
       SMGPointsToEdge newEdge = new SMGPointsToEdge(resSmgObject, ptoEdge1.getOffset(), tg);
       destSMG = destSMG.copyAndAddPTEdge(newEdge, value);
       // Step 6
       mapping1.addMapping(v1, value);
       mapping2.addMapping(v2, value);
     }
-
   }
-
-
-
 }

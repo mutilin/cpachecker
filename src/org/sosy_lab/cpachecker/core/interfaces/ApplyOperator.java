@@ -29,14 +29,14 @@ public interface ApplyOperator {
 
   public AbstractState project(AbstractState pParent, AbstractState pChild, AbstractEdge pEdge);
 
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges);
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges);
 
   public boolean isInvariantToEffects(AbstractState pState);
 
   public boolean canBeAnythingApplied(AbstractState pState);
 
-  default public boolean isCompositeBlock(@SuppressWarnings("unused") AbstractState pState) {
+  public default boolean isCompositeBlock(@SuppressWarnings("unused") AbstractState pState) {
     return false;
   }
 }

@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.java;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
@@ -17,9 +18,9 @@ import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
  * JMethodInvocationAssignmentStatement and a temporary variable to simplify analysis.
  */
 public final class JMethodInvocationAssignmentStatement extends AFunctionCallAssignmentStatement
-    implements JAssignment, JStatement, JMethodOrConstructorInvocation {
+    implements JAssignment, JMethodOrConstructorInvocation {
 
-  private static final long serialVersionUID = -8272890940591390982L;
+  @Serial private static final long serialVersionUID = -8272890940591390982L;
 
   public JMethodInvocationAssignmentStatement(
       FileLocation pFileLocation,
@@ -61,10 +62,6 @@ public final class JMethodInvocationAssignmentStatement extends AFunctionCallAss
       return true;
     }
 
-    if (!(obj instanceof JMethodInvocationAssignmentStatement)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof JMethodInvocationAssignmentStatement && super.equals(obj);
   }
 }

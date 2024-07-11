@@ -54,9 +54,7 @@ public class ARGPathRestorator implements PathRestorator {
 
   @Override
   public ARGPath computePath(
-      ARGState pLastElement,
-      Set<List<Integer>> pRefinedStates,
-      List<AbstractState> pStack) {
+      ARGState pLastElement, Set<List<Integer>> pRefinedStates, List<AbstractState> pStack) {
 
     List<ARGState> states = new ArrayList<>(); // reversed order
     Set<ARGState> seenElements = new HashSet<>();
@@ -81,7 +79,8 @@ public class ARGPathRestorator implements PathRestorator {
 
       if (seenElements.contains(parentElement)) {
         // Backtrack
-        checkArgument(!backTrackPoints.isEmpty(), "No ARG path from the target state to a root state.");
+        checkArgument(
+            !backTrackPoints.isEmpty(), "No ARG path from the target state to a root state.");
         ARGState backTrackPoint = backTrackPoints.pop();
         ListIterator<ARGState> stateIterator = states.listIterator(states.size());
         while (stateIterator.hasPrevious() && !stateIterator.previous().equals(backTrackPoint)) {
@@ -151,6 +150,5 @@ public class ARGPathRestorator implements PathRestorator {
         return ARGPathRestorator.this.computePath(target, pRefinedStatesIds, stack);
       }
     }
-
   }
 }

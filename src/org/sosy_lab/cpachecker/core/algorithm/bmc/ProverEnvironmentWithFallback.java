@@ -97,6 +97,15 @@ public class ProverEnvironmentWithFallback
   }
 
   @Override
+  public int size() {
+    if (supportsInterpolation()) {
+      return interpolatingProverEnvironment.size();
+    } else {
+      return proverEnvironment.size();
+    }
+  }
+
+  @Override
   public Object push(BooleanFormula pFormula) throws InterruptedException {
     ensureInitialized();
     stack.push(pFormula);
@@ -248,7 +257,7 @@ public class ProverEnvironmentWithFallback
   }
 
   @Override
-  public void push() {
+  public void push() throws InterruptedException {
     ensureInitialized();
     if (supportsInterpolation()) {
       interpolatingProverEnvironment.push();

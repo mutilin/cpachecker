@@ -10,27 +10,31 @@ package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 /**
- * This class represent typedef declarations.
- * Example code:
+ * This class represent typedef declarations. Example code:
  *
- * typedef int my_int;
+ * <p>typedef int my_int;
  */
 public final class CTypeDefDeclaration extends CTypeDeclaration {
 
-  private static final long serialVersionUID = -8939387997205706731L;
+  @Serial private static final long serialVersionUID = -8939387997205706731L;
 
-  public CTypeDefDeclaration(FileLocation pFileLocation, boolean pIsGlobal,
-      CType pType, String pName, String pQualifiedName) {
+  public CTypeDefDeclaration(
+      FileLocation pFileLocation,
+      boolean pIsGlobal,
+      CType pType,
+      String pName,
+      String pQualifiedName) {
     super(pFileLocation, pIsGlobal, pType, checkNotNull(pName), checkNotNull(pQualifiedName));
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
-    return "typedef " + super.toASTString(pQualified);
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
+    return "typedef " + super.toASTString(pAAstNodeRepresentation);
   }
 
   @Override
@@ -46,11 +50,7 @@ public final class CTypeDefDeclaration extends CTypeDeclaration {
       return true;
     }
 
-    if (!(obj instanceof CTypeDefDeclaration)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CTypeDefDeclaration && super.equals(obj);
   }
 
   @Override

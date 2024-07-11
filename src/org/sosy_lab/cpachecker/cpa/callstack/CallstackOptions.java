@@ -23,7 +23,12 @@ class CallstackOptions {
       description = "Blacklist of extern functions that will make the analysis abort if called")
   private ImmutableSet<String> unsupportedFunctions =
       ImmutableSet.of(
-          "pthread_create", "pthread_key_create", "longjmp", "siglongjmp", "__builtin_va_arg",
+          "pthread_create",
+          "pthread_key_create",
+          "_longjmp",
+          "longjmp",
+          "siglongjmp",
+          "__builtin_va_arg",
           "atexit");
 
   @Option(secure = true, name = "depth", description = "depth of recursion bound")
@@ -47,7 +52,8 @@ class CallstackOptions {
   @Option(
       secure = true,
       description =
-          "Skip recursion if it happens only by going via a void function (this is unsound).")
+          "Skip recursion if it happens only by going via a void function with no pointers passed "
+              + "as parameters. This is unsound if the function modifies global variables.")
   private boolean skipVoidRecursion = false;
 
   @Option(description = "analyse the CFA backwards", secure = true)
@@ -59,7 +65,8 @@ class CallstackOptions {
       toUppercase = true,
       values = {"FLAT", "FLATPCC"},
       description =
-          "which abstract domain to use for callstack cpa, typically FLAT which is faster since it uses only object equivalence")
+          "which abstract domain to use for callstack cpa, typically FLAT which is faster since it"
+              + " uses only object equivalence")
   private String domainType = "FLAT";
 
   CallstackOptions(Configuration config) throws InvalidConfigurationException {

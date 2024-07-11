@@ -11,57 +11,57 @@ package org.sosy_lab.cpachecker.util.faultlocalization.appendables;
 import java.util.Comparator;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.util.faultlocalization.Fault;
-import org.sosy_lab.cpachecker.util.faultlocalization.FaultContribution;
-import org.sosy_lab.cpachecker.util.faultlocalization.ranking.NoContextExplanation;
+import org.sosy_lab.cpachecker.util.faultlocalization.explanation.NoContextExplanation;
 
-public abstract class FaultInfo implements Comparable<FaultInfo>{
+public abstract class FaultInfo implements Comparable<FaultInfo> {
 
-  public enum InfoType{
+  /**
+   * Represents the type of FaultInfo. The HTML report sorts FaultInfos according to the definition
+   * in the enum InfoType.
+   */
+  public enum InfoType {
     /** The reason why a fault localization algorithm created the fault */
-    REASON(0),
+    REASON,
     /** Provides a possible fix */
-    FIX(1),
+    FIX,
     /** Information provided by the rankings */
-    RANK_INFO(3);
-
-    private final int reportRank;
-    InfoType(int pReportRank) {
-      reportRank = pReportRank;
-    }
+    RANK_INFO
   }
 
   protected double score;
   protected String description;
   private final InfoType type;
 
+  private static final int SCORE_FACTOR = 10000;
+
   protected FaultInfo(InfoType pType) {
     type = pType;
   }
 
   /**
-   * Returns a possible fix for pSet. It may be a guess.
-   * The set has to have size 1 because NoContextExplanation is designed to explain singletons only.
-   * @param pFaultContribution find an explanation for this fault contribution
+   * Returns a possible fix for pSet. It may be a guess. The set has to have size 1 because
+   * NoContextExplanation is designed to explain singletons only.
+   *
+   * @param pFault find an explanation for all edges in this fault
    * @return Explanation for pSet
    */
-  public static FaultInfo possibleFixFor(FaultContribution pFaultContribution){
-    return new PotentialFix(
-        InfoType.FIX, new NoContextExplanation().explanationFor(new Fault(pFaultContribution)));
+  public static FaultInfo possibleFixFor(Fault pFault) {
+    return new PotentialFix(NoContextExplanation.getInstance().explanationFor(pFault));
   }
 
-  public static PotentialFix fix(String pDescription){
-    return new PotentialFix(InfoType.FIX, pDescription);
+  public static PotentialFix fix(String pDescription) {
+    return new PotentialFix(pDescription);
   }
 
-  public static RankInfo rankInfo(String pDescription, double pLikelihood){
-    return new RankInfo(InfoType.RANK_INFO, pDescription, pLikelihood);
+  public static RankInfo rankInfo(String pDescription, double pLikelihood) {
+    return new RankInfo(pDescription, pLikelihood);
   }
 
-  public static FaultReason justify(String pDescription){
-    return new FaultReason(InfoType.REASON, pDescription);
+  public static FaultReason justify(String pDescription) {
+    return new FaultReason(pDescription);
   }
 
-  public double getScore(){
+  public double getScore() {
     return score;
   }
 
@@ -75,35 +75,36 @@ public abstract class FaultInfo implements Comparable<FaultInfo>{
 
   /**
    * Sort by InfoType then by score.
+   *
    * @param info FaultInfo for comparison
    * @return Is this object smaller equal or greater than info
    */
   @Override
   public int compareTo(FaultInfo info) {
-    return Comparator.<FaultInfo>comparingInt(i -> i.type.reportRank)
-        .thenComparingDouble(i -> i.score).compare(this, info);
+    return Comparator.comparing(FaultInfo::getType)
+        .thenComparingInt(i -> (int) (i.getScore() * SCORE_FACTOR))
+        .compare(this, info);
   }
 
   @Override
-  public int hashCode(){
-    return Objects.hash(31, description, score, type);
+  public int hashCode() {
+    return Objects.hash(31, description, (int) (score * SCORE_FACTOR), type);
   }
 
   @Override
-  public boolean equals(Object q){
-    if(q instanceof FaultInfo){
-      FaultInfo r = (FaultInfo)q;
-      if(type.equals(r.type)){
-        return r.description.equals(description) && score
-            == r.score;
-      }
+  public boolean equals(Object q) {
+    if (q instanceof FaultInfo r && type.equals(r.type)) {
+      // prevent unequals if 5th digit after comma does not fit.
+      int scoreThis = (int) (score * SCORE_FACTOR);
+      int scoreOther = (int) (r.score * SCORE_FACTOR);
+      return r.description.equals(description) && scoreThis == scoreOther;
     }
     return false;
   }
 
   @Override
   public String toString() {
-    String percent = ((int) (score * 10000)) / 100d + "%";
+    String percent = ((int) (score * SCORE_FACTOR)) / 100d + "%";
     return type + ": " + description + " (" + percent + ")";
   }
 }

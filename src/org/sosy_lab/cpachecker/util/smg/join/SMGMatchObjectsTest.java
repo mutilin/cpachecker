@@ -23,10 +23,10 @@ public class SMGMatchObjectsTest extends SMGJoinTest0 {
   private SMG smg1;
   private SMG smg2;
 
-  final private SMGObject srcObj1 = createRegion(mockType4bSize);
-  final private SMGObject destObj1 = createRegion(mockType4bSize);
-  final private SMGObject srcObj2 = createRegion(mockType4bSize);
-  final private SMGObject destObj2 = createRegion(mockType4bSize);
+  private final SMGObject srcObj1 = createRegion(mockType4bSize);
+  private final SMGObject destObj1 = createRegion(mockType4bSize);
+  private final SMGObject srcObj2 = createRegion(mockType4bSize);
+  private final SMGObject destObj2 = createRegion(mockType4bSize);
 
   private NodeMapping mapping1;
   private NodeMapping mapping2;
@@ -73,15 +73,16 @@ public class SMGMatchObjectsTest extends SMGJoinTest0 {
     smg2 = smg2.copyAndAddObject(srcObj2);
     assertThrows(
         IllegalArgumentException.class,
-        () -> new SMGMatchObjects(
-            SMGJoinStatus.EQUAL,
-            smg1,
-            smg2,
-            new SMG(smg1.getSizeOfPointer()),
-            mapping1,
-            mapping2,
-            srcObj1,
-            srcObj2));
+        () ->
+            new SMGMatchObjects(
+                SMGJoinStatus.EQUAL,
+                smg1,
+                smg2,
+                new SMG(smg1.getSizeOfPointer()),
+                mapping1,
+                mapping2,
+                srcObj1,
+                srcObj2));
   }
 
   @Test
@@ -89,15 +90,16 @@ public class SMGMatchObjectsTest extends SMGJoinTest0 {
     smg1 = smg1.copyAndAddObject(srcObj1);
     assertThrows(
         IllegalArgumentException.class,
-        () -> new SMGMatchObjects(
-            SMGJoinStatus.EQUAL,
-            smg1,
-            smg2,
-            new SMG(smg1.getSizeOfPointer()),
-            mapping1,
-            mapping2,
-            srcObj1,
-            srcObj2));
+        () ->
+            new SMGMatchObjects(
+                SMGJoinStatus.EQUAL,
+                smg1,
+                smg2,
+                new SMG(smg1.getSizeOfPointer()),
+                mapping1,
+                mapping2,
+                srcObj1,
+                srcObj2));
   }
 
   @Test
@@ -160,7 +162,7 @@ public class SMGMatchObjectsTest extends SMGJoinTest0 {
     assertThat(mo.isDefined()).isFalse();
 
     smg2 = smg2.copyAndAddObject(srcObj2);
-    smg2 = smg2.copyAndInvalidateObject(srcObj2);
+    smg2 = smg2.copyAndInvalidateObject(srcObj2, true);
     mo =
         new SMGMatchObjects(
             SMGJoinStatus.EQUAL,
@@ -207,16 +209,16 @@ public class SMGMatchObjectsTest extends SMGJoinTest0 {
     SMGHasValueEdge hvMatching1 = createHasValueEdge(2, 4, createValue());
     SMGHasValueEdge hvMatching2 = createHasValueEdge(2, 4, createValue());
 
-    smg1 = smg1.copyAndAddValue(hv1.hasValue());
+    smg1 = smg1.copyAndAddValueWithNestingLevelZero(hv1.hasValue());
     smg1 = smg1.copyAndAddHVEdge(hv1, srcObj1);
 
-    smg2 = smg2.copyAndAddValue(hv2.hasValue());
+    smg2 = smg2.copyAndAddValueWithNestingLevelZero(hv2.hasValue());
     smg2 = smg2.copyAndAddHVEdge(hv2, srcObj2);
 
-    smg1 = smg1.copyAndAddValue(hvMatching1.hasValue());
+    smg1 = smg1.copyAndAddValueWithNestingLevelZero(hvMatching1.hasValue());
     smg1 = smg1.copyAndAddHVEdge(hvMatching1, srcObj1);
 
-    smg2 = smg2.copyAndAddValue(hvMatching2.hasValue());
+    smg2 = smg2.copyAndAddValueWithNestingLevelZero(hvMatching2.hasValue());
     smg2 = smg2.copyAndAddHVEdge(hvMatching2, srcObj2);
 
     SMGMatchObjects mo =
@@ -270,8 +272,6 @@ public class SMGMatchObjectsTest extends SMGJoinTest0 {
             srcObj2);
     assertThat(mo.isDefined()).isFalse();
   }
-
-
 
   @Test
   public void noAbstractionTest() {

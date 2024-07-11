@@ -21,8 +21,7 @@ import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 
 public final class ModificationsState
-    implements AvoidanceReportingState, AbstractQueryableState,
-                                           Graphable {
+    implements AvoidanceReportingState, AbstractQueryableState, Graphable {
 
   private boolean hasModification;
   private CFANode locationInGivenCfa;
@@ -91,13 +90,12 @@ public final class ModificationsState
 
   @Override
   public boolean checkProperty(String pProperty) throws InvalidQueryException {
-    switch (pProperty) {
-      case "is_modified":
-        return hasModification;
-      default:
-        throw new InvalidQueryException(
-            "Unknown query to " + getClass().getSimpleName() + ": " + pProperty);
-    }
+    return switch (pProperty) {
+      case "is_modified" -> hasModification;
+      default ->
+          throw new InvalidQueryException(
+              "Unknown query to " + getClass().getSimpleName() + ": " + pProperty);
+    };
   }
 
   @Override

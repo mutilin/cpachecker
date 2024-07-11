@@ -16,6 +16,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Multimap;
+import java.io.Serial;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,28 +50,26 @@ public class BAMSubgraphComputer {
   private final boolean cleanupOnMissingBlock;
 
   BAMSubgraphComputer(AbstractBAMCPA bamCpa, boolean pCleanupOnMissingBlock) {
-    this.partitioning = bamCpa.getBlockPartitioning();
-    this.reducer = bamCpa.getReducer();
-    this.data = bamCpa.getData();
-    this.logger = bamCpa.getLogger();
+    partitioning = bamCpa.getBlockPartitioning();
+    reducer = bamCpa.getReducer();
+    data = bamCpa.getData();
+    logger = bamCpa.getLogger();
     useCopyOnWriteRefinement = bamCpa.useCopyOnWriteRefinement();
     cleanupOnMissingBlock = pCleanupOnMissingBlock;
   }
 
   /**
-   * Returns the root of a subtree, leading from the root element of the
-   * given reachedSet to the target state.
-   * The subtree is represented using children and parents of ARGElements,
-   * where newTreeTarget is the ARGState in the constructed subtree that represents target.
+   * Returns the root of a subtree, leading from the root element of the given reachedSet to the
+   * target state. The subtree is represented using children and parents of ARGElements, where
+   * newTreeTarget is the ARGState in the constructed subtree that represents target.
    *
-   * <p>If the target is reachable via a missing block (aka "hole"),
-   * the MissingBlockException is thrown.
-   * Then we expect, that the next actions are removing cache-entries from bam-cache,
-   * updating some waitlists and restarting the CPA-algorithm, so that the missing block is analyzed again.
+   * <p>If the target is reachable via a missing block (aka "hole"), the MissingBlockException is
+   * thrown. Then we expect, that the next actions are removing cache-entries from bam-cache,
+   * updating some waitlists and restarting the CPA-algorithm, so that the missing block is analyzed
+   * again.
    *
-   * <p>If the CEX contains a state, where several blocks overlap (happens at
-   * block-start and block-end),
-   * the new CEX-graph contains the states of the most-outer block/reached-set.
+   * <p>If the CEX contains a state, where several blocks overlap (happens at block-start and
+   * block-end), the new CEX-graph contains the states of the most-outer block/reached-set.
    *
    * @param target a state from the reachedSet, is used as the last state of the returned subgraph.
    * @param pMainReachedSet most outer reached set corresponding to the current refinement. The
@@ -94,8 +93,9 @@ public class BAMSubgraphComputer {
       throws MissingBlockException, InterruptedException {
     UnmodifiableReachedSet mainRs = pMainReachedSet.asReachedSet();
     assert mainRs.asCollection().containsAll(targets)
-      : "target states should be contained in reached-set. The following states are not contained: "
-        + Iterables.filter(targets, s -> !mainRs.contains(s));
+        : "target states should be contained in reached-set. The following states are not"
+            + " contained: "
+            + Iterables.filter(targets, s -> !mainRs.contains(s));
     if (targets.isEmpty()) {
       // cannot compute subgraph without target states
       return Pair.of(new BackwardARGState((ARGState) mainRs.getFirstState()), ImmutableList.of());
@@ -108,9 +108,9 @@ public class BAMSubgraphComputer {
   }
 
   /**
-   * Compute a subgraph within the given reached set,
-   * backwards from target (wrapped by newTreeTarget) towards the root of the reached set.
-   * */
+   * Compute a subgraph within the given reached set, backwards from target (wrapped by
+   * newTreeTarget) towards the root of the reached set.
+   */
   private BackwardARGState computeCounterexampleSubgraph(
       final ARGReachedSet reachedSet, final Collection<BackwardARGState> newTreeTargets)
       throws MissingBlockException, InterruptedException {
@@ -155,9 +155,12 @@ public class BAMSubgraphComputer {
 
         // If child-state is an expanded state, the child is at the exit-location of a block.
         // In this case, we enter the block (backwards).
-        // We must use a cached reachedSet to process further, because the block has its own reachedSet.
-        // The returned 'innerTreeRoot' is the rootNode of the subtree, created from the cached reachedSet.
-        // The current subtree (successors of child) is appended beyond the innerTree, to get a complete subgraph.
+        // We must use a cached reachedSet to process further, because the block has its own
+        // reachedSet.
+        // The returned 'innerTreeRoot' is the rootNode of the subtree, created from the cached
+        // reachedSet.
+        // The current subtree (successors of child) is appended beyond the innerTree, to get a
+        // complete subgraph.
         try {
           computeCounterexampleSubgraphForBlock(newCurrentState, childrenInSubgraph);
         } catch (MissingBlockException e) {
@@ -189,29 +192,28 @@ public class BAMSubgraphComputer {
         root = newCurrentState;
       }
     }
-    assert root != null : "no root state found in reachedset with initial state "
-        + reachedSet.asReachedSet().getFirstState();
+    assert root != null
+        : "no root state found in reachedset with initial state "
+            + reachedSet.asReachedSet().getFirstState();
     return root;
   }
 
   /**
-   * This method looks for the reached set that belongs to (root, rootPrecision),
-   * then looks for target in this reached set and constructs a tree from root to target
-   * (recursively, if needed).
+   * This method looks for the reached set that belongs to (root, rootPrecision), then looks for
+   * target in this reached set and constructs a tree from root to target (recursively, if needed).
    *
-   * If the target is reachable via a missing block (aka "hole"),
-   * we throw a MissingBlockException.
-   * Then we expect, that the next actions are removing cache-entries from bam-cache,
-   * updating some waitlists and restarting the CPA-algorithm, so that the missing block is analyzed again.
+   * <p>If the target is reachable via a missing block (aka "hole"), we throw a
+   * MissingBlockException. Then we expect, that the next actions are removing cache-entries from
+   * bam-cache, updating some waitlists and restarting the CPA-algorithm, so that the missing block
+   * is analyzed again.
    *
    * @param newExpandedRoot the (wrapped) expanded initial state of the reachedSet of current block
    * @param newExpandedTargets copy of the exit-state of the reachedSet of current block.
-   *                     newExpandedTarget has only children, that are all part of the Pseudo-ARG
-   *                     (these children are copies of states from reachedSets of other blocks)
+   *     newExpandedTarget has only children, that are all part of the Pseudo-ARG (these children
+   *     are copies of states from reachedSets of other blocks)
    */
   protected void computeCounterexampleSubgraphForBlock(
-          final BackwardARGState newExpandedRoot,
-          final Set<BackwardARGState> newExpandedTargets)
+      final BackwardARGState newExpandedRoot, final Set<BackwardARGState> newExpandedTargets)
       throws MissingBlockException, InterruptedException {
 
     ARGState expandedRoot = (ARGState) newExpandedRoot.getWrappedState();
@@ -222,8 +224,10 @@ public class BAMSubgraphComputer {
     for (BackwardARGState newExpandedTarget : newExpandedTargets) {
 
       if (!data.hasExpandedState(newExpandedTarget.getARGState())) {
-        logger.log(Level.FINE,
-            "Target state refers to a missing ARGState, i.e., the cached subtree was deleted. Updating it.");
+        logger.log(
+            Level.FINE,
+            "Target state refers to a missing ARGState, i.e., the cached subtree was deleted."
+                + " Updating it.");
         throw new MissingBlockException(expandedRoot, newExpandedTarget.getWrappedState());
       }
 
@@ -232,8 +236,10 @@ public class BAMSubgraphComputer {
 
       // first check, if the cached state is valid.
       if (reducedTarget.isDestroyed()) {
-        logger.log(Level.FINE,
-            "Target state refers to a destroyed ARGState, i.e., the cached subtree is outdated. Updating it.");
+        logger.log(
+            Level.FINE,
+            "Target state refers to a destroyed ARGState, i.e., the cached subtree is outdated."
+                + " Updating it.");
         throw new MissingBlockException(expandedRoot, newExpandedTarget.getWrappedState());
       }
 
@@ -260,7 +266,8 @@ public class BAMSubgraphComputer {
         // enforce recomputation to update cached subtree
         logger.log(
             Level.FINE,
-            "Target state refers to a destroyed ARGState, i.e., the cached subtree will be removed.");
+            "Target state refers to a destroyed ARGState, i.e., the cached subtree will be"
+                + " removed.");
 
         // TODO why do we use precision of reachedSet from 'abstractStateToReachedSet' here and not
         // the reduced precision?
@@ -300,7 +307,8 @@ public class BAMSubgraphComputer {
       }
       newInnerTarget.removeFromARG();
     }
-    // now the complete inner tree (including all successors of the state innerTree on paths to reducedTarget)
+    // now the complete inner tree (including all successors of the state innerTree on paths to
+    // reducedTarget)
     // is inserted between newCurrentState and child.
   }
 
@@ -312,7 +320,7 @@ public class BAMSubgraphComputer {
    */
   public static class BackwardARGState extends ARGState {
 
-    private static final long serialVersionUID = -3279533907385516993L;
+    @Serial private static final long serialVersionUID = -3279533907385516993L;
 
     public BackwardARGState(ARGState originalState) {
       super(originalState, null);
@@ -335,15 +343,16 @@ public class BAMSubgraphComputer {
   /** A class to signal a deleted block for re-computation. */
   static class MissingBlockException extends CPAException {
 
-    private static final long serialVersionUID = 123L;
+    @Serial private static final long serialVersionUID = 123L;
 
     private final AbstractState initialState;
     private final AbstractState exitState;
 
     public MissingBlockException(AbstractState pInitialState, AbstractState pExitState) {
-      super(String.format(
-          "missing block for non-reduced initial state %n%s and expanded exit state %n%s",
-          pInitialState, pExitState));
+      super(
+          String.format(
+              "missing block for non-reduced initial state %n%s and expanded exit state %n%s",
+              pInitialState, pExitState));
       initialState = Preconditions.checkNotNull(pInitialState);
       exitState = Preconditions.checkNotNull(pExitState);
     }

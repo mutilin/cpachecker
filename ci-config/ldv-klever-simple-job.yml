@@ -1,5 +1,5 @@
 Klever Testing-Requirement-specifications simple:
-  config: "-lockator-threadmodular-linux"
+  config: --lockator-threadmodular-linux
   setprop: 
     - "cpa.callstack.unsupportedFunctions=__VERIFIER_nonexisting_dummy_function"
     - "cpa.predicate.allowedUnsupportedFunctions=memset,memcpy,__builtin_add_overflow,__builtin_mul_overflow,__builtin_va_arg"
@@ -9,7 +9,7 @@ Klever Testing-Requirement-specifications simple:
     - "shutdown.timeout=100"
     - "counterexample.export.graphml=witness.%d.graphml"
   options:
-    - "-64"
+    - --64
   benchmarks: 
     - Linux-Testing-Requirement-specifications/*--concurrency-safety---simple--*.i
     - Linux-Testing-Requirement-specifications/*--concurrency-safety---unsorted--*.i
@@ -19,9 +19,9 @@ Klever Testing-Requirement-specifications simple:
   prefix: /opt/ldv-klever-benchmarks/
 Klever Testing-Requirement-specifications rcu:
   extends: Klever Testing-Requirement-specifications simple
-  config: "-rcucpa"
+  config: --rcucpa
   benchmarks:
     - Linux-Testing-Requirement-specifications/*--concurrency-safety---rcu--*.i
 Klever Testing-Requirement-specifications pre shared ref:
   extends: Klever Testing-Requirement-specifications simple
-  config: "-lockator-linux-pre-shared-ref"
+  config: --lockator-linux-pre-shared-ref

@@ -44,8 +44,8 @@ public class PredicateAbstractDomain implements AbstractDomain {
   }
 
   @Override
-  public boolean isLessOrEqual(AbstractState element1,
-                                       AbstractState element2) throws CPAException, InterruptedException {
+  public boolean isLessOrEqual(AbstractState element1, AbstractState element2)
+      throws CPAException, InterruptedException {
     coverageCheckTimer.start();
     try {
 
@@ -123,9 +123,7 @@ public class PredicateAbstractDomain implements AbstractDomain {
 
             boolean result =
                 mgr.checkCoverage(
-                    e1.getAbstractionFormula(),
-                    e1.getPathFormula(),
-                    e2.getAbstractionFormula());
+                    e1.getAbstractionFormula(), e1.getPathFormula(), e2.getAbstractionFormula());
 
             symbolicCoverageCheckTimer.stop();
             return result;
@@ -157,8 +155,7 @@ public class PredicateAbstractDomain implements AbstractDomain {
   }
 
   @Override
-  public AbstractState join(AbstractState pElement1,
-      AbstractState pElement2) throws CPAException {
+  public AbstractState join(AbstractState pElement1, AbstractState pElement2) throws CPAException {
     throw new UnsupportedOperationException();
   }
 }

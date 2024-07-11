@@ -14,8 +14,7 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 /** Represents one abstract state of the Usage CPA. */
-public class UsageStateConservative extends UsageState
-{
+public class UsageStateConservative extends UsageState {
 
   private static final long serialVersionUID = -8505134232125928168L;
 
@@ -28,9 +27,7 @@ public class UsageStateConservative extends UsageState
 
   public static UsageStateConservative createInitialState(final AbstractState pWrappedElement) {
     return new UsageStateConservative(
-        pWrappedElement,
-        ImmutableMap.of(),
-        new UsageState.StateStatistics());
+        pWrappedElement, ImmutableMap.of(), new UsageState.StateStatistics());
   }
 
   @Override
@@ -47,7 +44,5 @@ public class UsageStateConservative extends UsageState
   }
 
   @Override
-  public void filterAliases(AbstractIdentifier pIdentifier, Collection<AbstractIdentifier> pSet) {
-    return;
-  }
+  public void filterAliases(AbstractIdentifier pIdentifier, Collection<AbstractIdentifier> pSet) {}
 }

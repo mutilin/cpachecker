@@ -2,7 +2,7 @@
 # a collection of common files and build definitions for Java projects:
 # https://gitlab.com/sosy-lab/software/java-project-template
 #
-# SPDX-FileCopyrightText: 2018-2020 Dirk Beyer <https://www.sosy-lab.org>
+# SPDX-FileCopyrightText: 2018-2023 Dirk Beyer <https://www.sosy-lab.org>
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -18,8 +18,7 @@ stages:
   - tests
   - deploy
 
-# Default image for non-JDK-specific jobs
-image: ${CI_REGISTRY_IMAGE}/base
+image: ${CI_REGISTRY_IMAGE}/base:jdk-17
 
 variables:
   IVY_CACHE_DIR: "${CI_PROJECT_DIR}/.ivy2"
@@ -44,24 +43,25 @@ build-dependencies:
       - "lib/java/"
 
 # Build binaries and provide them to later stages
-.build: &build
+build:
   stage: build
   script: "ant $ANT_PROPS_BUILD jar"
   interruptible: true
   artifacts:
     paths:
-      - "bin/"
+      - "classes/"
       - "*.jar"
-
-build:jdk-11:
-  <<: *build
-  image: ${CI_REGISTRY_IMAGE}/base
-
 
 # For checks that need the binaries
 .binary_check: &binary_check
   stage: checks
   interruptible: true
+  dependencies:
+    - build-dependencies
+    - build
+  needs:
+    - build-dependencies
+    - build
 
 # For checks that only need the source code, not the binaries
 .source_check: &source_check
@@ -71,6 +71,10 @@ build:jdk-11:
   needs:
     - build-dependencies
   interruptible: true
+
+# build-project-ecj:
+#   <<: *source_check
+#   script: "ant $ANT_PROPS_BUILD build-project-ecj"
 
 check-format:
   <<: *source_check
@@ -86,78 +90,83 @@ checkstyle:
       - "Checkstyle*html"
     when: on_failure
 
-spotbugs:
-  <<: *binary_check
-  script:
-    - 'ant $ANT_PROPS_CHECKS spotbugs'
-    - 'test \! -f SpotBugs.html'
-  dependencies:
-    - build-dependencies
-    - build:jdk-11
-  needs:
-    - build-dependencies
-    - build:jdk-11
-  artifacts:
-    paths:
-      - "SpotBugs.html"
-    when: on_failure
+# Need jdk-11
+# spotbugs:
+#   <<: *binary_check
+#   script:
+#     - 'ant $ANT_PROPS_CHECKS spotbugs'
+#     - 'test \! -f SpotBugs.html'
+#   artifacts:
+#     paths:
+#       - "SpotBugs.html"
+#     when: on_failure
 
-.unit-tests: &unit-tests
+unit-tests:
   <<: *binary_check
   script: "ant $ANT_PROPS_CHECKS unit-tests"
   artifacts:
+    reports:
+      junit: "output/junit/TESTS-TestSuites.xml"
     paths:
       - "JUnit.html"
     when: on_failure
     # reports:
     #   junit: "junit/TESTS-TestSuites.xml"
 
-unit-tests:jdk-11:
-  <<: *unit-tests
-  dependencies:
-    - build-dependencies
-    - build:jdk-11
-  needs:
-    - build-dependencies
-    - build:jdk-11
-#  image: ${CI_REGISTRY_IMAGE}/base
+# Need jdk-11
+# refaster:
+#   <<: *source_check
+#   image: ${CI_REGISTRY_IMAGE}/base
+#   before_script:
+#     - 'test -d refaster || git clone https://gitlab.com/sosy-lab/software/refaster.git'
+#     - 'cd refaster'
+#     - 'git fetch'
+#     - 'git checkout $REFASTER_REPO_REVISION'
+#     - 'ant build-refaster-rule -Drefaster.source.pattern=**/*.java -Drefaster.rule.file=../rule.refaster -Derrorprone.version=$REFASTER_VERSION'
+#     - 'cd -'
+#   script:
+#     - 'ant $ANT_PROPS_BUILD refaster -Drefaster.rule.file=rule.refaster'
+#   interruptible: true
+#   cache:
+#     key: "$CI_JOB_NAME"
+#     paths:
+#       - ".ivy2/"
+#       - "refaster/"
+#   artifacts:
+#     paths:
+#       - "error-prone.patch"
+#       - "rule.refaster"
+#     when: on_failure
+#   except:
+#     variables:
+#       - $REFASTER_REPO_REVISION == null # required for job
+#       - $REFASTER_VERSION == null # required for job
 
-refaster:
-  <<: *source_check
-  image: ${CI_REGISTRY_IMAGE}/base
-  before_script:
-    - 'test -d refaster || git clone https://gitlab.com/sosy-lab/software/refaster.git'
-    - 'cd refaster'
-    - 'git fetch'
-    - 'git checkout $REFASTER_REPO_REVISION'
-    - 'ant build-refaster-rule -Drefaster.source.pattern=**/*.java -Drefaster.rule.file=../rule.refaster -Derrorprone.version=$REFASTER_VERSION'
-    - 'cd -'
-  script:
-    - 'ant $ANT_PROPS_BUILD refaster -Drefaster.rule.file=rule.refaster'
-  interruptible: true
-  cache:
-    key: "$CI_JOB_NAME"
-    paths:
-      - ".ivy2/"
-      - "refaster/"
-  artifacts:
-    paths:
-      - "error-prone.patch"
-      - "rule.refaster"
-    when: on_failure
-  except:
-    variables:
-      - $REFASTER_REPO_REVISION == null # required for job
-      - $REFASTER_VERSION == null # required for job
+
+# check license declarations etc.
+# reuse:
+#   stage: checks
+#   dependencies: []
+#   needs: []
+#   image:
+#     name: fsfe/reuse:3
+#     entrypoint: [""]
+#   script:
+#     - reuse lint
+
+
+# deploy-gh-pages:
+#   stage: deploy
+#   script: "build/deploy-gh-pages.sh"
 
 .tests: &tests
   stage: tests
   dependencies:
     - build-dependencies
-    - build:jdk-11
+    - build
   needs:
     - build-dependencies
-    - build:jdk-11
+    - build
   interruptible: true
   artifacts:
     paths:
@@ -169,6 +178,11 @@ refaster:
   script:
     - 'echo ci-test-run.py $FLAGS "$JOB_NAME_ARG" $JOB_FILE_DESC'
     - 'python3 ci-test-run.py $FLAGS "$JOB_NAME_ARG" $JOB_FILE_DESC'
+
+.full-tests: &full-tests
+  <<: *tests
+  only:
+    - web
 
 simple-tests:
   <<: *tests
@@ -189,27 +203,33 @@ product-lines:
 #       when: always
 
 klever-tests:
-  <<: *tests
+  <<: *full-tests
   variables:
     JOB_FILE_DESC: ci-config/ldv-klever-simple-job.yml
-  only:
-    - web
 
-klever-found-bugs:
-  <<: *tests
+klever-found-bugs-1:
+  <<: *full-tests
   variables:
     JOB_FILE_DESC: ci-config/ldv-klever-job.yml
     JOB_NAME: Bugs found by Klever
-  only:
-    - web
-  
-klever-found-bugs-tm:
-  <<: *tests
+
+klever-found-bugs-2:
+  <<: *full-tests
+  variables:
+    JOB_FILE_DESC: ci-config/ldv-klever-job.yml
+    JOB_NAME: Bugs found by Klever 2
+
+klever-found-bugs-tm-1:
+  <<: *full-tests
   variables:
     JOB_FILE_DESC: ci-config/ldv-klever-job.yml
     JOB_NAME: Bugs found by Klever TM
-  only:
-    - web
+
+klever-found-bugs-tm-2:
+  <<: *full-tests
+  variables:
+    JOB_FILE_DESC: ci-config/ldv-klever-job.yml
+    JOB_NAME: Bugs found by Klever TM 2
 
 uppsala-tests:
   <<: *tests
@@ -221,10 +241,10 @@ uppsala-tests:
 #   stage: tests
 #   dependencies:
 #     - build-dependencies
-#     - build:jdk-11
+#     - build
 #   needs:
 #     - build-dependencies
-#     - build:jdk-11
+#     - build
 #   interruptible: true
 #   script:
 #     - 'python3 ci-test-run.py ldv-benchmarks'
@@ -234,18 +254,26 @@ uppsala-tests:
 #     - schedules
 
 sv-benchmarks-tests:
-  <<: *tests
+  <<: *full-tests
   variables:
     JOB_FILE_DESC: ci-config/sv-benchmarks-job.yml
-  only:
-    - web
+
+sv-benchmarks-ldv:
+  <<: *full-tests
+  variables:
+    JOB_FILE_DESC: ci-config/sv-benchmarks-job.yml
+    JOB_NAME: sv-benchmarks ldv
+
+sv-benchmarks-pthread:
+  <<: *full-tests
+  variables:
+    JOB_FILE_DESC: ci-config/sv-benchmarks-job.yml
+    JOB_NAME: sv-benchmarks pthread
 
 sv-benchmarks-other-configs:
-  <<: *tests
+  <<: *full-tests
   variables:
     JOB_FILE_DESC: ci-config/sv-benchmarks-other-config-job.yml
-  only:
-    - web
 
 # Build Docker images
 # following this guideline: https://docs.gitlab.com/ee/ci/docker/using_kaniko.html
@@ -269,5 +297,5 @@ sv-benchmarks-other-configs:
 build-docker:base:
   extends: .build-docker
   variables:
-    DOCKERFILE: build/gitlab-ci.Dockerfile.base
-    IMAGE: /base
+    DOCKERFILE: build/gitlab-ci.Dockerfile.base.jdk-17
+    IMAGE: /base:jdk-17

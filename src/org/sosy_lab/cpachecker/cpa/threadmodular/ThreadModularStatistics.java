@@ -77,5 +77,4 @@ public class ThreadModularStatistics implements Statistics {
   public @Nullable String getName() {
     return "ThreadModularCPA";
   }
-
 }

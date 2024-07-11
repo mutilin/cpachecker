@@ -27,5 +27,4 @@ import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 
 public interface LocalInfoProvider {
   boolean isLocal(AbstractIdentifier id);
-
 }

@@ -8,10 +8,13 @@
 
 package org.sosy_lab.cpachecker.cpa.signal;
 
+import com.google.common.collect.Comparators;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import edu.stanford.CVC4.UnsafeInterruptException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -31,7 +34,7 @@ public class SignalState
     RECEIVE,
   }
 
-  public static class SignalDesc {
+  public static class SignalDesc implements Comparable<SignalDesc> {
     public final int num;
     public final Action direction;
     public final String target;
@@ -52,25 +55,27 @@ public class SignalState
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (!(obj instanceof SignalDesc)) {
-        return false;
-      }
-      SignalDesc other = (SignalDesc) obj;
-      return direction == other.direction
+      return obj instanceof SignalDesc other
+          && direction == other.direction
           && num == other.num
-          && Objects.equals(target, other.target);
+          && target.equals(other.target);
+    }
+
+    @Override
+    public int compareTo(SignalDesc pArg0) {
+      return ComparisonChain.start()
+          .compare(num, pArg0.num)
+          .compare(direction, pArg0.direction)
+          .result();
     }
   }
 
   private static SignalStatistics stats;
-  private final static int LIMIT = 10;
+  private static final int LIMIT = 10;
 
   protected final ImmutableList<SignalDesc> signals;
   // Global variables
-  private final static Map<String, Integer> globalIds = new TreeMap<>();
+  private static final Map<String, Integer> globalIds = new TreeMap<>();
   protected final Map<String, Integer> localIds;
   protected final String targetTo;
 
@@ -79,9 +84,7 @@ public class SignalState
   }
 
   protected SignalState(
-      ImmutableList<SignalDesc> pSignals,
-      Map<String, Integer> pPreparedId,
-      String pTo) {
+      ImmutableList<SignalDesc> pSignals, Map<String, Integer> pPreparedId, String pTo) {
     signals = pSignals;
     localIds = pPreparedId;
     targetTo = pTo;
@@ -97,16 +100,10 @@ public class SignalState
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof SignalState)) {
-      return false;
-    }
-    SignalState other = (SignalState) obj;
-    return Objects.equals(signals, other.signals)
-        && Objects.equals(targetTo, other.targetTo)
-        && Objects.equals(localIds, other.localIds);
+    return obj instanceof SignalState other
+        && signals.equals(other.signals)
+        && targetTo.equals(other.targetTo)
+        && localIds.equals(other.localIds);
   }
 
   private SignalState addSignal(String varName, Action pAction) {
@@ -136,11 +133,8 @@ public class SignalState
     return new ArrayList<>(signals);
   }
 
-  protected SignalState
-      copy(
-          ImmutableList<SignalDesc> pSignals,
-          Map<String, Integer> pPreparedId,
-          String pTo) {
+  protected SignalState copy(
+      ImmutableList<SignalDesc> pSignals, Map<String, Integer> pPreparedId, String pTo) {
     return new SignalState(pSignals, pPreparedId, pTo);
   }
 
@@ -208,23 +202,14 @@ public class SignalState
   @Override
   public int compareTo(CompatibleState pArg0) {
     SignalState other = (SignalState) pArg0;
-    int result = this.signals.size() - other.signals.size();
-    if (result != 0) {
-      return result;
-    }
-    for (int i = 0; i < signals.size(); i++) {
-      SignalDesc pair1 = signals.get(i);
-      SignalDesc pair2 = other.signals.get(i);
-      result = pair1.num - pair2.num;
-      if (result != 0) {
-        return result;
-      }
-      result = pair1.direction.compareTo(pair2.direction);
-      if (result != 0) {
-        return result;
-      }
-    }
-    return targetTo.compareTo(other.targetTo);
+    return ComparisonChain.start()
+        .compare(signals.size(), other.signals.size())
+        .compare(
+            signals,
+            other.signals,
+            Comparators.lexicographical(Comparator.<SignalDesc>naturalOrder()))
+        .compare(targetTo, other.targetTo)
+        .result();
   }
 
   @Override
@@ -331,7 +316,7 @@ public class SignalState
   @Override
   public Delta<CompatibleNode> add(Delta<CompatibleNode> pDelta) {
     if (pDelta instanceof SignalState) {
-      return ((SignalState)pDelta).expand(this);
+      return ((SignalState) pDelta).expand(this);
     } else if (pDelta == GenericDelta.getInstance()) {
       return this;
     } else {

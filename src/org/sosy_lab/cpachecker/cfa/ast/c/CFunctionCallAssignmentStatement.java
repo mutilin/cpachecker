@@ -8,29 +8,30 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
-
 public final class CFunctionCallAssignmentStatement extends AFunctionCallAssignmentStatement
-                                                          implements CStatement, CAssignment, CFunctionCall {
+    implements CStatement, CAssignment, CFunctionCall {
 
-  private static final long serialVersionUID = 8744203402170708743L;
+  @Serial private static final long serialVersionUID = 8744203402170708743L;
 
-  public CFunctionCallAssignmentStatement(FileLocation pFileLocation,
-                                             CLeftHandSide pLeftHandSide,
-                                             CFunctionCallExpression pRightHandSide) {
+  public CFunctionCallAssignmentStatement(
+      FileLocation pFileLocation,
+      CLeftHandSide pLeftHandSide,
+      CFunctionCallExpression pRightHandSide) {
     super(pFileLocation, pLeftHandSide, pRightHandSide);
   }
 
   @Override
   public CLeftHandSide getLeftHandSide() {
-    return (CLeftHandSide)super.getLeftHandSide();
+    return (CLeftHandSide) super.getLeftHandSide();
   }
 
   @Override
   public CFunctionCallExpression getRightHandSide() {
-    return (CFunctionCallExpression)super.getRightHandSide();
+    return (CFunctionCallExpression) super.getRightHandSide();
   }
 
   @Override
@@ -49,10 +50,10 @@ public final class CFunctionCallAssignmentStatement extends AFunctionCallAssignm
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
-    return getLeftHandSide().toASTString(pQualified)
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
+    return getLeftHandSide().toASTString(pAAstNodeRepresentation)
         + " = "
-        + getRightHandSide().toASTString(pQualified)
+        + getRightHandSide().toASTString(pAAstNodeRepresentation)
         + ";";
   }
 
@@ -69,11 +70,6 @@ public final class CFunctionCallAssignmentStatement extends AFunctionCallAssignm
       return true;
     }
 
-    if (!(obj instanceof CFunctionCallAssignmentStatement)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CFunctionCallAssignmentStatement && super.equals(obj);
   }
-
 }

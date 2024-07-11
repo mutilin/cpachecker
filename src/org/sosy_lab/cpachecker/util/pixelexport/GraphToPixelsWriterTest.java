@@ -28,13 +28,12 @@ class DummyNode {
   public Iterable<DummyNode> getChildren() {
     return children;
   }
-
 }
 
 public class GraphToPixelsWriterTest extends GraphToPixelsWriter<DummyNode> {
 
   public GraphToPixelsWriterTest() throws InvalidConfigurationException {
-    super(Configuration.defaultConfiguration());
+    super(new PixelsWriterOptions(Configuration.defaultConfiguration()));
   }
 
   @Override
@@ -100,5 +99,3 @@ public class GraphToPixelsWriterTest extends GraphToPixelsWriter<DummyNode> {
     }
   }
 }
-
-

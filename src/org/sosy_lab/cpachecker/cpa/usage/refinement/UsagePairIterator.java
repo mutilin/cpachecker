@@ -20,12 +20,11 @@ import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-
 public class UsagePairIterator
     extends GenericPairIterator<Pair<Set<UsageInfo>, Set<UsageInfo>>, UsageInfo> {
   private final LogManager logger;
 
-  //internal state
+  // internal state
   private List<Iterator<UsageInfo>> iterators = new ArrayList<>();
   private Set<UsageInfo> secondUsageInfoSet;
 
@@ -65,12 +64,16 @@ public class UsagePairIterator
     List<UsageInfo> unreachableUsages = (List<UsageInfo>) r.getInfo(PathPairIterator.class);
 
     if (unreachableUsages != null && unreachableUsages.contains(second)) {
-      logger.log(Level.FINE, "Usage " + secondUsageIterator + " is not reachable, remove it from container");
+      logger.log(
+          Level.FINE,
+          "Usage " + secondUsageIterator + " is not reachable, remove it from container");
       secondUsageIterator.remove();
       removedUsages.inc();
     }
     if (unreachableUsages != null && unreachableUsages.contains(first)) {
-      logger.log(Level.FINE, "Usage " + firstUsageIterator + " is not reachable, remove it from container");
+      logger.log(
+          Level.FINE,
+          "Usage " + firstUsageIterator + " is not reachable, remove it from container");
       firstUsageIterator.remove();
       removedUsages.inc();
       firstItem = null;

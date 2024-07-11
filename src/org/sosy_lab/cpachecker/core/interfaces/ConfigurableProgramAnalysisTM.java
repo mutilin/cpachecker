@@ -23,7 +23,7 @@ import org.sosy_lab.cpachecker.core.defaults.TrivialApplyOperator;
 
 public interface ConfigurableProgramAnalysisTM extends ConfigurableProgramAnalysis {
 
-  default public ApplyOperator getApplyOperator() {
+  public default ApplyOperator getApplyOperator() {
     return TrivialApplyOperator.getInstance();
   }
 }

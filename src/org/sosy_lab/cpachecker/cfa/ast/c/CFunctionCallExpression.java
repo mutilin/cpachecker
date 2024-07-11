@@ -8,26 +8,25 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import java.util.List;
 import org.sosy_lab.cpachecker.cfa.ast.AFunctionCallExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-public class CFunctionCallExpression extends AFunctionCallExpression implements CRightHandSide {
+public final class CFunctionCallExpression extends AFunctionCallExpression
+    implements CRightHandSide {
 
+  @Serial private static final long serialVersionUID = -3958452761163446674L;
 
+  public CFunctionCallExpression(
+      final FileLocation pFileLocation,
+      final CType pType,
+      final CExpression pFunctionName,
+      final List<CExpression> pParameters,
+      final CFunctionDeclaration pDeclaration) {
 
-
-  private static final long serialVersionUID = -3958452761163446674L;
-
-  public CFunctionCallExpression(final FileLocation pFileLocation,
-                                    final CType pType,
-                                    final CExpression pFunctionName,
-                                    final List<CExpression> pParameters,
-                                    final CFunctionDeclaration pDeclaration) {
-
-    super(pFileLocation, pType, pFunctionName,  pParameters, pDeclaration);
-
+    super(pFileLocation, pType, pFunctionName, pParameters, pDeclaration);
   }
 
   @Override
@@ -37,7 +36,7 @@ public class CFunctionCallExpression extends AFunctionCallExpression implements 
 
   @Override
   public CExpression getFunctionNameExpression() {
-    return (CExpression)super.getFunctionNameExpression();
+    return (CExpression) super.getFunctionNameExpression();
   }
 
   @SuppressWarnings("unchecked")
@@ -47,19 +46,17 @@ public class CFunctionCallExpression extends AFunctionCallExpression implements 
   }
 
   /**
-   * Get the declaration of the function.
-   * A function may have several declarations in a C file (several forward
-   * declarations without a body, and one with it). In this case, it is not
-   * defined which declaration is returned.
+   * Get the declaration of the function. A function may have several declarations in a C file
+   * (several forward declarations without a body, and one with it). In this case, it is not defined
+   * which declaration is returned.
    *
-   * The result may be null if the function was not declared, or if a complex
-   * function name expression is used (i.e., a function pointer).
+   * <p>The result may be null if the function was not declared, or if a complex function name
+   * expression is used (i.e., a function pointer).
    */
-
   @Override
   public CFunctionDeclaration getDeclaration() {
 
-    return  (CFunctionDeclaration) super.getDeclaration();
+    return (CFunctionDeclaration) super.getDeclaration();
   }
 
   @Override
@@ -85,10 +82,6 @@ public class CFunctionCallExpression extends AFunctionCallExpression implements 
       return true;
     }
 
-    if (!(obj instanceof CFunctionCallExpression)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CFunctionCallExpression && super.equals(obj);
   }
 }

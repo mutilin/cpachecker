@@ -8,20 +8,16 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AInitializerExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
-
 public final class CInitializerExpression extends AInitializerExpression implements CInitializer {
 
+  @Serial private static final long serialVersionUID = 2706992437396660354L;
 
-
-  private static final long serialVersionUID = 2706992437396660354L;
-
-  public CInitializerExpression(final FileLocation pFileLocation,
-                                   final CExpression pExpression) {
+  public CInitializerExpression(final FileLocation pFileLocation, final CExpression pExpression) {
     super(pFileLocation, pExpression);
-
   }
 
   @Override
@@ -48,12 +44,10 @@ public final class CInitializerExpression extends AInitializerExpression impleme
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) { return true; }
-
-    if (!(obj instanceof CInitializerExpression)) {
-      return false;
+    if (this == obj) {
+      return true;
     }
 
-    return super.equals(obj);
+    return obj instanceof CInitializerExpression && super.equals(obj);
   }
 }

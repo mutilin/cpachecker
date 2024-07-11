@@ -58,8 +58,9 @@ import org.sosy_lab.cpachecker.util.variableclassification.VariableClassificatio
 
 @Options(prefix = "cpa.usage")
 public class UsageCPA extends AbstractSingleWrapperCPA
-    implements ConfigurableProgramAnalysisWithBAM, ConfigurableProgramAnalysisTM,
-    StatisticsProvider {
+    implements ConfigurableProgramAnalysisWithBAM,
+        ConfigurableProgramAnalysisTM,
+        StatisticsProvider {
 
   private final StopOperator stopOperator;
   private final MergeOperator mergeOperator;
@@ -78,23 +79,19 @@ public class UsageCPA extends AbstractSingleWrapperCPA
     return AutomaticCPAFactory.forType(UsageCPA.class);
   }
 
-  @Option(
-    description = "use sound regions as identifiers",
-    secure = true)
+  @Option(description = "use sound regions as identifiers", secure = true)
   private boolean useSoundRegions = false;
 
   @Option(description = "A path to precision", name = "precision", secure = true)
   @FileOption(Type.OUTPUT_FILE)
   private Path outputFileName = Path.of("localsave");
 
-  @Option(
-    description = "bind arguments of functions with passed variables",
-    secure = true)
+  @Option(description = "bind arguments of functions with passed variables", secure = true)
   private boolean bindArgsFunctions = false;
 
   @Option(
-    description = "do not use initial variable in analysis if found an alias for it",
-    secure = true)
+      description = "do not use initial variable in analysis if found an alias for it",
+      secure = true)
   private boolean filterAliases = true;
 
   private UsageCPA(
@@ -115,12 +112,7 @@ public class UsageCPA extends AbstractSingleWrapperCPA
         providers.add((WitnessNoteProvider) transfer);
       }
     }
-    this.statistics =
-        new UsageCPAStatistics(
-            pConfig,
-            pLogger,
-            pCfa,
-            providers);
+    this.statistics = new UsageCPAStatistics(pConfig, pLogger, pCfa, providers);
     this.stopOperator = new UsageStopOperator(pCpa.getStopOperator(), statistics);
     this.mergeOperator =
         new UsageMergeOperator(pCpa.getMergeOperator(), statistics, bindArgsFunctions);
@@ -136,14 +128,9 @@ public class UsageCPA extends AbstractSingleWrapperCPA
     }
     this.transferRelation =
         new UsageTransferRelation(
-            pCpa.getTransferRelation(),
-            pConfig,
-            pLogger,
-            statistics,
-            creator,
-            bindArgsFunctions);
+            pCpa.getTransferRelation(), pConfig, pLogger, statistics, creator, bindArgsFunctions);
 
-    PresisionParser parser = new PresisionParser(cfa, logger);
+    PrecisionParser parser = new PrecisionParser(cfa, logger);
     localMap = parser.parse(outputFileName);
 
     UsageConfiguration uConfig = new UsageConfiguration(config);
@@ -151,35 +138,19 @@ public class UsageCPA extends AbstractSingleWrapperCPA
         || uConfig.getUnsafeMode() == UnsafeMode.DEADLOCKDISPATCH) {
       usageProcessor =
           new DeadLockProcessor(
-              pConfig,
-              logger,
-              localMap,
-              transferRelation.getBinderFunctionInfo(),
-              creator);
+              pConfig, logger, localMap, transferRelation.getBinderFunctionInfo(), creator);
     } else if (uConfig.getUnsafeMode() == UnsafeMode.DEADLOCKSIGNAL) {
       usageProcessor =
           new SignalsProcessor(
-              pConfig,
-              logger,
-              localMap,
-              transferRelation.getBinderFunctionInfo(),
-              creator);
+              pConfig, logger, localMap, transferRelation.getBinderFunctionInfo(), creator);
     } else if (uConfig.getUnsafeMode() == UnsafeMode.SIGNALINVERSION) {
       usageProcessor =
           new SignalInversionProcessor(
-              pConfig,
-              logger,
-              localMap,
-              transferRelation.getBinderFunctionInfo(),
-              creator);
+              pConfig, logger, localMap, transferRelation.getBinderFunctionInfo(), creator);
     } else {
       usageProcessor =
           new UsageProcessor(
-              pConfig,
-              logger,
-              localMap,
-              transferRelation.getBinderFunctionInfo(),
-              creator);
+              pConfig, logger, localMap, transferRelation.getBinderFunctionInfo(), creator);
     }
 
     shutdownNotifier = pShutdownNotifier;
@@ -242,8 +213,8 @@ public class UsageCPA extends AbstractSingleWrapperCPA
     if (filterAliases) {
       return UsageState.createInitialState(getWrappedCpa().getInitialState(pNode, pPartition));
     } else {
-      return UsageStateConservative
-          .createInitialState(getWrappedCpa().getInitialState(pNode, pPartition));
+      return UsageStateConservative.createInitialState(
+          getWrappedCpa().getInitialState(pNode, pPartition));
     }
   }
 

@@ -21,7 +21,6 @@ package org.sosy_lab.cpachecker.cpa.usage;
 
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
-import com.google.common.collect.ImmutableList;
 import java.util.List;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
@@ -90,12 +89,12 @@ public class UsageApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     assert pStates.size() >= 2;
 
     List<AbstractState> wrappedStates =
-        transformedImmutableListCopy(pStates, state->((UsageState)state).getWrappedState());
+        transformedImmutableListCopy(pStates, state -> ((UsageState) state).getWrappedState());
     AbstractState wrappedState = wrappedApply.createCompositeProjection(wrappedStates, pEdges);
 
     if (wrappedState == null) {

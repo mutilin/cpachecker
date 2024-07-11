@@ -52,9 +52,6 @@ public abstract class ImprecisePredicateRefiner implements Refiner {
 
     PredicateCPARefinerFactory globalFactory =
         new PredicateCPARefinerFactory(predicateCpa, newConfig);
-    return AbstractARGBasedRefiner.forARGBasedRefiner(
-        globalFactory.create(strategy, pMngr),
-        cpa);
+    return AbstractARGBasedRefiner.forARGBasedRefiner(globalFactory.create(strategy, pMngr), cpa);
   }
-
 }

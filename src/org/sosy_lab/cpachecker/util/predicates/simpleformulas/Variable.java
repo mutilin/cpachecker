@@ -25,16 +25,11 @@ public final class Variable implements Term {
     if (this == pOther) {
       return true;
     }
-
-    if (pOther == null) {
+    if (pOther == null || getClass() != pOther.getClass()) {
       return false;
     }
 
-    if (!pOther.getClass().equals(getClass())) {
-      return false;
-    }
-
-    Variable lVariable = (Variable)pOther;
+    Variable lVariable = (Variable) pOther;
 
     return mName.equals(lVariable.mName);
   }
@@ -53,5 +48,4 @@ public final class Variable implements Term {
   public <T> T accept(TermVisitor<T> pVisitor) {
     return pVisitor.visit(this);
   }
-
 }

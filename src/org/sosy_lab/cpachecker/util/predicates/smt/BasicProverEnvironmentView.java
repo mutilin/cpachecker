@@ -47,8 +47,13 @@ public class BasicProverEnvironmentView<E> implements BasicProverEnvironment<E> 
   }
 
   @Override
-  public void push() {
+  public void push() throws InterruptedException {
     delegate.push();
+  }
+
+  @Override
+  public int size() {
+    return delegate.size();
   }
 
   @Override

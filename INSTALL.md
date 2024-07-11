@@ -13,27 +13,42 @@ CPAchecker Installation
 
 For information on how to run CPAchecker, see [`README.md`](README.md).
 
-Install CPAchecker -- Binary
-----------------------------
+Note that right now CPAchecker works best on Linux (64-bit x86)
+because not for all external dependencies native binaries
+are supplied for other platforms.
+So some configurations or features might not work on other platforms.
 
-1. Install a Java Runtime Environment which is at least Java 11 compatible.
+
+Install CPAchecker -- Binary Package for Debian/Ubuntu
+------------------------------------------------------
+
+1. Enable the [SoSy-Lab APT repository](https://apt.sosy-lab.org/)
+   using the instructions on the webpage.
+   This needs to be done only once.
+
+2. `sudo apt install cpachecker`
+
+Install CPAchecker -- Binary ZIP Archive
+----------------------------------------
+
+1. Install a Java Runtime Environment which is at least Java 17 compatible.
    One Linux we recommend to install a package from your distribution
-   (Ubuntu: `sudo apt install openjdk-11-jre`),
+   (Ubuntu: `sudo apt install openjdk-17-jre`),
    on other platforms you can for example get one from
-   [AdoptOpenJDK](https://adoptopenjdk.net/releases.html?variant=openjdk11&jvmVariant=hotspot).
+   [Adoptium](https://adoptium.net/temurin/releases/?version=17).
    If you have multiple JVMs installed, consider making this the default JVM,
    otherwise you will need to specify the JVM when running CPAchecker.
    (Ubuntu: `sudo update-alternatives --config java`)
 
 2. Extract the content of the CPAchecker zip or tar file into a directory of your choice.
 
+Please note that updates need to be installed manually.
+We recommend following our [announcement mailing list](doc/Mailing.md).
 
 Install CPAchecker -- Docker
 ----------------------------
-We provide an Ubuntu-based Docker image with a CPAchecker binary under the following name:
-```
-registry.gitlab.com/sosy-lab/software/cpachecker
-```
+We provide an Ubuntu-based Docker image with a CPAchecker binary
+as [`sosylab/cpachecker` on Docker Hub](https://hub.docker.com/r/sosylab/cpachecker).
 You can specify the tag `:latest` for the latest release,
 or the tag `:dev` for the latest development version.
 Inside the Docker image, CPAchecker is installed under `/cpachecker`,
@@ -41,23 +56,24 @@ and you can mount your current working directory to `/workdir`
 in order to provide input files to CPAchecker and retrieve output files.
 Recommended command line:
 ```
-docker run -v $(pwd):/workdir -u $UID:$GID registry.gitlab.com/sosy-lab/software/cpachecker ...CPAchecker arguments...
+docker run -v $(pwd):/workdir -u $UID:$GID sosylab/cpachecker ...CPAchecker arguments...
 ```
+The Docker images are also available at `registry.gitlab.com/sosy-lab/software/cpachecker`.
 
 
 Install CPAchecker -- Source
 ----------------------------
 
-1. Install a Java SDK which is Java 11 compatible (later versions are also fine)
-   (e.g., Oracle JDK, OpenJDK).
-   Cf. http://java.oracle.com/ or install a package from your distribution.
-   (Ubuntu: `sudo apt-get install openjdk-11-jdk`)
+1. Install a Java SDK which is Java 17 compatible (later versions are also fine).
+   Most people use OpenJDK, e.g., from their distribution
+   (Ubuntu: `sudo apt-get install openjdk-17-jdk`)
+   or from [Adoptium](https://adoptium.net/temurin/releases/?version=17).
    If you have multiple JDKs installed, make sure that the commands `java`
-   and `javac` call the respective Java 11 binaries (or a later version),
+   and `javac` call the respective Java 17 binaries (or a later version),
    so put them in your PATH or change the system-wide default JDK.
    (Ubuntu: `sudo update-alternatives --config java; sudo update-alternatives --config javac`)
 
-2. Install `ant` (version 1.9.9 or later is recommended).
+2. Install `ant` (version 1.10.x or later is recommended).
    (Ubuntu: `sudo apt-get install ant`)
 
 3. Install Subversion.

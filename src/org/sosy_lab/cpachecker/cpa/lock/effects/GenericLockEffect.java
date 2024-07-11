@@ -14,17 +14,15 @@ import org.sosy_lab.cpachecker.cpa.lock.AbstractLockStateBuilder;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 
 public class GenericLockEffect implements AbstractLockEffect {
-  public final static GenericLockEffect SAVE_STATE =
+  public static final GenericLockEffect SAVE_STATE =
       new GenericLockEffect("Save state", AbstractLockStateBuilder::setRestoreState);
-  public final static GenericLockEffect RESTORE_ALL =
+  public static final GenericLockEffect RESTORE_ALL =
       new GenericLockEffect("Resore all", AbstractLockStateBuilder::restoreAll);
 
   private final String name;
   private final Consumer<AbstractLockStateBuilder> action;
 
-  private GenericLockEffect(
-      String pName,
-      Consumer<AbstractLockStateBuilder> pAction) {
+  private GenericLockEffect(String pName, Consumer<AbstractLockStateBuilder> pAction) {
     action = pAction;
     name = pName;
   }
@@ -49,16 +47,11 @@ public class GenericLockEffect implements AbstractLockEffect {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof GenericLockEffect)) {
-      return false;
-    }
-    GenericLockEffect other = (GenericLockEffect) obj;
-    return Objects.equals(name, other.name);
+    return obj instanceof GenericLockEffect other && name.equals(other.name);
   }
 
   @Override
   public GenericLockEffect applyToTarget(LockIdentifier pId) {
     return this;
   }
-
 }

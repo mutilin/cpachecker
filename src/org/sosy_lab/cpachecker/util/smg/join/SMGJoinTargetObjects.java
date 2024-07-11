@@ -13,15 +13,14 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.math.BigInteger;
 import java.util.Optional;
 import org.sosy_lab.cpachecker.cpa.smg.join.SMGJoinStatus;
+import org.sosy_lab.cpachecker.cpa.value.type.NumericValue;
 import org.sosy_lab.cpachecker.util.smg.SMG;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGDoublyLinkedListSegment;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGObject;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGPointsToEdge;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGValue;
 
-/**
- * Class implementing join algorithm from FIT-TR-2013-4 (Appendix C.4)
- */
+/** Class implementing join algorithm from FIT-TR-2013-4 (Appendix C.4) */
 public class SMGJoinTargetObjects extends SMGAbstractJoin {
 
   public SMGJoinTargetObjects(
@@ -45,9 +44,7 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
    * @param pValue2 - the second value of inputSMG2
    * @param pNestingLevelDiff - nesting level difference
    */
-  public void joinTargetObjects(SMGValue pValue1,
-      SMGValue pValue2,
-      int pNestingLevelDiff) {
+  public void joinTargetObjects(SMGValue pValue1, SMGValue pValue2, int pNestingLevelDiff) {
     Optional<SMGPointsToEdge> edgeOptionalV1 = inputSMG1.getPTEdge(pValue1);
     Optional<SMGPointsToEdge> edgeOptionalV2 = inputSMG2.getPTEdge(pValue2);
 
@@ -67,14 +64,7 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
     if (checkForJoinedTargetObjects(pToEdge1.pointsTo(), pToEdge2.pointsTo())) {
       SMGMapTargetAddress mapTargetAddress =
           new SMGMapTargetAddress(
-              status,
-              inputSMG1,
-              inputSMG2,
-              destSMG,
-              mapping1,
-              mapping2,
-              pValue1,
-              pValue2);
+              status, inputSMG1, inputSMG2, destSMG, mapping1, mapping2, pValue1, pValue2);
       copyJoinState(mapTargetAddress);
       return;
     }
@@ -91,7 +81,7 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
     if (!inputSMG1.isValid(pToEdge1.pointsTo())
         && !isDLLS(pToEdge1.pointsTo())
         && !inputSMG2.isValid(pToEdge2.pointsTo())) {
-      destSMG = destSMG.copyAndInvalidateObject(newObject);
+      destSMG = destSMG.copyAndInvalidateObject(newObject, true);
     }
     // add mappings step 12
     mapping1.addMapping(pToEdge1.pointsTo(), newObject);
@@ -99,14 +89,7 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
     // create new target address step 13
     SMGMapTargetAddress targetAddress =
         new SMGMapTargetAddress(
-            status,
-            inputSMG1,
-            inputSMG2,
-            destSMG,
-            mapping1,
-            mapping2,
-            pValue1,
-            pValue2);
+            status, inputSMG1, inputSMG2, destSMG, mapping1, mapping2, pValue1, pValue2);
     // step 14
     SMGJoinSubSMGs joinSubSMGs =
         new SMGJoinSubSMGs(
@@ -160,7 +143,8 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
    * @param pNestingLevel - the new level
    * @return new SMGDoublyLinkedListSegment with copied labels
    */
-  private SMGDoublyLinkedListSegment createDLLSCopyLabeling(SMGObject obj1, SMGObject obj2, int pNestingLevel) {
+  private SMGDoublyLinkedListSegment createDLLSCopyLabeling(
+      SMGObject obj1, SMGObject obj2, int pNestingLevel) {
     int length1 = 0;
     int length2 = 0;
     BigInteger headOffset = null;
@@ -173,7 +157,7 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
       headOffset = ((SMGDoublyLinkedListSegment) obj1).getHeadOffset();
       nextOffset = ((SMGDoublyLinkedListSegment) obj1).getNextOffset();
       prevOffset = ((SMGDoublyLinkedListSegment) obj1).getPrevOffset();
-      pSize = obj1.getSize();
+      pSize = obj1.getSize().asNumericValue().bigIntegerValue();
       pOffset = obj1.getOffset();
     }
     if (isDLLS(obj2)) {
@@ -182,21 +166,21 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
         headOffset = ((SMGDoublyLinkedListSegment) obj2).getHeadOffset();
         nextOffset = ((SMGDoublyLinkedListSegment) obj2).getNextOffset();
         prevOffset = ((SMGDoublyLinkedListSegment) obj2).getPrevOffset();
-        pSize = obj2.getSize();
+        pSize = obj2.getSize().asNumericValue().bigIntegerValue();
         pOffset = obj2.getOffset();
       }
     }
     return new SMGDoublyLinkedListSegment(
         pNestingLevel,
-        pSize,
+        new NumericValue(pSize),
         pOffset,
-        prevOffset,
+        headOffset,
         nextOffset,
-        Integer.min(length1, length2),
-        headOffset);
+        null,
+        prevOffset,
+        null,
+        Integer.min(length1, length2));
   }
-
-
 
   /**
    * Delayed join implementation Algorithm 6 steps 11.
@@ -228,8 +212,9 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
       return true;
     }
     // step 5
-    if (!targetObject1.getClass().equals(targetObject2.getClass())
-        && mapping1.getMappedObject(targetObject1)
+    if (targetObject1.getClass() != targetObject2.getClass()
+        && mapping1
+            .getMappedObject(targetObject1)
             .equals(mapping2.getMappedObject(targetObject1))) {
       return true;
     }
@@ -246,7 +231,6 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
             targetObject2);
     return matchObjects.getStatus().equals(SMGJoinStatus.INCOMPARABLE);
   }
-
 
   /**
    * Check for already joined target objects Algorithm 6 step 3.
@@ -281,7 +265,8 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
       SMGValue pValue1,
       SMGValue pValue2,
       int pNestingLevelDiff) {
-    if (pValue1.getNestingLevel() - pValue2.getNestingLevel() != pNestingLevelDiff) {
+    if (inputSMG1.getNestingLevel(pValue1) - inputSMG2.getNestingLevel(pValue2)
+        != pNestingLevelDiff) {
       return false;
     }
 
@@ -289,5 +274,4 @@ public class SMGJoinTargetObjects extends SMGAbstractJoin {
         && pToEdge2 != null
         && pToEdge1.getOffset().equals(pToEdge2.getOffset());
   }
-
 }

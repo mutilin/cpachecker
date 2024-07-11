@@ -20,11 +20,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
@@ -50,16 +51,20 @@ import org.sosy_lab.cpachecker.cpa.callstack.CallstackStateEqualsWrapper;
 import org.sosy_lab.cpachecker.cpa.location.LocationState;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
-import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.Pair;
 
 /** This immutable state represents a location state combined with a callstack state. */
-public class ThreadingState implements AbstractState, AbstractStateWithLocations, Graphable,
-    Partitionable, AbstractQueryableState, ThreadIdProvider {
+public class ThreadingState
+    implements AbstractState,
+        AbstractStateWithLocations,
+        Graphable,
+        Partitionable,
+        AbstractQueryableState,
+        ThreadIdProvider {
 
   private static final String PROPERTY_DEADLOCK = "deadlock";
 
-  final static int MIN_THREAD_NUM = 0;
+  static final int MIN_THREAD_NUM = 0;
 
   // String :: identifier for the thread TODO change to object or memory-location
   // CallstackState +  LocationState :: thread-position
@@ -86,8 +91,7 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
    * null}. It is not considered to be part of any 'full' abstract state, but serves as intermediate
    * flag to have information for the strengthening process.
    */
-  @Nullable
-  private final FunctionCallEdge entryFunction;
+  @Nullable private final FunctionCallEdge entryFunction;
 
   /**
    * This map contains the mapping of threadIds to the unique identifier used for witness
@@ -96,11 +100,11 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
   private final PersistentMap<String, Integer> threadIdsForWitness;
 
   public ThreadingState() {
-    this.threads = PathCopyingPersistentTreeMap.of();
-    this.locks = PathCopyingPersistentTreeMap.of();
-    this.activeThread = null;
-    this.entryFunction = null;
-    this.threadIdsForWitness = PathCopyingPersistentTreeMap.of();
+    threads = PathCopyingPersistentTreeMap.of();
+    locks = PathCopyingPersistentTreeMap.of();
+    activeThread = null;
+    entryFunction = null;
+    threadIdsForWitness = PathCopyingPersistentTreeMap.of();
   }
 
   private ThreadingState(
@@ -109,11 +113,11 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
       String pActiveThread,
       FunctionCallEdge entryFunction,
       PersistentMap<String, Integer> pThreadIdsForWitness) {
-    this.threads = pThreads;
-    this.locks = pLocks;
-    this.activeThread = pActiveThread;
+    threads = pThreads;
+    locks = pLocks;
+    activeThread = pActiveThread;
     this.entryFunction = entryFunction;
-    this.threadIdsForWitness = pThreadIdsForWitness;
+    threadIdsForWitness = pThreadIdsForWitness;
   }
 
   private ThreadingState withThreads(PersistentMap<String, ThreadState> pThreads) {
@@ -129,7 +133,8 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     return new ThreadingState(threads, locks, activeThread, entryFunction, pThreadIdsForWitness);
   }
 
-  public ThreadingState addThreadAndCopy(String id, int num, AbstractState stack, AbstractState loc) {
+  public ThreadingState addThreadAndCopy(
+      String id, int num, AbstractState stack, AbstractState loc) {
     Preconditions.checkNotNull(id);
     Preconditions.checkArgument(!threads.containsKey(id), "thread already exists");
     return withThreads(threads.putAndCopy(id, new ThreadState(loc, stack, num)));
@@ -173,7 +178,7 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     int num = MIN_THREAD_NUM;
     // TODO loop is not efficient for big number of threads
     final Set<Integer> threadNums = getThreadNums();
-    while(threadNums.contains(num)) {
+    while (threadNums.contains(num)) {
       num++;
     }
     return num;
@@ -216,6 +221,13 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     return locks.containsValue(threadId);
   }
 
+  public Set<String> getLocksForThread(String threadId) {
+    return FluentIterable.from(locks.entrySet())
+        .filter(entry -> entry.getValue().equals(threadId))
+        .transform(Map.Entry::getKey)
+        .toSet();
+  }
+
   @Override
   public String toString() {
     return "( threads={\n"
@@ -231,11 +243,8 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
 
   @Override
   public boolean equals(Object other) {
-    if (!(other instanceof ThreadingState)) {
-      return false;
-    }
-    ThreadingState ts = (ThreadingState)other;
-    return threads.equals(ts.threads)
+    return other instanceof ThreadingState ts
+        && threads.equals(ts.threads)
         && locks.equals(ts.locks)
         && Objects.equals(activeThread, ts.activeThread)
         && threadIdsForWitness.equals(ts.threadIdsForWitness);
@@ -247,8 +256,8 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
   }
 
   private FluentIterable<AbstractStateWithLocations> getLocations() {
-    return FluentIterable.from(threads.values()).transform(
-        s -> (AbstractStateWithLocations) s.getLocation());
+    return FluentIterable.from(threads.values())
+        .transform(s -> (AbstractStateWithLocations) s.getLocation());
   }
 
   @Override
@@ -262,8 +271,8 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
   }
 
   @Override
-  public Iterable<CFAEdge> getIngoingEdges() {
-    return getLocations().transformAndConcat(AbstractStateWithLocations::getIngoingEdges);
+  public Iterable<CFAEdge> getIncomingEdges() {
+    return getLocations().transformAndConcat(AbstractStateWithLocations::getIncomingEdges);
   }
 
   @Override
@@ -287,7 +296,6 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     return threads;
   }
 
-
   @Override
   public String getCPAName() {
     return "ThreadingCPA";
@@ -306,8 +314,7 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
   }
 
   /**
-   * check, whether one of the outgoing edges can be visited
-   * without requiring a already used lock.
+   * check, whether one of the outgoing edges can be visited without requiring a already used lock.
    */
   private boolean hasDeadlock() throws UnrecognizedCodeException {
     FluentIterable<CFAEdge> edges = FluentIterable.from(getOutgoingEdges());
@@ -344,15 +351,18 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     return newLock != null && hasLock(newLock);
   }
 
-  /** A thread might need to wait for another thread, if the other thread joins at
-   * the current edge. If the other thread never exits, we have found a deadlock. */
+  /**
+   * A thread might need to wait for another thread, if the other thread joins at the current edge.
+   * If the other thread never exits, we have found a deadlock.
+   */
   private boolean isWaitingForOtherThread(CFAEdge edge) throws UnrecognizedCodeException {
     if (edge.getEdgeType() == CFAEdgeType.StatementEdge) {
-      AStatement statement = ((AStatementEdge)edge).getStatement();
+      AStatement statement = ((AStatementEdge) edge).getStatement();
       if (statement instanceof AFunctionCall) {
-        AExpression functionNameExp = ((AFunctionCall)statement).getFunctionCallExpression().getFunctionNameExpression();
+        AExpression functionNameExp =
+            ((AFunctionCall) statement).getFunctionCallExpression().getFunctionNameExpression();
         if (functionNameExp instanceof AIdExpression) {
-          final String functionName = ((AIdExpression)functionNameExp).getName();
+          final String functionName = ((AIdExpression) functionNameExp).getName();
           if (THREAD_JOIN.equals(functionName)) {
             final String joiningThread = extractParamName(statement, 0);
             // check whether other thread is running and has at least one outgoing edge,
@@ -380,10 +390,10 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     // TODO do we really need this? -> needed for identification of cloned functions.
     private final int num;
 
-    ThreadState(AbstractState pLocation, AbstractState pCallstack, int  pNum) {
+    ThreadState(AbstractState pLocation, AbstractState pCallstack, int pNum) {
       location = pLocation;
-      callstack = new CallstackStateEqualsWrapper((CallstackState)pCallstack);
-      num= pNum;
+      callstack = new CallstackStateEqualsWrapper((CallstackState) pCallstack);
+      num = pNum;
     }
 
     public AbstractState getLocation() {
@@ -405,11 +415,10 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
 
     @Override
     public boolean equals(Object o) {
-      if (!(o instanceof ThreadState)) {
-        return false;
-      }
-      ThreadState other = (ThreadState)o;
-      return location.equals(other.location) && callstack.equals(other.callstack) && num == other.num;
+      return o instanceof ThreadState other
+          && location.equals(other.location)
+          && callstack.equals(other.callstack)
+          && num == other.num;
     }
 
     @Override
@@ -438,8 +447,7 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
     return entryFunction;
   }
 
-  @Nullable
-  Integer getThreadIdForWitness(String threadId) {
+  @Nullable Integer getThreadIdForWitness(String threadId) {
     Preconditions.checkNotNull(threadId);
     return threadIdsForWitness.get(threadId);
   }
@@ -475,11 +483,11 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
   }
 
   @Override
-  public List<Pair<String, String>>
-      getSpawnedThreadIdByEdge(
-          CFAEdge pEdge,
-          ARGState pState) {
+  public List<Pair<String, String>> getSpawnedThreadIdByEdge(CFAEdge pEdge, ARGState pState) {
     ThreadingState threadingState = extractStateByType(pState, ThreadingState.class);
+    Optional<String> threadInitialFunctionName = Optional.empty();
+    OptionalInt spawnedThreadId = OptionalInt.empty();
+
     List<Pair<String, String>> result = new ArrayList<>();
 
     if (pEdge.getEdgeType() == CFAEdgeType.StatementEdge) {
@@ -490,39 +498,40 @@ public class ThreadingState implements AbstractState, AbstractStateWithLocations
         if (functionNameExp instanceof AIdExpression) {
           final String functionName = ((AIdExpression) functionNameExp).getName();
           switch (functionName) {
-            case ThreadingTransferRelation.THREAD_START: {
-              Optional<ARGState> possibleChild =
-                  pState.getChildren()
-                      .stream()
-                      .filter(c -> pEdge == pState.getEdgeToChild(c))
-                      .findFirst();
-              if (!possibleChild.isPresent()) {
-                // this can happen e.g. if the ARG was not discovered completely.
-                return result;
-              }
-              ARGState child = possibleChild.orElseThrow();
-              // search the new created thread-id
-              ThreadingState succThreadingState =
-                  AbstractStates.extractStateByType(child, ThreadingState.class);
-              for (String threadId : succThreadingState.getThreadIds()) {
-                if (!threadingState.getThreadIds().contains(threadId)) {
-                  // we found the new created thread-id. we assume there is only 'one' match
-                  String calledFunctionName =
-                      succThreadingState.getThreadLocation(threadId)
-                          .getLocationNode()
-                          .getFunction()
-                          .getOrigName();
-                  result.add(Pair.of(threadId, calledFunctionName));
+            case ThreadingTransferRelation.THREAD_START:
+              {
+                Optional<ARGState> possibleChild =
+                    pState.getChildren().stream()
+                        .filter(c -> pEdge == pState.getEdgeToChild(c))
+                        .findFirst();
+                if (!possibleChild.isPresent()) {
+                  // this can happen e.g. if the ARG was not discovered completely.
+                  return result;
                 }
+                ARGState child = possibleChild.orElseThrow();
+                // search the new created thread-id
+                ThreadingState succThreadingState = extractStateByType(child, ThreadingState.class);
+                for (String threadId : succThreadingState.getThreadIds()) {
+                  if (!threadingState.getThreadIds().contains(threadId)) {
+                    // we found the new created thread-id. we assume there is only 'one' match
+                    String calledFunctionName =
+                        succThreadingState
+                            .getThreadLocation(threadId)
+                            .getLocationNode()
+                            .getFunction()
+                            .getOrigName();
+                    result.add(Pair.of(threadId, calledFunctionName));
+                  }
+                }
+                break;
               }
-              break;
-            }
             default:
               // nothing to do
           }
         }
       }
     }
+
     return result;
   }
 }

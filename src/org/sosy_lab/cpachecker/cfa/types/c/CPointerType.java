@@ -10,24 +10,24 @@ package org.sosy_lab.cpachecker.cfa.types.c;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.Serializable;
+import java.io.Serial;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public final class CPointerType implements CType, Serializable {
+public final class CPointerType implements CType {
 
-  private static final long serialVersionUID = -6423006826454509009L;
+  @Serial private static final long serialVersionUID = -6423006826454509009L;
   public static final CPointerType POINTER_TO_VOID = new CPointerType(false, false, CVoidType.VOID);
   public static final CPointerType POINTER_TO_CHAR =
       new CPointerType(false, false, CNumericTypes.CHAR);
-  public static final CPointerType POINTER_TO_CONST_CHAR = new CPointerType(false, false, CNumericTypes.CHAR.getCanonicalType(true, false));
+  public static final CPointerType POINTER_TO_CONST_CHAR =
+      new CPointerType(false, false, CNumericTypes.CHAR.getCanonicalType(true, false));
 
   private final CType type;
   private final boolean isConst;
   private final boolean isVolatile;
 
-  public CPointerType(final boolean pConst, final boolean pVolatile,
-      final CType pType) {
+  public CPointerType(final boolean pConst, final boolean pVolatile, final CType pType) {
     isConst = pConst;
     isVolatile = pVolatile;
     type = checkNotNull(pType);
@@ -53,14 +53,17 @@ public final class CPointerType implements CType, Serializable {
   }
 
   @Override
+  public boolean hasKnownConstantSize() {
+    return true;
+  }
+
+  @Override
   public String toString() {
     String decl;
 
     decl = "(" + type + ")*";
 
-    return (isConst() ? "const " : "")
-        + (isVolatile() ? "volatile " : "")
-        + decl;
+    return (isConst() ? "const " : "") + (isVolatile() ? "volatile " : "") + decl;
   }
 
   @Override
@@ -98,24 +101,20 @@ public final class CPointerType implements CType, Serializable {
   }
 
   /**
-   * Be careful, this method compares the CType as it is to the given object,
-   * typedefs won't be resolved. If you want to compare the type without having
-   * typedefs in it use #getCanonicalType().equals()
+   * Be careful, this method compares the CType as it is to the given object, typedefs won't be
+   * resolved. If you want to compare the type without having typedefs in it use
+   * #getCanonicalType().equals()
    */
   @Override
   public boolean equals(@Nullable Object obj) {
-    if (obj == this) {
+    if (this == obj) {
       return true;
     }
 
-    if (!(obj instanceof CPointerType)) {
-      return false;
-    }
-
-    CPointerType other = (CPointerType) obj;
-
-    return isConst == other.isConst && isVolatile == other.isVolatile
-           && Objects.equals(type, other.type);
+    return obj instanceof CPointerType other
+        && isConst == other.isConst
+        && isVolatile == other.isVolatile
+        && Objects.equals(type, other.type);
   }
 
   @Override
@@ -125,6 +124,7 @@ public final class CPointerType implements CType, Serializable {
 
   @Override
   public CPointerType getCanonicalType(boolean pForceConst, boolean pForceVolatile) {
-    return new CPointerType(isConst || pForceConst, isVolatile || pForceVolatile, type.getCanonicalType());
+    return new CPointerType(
+        isConst || pForceConst, isVolatile || pForceVolatile, type.getCanonicalType());
   }
 }

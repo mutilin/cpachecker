@@ -21,5 +21,4 @@ public interface Delta<T> {
 
   // oldRoot.add(newRoot)
   public Delta<T> add(Delta<T> pDelta);
-
 }

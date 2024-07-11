@@ -1,4 +1,4 @@
--lockator-threadmodular-linux:
+--lockator-threadmodular-linux:
   Linux-Testing-Requirement-specifications/10-ext-modules---linux---concurrency-safety---simple---race.ko-concurrency-safety.cil.i: 'FALSE' 
   Linux-Testing-Requirement-specifications/10-ext-modules---linux---concurrency-safety---simple---race2.ko-concurrency-safety.cil.i: 'FALSE' 
   Linux-Testing-Requirement-specifications/10-ext-modules---linux---concurrency-safety---simple---race3.ko-concurrency-safety.cil.i: 'FALSE' 
@@ -64,11 +64,11 @@
   Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: ['TIMEOUT', 'FALSE']
   Linux-Validation-Bugs-found-by-Klever/70-drivers---char---tlclk.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/71-drivers---char---tlclk.ko-concurrency-safety.cil.i: 'FALSE'
-  Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: 'TIMEOUT'
-  Linux-Validation-Bugs-found-by-Klever/73-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: 'TIMEOUT'
+  Linux-Validation-Bugs-found-by-Klever/72-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: ['TIMEOUT', 'FALSE']
+  Linux-Validation-Bugs-found-by-Klever/73-drivers---dma---pch_dma.ko-concurrency-safety.cil.i: 'TRUE'
   Linux-Validation-Bugs-found-by-Klever/74-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/75-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i: 'FALSE'
--rcucpa:
+--rcucpa:
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-N-no_writer-locks-false-no-datarace.ko-concurrency-safety-rcu.cil.i: 'FALSE'
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-N-true-no-datarace.ko-concurrency-safety-rcu.cil.i: 'FALSE'
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-N-wrong-writer-lock-placement-false-no-datarace.ko-concurrency-safety-rcu.cil.i: 'FALSE'
@@ -82,8 +82,8 @@
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-no_read_lock-false-no-datarace.ko-concurrency-safety-rcu.cil.i: 'FALSE'
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-no_synchronize-false-no-datarace.ko-concurrency-safety-rcu.cil.i: 'TRUE'
   Linux-Testing-Requirement-specifications/12-ext-modules---linux---concurrency-safety---rcu---reader_writer-true-no-datarace.ko-concurrency-safety-rcu.cil.i: 'TRUE'
--lockator-linux-pre-shared-ref:
-  extends: -lockator-threadmodular-linux
+--lockator-linux-pre-shared-ref:
+  extends: --lockator-threadmodular-linux
   Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i: 'FALSE'
   Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'UNKNOWN'
   Linux-Validation-Bugs-found-by-Klever/69-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i: 'UNKNOWN'

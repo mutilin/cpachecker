@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cfa.types.java;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -21,9 +22,9 @@ import java.util.Objects;
  * null</code> either. Actually, possible concrete types are all enum constants of {@link
  * JBasicType}.
  */
-public class JSimpleType implements JType {
+public final class JSimpleType implements JType {
 
-  private static final long serialVersionUID = 7153757299840260748L;
+  @Serial private static final long serialVersionUID = 7153757299840260748L;
 
   private final JBasicType type;
   private final boolean isPrimitive;
@@ -87,23 +88,11 @@ public class JSimpleType implements JType {
   private JSimpleType(JBasicType pType) {
     type = pType;
 
-    switch (type) {
-      case BOOLEAN:
-        // $FALL-THROUGH$
-      case BYTE:
-        // $FALL-THROUGH$
-      case INT:
-        // $FALL-THROUGH$
-      case SHORT:
-        // $FALL-THROUGH$
-      case FLOAT:
-        // $FALL-THROUGH$
-      case DOUBLE:
-        isPrimitive = true;
-        break;
-      default:
-        isPrimitive = false;
-    }
+    isPrimitive =
+        switch (type) {
+          case BOOLEAN, BYTE, INT, SHORT, FLOAT, DOUBLE -> true;
+          default -> false;
+        };
   }
 
   /**
@@ -152,21 +141,16 @@ public class JSimpleType implements JType {
       return true;
     }
 
-    if (!(obj instanceof JSimpleType)) {
-      return false;
-    }
-
-    JSimpleType other = (JSimpleType) obj;
-    return type == other.type && isPrimitive == other.isPrimitive;
+    return obj instanceof JSimpleType other
+        && type == other.type
+        && isPrimitive == other.isPrimitive;
   }
 
   @Override
   public String toString() {
-    switch (type) {
-      case UNSPECIFIED:
-        return "unspecified";
-      default:
-        return type.toASTString();
-    }
+    return switch (type) {
+      case UNSPECIFIED -> "unspecified";
+      default -> type.toASTString();
+    };
   }
 }

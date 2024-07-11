@@ -1,5 +1,5 @@
 uppsala simple:
-  config: "-predicateAnalysis-threadmodular"
+  config: "--predicateAnalysis-threadmodular"
   setprop: 
     - "cpa.predicate.refinement.performThreadEffectRefinement=true"
     - "cpa.thread.handleSameThreads=SKIP"
@@ -11,7 +11,7 @@ uppsala simple:
   prefix: /opt/uppsala
 uppsala:
   extends: uppsala simple
-  config: "-predicateAnalysis-threadmodular"
+  config: "--predicateAnalysis-threadmodular"
   benchmarks: 
     - /sv-races/simple/*
     - /sv-races/*.i

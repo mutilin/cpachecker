@@ -18,6 +18,7 @@ import com.google.common.io.CharSource;
 import com.google.common.io.MoreFiles;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.EnumSet;
@@ -39,7 +40,7 @@ public class PropertyFileParser {
 
   public static class InvalidPropertyFileException extends Exception {
 
-    private static final long serialVersionUID = -5880923544560903123L;
+    @Serial private static final long serialVersionUID = -5880923544560903123L;
 
     public InvalidPropertyFileException(String msg) {
       super(msg);
@@ -123,8 +124,10 @@ public class PropertyFileParser {
     if (entryFunction == null) {
       entryFunction = matcher.group(1);
     } else if (!entryFunction.equals(matcher.group(1))) {
-      throw new InvalidPropertyFileException(String.format(
-          "Specifying two different entry functions %s and %s is not supported.", entryFunction, matcher.group(1)));
+      throw new InvalidPropertyFileException(
+          String.format(
+              "Specifying two different entry functions %s and %s is not supported.",
+              entryFunction, matcher.group(1)));
     }
 
     String rawLtlProperty = matcher.group(2);

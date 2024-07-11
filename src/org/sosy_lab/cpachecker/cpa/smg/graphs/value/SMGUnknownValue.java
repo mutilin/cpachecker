@@ -118,4 +118,3 @@ public final class SMGUnknownValue implements SMGExplicitValue, SMGAddressValue 
     return System.identityHashCode(INSTANCE);
   }
 }
-

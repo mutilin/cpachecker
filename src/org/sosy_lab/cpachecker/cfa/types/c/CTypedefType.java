@@ -10,24 +10,22 @@ package org.sosy_lab.cpachecker.cfa.types.c;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.io.Serializable;
+import java.io.Serial;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * This represents a type which was created by using typedef.
- */
-public final class CTypedefType implements CType, Serializable {
+/** This represents a type which was created by using typedef. */
+public final class CTypedefType implements CType {
 
-  private static final long serialVersionUID = -3461236537115147688L;
+  @Serial private static final long serialVersionUID = -3461236537115147688L;
   private final String name; // the typedef name
   private final CType realType; // the real type this typedef points to
   private final boolean isConst;
   private final boolean isVolatile;
   private int hashCache = 0;
 
-  public CTypedefType(final boolean pConst, final boolean pVolatile,
-      final String pName, CType pRealType) {
+  public CTypedefType(
+      final boolean pConst, final boolean pVolatile, final String pName, CType pRealType) {
 
     isConst = pConst;
     isVolatile = pVolatile;
@@ -54,7 +52,8 @@ public final class CTypedefType implements CType, Serializable {
     return (isConst() ? "const " : "")
         + (isVolatile() ? "volatile " : "")
         + name
-        + " " + pDeclarator;
+        + " "
+        + pDeclarator;
   }
 
   @Override
@@ -73,6 +72,11 @@ public final class CTypedefType implements CType, Serializable {
   }
 
   @Override
+  public boolean hasKnownConstantSize() {
+    return realType.hasKnownConstantSize();
+  }
+
+  @Override
   public <R, X extends Exception> R accept(CTypeVisitor<R, X> pVisitor) throws X {
     return pVisitor.visit(this);
   }
@@ -86,25 +90,21 @@ public final class CTypedefType implements CType, Serializable {
   }
 
   /**
-   * Be careful, this method compares the CType as it is to the given object,
-   * typedefs won't be resolved. If you want to compare the type without having
-   * typedefs in it use #getCanonicalType().equals()
+   * Be careful, this method compares the CType as it is to the given object, typedefs won't be
+   * resolved. If you want to compare the type without having typedefs in it use
+   * #getCanonicalType().equals()
    */
   @Override
   public boolean equals(@Nullable Object obj) {
-    if (obj == this) {
+    if (this == obj) {
       return true;
     }
 
-    if (!(obj instanceof CTypedefType)) {
-      return false;
-    }
-
-    CTypedefType other = (CTypedefType) obj;
-
-    return Objects.equals(name, other.name) && isConst == other.isConst
-           && isVolatile == other.isVolatile
-           && Objects.equals(realType, other.realType);
+    return obj instanceof CTypedefType other
+        && Objects.equals(name, other.name)
+        && isConst == other.isConst
+        && isVolatile == other.isVolatile
+        && Objects.equals(realType, other.realType);
   }
 
   @Override

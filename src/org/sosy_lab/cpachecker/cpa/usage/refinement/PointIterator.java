@@ -28,7 +28,7 @@ public class PointIterator
   private UsageContainer container;
   private UnsafeDetector detector;
 
-  //Internal state
+  // Internal state
   private UsagePoint firstPoint;
   private UsagePoint secondPoint;
 
@@ -62,7 +62,7 @@ public class PointIterator
 
   @Override
   protected Pair<Set<UsageInfo>, Set<UsageInfo>> getNext(AbstractIdentifier pInput) {
-    //Sanity check
+    // Sanity check
     UnrefinedUsagePointSet pointSet = container.getUnrefinedUsages(pInput);
     assert currentUsagePointSet == pointSet;
 
@@ -72,7 +72,7 @@ public class PointIterator
           return null;
         }
         firstPoint = firstPointIterator.next();
-        //Start from first point to save the time
+        // Start from first point to save the time
         secondPointIterator = currentUsagePointSet.getPointIteratorFrom(firstPoint);
         if (!secondPointIterator.hasNext()) {
           // All points are removed
@@ -97,8 +97,8 @@ public class PointIterator
     return resultingPair;
   }
 
-  private Pair<Set<UsageInfo>, Set<UsageInfo>>
-      prepareIterationPair(UsagePoint first, UsagePoint second) {
+  private Pair<Set<UsageInfo>, Set<UsageInfo>> prepareIterationPair(
+      UsagePoint first, UsagePoint second) {
     Set<UsageInfo> firstUsageInfoSet = currentUsagePointSet.getUsageInfo(first);
     Set<UsageInfo> secondUsageInfoSet = currentUsagePointSet.getUsageInfo(second);
 
@@ -123,15 +123,15 @@ public class PointIterator
       removedPoints.inc();
     }
     if (firstUsageInfoSet.isEmpty() && firstPoint != secondPoint) {
-      //No reachable usages - remove point
+      // No reachable usages - remove point
       currentUsagePointSet.remove(firstPoint);
       removedPoints.inc();
     }
   }
 
-
   @Override
-  protected void handleUpdateSignal(Class<? extends RefinementInterface> pCallerClass, Object pData) {
+  protected void handleUpdateSignal(
+      Class<? extends RefinementInterface> pCallerClass, Object pData) {
     if (pCallerClass.equals(IdentifierIterator.class)) {
       assert pData instanceof UsageContainer;
       container = (UsageContainer) pData;

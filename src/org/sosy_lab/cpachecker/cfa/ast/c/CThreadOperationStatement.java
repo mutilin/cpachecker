@@ -8,21 +8,24 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
 @SuppressWarnings("EqualsGetClass")
 // FIXME: This class is broken, because comparing a CThreadOperationStatement with an
 // CFunctionCallStatement is not symmetric
-public class CThreadOperationStatement extends CFunctionCallStatement {
+public sealed class CThreadOperationStatement extends CFunctionCallStatement {
 
-  private static final long serialVersionUID = -7543988390816591658L;
+  @Serial private static final long serialVersionUID = -7543988390816591658L;
 
-  public static class CThreadCreateStatement extends CThreadOperationStatement {
+  public static final class CThreadCreateStatement extends CThreadOperationStatement {
 
-    private static final long serialVersionUID = -1211707394397959801L;
+    @Serial private static final long serialVersionUID = -1211707394397959801L;
 
-    public CThreadCreateStatement(FileLocation pFileLocation, CFunctionCallExpression pFunctionCall,
+    public CThreadCreateStatement(
+        FileLocation pFileLocation,
+        CFunctionCallExpression pFunctionCall,
         boolean pSelfParallel,
         String pVarName,
         int pPrio) {
@@ -30,12 +33,15 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
     }
   }
 
-  public static class CThreadJoinStatement extends CThreadOperationStatement {
+  public static final class CThreadJoinStatement extends CThreadOperationStatement {
 
-    private static final long serialVersionUID = -2328781305617198230L;
+    @Serial private static final long serialVersionUID = -2328781305617198230L;
 
-    public CThreadJoinStatement(FileLocation pFileLocation, CFunctionCallExpression pFunctionCall,
-        boolean pSelfParallel, String pVarName) {
+    public CThreadJoinStatement(
+        FileLocation pFileLocation,
+        CFunctionCallExpression pFunctionCall,
+        boolean pSelfParallel,
+        String pVarName) {
       super(pFileLocation, pFunctionCall, pSelfParallel, pVarName, 0);
     }
   }
@@ -44,8 +50,12 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
   private final String assosiatedVariable;
   private final int priority;
 
-  public CThreadOperationStatement(FileLocation pFileLocation, CFunctionCallExpression pFunctionCall
-      , boolean selfParallel, String varName, int pPrio) {
+  public CThreadOperationStatement(
+      FileLocation pFileLocation,
+      CFunctionCallExpression pFunctionCall,
+      boolean selfParallel,
+      String varName,
+      int pPrio) {
     super(pFileLocation, pFunctionCall);
     isSelfParallel = selfParallel;
     assosiatedVariable = varName;
@@ -65,10 +75,7 @@ public class CThreadOperationStatement extends CFunctionCallStatement {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    if (getClass() != obj.getClass()) {
+    if (!super.equals(obj) || getClass() != obj.getClass()) {
       return false;
     }
     CThreadOperationStatement other = (CThreadOperationStatement) obj;

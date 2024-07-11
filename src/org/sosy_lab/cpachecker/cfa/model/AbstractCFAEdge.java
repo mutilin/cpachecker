@@ -8,7 +8,6 @@
 
 package org.sosy_lab.cpachecker.cfa.model;
 
-
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
@@ -18,7 +17,6 @@ import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
 public abstract class AbstractCFAEdge implements CFAEdge {
 
-  private static final long serialVersionUID = -8493135984889665408L;
   private final CFANode predecessor;
   private final CFANode successor;
   private final String rawStatement;
@@ -79,18 +77,19 @@ public abstract class AbstractCFAEdge implements CFAEdge {
 
   @Override
   public boolean equals(Object pOther) {
-    if (!(pOther instanceof AbstractCFAEdge)) {
-      return false;
-    }
-
-    AbstractCFAEdge otherEdge = (AbstractCFAEdge) pOther;
-    return predecessor.equals(otherEdge.predecessor) && successor.equals(otherEdge.successor);
+    return pOther instanceof AbstractCFAEdge otherEdge
+        && predecessor.equals(otherEdge.predecessor)
+        && successor.equals(otherEdge.successor);
   }
 
   @Override
   public String toString() {
-    return getFileLocation() + ":\t" + getPredecessor() + " -{" +
-        getDescription().replace('\n', ' ') +
-        "}-> " + getSuccessor();
+    return getFileLocation()
+        + ":\t"
+        + getPredecessor()
+        + " -{"
+        + getDescription().replace('\n', ' ')
+        + "}-> "
+        + getSuccessor();
   }
 }

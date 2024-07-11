@@ -71,15 +71,14 @@ class EclipseJavaParser implements Parser {
       secure = true,
       name = "java.sourcepath",
       description =
-          "Specify the source code path to " + "search for java class or interface definitions")
+          "Specify the source code path to search for java class or interface definitions")
   // Make sure to keep the option name synchronized with CPAMain#areJavaOptionsSet
   private String javaSourcepath = "";
 
   @Option(
       secure = true,
       name = "java.classpath",
-      description =
-          "Specify the class code path to " + "search for java class or interface definitions")
+      description = "Specify the class code path to search for java class or interface definitions")
   // Make sure to keep the option name synchronized with CPAMain#areJavaOptionsSet
   private String javaClasspath = "";
 
@@ -191,8 +190,8 @@ class EclipseJavaParser implements Parser {
         throw new JParserException(
             "Path '"
                 + firstSourceFile
-                + "' does not exist. If this is the name of the main class, then "
-                + "either class path or source path need to be given with -classpath/-sourcepath.");
+                + "' does not exist. If this is the name of the main class, then either class path"
+                + " or source path need to be given with --class-path/--source-path.");
       } else {
         // seems like B) was attempted
         throw new JParserException(
@@ -280,7 +279,7 @@ class EclipseJavaParser implements Parser {
   }
 
   @Override
-  public ParseResult parseString(String pFilename, String pCode) throws JParserException {
+  public ParseResult parseString(Path pFilename, String pCode) throws JParserException {
 
     throw new JParserException("Function not yet implemented");
   }

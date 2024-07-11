@@ -74,7 +74,7 @@ public class SMGInterpolant implements Interpolant<Collection<SMGState>, SMGInte
     if (isFalse()) {
       throw new IllegalStateException("Can't reconstruct state from FALSE-interpolant");
     } else {
-      return new HashSet<>(Collections2.transform(smgStates, s -> s.copyOf()));
+      return new HashSet<>(Collections2.transform(smgStates, UnmodifiableSMGState::copyOf));
     }
   }
 
@@ -232,26 +232,28 @@ public class SMGInterpolant implements Interpolant<Collection<SMGState>, SMGInte
       if (this == obj) {
         return true;
       }
-      if (!(obj instanceof SMGPrecisionIncrement)) {
-        return false;
-      }
-      SMGPrecisionIncrement other = (SMGPrecisionIncrement) obj;
-      return Objects.equals(abstractionBlock, other.abstractionBlock)
+      return obj instanceof SMGPrecisionIncrement other
+          && Objects.equals(abstractionBlock, other.abstractionBlock)
           && Objects.equals(pathsToTrack, other.pathsToTrack)
           && Objects.equals(stackVariablesToTrack, other.stackVariablesToTrack);
     }
 
     @Override
     public String toString() {
-      return "SMGPrecisionIncrement [pathsToTrack=" + pathsToTrack + ", abstractionBlock="
-          + abstractionBlock + ", stackVariablesToTrack=" + stackVariablesToTrack + "]";
+      return "SMGPrecisionIncrement [pathsToTrack="
+          + pathsToTrack
+          + ", abstractionBlock="
+          + abstractionBlock
+          + ", stackVariablesToTrack="
+          + stackVariablesToTrack
+          + "]";
     }
 
     public SMGPrecisionIncrement join(SMGPrecisionIncrement pInc2) {
       return new SMGPrecisionIncrement(
-          Sets.union(this.pathsToTrack, pInc2.pathsToTrack),
-          Sets.union(this.abstractionBlock, pInc2.abstractionBlock),
-          Sets.union(this.stackVariablesToTrack, pInc2.stackVariablesToTrack));
+          Sets.union(pathsToTrack, pInc2.pathsToTrack),
+          Sets.union(abstractionBlock, pInc2.abstractionBlock),
+          Sets.union(stackVariablesToTrack, pInc2.stackVariablesToTrack));
     }
   }
 }

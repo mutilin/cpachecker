@@ -14,6 +14,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CComplexCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
@@ -24,7 +25,6 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CUnaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.DefaultCExpressionVisitor;
-import org.sosy_lab.cpachecker.cfa.types.c.CEnumType.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.exceptions.NoException;
@@ -33,8 +33,7 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
   protected int dereference;
   protected String function;
 
-  public IdentifierCreator() {
-  }
+  public IdentifierCreator() {}
 
   public IdentifierCreator(String func) {
     this();
@@ -84,14 +83,14 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
 
   @Override
   public AbstractIdentifier visit(CBinaryExpression expression) {
-    AbstractIdentifier resultId1, resultId2, result;
     int oldDereference = dereference;
     dereference = 0;
-    resultId1 = expression.getOperand1().accept(this);
+    AbstractIdentifier resultId1 = expression.getOperand1().accept(this);
     dereference = 0;
-    resultId2 = expression.getOperand2().accept(this);
+    AbstractIdentifier resultId2 = expression.getOperand2().accept(this);
     // to get rid of the offset in 'a + 1' and 'a[1]' expressions
-    result = getMainPart(new BinaryIdentifier(resultId1, resultId2, oldDereference));
+    AbstractIdentifier result =
+        getMainPart(new BinaryIdentifier(resultId1, resultId2, oldDereference));
     dereference = oldDereference;
     return result;
   }
@@ -161,9 +160,7 @@ public class IdentifierCreator extends DefaultCExpressionVisitor<AbstractIdentif
       main = id1;
     } else if (id2 instanceof SingleIdentifier && id1 instanceof ConstantIdentifier) {
       main = id2;
-    } else if (id1 instanceof SingleIdentifier && id2 instanceof SingleIdentifier) {
-      SingleIdentifier s1 = (SingleIdentifier) id1;
-      SingleIdentifier s2 = (SingleIdentifier) id2;
+    } else if (id1 instanceof SingleIdentifier s1 && id2 instanceof SingleIdentifier s2) {
       if (s1.isPointer() && !s2.isPointer()) {
         main = s1;
       } else if (s1.isPointer() && !s2.isPointer()) {

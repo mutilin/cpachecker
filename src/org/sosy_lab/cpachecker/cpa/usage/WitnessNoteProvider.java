@@ -14,7 +14,7 @@ import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 public interface WitnessNoteProvider {
   public String getNoteForEdge(CFAEdge pEdge);
 
-  default public List<CFAEdge> filterIrrelevantEdges(List<CFAEdge> pEdges) {
+  public default List<CFAEdge> filterIrrelevantEdges(List<CFAEdge> pEdges) {
     return pEdges;
   }
 }

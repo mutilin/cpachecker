@@ -10,11 +10,13 @@ package org.sosy_lab.cpachecker.cfa.ast;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serial;
 import java.util.Objects;
 
-public abstract class AExpressionAssignmentStatement extends AbstractStatement implements AAssignment {
+public abstract class AExpressionAssignmentStatement extends AbstractStatement
+    implements AAssignment {
 
-  private static final long serialVersionUID = -6099960243945488221L;
+  @Serial private static final long serialVersionUID = -6099960243945488221L;
   private final ALeftHandSide leftHandSide;
   private final AExpression rightHandSide;
 
@@ -26,10 +28,10 @@ public abstract class AExpressionAssignmentStatement extends AbstractStatement i
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
-    return leftHandSide.toASTString(pQualified)
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
+    return leftHandSide.toASTString(pAAstNodeRepresentation)
         + " = "
-        + rightHandSide.toASTString(pQualified)
+        + rightHandSide.toASTString(pAAstNodeRepresentation)
         + ";";
   }
 
@@ -64,15 +66,9 @@ public abstract class AExpressionAssignmentStatement extends AbstractStatement i
       return true;
     }
 
-    if (!(obj instanceof AExpressionAssignmentStatement)
-        || !super.equals(obj)) {
-      return false;
-    }
-
-    AExpressionAssignmentStatement other = (AExpressionAssignmentStatement) obj;
-
-    return Objects.equals(other.leftHandSide, leftHandSide)
-            && Objects.equals(other.rightHandSide, rightHandSide);
+    return obj instanceof AExpressionAssignmentStatement other
+        && super.equals(obj)
+        && Objects.equals(other.leftHandSide, leftHandSide)
+        && Objects.equals(other.rightHandSide, rightHandSide);
   }
-
 }

@@ -21,15 +21,15 @@ public class AutomatonTargetInformation implements TargetInformation {
 
   public AutomatonTargetInformation(
       Automaton pAutomaton, AutomatonTransition pTransition, String pDesc) {
-    this.automaton = Preconditions.checkNotNull(pAutomaton);
-    this.automatonTrans = Preconditions.checkNotNull(pTransition);
-    this.propertyInstanceDescription = Preconditions.checkNotNull(pDesc);
+    automaton = Preconditions.checkNotNull(pAutomaton);
+    automatonTrans = Preconditions.checkNotNull(pTransition);
+    propertyInstanceDescription = Preconditions.checkNotNull(pDesc);
   }
 
   public AutomatonTargetInformation(Automaton pAutomaton, AutomatonTransition pTransition) {
-    this.automaton = Preconditions.checkNotNull(pAutomaton);
-    this.automatonTrans = Preconditions.checkNotNull(pTransition);
-    this.propertyInstanceDescription = "";
+    automaton = Preconditions.checkNotNull(pAutomaton);
+    automatonTrans = Preconditions.checkNotNull(pTransition);
+    propertyInstanceDescription = "";
   }
 
   public AutomatonTransition getAutomatonTransition() {
@@ -53,13 +53,9 @@ public class AutomatonTargetInformation implements TargetInformation {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof AutomatonTargetInformation)) {
-      return false;
-    }
-    AutomatonTargetInformation other = (AutomatonTargetInformation) obj;
-    return automatonTrans.equals(other.automatonTrans)
+    return obj instanceof AutomatonTargetInformation other
+        && automatonTrans.equals(other.automatonTrans)
         && automaton.equals(other.automaton)
         && propertyInstanceDescription.equals(other.propertyInstanceDescription);
   }
-
 }

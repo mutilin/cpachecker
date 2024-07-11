@@ -17,9 +17,8 @@ public class OctagonIntValue extends OctagonNumericValue<Long> {
   public static final OctagonIntValue ONE = new OctagonIntValue(1);
   public static final OctagonIntValue NEG_ONE = new OctagonIntValue(-1);
 
-
   private OctagonIntValue(long value) {
-    super (value);
+    super(value);
   }
 
   public static OctagonIntValue of(long value) {
@@ -83,9 +82,10 @@ public class OctagonIntValue extends OctagonNumericValue<Long> {
   @Override
   public OctagonNumericValue subtract(OctagonNumericValue pVal) {
     if (pVal instanceof OctagonIntValue) {
-      return OctagonIntValue.of(value.longValue() - ((OctagonIntValue)pVal).value.longValue());
+      return OctagonIntValue.of(value.longValue() - ((OctagonIntValue) pVal).value.longValue());
     } else if (pVal instanceof OctagonDoubleValue) {
-      return new OctagonDoubleValue(value.longValue() - ((OctagonDoubleValue)pVal).value.doubleValue());
+      return new OctagonDoubleValue(
+          value.longValue() - ((OctagonDoubleValue) pVal).value.doubleValue());
     }
     throw new AssertionError("unknown subtype of octnumericvalue");
   }
@@ -122,9 +122,10 @@ public class OctagonIntValue extends OctagonNumericValue<Long> {
   @Override
   public OctagonNumericValue div(OctagonNumericValue pDivisor) {
     if (pDivisor instanceof OctagonIntValue) {
-      return OctagonIntValue.of(value.longValue() / ((OctagonIntValue)pDivisor).value.longValue());
+      return OctagonIntValue.of(value.longValue() / ((OctagonIntValue) pDivisor).value.longValue());
     } else if (pDivisor instanceof OctagonDoubleValue) {
-      return new OctagonDoubleValue(value.longValue() / ((OctagonDoubleValue)pDivisor).value.doubleValue());
+      return new OctagonDoubleValue(
+          value.longValue() / ((OctagonDoubleValue) pDivisor).value.doubleValue());
     }
     throw new AssertionError("unknown subtype of octnumericvalue");
   }
@@ -138,6 +139,11 @@ public class OctagonIntValue extends OctagonNumericValue<Long> {
   public OctagonNumericValue div(double pDivisor) {
     return new OctagonDoubleValue(value.longValue() / pDivisor);
   }
+
+  // FIXME Several of these methods seem wrong, because for example greaterEqual delegates to
+  // inverted lessEqual, but it should be inverted less.
+  // Furthermore, comparing long and double in this way has rounding errors and can give wrong
+  // results.
 
   @Override
   public boolean greaterEqual(OctagonNumericValue pVal) {
@@ -216,13 +222,7 @@ public class OctagonIntValue extends OctagonNumericValue<Long> {
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof OctagonIntValue)) {
-      return false;
-    }
-
-    OctagonIntValue other = (OctagonIntValue) obj;
-
-    return value.equals(other.value);
+    return obj instanceof OctagonIntValue other && value.equals(other.value);
   }
 
   @Override
@@ -235,6 +235,7 @@ public class OctagonIntValue extends OctagonNumericValue<Long> {
 
   @Override
   public int compareTo(OctagonNumericValue val) {
+    // Delegate to existing methods
     if (val.isEqual(value)) {
       return 0;
     } else if (val.lessThan(value)) {

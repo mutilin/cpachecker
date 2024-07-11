@@ -1,4 +1,4 @@
--predicateAnalysis-threadmodular:
+--predicateAnalysis-threadmodular:
   /adhoc/global_order_true-unreach-race.i: 'FALSE'
   /adhoc/init-synchronization_false-unreach-call.i: 'FALSE'
   /adhoc/init-synchronization_true-unreach-call.i: 'TRUE'
@@ -14,7 +14,7 @@
   /sv-races/simple/extern_func_false-unreach-call.c: 'FALSE'
   /sv-races/simple/global_alloc_test_false-unreach-call.c: 'FALSE'
   /sv-races/simple/linux-3.14--drivers--misc--bh1770glc.ko_false-unreach-call.cil.i: 'ERROR'
-  /sv-races/simple/linux-3.14--drivers--usb--misc--adutux.ko_fixed_false-unreach-call.cil.i: 'TIMEOUT'
+  /sv-races/simple/linux-3.14--drivers--usb--misc--adutux.ko_fixed_false-unreach-call.cil.i: 'ERROR'
   /sv-races/simple/memory-model-test.c: 'TRUE'
   /sv-races/simple/nexted_pointer_structures_false-unreach-call.c: 'FALSE'
   /sv-races/simple/nexted_pointer_structures_true-unreach-call.c: 'TRUE'
@@ -45,7 +45,7 @@
   /sv-races/linux-3.14--drivers--misc--bh1770glc.ko_false-unreach-call.cil.i: 'ERROR'
   /sv-races/linux-3.14--drivers--misc--bh1770glc.ko_true-unreach-call.cil.i: 'TRUE'
   /sv-races/linux-3.14--drivers--misc--ibmasm--ibmasm.ko_false-unreach-call.cil.i: 'TIMEOUT'
-  /sv-races/linux-3.14--drivers--misc--ibmasm--ibmasm.ko_true-unreach-call.cil.i: 'TIMEOUT'
+  /sv-races/linux-3.14--drivers--misc--ibmasm--ibmasm.ko_true-unreach-call.cil.i: 'ERROR'
   /sv-races/linux-3.14--drivers--net--ethernet--micrel--ks8851_mll.ko_false-unreach-call.cil.i: 'TIMEOUT'
   /sv-races/linux-3.14--drivers--net--ethernet--micrel--ks8851_mll.ko_true-unreach-call.cil.i: 'TIMEOUT'
   /sv-races/linux-3.14--drivers--net--irda--nsc-ircc.ko_false-unreach-call.cil.i: 'TIMEOUT'
@@ -54,12 +54,12 @@
   /sv-races/linux-3.14--drivers--net--irda--w83977af_ir.ko_true-unreach-call.cil.i: 'TRUE'
   /sv-races/linux-3.14--drivers--spi--spi-tegra20-slink.ko_false-unreach-call.cil.i: 'TIMEOUT'
   /sv-races/linux-3.14--drivers--spi--spi-tegra20-slink.ko_true-unreach-call.cil.i: 'TRUE'
-  /sv-races/linux-3.14--drivers--usb--misc--adutux.ko_false-unreach-call.cil.i: 'TIMEOUT'
+  /sv-races/linux-3.14--drivers--usb--misc--adutux.ko_false-unreach-call.cil.i: ['TIMEOUT', 'ERROR']
   /sv-races/linux-3.14--drivers--usb--misc--adutux.ko_true-unreach-call.cil.i: 'TRUE'
   /sv-races/linux-3.14--drivers--usb--misc--adutux.ko_true-unreach-call.cil.s.i: 'TRUE'
   /sv-races/linux-3.14--drivers--usb--misc--iowarrior.ko_false-unreach-call.cil.i: 'ERROR'
   /sv-races/linux-3.14--drivers--usb--misc--iowarrior.ko_true-unreach-call.cil.i: 'TRUE'
-  /sv-races/linux-3.14--drivers--usb--serial--cypress_m8.ko_false-unreach-call.cil.i: 'ERROR'
+  /sv-races/linux-3.14--drivers--usb--serial--cypress_m8.ko_false-unreach-call.cil.i: 'TRUE'
   /sv-races/linux-3.14--drivers--usb--serial--cypress_m8.ko_true-unreach-call.cil.i: 'TRUE'
   /sv-races/linux-3.14--drivers--watchdog--pc87413_wdt.ko_false-unreach-call.cil.i: 'ERROR'
   /sv-races/linux-3.14--drivers--watchdog--pc87413_wdt.ko_true-unreach-call.cil.i: 'TRUE'

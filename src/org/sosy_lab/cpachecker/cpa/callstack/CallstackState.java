@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cpa.callstack;
 
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,23 +21,23 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractQueryableState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Partitionable;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
-import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
+import org.sosy_lab.cpachecker.util.globalinfo.SerializationInfoStorage;
 
 /**
  * Abstract state that stores callstack information by maintaning a single-linked list of states
  * that represents the current callstack.
  *
- * Note that whenever a new state is created, this represents a new, unique, entry of a function.
- * Two separate entries of the same function are not considered equal,
- * even if the function names and call nodes of the two callstacks match.
- * Cf. {@link CallstackTest#testCallstackPreventsUndesiredCoverage()} for an example.
- * (Because of this this class must inherit the identity-based
- * {@link #equals(Object)} and {@link #hashCode()} from Object.)
+ * <p>Note that whenever a new state is created, this represents a new, unique, entry of a function.
+ * Two separate entries of the same function are not considered equal, even if the function names
+ * and call nodes of the two callstacks match. Cf. {@link
+ * CallstackTest#testCallstackPreventsUndesiredCoverage()} for an example. (Because of this this
+ * class must inherit the identity-based {@link #equals(Object)} and {@link #hashCode()} from
+ * Object.)
  */
 public class CallstackState
     implements AbstractState, Partitionable, AbstractQueryableState, Serializable {
 
-  private static final long serialVersionUID = 3629687385150064994L;
+  @Serial private static final long serialVersionUID = 3629687385150064994L;
 
   protected final @Nullable CallstackState previousState;
   protected final String currentFunction;
@@ -93,24 +94,26 @@ public class CallstackState
 
   @Override
   public String toString() {
-    return "Function " + getCurrentFunction()
-        + " called from node " + getCallNode()
-        + ", stack depth " + getDepth()
-        + " [" + Integer.toHexString(super.hashCode())
-        + "], stack " + getStack();
+    return "Function "
+        + getCurrentFunction()
+        + " called from node "
+        + getCallNode()
+        + ", stack depth "
+        + getDepth()
+        + " ["
+        + Integer.toHexString(System.identityHashCode(this))
+        + "], stack "
+        + getStack();
   }
 
   public boolean sameStateInProofChecking(CallstackState pOther) {
-    if (pOther.callerNode.equals(callerNode)
+    return pOther.callerNode.equals(callerNode)
         && pOther.depth == depth
         && pOther.currentFunction.equals(currentFunction)
         && (pOther.previousState == previousState
             || (previousState != null
                 && pOther.previousState != null
-                && previousState.sameStateInProofChecking(pOther.previousState)))) {
-      return true;
-    }
-    return false;
+                && previousState.sameStateInProofChecking(pOther.previousState)));
   }
 
   @Override
@@ -122,62 +125,66 @@ public class CallstackState
   public Object evaluateProperty(String pProperty) throws InvalidQueryException {
     if (pProperty.compareToIgnoreCase("caller") == 0) {
       if (callerNode != null) {
-        return this.callerNode.getFunctionName();
+        return callerNode.getFunctionName();
       } else {
         return "";
       }
     }
 
-    throw new InvalidQueryException(String.format("Evaluating %s not supported by %s", pProperty, this.getClass()
-        .getCanonicalName()));
+    throw new InvalidQueryException(
+        String.format(
+            "Evaluating %s not supported by %s", pProperty, getClass().getCanonicalName()));
   }
 
+  @Serial
   private void writeObject(java.io.ObjectOutputStream out) throws IOException {
     out.defaultWriteObject();
     out.writeInt(callerNode.getNodeNumber());
   }
 
-  @SuppressWarnings("UnusedVariable") // parameter is required by API
+  @Serial
   private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
     in.defaultReadObject();
     int nodeNumber = in.readInt();
     callerNode =
-        GlobalInfo.getInstance().getCFAInfo().orElseThrow().getNodeByNodeNumber(nodeNumber);
+        SerializationInfoStorage.getInstance()
+            .getCFAInfo()
+            .orElseThrow()
+            .getNodeByNodeNumber(nodeNumber);
   }
 
   @Override
   public boolean equals(Object o) {
+    // Recursive equals to compare the whole stack
     if (o == this) {
       return true;
     }
     if (!(o instanceof CallstackState)) {
       return false;
     }
-    CallstackState other = (CallstackState) o;
-    CallstackState tmp = this;
-    if (other.getDepth() != tmp.getDepth()) {
-      return false;
-    }
+    if (o instanceof CallstackState other && other.depth == depth) {
+      CallstackState tmp = this;
 
-    // check the whole stack
-    while (tmp != null) {
-      if (other == tmp) {
-        return true;
+      // check the whole stack
+      while (tmp != null) {
+        if (other == tmp) {
+          return true;
+        }
+        if (!other.getCallNode().equals(tmp.getCallNode())
+            || !other.getCurrentFunction().equals(tmp.getCurrentFunction())) {
+          return false;
+        }
+        other = other.getPreviousState();
+        tmp = tmp.getPreviousState();
       }
-      if (!other.getCallNode().equals(tmp.getCallNode())
-          || !other.getCurrentFunction().equals(tmp.getCurrentFunction())) {
-        return false;
-      }
-      other = other.getPreviousState();
-      tmp = tmp.getPreviousState();
-    }
 
-    return true;
+      return true;
+    }
+    return false;
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(callerNode, currentFunction, depth);
   }
-
 }

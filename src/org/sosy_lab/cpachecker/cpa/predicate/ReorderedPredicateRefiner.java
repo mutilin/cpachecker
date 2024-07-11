@@ -69,8 +69,7 @@ public abstract class ReorderedPredicateRefiner implements Refiner {
         globalFactory.create(globalStrategy, predicateCpa.getPathFormulaManager());
 
     // first value analysis refiner, then predicate analysis refiner
-    return AbstractARGBasedRefiner
-        .forARGBasedRefiner(new DelegatingARGBasedRefiner(logger, localRefiner, globalRefiner), cpa);
+    return AbstractARGBasedRefiner.forARGBasedRefiner(
+        new DelegatingARGBasedRefiner(logger, localRefiner, globalRefiner), cpa);
   }
-
 }

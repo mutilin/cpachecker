@@ -175,16 +175,17 @@ public class CompositeApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
 
     ImmutableList.Builder<AbstractState> projections = ImmutableList.builder();
     boolean notEmptyEdge = false;
     for (int i = 0; i < applyOperators.size(); i++) {
       int iCopy = i;
       List<AbstractState> wrappedStates =
-          transformedImmutableListCopy(pStates, state->((CompositeState)state).get(iCopy));
-      AbstractState projection = applyOperators.get(i).createCompositeProjection(wrappedStates, pEdges);
+          transformedImmutableListCopy(pStates, state -> ((CompositeState) state).get(iCopy));
+      AbstractState projection =
+          applyOperators.get(i).createCompositeProjection(wrappedStates, pEdges);
 
       if (projection instanceof AbstractStateWithEdge) {
         if (!((AbstractStateWithEdge) projection).hasEmptyEffect()) {

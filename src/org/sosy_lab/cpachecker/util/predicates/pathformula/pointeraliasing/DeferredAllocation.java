@@ -11,14 +11,12 @@ package org.sosy_lab.cpachecker.util.predicates.pathformula.pointeraliasing;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Optional;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIntegerLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
-import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
-import org.sosy_lab.cpachecker.util.predicates.smt.FormulaManagerView;
-import org.sosy_lab.java_smt.api.Formula;
 
 /**
  * This class is used to temporarily keep data specifying an already performed, but deferred memory
@@ -51,16 +49,12 @@ import org.sosy_lab.java_smt.api.Formula;
  */
 @javax.annotation.concurrent.Immutable // cannot prove deep immutability
 class DeferredAllocation implements Serializable {
-  private static final long serialVersionUID = -6882598785306470437L;
+  @Serial private static final long serialVersionUID = -6882598785306470437L;
 
   DeferredAllocation(
-      final String base,
-      final Optional<CIntegerLiteralExpression> size,
-      final Formula pSizeExp,
-      final boolean isZeroed) {
+      final String base, final Optional<CIntegerLiteralExpression> size, final boolean isZeroed) {
     this.isZeroed = isZeroed;
     this.size = size;
-    sizeExp = pSizeExp;
     this.base = base;
   }
 
@@ -80,30 +74,18 @@ class DeferredAllocation implements Serializable {
     return size;
   }
 
-  Formula getSizeExpression() {
-    return sizeExp;
-  }
-
   @Override
   public boolean equals(final Object other) {
     if (this == other) {
       return true;
     }
-    if (!(other instanceof DeferredAllocation)) {
-      return false;
-    }
-    final DeferredAllocation otherPool = (DeferredAllocation) other;
     // isZeroed and size can be different in case of merging two paths with different allocations,
     // currently base indices are not globally unique (see #215 for why it should be this way)
-    if (base.equals(otherPool.base)
+    // pointedBy is not counted as this is a helper field, not a characteristic of the allocation
+    return other instanceof DeferredAllocation otherPool
+        && base.equals(otherPool.base)
         && isZeroed == otherPool.isZeroed
-        && sizeExp.equals(otherPool.sizeExp)
-        && size.equals(otherPool.size)) {
-      // pointedBy is not counted as this is a helper field, not a characteristic of the allocation
-      return true;
-    } else {
-      return false;
-    }
+        && size.equals(otherPool.size);
   }
 
   @Override
@@ -111,16 +93,15 @@ class DeferredAllocation implements Serializable {
     int result = 0;
     result += base.hashCode() * 997;
     result += size.hashCode() * 617;
-    result += sizeExp.hashCode() * 617;
     result += isZeroed ? 307 : 0;
     return result;
   }
 
   private final boolean isZeroed;
   private final Optional<CIntegerLiteralExpression> size;
-  private final Formula sizeExp;
   private final String base;
 
+  @Serial
   private Object writeReplace() {
     return new SerializationProxy(this);
   }
@@ -131,24 +112,22 @@ class DeferredAllocation implements Serializable {
    * @param in the input stream
    */
   @SuppressWarnings("UnusedVariable") // parameter is required by API
+  @Serial
   private void readObject(ObjectInputStream in) throws IOException {
     throw new InvalidObjectException("Proxy required");
   }
 
   private static class SerializationProxy implements Serializable {
 
-    private static final long serialVersionUID = 4850967154964188729L;
+    @Serial private static final long serialVersionUID = 4850967154964188729L;
     private final boolean isZeroed;
     private final String base;
     private final long size;
     private final @Nullable CType sizeType;
-    private final String sizeExp;
 
     private SerializationProxy(DeferredAllocation pDeferredAllocationPool) {
       isZeroed = pDeferredAllocationPool.isZeroed;
       base = pDeferredAllocationPool.base;
-      FormulaManagerView mgr = GlobalInfo.getInstance().getPredicateFormulaManagerView();
-      sizeExp = mgr.dumpArbitraryFormula(pDeferredAllocationPool.sizeExp);
       if (pDeferredAllocationPool.size.isPresent()) {
         size = pDeferredAllocationPool.size.orElseThrow().asLong();
         sizeType = pDeferredAllocationPool.size.orElseThrow().getExpressionType();
@@ -158,13 +137,13 @@ class DeferredAllocation implements Serializable {
       }
     }
 
+    @Serial
     private Object readResolve() {
       return new DeferredAllocation(
           base,
           sizeType != null
               ? Optional.of(CIntegerLiteralExpression.createDummyLiteral(size, sizeType))
               : Optional.empty(),
-          GlobalInfo.getInstance().getPredicateFormulaManagerView().parseArbitraryFormula(sizeExp),
           isZeroed);
     }
   }

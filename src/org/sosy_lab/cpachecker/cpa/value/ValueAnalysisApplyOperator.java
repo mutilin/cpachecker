@@ -75,8 +75,8 @@ public class ValueAnalysisApplyOperator implements ApplyOperator {
     return true;
   }
 
-  private AbstractEdge
-      prepareEdge(ValueAnalysisState pParent, ValueAnalysisState pChild, AbstractEdge pEdge) {
+  private AbstractEdge prepareEdge(
+      ValueAnalysisState pParent, ValueAnalysisState pChild, AbstractEdge pEdge) {
 
     if (pEdge instanceof WrapperCFAEdge) {
       CFAEdge edge = ((WrapperCFAEdge) pEdge).getCFAEdge();
@@ -126,8 +126,7 @@ public class ValueAnalysisApplyOperator implements ApplyOperator {
     if (assignments.size() == 0) {
       return EmptyEdge.getInstance();
     } else {
-      ValueAnalysisInformation info =
-          new ValueAnalysisInformation(assignments);
+      ValueAnalysisInformation info = new ValueAnalysisInformation(assignments);
       return new ValueAbstractEdge(info);
     }
   }
@@ -165,8 +164,8 @@ public class ValueAnalysisApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     assert pStates.size() >= 2;
     return project(pStates.get(0), pStates.get(pStates.size() - 1));
   }

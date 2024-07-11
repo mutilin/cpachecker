@@ -65,14 +65,7 @@ public class LocalPrecision implements AdjustablePrecision {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof LocalPrecision)) {
-      return false;
-    }
-    LocalPrecision other = (LocalPrecision) obj;
-    return Objects.equals(ids, other.ids);
+    return obj instanceof LocalPrecision other && ids.equals(other.ids);
   }
 
   Set<AbstractIdentifier> getIds() {
@@ -83,5 +76,4 @@ public class LocalPrecision implements AdjustablePrecision {
   public String toString() {
     return ids.toString();
   }
-
 }

@@ -77,8 +77,7 @@ public class AssumeEdgesRemover
   private int side;
 
   public AssumeEdgesRemover(LogManager pLogger) {
-    super(
-        pLogger.withComponentName(AssumeEdgesRemover.class.getSimpleName()), "branching nodes");
+    super(pLogger.withComponentName(AssumeEdgesRemover.class.getSimpleName()), "branching nodes");
     side = 1;
   }
 

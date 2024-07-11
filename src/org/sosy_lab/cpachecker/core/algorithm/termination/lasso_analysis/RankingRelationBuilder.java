@@ -34,6 +34,7 @@ import de.uni_freiburg.informatik.ultimate.lib.modelcheckerutils.cfg.variables.I
 import de.uni_freiburg.informatik.ultimate.logic.ApplicationTerm;
 import de.uni_freiburg.informatik.ultimate.logic.Sort;
 import de.uni_freiburg.informatik.ultimate.logic.Term;
+import java.io.Serial;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -341,22 +342,22 @@ public class RankingRelationBuilder {
   }
 
   /**
-   * Returns the primed and unprimed variable represented as {@link CExpression}s
-   * for a variable of the ranking function.
-   * @param pRankVar
-   *            the variable of the ranking function to get the primed and unprimed variable for
+   * Returns the primed and unprimed variable represented as {@link CExpression}s for a variable of
+   * the ranking function.
+   *
+   * @param pRankVar the variable of the ranking function to get the primed and unprimed variable
+   *     for
    * @param pRelevantVariables all variable declarations of the original program
    * @return a Pair consisting of the primed and unprimed variable
-   * @throws RankingRelationException
-   *          if it is not possible to create a {@link CExpression} from <code>pRankVar</code>code
+   * @throws RankingRelationException if it is not possible to create a {@link CExpression} from
+   *     <code>pRankVar</code>code
    */
   private Pair<CIdExpression, CExpression> getVariable(
       RankVar pRankVar, Set<CVariableDeclaration> pRelevantVariables)
       throws RankingRelationException {
     String variableName = pRankVar.getGloballyUniqueId();
     Optional<CVariableDeclaration> variableDecl =
-        pRelevantVariables
-            .stream()
+        pRelevantVariables.stream()
             .filter(v -> v.getQualifiedName().equals(variableName))
             .findAny();
 
@@ -368,9 +369,8 @@ public class RankingRelationBuilder {
 
     } else {
       Term term = pRankVar.getTerm();
-      if (term instanceof ApplicationTerm
+      if (term instanceof ApplicationTerm uf
           && !((ApplicationTerm) term).getFunction().isInterpreted()) {
-        ApplicationTerm uf = ((ApplicationTerm) term);
         assert uf.getFunction().getParameterSorts().length == 1 : uf;
         assert uf.getFunction().getName().startsWith("*"); // dereference
 
@@ -473,7 +473,7 @@ public class RankingRelationBuilder {
 
   public static class RankingRelationException extends Exception {
 
-    private static final long serialVersionUID = 1L;
+    @Serial private static final long serialVersionUID = 1L;
 
     public RankingRelationException(String message) {
       super(message);

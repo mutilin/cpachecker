@@ -17,11 +17,11 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.predicate.SymbolicLocationsUtility;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 
-public class SLABPredicateTransferRelation implements TransferRelation {
+class SLABPredicateTransferRelation implements TransferRelation {
 
   private final SymbolicLocationsUtility symbolicLocationsUtility;
 
-  public SLABPredicateTransferRelation(SymbolicLocationsUtility pSymbolicLocationsUtility) {
+  SLABPredicateTransferRelation(SymbolicLocationsUtility pSymbolicLocationsUtility) {
     symbolicLocationsUtility = pSymbolicLocationsUtility;
   }
 
@@ -45,5 +45,4 @@ public class SLABPredicateTransferRelation implements TransferRelation {
       throws CPATransferException, InterruptedException {
     throw new UnsupportedOperationException("SLAB does not provide successors for a certain edge");
   }
-
 }

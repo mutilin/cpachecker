@@ -68,10 +68,11 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
 
   /** local CFA of functions before processing */
   private FunctionCFAsWithMetadata localCfa = null;
+
   /** Strategy that decides how to change the CFA and implements this change */
   private final CFAMutationStrategy strategy;
 
-  private final Path cfaExportDirectory;
+  // private final Path cfaExportDirectory;
 
   private final CFAMutatorStatistics mutatorStats;
 
@@ -80,10 +81,10 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     super(pConfig, pLogger, pShutdownNotifier);
     config.inject(this, CFAMutator.class);
 
-    if (exportDirectory == null) {
+    if (!exportCfa) {
       throw new InvalidConfigurationException("Enable output to get results of CFA mutation");
     }
-    cfaExportDirectory = exportDirectory;
+    // cfaExportDirectory = Path.of("mutation");
 
     if (strategyClasses.isEmpty()) {
       throw new InvalidConfigurationException("No CFA mutation strategies were specified");
@@ -135,7 +136,6 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     // do not export asynchronously as CFA will be mutated
     if (mutatorStats.getRound() == 0) {
       mutatorStats.startExport();
-      exportDirectory = cfaExportDirectory.resolve("0-original-cfa");
       super.exportCFA(pCfa);
       mutatorStats.stopExport();
     }
@@ -170,7 +170,7 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     mutatorStats.setCfaStats(result);
 
     mutatorStats.startExport();
-    exportDirectory = cfaExportDirectory.resolve(mutatorStats.getRound() + "-mutation-round");
+    // exportDirectory = cfaExportDirectory.resolve(mutatorStats.getRound() + "-mutation-round");
     super.exportCFA(result);
     mutatorStats.stopExport();
 
@@ -199,8 +199,8 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
       mutatorStats.setCfaStats(rollbackedCfa);
 
       mutatorStats.startExport();
-      exportDirectory =
-          cfaExportDirectory.resolve(mutatorStats.getRound() + "-mutation-round-rollbacked");
+      // exportDirectory =
+      // cfaExportDirectory.resolve(mutatorStats.getRound() + "-mutation-round-rollbacked");
       super.exportCFA(rollbackedCfa);
       mutatorStats.stopExport();
     }
@@ -221,7 +221,7 @@ public class CFAMutator extends CFACreator implements StatisticsProvider {
     if (logFile == null || pLogOptions.getFileLevel() == Level.OFF) {
       return result;
     }
-    logFile = exportDirectory.resolve(logFile.getFileName());
+    // logFile = exportDirectory.resolve(logFile.getFileName());
 
     // create logger to given file
     Level fileLevel =

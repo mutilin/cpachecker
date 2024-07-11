@@ -17,7 +17,8 @@ public enum DDResultOfARun {
   /** There is unexpected problem */
   UNRESOLVED;
 
-  @Override public String toString() {
+  @Override
+  public String toString() {
     switch (this) {
       case FAIL:
         return "Sought-for error occured during analysis";

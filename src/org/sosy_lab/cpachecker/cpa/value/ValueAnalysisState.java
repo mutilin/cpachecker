@@ -13,6 +13,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
+import java.io.Serial;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -28,10 +29,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentMap;
 import org.sosy_lab.common.log.LogManager;
+import org.sosy_lab.cpachecker.cfa.ast.AIdExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
-import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression.BinaryOperator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpressionBuilder;
+import org.sosy_lab.cpachecker.cfa.ast.c.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFloatLiteralExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
@@ -45,7 +47,6 @@ import org.sosy_lab.cpachecker.cfa.types.Type;
 import org.sosy_lab.cpachecker.cfa.types.c.CBitFieldType;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
 import org.sosy_lab.cpachecker.cfa.types.c.CEnumType;
-import org.sosy_lab.cpachecker.cfa.types.c.CEnumType.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CStorageClass;
@@ -66,8 +67,9 @@ import org.sosy_lab.cpachecker.cpa.value.type.NumericValue;
 import org.sosy_lab.cpachecker.cpa.value.type.Value;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
+import org.sosy_lab.cpachecker.util.ast.AstCfaRelation;
+import org.sosy_lab.cpachecker.util.expressions.And;
 import org.sosy_lab.cpachecker.util.expressions.ExpressionTree;
-import org.sosy_lab.cpachecker.util.expressions.ExpressionTreeFactory;
 import org.sosy_lab.cpachecker.util.expressions.ExpressionTrees;
 import org.sosy_lab.cpachecker.util.expressions.LeafExpression;
 import org.sosy_lab.cpachecker.util.predicates.smt.BitvectorFormulaManagerView;
@@ -83,11 +85,16 @@ import org.sosy_lab.java_smt.api.FormulaType;
 import org.sosy_lab.java_smt.api.FormulaType.FloatingPointType;
 
 public class ValueAnalysisState
-    implements AbstractQueryableState, FormulaReportingState, ExpressionTreeReportingState,
-        ForgetfulState<ValueAnalysisInformation>, Serializable, Graphable,
-        LatticeAbstractState<ValueAnalysisState>, PseudoPartitionable {
+    implements AbstractQueryableState,
+        FormulaReportingState,
+        ExpressionTreeReportingState,
+        ForgetfulState<ValueAnalysisInformation>,
+        Serializable,
+        Graphable,
+        LatticeAbstractState<ValueAnalysisState>,
+        PseudoPartitionable {
 
-  private static final long serialVersionUID = -3152134511524554358L;
+  @Serial private static final long serialVersionUID = -3152134511524554358L;
 
   private static final Set<MemoryLocation> blacklist = new HashSet<>();
 
@@ -111,9 +118,7 @@ public class ValueAnalysisState
   private final @Nullable MachineModel machineModel;
 
   public ValueAnalysisState(MachineModel pMachineModel) {
-    this(
-        checkNotNull(pMachineModel),
-        PathCopyingPersistentTreeMap.of());
+    this(checkNotNull(pMachineModel), PathCopyingPersistentTreeMap.of());
   }
 
   public ValueAnalysisState(
@@ -206,13 +211,11 @@ public class ValueAnalysisState
       if (pValue.isNumericValue()) {
         CIntegerLiteralExpression valueAsExpression =
             new CIntegerLiteralExpression(
-                FileLocation.DUMMY,
-                memLocType,
-                BigInteger.valueOf(pValue.asNumericValue().longValue()));
+                FileLocation.DUMMY, memLocType, pValue.asNumericValue().bigIntegerValue());
         try {
           typedValue = pValueVisitor.evaluate(valueAsExpression, memLocType);
-        } catch (UnrecognizedCodeException pE) {
-          throw new AssertionError(pE);
+        } catch (UnrecognizedCodeException e) {
+          throw new AssertionError(e);
         }
       }
       MemoryLocation currMemloc = entry.getKey();
@@ -254,13 +257,15 @@ public class ValueAnalysisState
   }
 
   @Override
-  public void remember(final MemoryLocation pLocation, final ValueAnalysisInformation pValueAndType) {
+  public void remember(
+      final MemoryLocation pLocation, final ValueAnalysisInformation pValueAndType) {
     final ValueAndType value = pValueAndType.getAssignments().get(pLocation);
     assignConstant(pLocation, value.getValue(), value.getType());
   }
 
   /**
-   * This method retains all variables and their respective values in the underlying map, while removing all others.
+   * This method retains all variables and their respective values in the underlying map, while
+   * removing all others.
    *
    * @param toRetain the names of the variables to retain
    */
@@ -279,7 +284,8 @@ public class ValueAnalysisState
   }
 
   /**
-   * This method drops all entries belonging to the stack frame of a function. This method should be called right before leaving a function.
+   * This method drops all entries belonging to the stack frame of a function. This method should be
+   * called right before leaving a function.
    *
    * @param functionName the name of the function that is about to be left
    */
@@ -390,10 +396,12 @@ public class ValueAnalysisState
   }
 
   /**
-   * This method decides if this element is less or equal than the other element, based on the order imposed by the lattice.
+   * This method decides if this element is less or equal than the other element, based on the order
+   * imposed by the lattice.
    *
    * @param other the other element
-   * @return true, if this element is less or equal than the other element, based on the order imposed by the lattice
+   * @return true, if this element is less or equal than the other element, based on the order
+   *     imposed by the lattice
    */
   @Override
   public boolean isLessOrEqual(ValueAnalysisState other) {
@@ -426,16 +434,12 @@ public class ValueAnalysisState
   }
 
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(Object other) {
     if (this == other) {
       return true;
     }
-
-    if (other == null) {
-      return false;
-    }
-
-    if (!(other instanceof ValueAnalysisState)) {
+    if (other == null || getClass() != other.getClass()) {
       return false;
     }
 
@@ -493,16 +497,20 @@ public class ValueAnalysisState
 
     if (pProperty.startsWith("contains(")) {
       String varName = pProperty.substring("contains(".length(), pProperty.length() - 1);
-      return this.constantsMap.containsKey(MemoryLocation.parseExtendedQualifiedName(varName));
+      return constantsMap.containsKey(MemoryLocation.parseExtendedQualifiedName(varName));
     } else {
       List<String> parts = Splitter.on("==").trimResults().splitToList(pProperty);
       if (parts.size() != 2) {
-        ValueAndType value = this.constantsMap.get(MemoryLocation.parseExtendedQualifiedName(pProperty));
+        ValueAndType value = constantsMap.get(MemoryLocation.parseExtendedQualifiedName(pProperty));
         if (value != null && value.getValue().isExplicitlyKnown()) {
           return value.getValue();
         } else {
-          throw new InvalidQueryException("The Query \"" + pProperty + "\" is invalid. Could not find the variable \""
-              + pProperty + "\"");
+          throw new InvalidQueryException(
+              "The Query \""
+                  + pProperty
+                  + "\" is invalid. Could not find the variable \""
+                  + pProperty
+                  + "\"");
         }
       } else {
         return checkProperty(pProperty);
@@ -516,11 +524,13 @@ public class ValueAnalysisState
     List<String> parts = Splitter.on("==").trimResults().splitToList(pProperty);
 
     if (parts.size() != 2) {
-      throw new InvalidQueryException("The Query \"" + pProperty
-          + "\" is invalid. Could not split the property string correctly.");
+      throw new InvalidQueryException(
+          "The Query \""
+              + pProperty
+              + "\" is invalid. Could not split the property string correctly.");
     } else {
       // The following is a hack
-      ValueAndType val = this.constantsMap.get(MemoryLocation.parseExtendedQualifiedName(parts.get(0)));
+      ValueAndType val = constantsMap.get(MemoryLocation.parseExtendedQualifiedName(parts.get(0)));
       if (val == null) {
         return false;
       }
@@ -564,8 +574,9 @@ public class ValueAnalysisState
           throw new InvalidQueryException(statement + " should end with \")\"");
         }
 
-        MemoryLocation varName = MemoryLocation.parseExtendedQualifiedName(
-            statement.substring("deletevalues(".length(), statement.length() - 1));
+        MemoryLocation varName =
+            MemoryLocation.parseExtendedQualifiedName(
+                statement.substring("deletevalues(".length(), statement.length() - 1));
 
         if (contains(varName)) {
           forget(varName);
@@ -583,8 +594,10 @@ public class ValueAnalysisState
         List<String> assignmentParts = Splitter.on(":=").trimResults().splitToList(assignment);
 
         if (assignmentParts.size() != 2) {
-          throw new InvalidQueryException("The Query \"" + pModification
-              + "\" is invalid. Could not split the property string correctly.");
+          throw new InvalidQueryException(
+              "The Query \""
+                  + pModification
+                  + "\" is invalid. Could not split the property string correctly.");
         } else {
           String varName = assignmentParts.get(0);
           try {
@@ -625,8 +638,7 @@ public class ValueAnalysisState
       if (num != null) {
         MemoryLocation memoryLocation = entry.getKey();
         Type type = entry.getValue().getType();
-        if (!memoryLocation.isReference() && type instanceof CSimpleType) {
-          CSimpleType simpleType = (CSimpleType) type;
+        if (!memoryLocation.isReference() && type instanceof CSimpleType simpleType) {
           if (simpleType.getType().isIntegerType()) {
             int bitSize = machineModel.getSizeof(simpleType) * machineModel.getSizeofCharInBits();
             BitvectorFormula var =
@@ -641,18 +653,15 @@ public class ValueAnalysisState
             }
             result.add(bitvectorFMGR.equal(var, val));
           } else if (simpleType.getType().isFloatingPointType()) {
-            final FloatingPointType fpType;
-            switch (simpleType.getType()) {
-            case FLOAT:
-              fpType = FormulaType.getSinglePrecisionFloatingPointType();
-              break;
-            case DOUBLE:
-              fpType = FormulaType.getDoublePrecisionFloatingPointType();
-              break;
-            default:
-              throw new AssertionError("Unsupported floating point type: " + simpleType);
-            }
-            FloatingPointFormula var = floatFMGR.makeVariable(entry.getKey().getExtendedQualifiedName(), fpType);
+            final FloatingPointType fpType =
+                switch (simpleType.getType()) {
+                  case FLOAT -> FormulaType.getSinglePrecisionFloatingPointType();
+                  case DOUBLE -> FormulaType.getDoublePrecisionFloatingPointType();
+                  default ->
+                      throw new AssertionError("Unsupported floating point type: " + simpleType);
+                };
+            FloatingPointFormula var =
+                floatFMGR.makeVariable(entry.getKey().getExtendedQualifiedName(), fpType);
             FloatingPointFormula val = floatFMGR.makeNumber(num.doubleValue(), fpType);
             result.add(floatFMGR.equalWithFPSemantics(var, val));
           } else {
@@ -703,7 +712,8 @@ public class ValueAnalysisState
   }
 
   /**
-   * This method acts as factory to create a value-analysis interpolant from this value-analysis state.
+   * This method acts as factory to create a value-analysis interpolant from this value-analysis
+   * state.
    *
    * @return the value-analysis interpolant reflecting the value assignment of this state
    */
@@ -715,10 +725,13 @@ public class ValueAnalysisState
     return new ValueAnalysisInformation(constantsMap);
   }
 
-  /** If there was a recursive function, we have wrong values for scoped variables in the returnState.
-   * This function rebuilds a new state with the correct values from the previous callState.
-   * We delete the wrong values and insert new values, if necessary. */
-  public ValueAnalysisState rebuildStateAfterFunctionCall(final ValueAnalysisState callState, final FunctionExitNode functionExit) {
+  /**
+   * If there was a recursive function, we have wrong values for scoped variables in the
+   * returnState. This function rebuilds a new state with the correct values from the previous
+   * callState. We delete the wrong values and insert new values, if necessary.
+   */
+  public ValueAnalysisState rebuildStateAfterFunctionCall(
+      final ValueAnalysisState callState, final FunctionExitNode functionExit) {
 
     // we build a new state from:
     // - local variables from callState,
@@ -736,17 +749,22 @@ public class ValueAnalysisState
     }
 
     // second: learn new information
-    for (Entry<MemoryLocation, ValueAndType> e : this.getConstants()) {
+    for (Entry<MemoryLocation, ValueAndType> e : getConstants()) {
       final MemoryLocation trackedVar = e.getKey();
 
       if (!trackedVar.isOnFunctionStack()) { // global -> override deleted value
         rebuildState.assignConstant(trackedVar, e.getValue().getValue(), e.getValue().getType());
 
-      } else if (functionExit.getEntryNode().getReturnVariable().isPresent() &&
-          functionExit.getEntryNode().getReturnVariable().get().getQualifiedName().equals(trackedVar.getExtendedQualifiedName())) {
+      } else if (functionExit.getEntryNode().getReturnVariable().isPresent()
+          && functionExit
+              .getEntryNode()
+              .getReturnVariable()
+              .get()
+              .getQualifiedName()
+              .equals(trackedVar.getExtendedQualifiedName())) {
         /*assert (!rebuildState.contains(trackedVar)) :
-                "calling function should not contain return-variable of called function: " + trackedVar;*/
-        if (this.contains(trackedVar)) {
+        "calling function should not contain return-variable of called function: " + trackedVar;*/
+        if (contains(trackedVar)) {
           rebuildState.assignConstant(trackedVar, e.getValue().getValue(), e.getValue().getType());
         }
       }
@@ -765,23 +783,63 @@ public class ValueAnalysisState
     return this;
   }
 
+  private Optional<CExpression> buildConstraint(CExpression pVar, CType pCType, NumericValue pNum) {
+    // TODO: Refactor the whole code to also handle JExpressions i.e. change CExpression to
+    //  AExpression
+    // TODO: Get real logger
+    CBinaryExpressionBuilder builder =
+        new CBinaryExpressionBuilder(machineModel, LogManager.createNullLogManager());
+    FileLocation loc = pVar.getFileLocation();
+    CExpression val = null;
+    if (pCType instanceof CSimpleType simpleType) {
+      if (simpleType.getType().isIntegerType()) {
+        long value = pNum.getNumber().longValue();
+        val = new CIntegerLiteralExpression(loc, simpleType, BigInteger.valueOf(value));
+      } else if (simpleType.getType().isFloatingPointType()) {
+        double value = pNum.getNumber().doubleValue();
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+          // Cannot represent this here
+          return Optional.empty();
+        }
+        val = new CFloatLiteralExpression(loc, simpleType, BigDecimal.valueOf(value));
+      } else {
+        throw new AssertionError("Unexpected type: " + simpleType);
+      }
+    } else if (pCType instanceof CEnumType enumType) {
+      long value = pNum.getNumber().longValue();
+      for (CEnumerator enumerator : enumType.getEnumerators()) {
+        if (value == enumerator.getValue()) {
+          val = new CIdExpression(loc, enumerator);
+          break;
+        }
+      }
+      if (val == null) {
+        val = new CIntegerLiteralExpression(loc, enumType, BigInteger.valueOf(value));
+      }
+    } else {
+      // disabled since this blocks too many programs for which plenty other information
+      // would be available, so just skip the current variable
+
+      // throw new AssertionError("Unknown arithmetic type: " + cType);
+
+      return Optional.empty();
+    }
+    return Optional.of(builder.buildBinaryExpressionUnchecked(pVar, val, BinaryOperator.EQUALS));
+  }
+
   @Override
-  public ExpressionTree<Object> getFormulaApproximation(
+  public ExpressionTree<Object> getFormulaApproximationAllVariablesInFunctionScope(
       FunctionEntryNode pFunctionScope, CFANode pLocation) {
 
     if (machineModel == null) {
       return ExpressionTrees.getTrue();
     }
 
-    //TODO: Get real logger
-    CBinaryExpressionBuilder builder =
-        new CBinaryExpressionBuilder(machineModel, LogManager.createNullLogManager());
-    ExpressionTreeFactory<Object> factory = ExpressionTrees.newFactory();
     List<ExpressionTree<Object>> result = new ArrayList<>();
 
     for (Entry<MemoryLocation, ValueAndType> entry : constantsMap.entrySet()) {
       Value valueOfEntry = entry.getValue().getValue();
-      if(valueOfEntry instanceof EnumConstantValue){
+      if (valueOfEntry instanceof EnumConstantValue) {
         continue;
       }
       NumericValue num = valueOfEntry.asNumericValue();
@@ -790,9 +848,8 @@ public class ValueAnalysisState
         Type type = entry.getValue().getType();
         if (!memoryLocation.isReference()
             && memoryLocation.isOnFunctionStack(pFunctionScope.getFunctionName())
-            && type instanceof CType
+            && type instanceof CType cType
             && CTypes.isArithmeticType((CType) type)) {
-          CType cType = (CType) type;
           if (cType instanceof CBitFieldType) {
             cType = ((CBitFieldType) cType).getType();
           }
@@ -801,7 +858,7 @@ public class ValueAnalysisState
           }
           assert cType != null && CTypes.isArithmeticType(cType);
           String id = memoryLocation.getIdentifier();
-          if (!pFunctionScope.getReturnVariable().isPresent()
+          if (pFunctionScope.getReturnVariable().isEmpty()
               || !id.equals(pFunctionScope.getReturnVariable().get().getName())) {
             FileLocation loc =
                 pLocation.getNumEnteringEdges() > 0
@@ -818,54 +875,128 @@ public class ValueAnalysisState
                     memoryLocation.getExtendedQualifiedName(),
                     null);
             CExpression var = new CIdExpression(loc, decl);
-            CExpression val = null;
-            if (cType instanceof CSimpleType) {
-              CSimpleType simpleType = (CSimpleType) type;
-              if (simpleType.getType().isIntegerType()) {
-                long value = num.getNumber().longValue();
-                val = new CIntegerLiteralExpression(loc, simpleType, BigInteger.valueOf(value));
-              } else if (simpleType.getType().isFloatingPointType()) {
-                double value = num.getNumber().doubleValue();
-                if (((Double) value).isNaN() || ((Double) value).isInfinite()) {
-                  // Cannot represent this here
-                  continue;
-                }
-                val = new CFloatLiteralExpression(loc, simpleType, BigDecimal.valueOf(value));
-              } else {
-                throw new AssertionError("Unexpected type: " + simpleType);
-              }
-            } else if (cType instanceof CEnumType) {
-              CEnumType enumType = (CEnumType) cType;
-              Long value = num.getNumber().longValue();
-              for (CEnumerator enumerator : enumType.getEnumerators()) {
-                if (enumerator.getValue() == value) {
-                  val = new CIdExpression(loc, enumerator);
-                  break;
-                }
-              }
-              if (val == null) {
-                val = new CIntegerLiteralExpression(loc, enumType, BigInteger.valueOf(value));
-              }
-            } else {
-              // disabled since this blocks too many programs for which plenty other information
-              // would be available, so just skip the current variable
-
-              // throw new AssertionError("Unknown arithmetic type: " + cType);
-
-              continue;
+            Optional<CExpression> constraint = buildConstraint(var, cType, num);
+            if (constraint.isPresent()) {
+              result.add(LeafExpression.of(constraint.orElseThrow()));
             }
-            CBinaryExpression exp =
-                builder.buildBinaryExpressionUnchecked(var, val, BinaryOperator.EQUALS);
-            result.add(LeafExpression.of(exp));
           }
         }
       }
     }
-    return factory.and(result);
+    return And.of(result);
+  }
+
+  @Override
+  public ExpressionTree<Object> getFormulaApproximationInputProgramInScopeVariables(
+      FunctionEntryNode pFunctionScope, CFANode pLocation, AstCfaRelation pAstCfaRelation)
+      throws InterruptedException, ReportingMethodNotImplementedException {
+    if (machineModel == null) {
+      return ExpressionTrees.getTrue();
+    }
+
+    List<ExpressionTree<Object>> result = new ArrayList<>();
+
+    for (Entry<MemoryLocation, ValueAndType> entry : constantsMap.entrySet()) {
+      Value valueOfEntry = entry.getValue().getValue();
+      if (valueOfEntry instanceof EnumConstantValue) {
+        continue;
+      }
+      NumericValue num = valueOfEntry.asNumericValue();
+      if (num != null) {
+        MemoryLocation memoryLocation = entry.getKey();
+        Type type = entry.getValue().getType();
+        if (!memoryLocation.isReference()
+            && memoryLocation.isOnFunctionStack(pFunctionScope.getFunctionName())
+            && type instanceof CType cType
+            && CTypes.isArithmeticType((CType) type)) {
+          if (cType instanceof CBitFieldType) {
+            cType = ((CBitFieldType) cType).getType();
+          }
+          if (cType instanceof CElaboratedType) {
+            cType = ((CElaboratedType) cType).getRealType();
+          }
+          assert cType != null && CTypes.isArithmeticType(cType);
+          String id = memoryLocation.getIdentifier();
+          if ((pFunctionScope.getReturnVariable().isEmpty()
+                  || !id.equals(pFunctionScope.getReturnVariable().get().getName()))
+              && pAstCfaRelation
+                  .getVariablesAndParametersInScope(pLocation)
+                  .anyMatch(v -> v.getName().equals(id))
+              && !id.contains("__CPAchecker_")) {
+            FileLocation loc =
+                pLocation.getNumEnteringEdges() > 0
+                    ? pLocation.getEnteringEdge(0).getFileLocation()
+                    : pFunctionScope.getFileLocation();
+            CVariableDeclaration decl =
+                new CVariableDeclaration(
+                    loc,
+                    false,
+                    CStorageClass.AUTO,
+                    cType,
+                    id,
+                    id,
+                    memoryLocation.getExtendedQualifiedName(),
+                    null);
+            CExpression var = new CIdExpression(loc, decl);
+            Optional<CExpression> constraint = buildConstraint(var, cType, num);
+            if (constraint.isPresent()) {
+              result.add(LeafExpression.of(constraint.orElseThrow()));
+            }
+          }
+        }
+      }
+    }
+    return And.of(result);
+  }
+
+  @Override
+  public ExpressionTree<Object> getFormulaApproximationFunctionReturnVariableOnly(
+      FunctionEntryNode pFunctionScope, AIdExpression pFunctionReturnVariable) {
+    if (machineModel == null) {
+      return ExpressionTrees.getTrue();
+    }
+
+    ExpressionTree<Object> result = ExpressionTrees.getTrue();
+
+    for (Entry<MemoryLocation, ValueAndType> entry : constantsMap.entrySet()) {
+      Value valueOfEntry = entry.getValue().getValue();
+      if (valueOfEntry instanceof EnumConstantValue) {
+        continue;
+      }
+      NumericValue num = valueOfEntry.asNumericValue();
+      if (num != null) {
+        MemoryLocation memoryLocation = entry.getKey();
+        Type type = entry.getValue().getType();
+        if (!memoryLocation.isReference()
+            && memoryLocation.isOnFunctionStack(pFunctionScope.getFunctionName())
+            && type instanceof CType cType
+            && CTypes.isArithmeticType((CType) type)) {
+          if (cType instanceof CBitFieldType) {
+            cType = ((CBitFieldType) cType).getType();
+          }
+          if (cType instanceof CElaboratedType) {
+            cType = ((CElaboratedType) cType).getRealType();
+          }
+          assert cType != null && CTypes.isArithmeticType(cType);
+          String id = memoryLocation.getIdentifier();
+          if (pFunctionScope.getReturnVariable().isPresent()
+              && id.equals(pFunctionScope.getReturnVariable().orElseThrow().getName())
+              && pFunctionReturnVariable instanceof CIdExpression var) {
+            Optional<CExpression> constraint = buildConstraint(var, cType, num);
+            if (constraint.isPresent()) {
+              result = LeafExpression.of(constraint.orElseThrow());
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    return result;
   }
 
   public static class ValueAndType implements Serializable {
-    private static final long serialVersionUID = 1L;
+    @Serial private static final long serialVersionUID = 1L;
     private final Value value;
     private final Type type;
 
@@ -887,12 +1018,9 @@ public class ValueAnalysisState
       if (this == o) {
         return true;
       }
-      if (!(o instanceof ValueAndType)) {
-        return false;
-      }
-
-      ValueAndType other = (ValueAndType) o;
-      return Objects.equals(value, other.value) && Objects.equals(type, other.type);
+      return o instanceof ValueAndType other
+          && Objects.equals(value, other.value)
+          && Objects.equals(type, other.type);
     }
 
     @Override

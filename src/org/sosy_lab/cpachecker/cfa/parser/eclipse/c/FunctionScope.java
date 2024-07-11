@@ -14,7 +14,9 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.ArrayDeque;
 import java.util.Collection;
@@ -24,8 +26,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.CProgramScope;
+import org.sosy_lab.cpachecker.cfa.ast.AParameterDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.AVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CComplexTypeDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CParameterDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
@@ -34,17 +41,15 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.model.CFALabelNode;
 import org.sosy_lab.cpachecker.cfa.parser.Scope;
 import org.sosy_lab.cpachecker.cfa.types.c.CComplexType;
-import org.sosy_lab.cpachecker.cfa.types.c.CEnumType.CEnumerator;
-import org.sosy_lab.cpachecker.cfa.types.c.CFunctionTypeWithNames;
 import org.sosy_lab.cpachecker.cfa.types.c.CStorageClass;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CVoidType;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentSet;
 import org.sosy_lab.cpachecker.util.variableclassification.VariableClassificationBuilder;
 
 /**
- * Implementation of {@link Scope} for the local scope inside functions.
- * Only variables can be declared.
- * Provides the mechanism to have nested scopes (i.e., inside {} blocks).
+ * Implementation of {@link Scope} for the local scope inside functions. Only variables can be
+ * declared. Provides the mechanism to have nested scopes (i.e., inside {} blocks).
  */
 class FunctionScope extends AbstractScope {
 
@@ -60,6 +65,11 @@ class FunctionScope extends AbstractScope {
   private final Deque<Map<String, CSimpleDeclaration>> varsList = new ArrayDeque<>();
   private final Deque<Map<String, CSimpleDeclaration>> varsListWithNewNames = new ArrayDeque<>();
 
+  // Cache for all local variables in the current scope.
+  private ImmutableSet<AParameterDeclaration> parameterDeclarations = ImmutableSet.of();
+  private final Deque<PersistentSet<AVariableDeclaration>> localVarsStackWitNewNames =
+      new ArrayDeque<>();
+  private boolean modifiedParameters = true;
 
   private CFunctionDeclaration currentFunction = null;
   private Optional<CVariableDeclaration> returnVariable = null;
@@ -69,9 +79,9 @@ class FunctionScope extends AbstractScope {
       ImmutableMap<String, CComplexTypeDeclaration> pTypes,
       ImmutableMap<String, CTypeDefDeclaration> pTypedefs,
       ImmutableMap<String, CSimpleDeclaration> pGlobalVars,
-      String currentFile,
+      String pCurrentFile,
       Scope pArtificialScope) {
-    super(currentFile);
+    super(pCurrentFile);
 
     globalFunctions = pFunctions;
     typedefs = pTypedefs;
@@ -82,7 +92,8 @@ class FunctionScope extends AbstractScope {
     varsList.push(pGlobalVars);
     varsListWithNewNames.push(pGlobalVars);
 
-    this.artificialScope = pArtificialScope;
+    artificialScope = pArtificialScope;
+    localVarsStackWitNewNames.add(PersistentSet.of());
 
     enterBlock();
   }
@@ -116,12 +127,20 @@ class FunctionScope extends AbstractScope {
     if (currentFunction.getType().getReturnType().getCanonicalType() instanceof CVoidType) {
       returnVariable = Optional.empty();
     } else {
-      @SuppressWarnings("deprecation") // As soon as this is the only usage of the deprecated constant, it should be inlined here
+      @SuppressWarnings("deprecation")
+      // As soon as this is the only usage of the deprecated constant, it should be inlined here
       String name = VariableClassificationBuilder.FUNCTION_RETURN_VARIABLE;
-      returnVariable = Optional.of(
-          new CVariableDeclaration(currentFunction.getFileLocation(), false,
-            CStorageClass.AUTO, currentFunction.getType().getReturnType(),
-            name, name, createScopedNameOf(name), null));
+      returnVariable =
+          Optional.of(
+              new CVariableDeclaration(
+                  currentFunction.getFileLocation(),
+                  false,
+                  CStorageClass.AUTO,
+                  currentFunction.getType().getReturnType(),
+                  name,
+                  name,
+                  createScopedNameOf(name),
+                  null));
     }
   }
 
@@ -133,6 +152,8 @@ class FunctionScope extends AbstractScope {
     varsStackWitNewNames.addLast(new HashMap<>());
     varsList.addLast(varsStack.getLast());
     varsListWithNewNames.addLast(varsStackWitNewNames.getLast());
+    // Optimizations to keep track of all variables which are in scope
+    localVarsStackWitNewNames.addLast(localVarsStackWitNewNames.peekLast());
   }
 
   public void leaveBlock() {
@@ -142,6 +163,8 @@ class FunctionScope extends AbstractScope {
     typesStack.removeLast();
     labelsStack.removeLast();
     labelsNodeStack.removeLast();
+    // Optimizations to keep track of all variables which are in scope
+    localVarsStackWitNewNames.removeLast();
   }
 
   /** returns only the most local scope, i.e., the scope between the nearest curly brackets. */
@@ -173,6 +196,23 @@ class FunctionScope extends AbstractScope {
     return artificialScope.variableNameInUse(name);
   }
 
+  /** returns all variables in the current scopes and caches them for further reuse. */
+  public Set<AVariableDeclaration> getVariablesInScope() {
+    return localVarsStackWitNewNames.peekLast();
+  }
+
+  /** returns all parameters in the current scopes and caches them for further reuse. */
+  public ImmutableSet<AParameterDeclaration> getParameters() {
+    if (modifiedParameters) {
+      parameterDeclarations =
+          ImmutableSet.copyOf(
+              FluentIterable.concat(getVariablesOfMostLocalScopes())
+                  .filter(CParameterDeclaration.class));
+      modifiedParameters = false;
+    }
+    return parameterDeclarations;
+  }
+
   @Override
   public CSimpleDeclaration lookupVariable(String name) {
     checkNotNull(name);
@@ -191,7 +231,7 @@ class FunctionScope extends AbstractScope {
   }
 
   @Override
-  public CFunctionDeclaration lookupFunction(String name) {
+  public @Nullable CFunctionDeclaration lookupFunction(String name) {
     checkNotNull(name);
 
     // we look at first if the function is available in the local functions
@@ -209,7 +249,7 @@ class FunctionScope extends AbstractScope {
   }
 
   @Override
-  public CComplexType lookupType(String name) {
+  public @Nullable CComplexType lookupType(String name) {
     checkNotNull(name);
 
     Iterator<Map<String, CComplexTypeDeclaration>> it = typesStack.descendingIterator();
@@ -231,7 +271,7 @@ class FunctionScope extends AbstractScope {
   }
 
   @Override
-  public CType lookupTypedef(final String name) {
+  public @Nullable CType lookupTypedef(final String name) {
     checkNotNull(name);
 
     final CTypeDefDeclaration declaration = typedefs.get(name);
@@ -250,10 +290,7 @@ class FunctionScope extends AbstractScope {
     return createQualifiedName(getCurrentFunctionName(), pName);
   }
 
-  /**
-   * Take a name and return a name that is unconditionally qualified
-   * with the given function.
-   */
+  /** Take a name and return a name that is unconditionally qualified with the given function. */
   public static String createQualifiedName(String pFunction, String pName) {
     return (pFunction + "::" + pName).intern();
   }
@@ -261,10 +298,10 @@ class FunctionScope extends AbstractScope {
   @Override
   public void registerDeclaration(CSimpleDeclaration declaration) {
     assert declaration instanceof CVariableDeclaration
-        || declaration instanceof CEnumerator
-        || declaration instanceof CParameterDeclaration
-        : "Tried to register a declaration which does not define a name in the standard namespace: " + declaration;
-    assert  !(declaration.getType() instanceof CFunctionTypeWithNames);
+            || declaration instanceof CEnumerator
+            || declaration instanceof CParameterDeclaration
+        : "Tried to register a declaration which does not define a name in the standard namespace: "
+            + declaration;
 
     String name = declaration.getOrigName();
     assert name != null;
@@ -274,11 +311,20 @@ class FunctionScope extends AbstractScope {
 
     // multiple declarations of the same variable are disallowed
     if (vars.containsKey(name)) {
-      throw new CFAGenerationRuntimeException("Variable " + name + " already declared", declaration);
+      throw new CFAGenerationRuntimeException(
+          "Variable " + name + " already declared", declaration);
     }
 
     vars.put(name, declaration);
     varsWithNewNames.put(declaration.getName(), declaration);
+
+    // Optimizations to keep track of all variables which are in scope
+    if (declaration instanceof AVariableDeclaration pAVariableDeclaration) {
+      localVarsStackWitNewNames.addLast(
+          localVarsStackWitNewNames.removeLast().addAndCopy(pAVariableDeclaration));
+    } else if (declaration instanceof AParameterDeclaration) {
+      modifiedParameters = true;
+    }
   }
 
   @Override
@@ -288,7 +334,8 @@ class FunctionScope extends AbstractScope {
     String typeName = declaration.getType().getQualifiedName();
 
     if (lookupType(typeName) != null) {
-      throw new CFAGenerationRuntimeException("Shadowing types are currently not supported", declaration);
+      throw new CFAGenerationRuntimeException(
+          "Shadowing types are currently not supported", declaration);
     }
 
     typesStack.peekLast().put(typeName, declaration);
@@ -363,6 +410,8 @@ class FunctionScope extends AbstractScope {
 
   @Override
   public String toString() {
-    return "Functions: " + Joiner.on(' ').join(globalFunctions.keySet()) + Joiner.on(' ').join(localFunctions.keySet());
+    return "Functions: "
+        + Joiner.on(' ').join(globalFunctions.keySet())
+        + Joiner.on(' ').join(localFunctions.keySet());
   }
 }

@@ -22,7 +22,7 @@ public final class BooleanConstant implements LtlFormula {
   }
 
   private BooleanConstant(boolean pValue) {
-    this.value = pValue;
+    value = pValue;
   }
 
   @Override
@@ -45,11 +45,7 @@ public final class BooleanConstant implements LtlFormula {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-
-    if (getClass() != obj.getClass()) {
+    if (obj == null || getClass() != obj.getClass()) {
       return false;
     }
     BooleanConstant other = (BooleanConstant) obj;

@@ -136,25 +136,14 @@ public class UnsafeDetector {
 
   public boolean isUnsafePair(UsagePoint point1, UsagePoint point2) {
     if (point1.isCompatible(point2)) {
-      switch (config.getUnsafeMode()) {
-        case RACE:
-          return isRace(point1, point2);
-
-        case DEADLOCKDISPATCH:
-          return isDeadlockDispatch(point1, point2);
-
-        case DEADLOCKCIRCULAR:
-          return isDeadlockCircular(point1, point2);
-
-        case DEADLOCKSIGNAL:
-          return isDeadlockSignal(point1, point2);
-
-        case SIGNALINVERSION:
-          return isSignalInversion(point1, point2);
-
-        default:
-          throw new UnsupportedOperationException("Unknown mode: " + config.getUnsafeMode());
-      }
+      return switch (config.getUnsafeMode()) {
+        case RACE -> isRace(point1, point2);
+        case DEADLOCKDISPATCH -> isDeadlockDispatch(point1, point2);
+        case DEADLOCKCIRCULAR -> isDeadlockCircular(point1, point2);
+        case DEADLOCKSIGNAL -> isDeadlockSignal(point1, point2);
+        case SIGNALINVERSION -> isSignalInversion(point1, point2);
+        default -> throw new AssertionError("Unknown mode: " + config.getUnsafeMode());
+      };
     }
     return false;
   }
@@ -189,7 +178,7 @@ public class UnsafeDetector {
   }
 
   private boolean isDeadlockCircular(UsagePoint point1, UsagePoint point2) {
-    //Deadlocks
+    // Deadlocks
     DeadLockTreeNode node1 = point1.get(DeadLockTreeNode.class);
     DeadLockTreeNode node2 = point2.get(DeadLockTreeNode.class);
 
@@ -199,9 +188,10 @@ public class UnsafeDetector {
         int index2 = node1.indexOf(lock2);
         int otherIndex1 = node2.indexOf(lock1);
         int otherIndex2 = node2.indexOf(lock2);
-        if (otherIndex1 >= 0 && index2 >= 0 &&
-            ((index1 > index2 && otherIndex1 < otherIndex2) ||
-             (index1 < index2 && otherIndex1 > otherIndex2))) {
+        if (otherIndex1 >= 0
+            && index2 >= 0
+            && ((index1 > index2 && otherIndex1 < otherIndex2)
+                || (index1 < index2 && otherIndex1 > otherIndex2))) {
           return true;
         }
       }
@@ -235,19 +225,16 @@ public class UnsafeDetector {
       }
     }
     return false;
-
   }
 
   // Note, receive and send are from the point of first thread view
   // We need to find them as reverted value (send<->receive) in the second thread
-  private boolean
-      hasDeadlockOnSignals(List<SignalDesc> signals, int receive, int send) {
+  private boolean hasDeadlockOnSignals(List<SignalDesc> signals, int receive, int send) {
 
     for (int i = 0; i < signals.size(); i++) {
       SignalDesc signal1 = signals.get(i);
       // This thread receives the signal, which was _sent_
-      if (signal1.direction == Action.SEND
-          || !sameSignal(signal1.num, send)) {
+      if (signal1.direction == Action.SEND || !sameSignal(signal1.num, send)) {
         continue;
       }
       for (int j = i + 1; j < signals.size(); j++) {
@@ -274,7 +261,8 @@ public class UnsafeDetector {
 
     if (state1 == null || state2 == null) {
       throw new UnsupportedOperationException(
-          "Signal inversion check need SignalCPA with inversed states (cpa.signal.deadlockState=false)");
+          "Signal inversion check need SignalCPA with inversed states"
+              + " (cpa.signal.deadlockState=false)");
     }
 
     List<SignalDesc> sState1 = state1.getSignals();
@@ -311,14 +299,10 @@ public class UnsafeDetector {
 
       if (access1 == Access.SEND && access2 == Access.RECEIVE) {
         return lowerPriority(
-            tState1.getPriority(),
-            tState2.getPriority(),
-            config.isRevertedPriority());
+            tState1.getPriority(), tState2.getPriority(), config.isRevertedPriority());
       } else if (access2 == Access.SEND && access1 == Access.RECEIVE) {
         return lowerPriority(
-            tState2.getPriority(),
-            tState1.getPriority(),
-            config.isRevertedPriority());
+            tState2.getPriority(), tState1.getPriority(), config.isRevertedPriority());
       }
     }
     return false;
@@ -335,5 +319,4 @@ public class UnsafeDetector {
       return (0 <= prio1 && prio1 < prio2) || (prio1 == -1 && prio2 > 0) || (prio2 == -1);
     }
   }
-
- }
+}

@@ -48,12 +48,9 @@ public abstract class LockEffectWithId implements AbstractLockEffect {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof LockEffectWithId)) {
-      return false;
-    }
-    LockEffectWithId other = (LockEffectWithId) obj;
-    return Objects.equals(target, other.target) &&
-           Objects.equals(getAction(), other.getAction());
+    return obj instanceof LockEffectWithId other
+        && target.equals(other.target)
+        && Objects.equals(getAction(), other.getAction());
   }
 
   public LockIdentifier getId() {

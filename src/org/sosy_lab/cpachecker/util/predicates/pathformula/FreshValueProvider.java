@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.util.predicates.pathformula;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.errorprone.annotations.Immutable;
+import java.io.Serial;
 import java.io.Serializable;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
 import org.sosy_lab.common.collect.PersistentSortedMap;
@@ -19,11 +20,10 @@ import org.sosy_lab.common.collect.PersistentSortedMaps;
 @Immutable
 public final class FreshValueProvider implements Serializable {
 
-  private static final long serialVersionUID = 12359384095345L;
+  @Serial private static final long serialVersionUID = 12359384095345L;
 
   // Default difference for two SSA-indexes of the same name.
-  @VisibleForTesting
-  static final int DEFAULT_INCREMENT = 1;
+  @VisibleForTesting static final int DEFAULT_INCREMENT = 1;
 
   private final PersistentSortedMap<String, Integer> vars;
 
@@ -32,12 +32,10 @@ public final class FreshValueProvider implements Serializable {
   }
 
   public FreshValueProvider(PersistentSortedMap<String, Integer> diffVars) {
-    this.vars = diffVars;
+    vars = diffVars;
   }
 
-  /**
-   * Get a new unused value based on the given one.
-   **/
+  /** Get a new unused value based on the given one. */
   int getFreshValue(String variable, int value) {
     Integer currentValue = vars.get(variable);
     if (currentValue != null && value < currentValue) {
@@ -50,20 +48,22 @@ public final class FreshValueProvider implements Serializable {
    * Get a new provider, that is based on the current one and the given one.
    *
    * <p>Keeps the maximum to-be-generated index for each variable.
-   **/
+   */
   public FreshValueProvider merge(FreshValueProvider other) {
     if (vars.isEmpty() && other.vars.isEmpty()) {
       return this;
     }
     return new FreshValueProvider(
         PersistentSortedMaps.merge(
-            this.vars, other.vars, PersistentSortedMaps.getMaximumMergeConflictHandler()));
+            vars, other.vars, PersistentSortedMaps.getMaximumMergeConflictHandler()));
   }
 
   @Override
-  public boolean equals(Object other) {
-    return other instanceof FreshValueProvider
-        && ((other == this) || vars.equals(((FreshValueProvider) other).vars));
+  public boolean equals(Object pOther) {
+    if (this == pOther) {
+      return true;
+    }
+    return pOther instanceof FreshValueProvider other && vars.equals(other.vars);
   }
 
   @Override

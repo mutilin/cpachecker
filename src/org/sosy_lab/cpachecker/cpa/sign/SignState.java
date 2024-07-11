@@ -12,6 +12,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
@@ -22,11 +23,11 @@ import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractQueryableState;
 import org.sosy_lab.cpachecker.core.interfaces.Graphable;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
-import org.sosy_lab.cpachecker.util.CheckTypesOfStringsUtil;
 
-public class SignState implements Serializable, LatticeAbstractState<SignState>, AbstractQueryableState, Graphable {
+public class SignState
+    implements Serializable, LatticeAbstractState<SignState>, AbstractQueryableState, Graphable {
 
-  private static final long serialVersionUID = -2507059869178203119L;
+  @Serial private static final long serialVersionUID = -2507059869178203119L;
 
   private static final boolean DEBUG = false;
 
@@ -34,8 +35,8 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
 
   private PersistentMap<String, SIGN> signMap;
 
-  public final static SignState TOP = new SignState();
-  private final static SerialProxySign proxy = new SerialProxySign();
+  public static final SignState TOP = new SignState();
+  private static final SerialProxySign proxy = new SerialProxySign();
 
   private SignState(PersistentMap<String, SIGN> pSignMap) {
     signMap = pSignMap;
@@ -47,17 +48,24 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
 
   @Override
   public SignState join(SignState pToJoin) {
-    if (pToJoin.equals(this)) { return pToJoin; }
-    if (this.equals(TOP) || pToJoin.equals(TOP)) { return TOP; }
+    if (pToJoin.equals(this)) {
+      return pToJoin;
+    }
+    if (equals(TOP) || pToJoin.equals(TOP)) {
+      return TOP;
+    }
 
     // assure termination of loops do not merge if  pToJoin covers this but return pToJoin
-    if (isLessOrEqual(pToJoin)) { return pToJoin; }
+    if (isLessOrEqual(pToJoin)) {
+      return pToJoin;
+    }
 
     SignState result = SignState.TOP;
     PersistentMap<String, SIGN> newMap = PathCopyingPersistentTreeMap.of();
     SIGN combined;
     for (String varIdent : pToJoin.signMap.keySet()) {
-      // only add those variables that are contained in both states (otherwise one has value ALL (not saved))
+      // only add those variables that are contained in both states (otherwise one has value ALL
+      // (not saved))
       if (signMap.containsKey(varIdent)) {
         combined = getSignForVariable(varIdent).combineWith(pToJoin.getSignForVariable(varIdent));
         if (!combined.isAll()) {
@@ -71,12 +79,18 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
 
   @Override
   public boolean isLessOrEqual(SignState pSuperset) {
-    if (pSuperset.equals(this) || pSuperset.equals(TOP)) { return true; }
-    if (signMap.size() < pSuperset.signMap.size()) { return false; }
+    if (pSuperset.equals(this) || pSuperset.equals(TOP)) {
+      return true;
+    }
+    if (signMap.size() < pSuperset.signMap.size()) {
+      return false;
+    }
     // is subset if for every variable all sign assumptions are considered in pSuperset
     // check that all variables in superset with SIGN != ALL have no bigger assumptions in subset
     for (String varIdent : pSuperset.signMap.keySet()) {
-      if (!getSignForVariable(varIdent).isSubsetOf(pSuperset.getSignForVariable(varIdent))) { return false; }
+      if (!getSignForVariable(varIdent).isSubsetOf(pSuperset.getSignForVariable(varIdent))) {
+        return false;
+      }
     }
     return true;
   }
@@ -108,9 +122,12 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
 
   public SignState assignSignToVariable(String pVarIdent, SIGN sign) {
     if (sign.isAll()) {
-      return signMap.containsKey(pVarIdent) ? new SignState(signMap.removeAndCopy(pVarIdent)) : this;
+      return signMap.containsKey(pVarIdent)
+          ? new SignState(signMap.removeAndCopy(pVarIdent))
+          : this;
     }
-    return signMap.containsKey(pVarIdent) && getSignForVariable(pVarIdent).equals(sign) ? this
+    return signMap.containsKey(pVarIdent) && getSignForVariable(pVarIdent).equals(sign)
+        ? this
         : new SignState(signMap.putAndCopy(pVarIdent, sign));
   }
 
@@ -129,7 +146,9 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
     builder.append("[");
     String loopDelim = "";
     for (String key : signMap.keySet()) {
-      if (!DEBUG && (key.matches("\\w*::__CPAchecker_TMP_\\w*") || key.endsWith(SignTransferRelation.FUNC_RET_VAR))) {
+      if (!DEBUG
+          && (key.matches("\\w*::__CPAchecker_TMP_\\w*")
+              || key.endsWith(SignTransferRelation.FUNC_RET_VAR))) {
         continue;
       }
       builder.append(loopDelim);
@@ -142,8 +161,7 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
 
   @Override
   public boolean equals(Object pObj) {
-    if (!(pObj instanceof SignState)) { return false; }
-    return ((SignState) pObj).signMap.equals(this.signMap);
+    return pObj instanceof SignState && ((SignState) pObj).signMap.equals(signMap);
   }
 
   @Override
@@ -151,29 +169,32 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
     return signMap.hashCode();
   }
 
+  @Serial
   private Object writeReplace() {
-    if (this.equals(TOP)) {
+    if (equals(TOP)) {
       return proxy;
     } else {
       return this;
     }
   }
 
+  @Serial
   private void writeObject(java.io.ObjectOutputStream out) throws IOException {
     out.defaultWriteObject();
   }
 
-  @SuppressWarnings("UnusedVariable") // parameter is required by API
+  @Serial
   private void readObject(java.io.ObjectInputStream in) throws IOException, ClassNotFoundException {
     in.defaultReadObject();
   }
 
   private static class SerialProxySign implements Serializable {
 
-    private static final long serialVersionUID = 2843708585446089623L;
+    @Serial private static final long serialVersionUID = 2843708585446089623L;
 
     public SerialProxySign() {}
 
+    @Serial
     private Object readResolve() {
       return TOP;
     }
@@ -184,31 +205,38 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
     return "SignAnalysis";
   }
 
+  private static boolean isSIGN(String s) {
+    try {
+      SIGN.valueOf(s);
+    } catch (IllegalArgumentException ex) {
+      return false;
+    }
+    return true;
+  }
+
   @Override
   public boolean checkProperty(String pProperty) throws InvalidQueryException {
     List<String> parts = propertySplitter.splitToList(pProperty);
 
     if (parts.size() == 2) {
 
-      // pProperty = value <= varName
-      if (CheckTypesOfStringsUtil.isSIGN(parts.get(0))) {
+      if (isSIGN(parts.get(0))) {
+        // pProperty = value <= varName
         SIGN value = SIGN.valueOf(parts.get(0));
         SIGN varName = getSignForVariable(parts.get(1));
-        return (varName.covers(value));
-      }
+        return varName.covers(value);
 
-      // pProperty = varName <= value
-      else if (CheckTypesOfStringsUtil.isSIGN(parts.get(1))){
+      } else if (isSIGN(parts.get(1))) {
+        // pProperty = varName <= value
         SIGN varName = getSignForVariable(parts.get(0));
         SIGN value = SIGN.valueOf(parts.get(1));
-        return (value.covers(varName));
-      }
+        return value.covers(varName);
 
-      // pProperty = varName1 <= varName2
-      else {
+      } else {
+        // pProperty = varName1 <= varName2
         SIGN varName1 = getSignForVariable(parts.get(0));
         SIGN varName2 = getSignForVariable(parts.get(1));
-        return (varName2.covers(varName1));
+        return varName2.covers(varName1);
       }
     }
 
@@ -234,5 +262,4 @@ public class SignState implements Serializable, LatticeAbstractState<SignState>,
   public Map<String, SIGN> getSignMapView() {
     return Collections.unmodifiableMap(signMap);
   }
-
 }

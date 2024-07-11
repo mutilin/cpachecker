@@ -50,6 +50,7 @@ import org.sosy_lab.cpachecker.exceptions.CPAException;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
 import org.sosy_lab.cpachecker.util.blocking.BlockedCFAReducer;
 import org.sosy_lab.cpachecker.util.blocking.interfaces.BlockComputer;
+import org.sosy_lab.cpachecker.util.globalinfo.SerializationInfoStorage;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionManager;
 import org.sosy_lab.cpachecker.util.predicates.BlockOperator;
 import org.sosy_lab.cpachecker.util.predicates.bdd.BDDManagerFactory;
@@ -64,52 +65,67 @@ import org.sosy_lab.cpachecker.util.predicates.smt.Solver;
 import org.sosy_lab.cpachecker.util.predicates.weakening.WeakeningOptions;
 import org.sosy_lab.java_smt.api.SolverException;
 
-/**
- * CPA that defines symbolic predicate abstraction.
- */
+/** CPA that defines symbolic predicate abstraction. */
 @Options(prefix = "cpa.predicate")
 public class PredicateCPA
-    implements ConfigurableProgramAnalysis, StatisticsProvider, ProofChecker, AutoCloseable,
-    ConfigurableProgramAnalysisTM {
+    implements ConfigurableProgramAnalysis,
+        StatisticsProvider,
+        ProofChecker,
+        AutoCloseable,
+        ConfigurableProgramAnalysisTM {
 
   public static CPAFactory factory() {
     return AutomaticCPAFactory.forType(PredicateCPA.class).withOptions(BlockOperator.class);
   }
 
-  @Option(secure=true, name="abstraction.type", toUppercase=true, values={"BDD", "FORMULA"},
-      description="What to use for storing abstractions")
+  @Option(
+      secure = true,
+      name = "abstraction.type",
+      toUppercase = true,
+      values = {"BDD", "FORMULA"},
+      description = "What to use for storing abstractions")
   private String abstractionType = "BDD";
 
-  @Option(secure=true, name="blk.useCache", description="use caching of path formulas")
+  @Option(secure = true, name = "blk.useCache", description = "use caching of path formulas")
   private boolean useCache = true;
 
-  @Option(secure=true, name="enableBlockreducer", description="Enable the possibility to precompute explicit abstraction locations.")
+  @Option(
+      secure = true,
+      name = "enableBlockreducer",
+      description = "Enable the possibility to precompute explicit abstraction locations.")
   private boolean enableBlockreducer = false;
 
-  @Option(secure=true, name="merge", values={"SEP", "ABE"}, toUppercase=true,
-      description="which merge operator to use for predicate cpa (usually ABE should be used)")
+  @Option(
+      secure = true,
+      name = "merge",
+      values = {"SEP", "ABE"},
+      toUppercase = true,
+      description = "which merge operator to use for predicate cpa (usually ABE should be used)")
   private String mergeType = "ABE";
 
   @Option(
-    secure = true,
-    name = "merge.mergeAbstractionStatesWithSamePredecessor",
-    description = "merge two abstraction states if their preceeding abstraction states are the same")
+      secure = true,
+      name = "merge.mergeAbstractionStatesWithSamePredecessor",
+      description =
+          "merge two abstraction states if their preceeding abstraction states are the same")
   private boolean mergeAbstractionStates = false;
 
   @Option(
-    secure = true,
-    name = "stop",
-    values = {"SEP", "SEPPCC", "SEPNAA"},
-    toUppercase = true,
-    description = "which stop operator to use for predicate cpa (usually SEP should be used in analysis). "
-        + "SEPNAA works the same as SEP, except that it Never stops At Abstraction states. "
-        + "SEPNAA is used in bmc-IMC.properties for config bmc-incremental-ABEl to keep exploring covered states.")
+      secure = true,
+      name = "stop",
+      values = {"SEP", "SEPPCC", "SEPNAA"},
+      toUppercase = true,
+      description =
+          "which stop operator to use for predicate cpa (usually SEP should be used in analysis)."
+              + " SEPNAA works the same as SEP, except that it Never stops At Abstraction states."
+              + " SEPNAA is used in bmc-IMC.properties for config bmc-incremental-ABEl to keep"
+              + " exploring covered states.")
   private String stopType = "SEP";
 
   @Option(secure = true, description = "use a precise path formula manager together with imprecise")
   private boolean useImpreciseFormulaManager = false;
 
-  @Option(secure=true, description="Direction of the analysis?")
+  @Option(secure = true, description = "Direction of the analysis?")
   private AnalysisDirection direction = AnalysisDirection.FORWARD;
 
   @Option(
@@ -118,6 +134,12 @@ public class PredicateCPA
           "whether to include the symbolic path formula in the "
               + "coverage checks or do only the fast abstract checks")
   private boolean symbolicCoverageCheck = false;
+
+  @Option(
+      secure = true,
+      name = "enableSharedInformation",
+      description = "Enable to share the information via serialization storage.")
+  private boolean enableSharedInformation = false;
 
   protected final Configuration config;
   protected final LogManager logger;
@@ -162,7 +184,7 @@ public class PredicateCPA
 
     this.config = config;
     this.logger = logger;
-    this.shutdownNotifier = pShutdownNotifier;
+    shutdownNotifier = pShutdownNotifier;
 
     cfa = pCfa;
     blk = pBlk;
@@ -247,6 +269,11 @@ public class PredicateCPA
             abstractionStats,
             statistics);
 
+    // TODO: Only a temporal hack on how to get information about fmgr to TerminationCPA, needs to
+    // be fixed !
+    if (enableSharedInformation) {
+      SerializationInfoStorage.storeSerializationInformation(this, cfa);
+    }
     prec =
         new PredicatePrecisionAdjustment(
             logger,
@@ -285,36 +312,31 @@ public class PredicateCPA
 
   @Override
   public MergeOperator getMergeOperator() {
-    switch (mergeType) {
-      case "SEP":
-        return MergeSepOperator.getInstance();
-      case "ABE":
-        return new PredicateMergeOperator(
-            logger,
-            formulaManager.getBooleanFormulaManager(),
-            getPathFormulaManager(),
-            statistics,
-            mergeAbstractionStates,
-            getPredicateManager(),
-            options.abstractionLattice(),
-            options.joinEffectsIntoUndefs());
-      default:
-        throw new AssertionError("Update list of allowed merge operators");
-    }
+    return switch (mergeType) {
+      case "SEP" -> MergeSepOperator.getInstance();
+      case "ABE" ->
+          new PredicateMergeOperator(
+              logger,
+              formulaManager.getBooleanFormulaManager(),
+              getPathFormulaManager(),
+              statistics,
+              mergeAbstractionStates,
+              getPredicateManager(),
+              options.abstractionLattice(),
+              options.joinEffectsIntoUndefs());
+      default -> throw new AssertionError("Update list of allowed merge operators");
+    };
   }
 
   @Override
   public StopOperator getStopOperator() {
-    switch (stopType) {
-      case "SEP":
-        return new PredicateStopOperator(getAbstractDomain());
-      case "SEPPCC":
-        return new PredicatePCCStopOperator(preciseFormulaManager, getPredicateManager(), solver);
-      case "SEPNAA":
-        return new PredicateNeverAtAbstractionStopOperator(getAbstractDomain());
-      default:
-        throw new AssertionError("Update list of allowed stop operators");
-    }
+    return switch (stopType) {
+      case "SEP" -> new PredicateStopOperator(getAbstractDomain());
+      case "SEPPCC" ->
+          new PredicatePCCStopOperator(preciseFormulaManager, getPredicateManager(), solver);
+      case "SEPNAA" -> new PredicateNeverAtAbstractionStopOperator(getAbstractDomain());
+      default -> throw new AssertionError("Update list of allowed stop operators");
+    };
   }
 
   public PredicateAbstractionManager getPredicateManager() {
@@ -389,7 +411,9 @@ public class PredicateCPA
   }
 
   @Override
-  public boolean areAbstractSuccessors(AbstractState pElement, CFAEdge pCfaEdge, Collection<? extends AbstractState> pSuccessors) throws CPATransferException, InterruptedException {
+  public boolean areAbstractSuccessors(
+      AbstractState pElement, CFAEdge pCfaEdge, Collection<? extends AbstractState> pSuccessors)
+      throws CPATransferException, InterruptedException {
     try {
       return getTransferRelation()
           .areAbstractSuccessors(pElement, pCfaEdge, pSuccessors, computedPathFormulaePcc);
@@ -399,8 +423,10 @@ public class PredicateCPA
   }
 
   @Override
-  public boolean isCoveredBy(AbstractState pElement, AbstractState pOtherElement) throws CPAException, InterruptedException {
-    // isLessOrEqual for proof checking; formula based; elements can be trusted (i.e., invariants do not have to be checked)
+  public boolean isCoveredBy(AbstractState pElement, AbstractState pOtherElement)
+      throws CPAException, InterruptedException {
+    // isLessOrEqual for proof checking; formula based; elements can be trusted (i.e., invariants do
+    // not have to be checked)
 
     PredicateAbstractState e1 = (PredicateAbstractState) pElement;
     PredicateAbstractState e2 = (PredicateAbstractState) pOtherElement;
@@ -445,12 +471,7 @@ public class PredicateCPA
       throws InvalidConfigurationException {
     PathFormulaManager pMgr =
         new PathFormulaManagerImpl(
-            formulaManager,
-            pConfig,
-            logger,
-            shutdownNotifier,
-            cfa,
-            direction);
+            formulaManager, pConfig, logger, shutdownNotifier, cfa, direction);
     if (useCache) {
       pMgr = new CachingPathFormulaManager(pMgr);
     }

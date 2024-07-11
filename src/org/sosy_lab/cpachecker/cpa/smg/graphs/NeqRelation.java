@@ -11,7 +11,7 @@ package org.sosy_lab.cpachecker.cpa.smg.graphs;
 import com.google.common.base.Preconditions;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cpa.smg.graphs.value.SMGValue;
-import org.sosy_lab.cpachecker.cpa.smg.util.PersistentMultimap;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentMultimap;
 
 /**
  * This class tracks Pairs of SMGValues. Implemented as an immutable map. The Multimap is used as
@@ -56,8 +56,8 @@ final class NeqRelation {
   }
 
   /**
-   * replace an old value with a fresh one,
-   * i.e. transform all relations from (A->OLD) towards (A->FRESH) and delete OLD.
+   * replace an old value with a fresh one, i.e. transform all relations from (A->OLD) towards
+   * (A->FRESH) and delete OLD.
    */
   public NeqRelation replaceValueAndCopy(SMGValue fresh, SMGValue old) {
     NeqRelation result = removeValueAndCopy(old);

@@ -8,32 +8,29 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AExpressionAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
+/** AST node for the expression "a = b". */
+public final class CExpressionAssignmentStatement extends AExpressionAssignmentStatement
+    implements CAssignment, CStatement {
 
-/**
- * AST node for the expression "a = b".
- */
-public class CExpressionAssignmentStatement extends AExpressionAssignmentStatement implements CAssignment, CStatement {
+  @Serial private static final long serialVersionUID = -5024636179305930137L;
 
-  private static final long serialVersionUID = -5024636179305930137L;
-
-  public CExpressionAssignmentStatement(FileLocation pFileLocation,
-                                           CLeftHandSide pLeftHandSide,
-                                           CExpression pRightHandSide) {
+  public CExpressionAssignmentStatement(
+      FileLocation pFileLocation, CLeftHandSide pLeftHandSide, CExpression pRightHandSide) {
     super(pFileLocation, pLeftHandSide, pRightHandSide);
-
   }
 
   @Override
   public CLeftHandSide getLeftHandSide() {
-    return (CLeftHandSide)super.getLeftHandSide();
+    return (CLeftHandSide) super.getLeftHandSide();
   }
 
   @Override
   public CExpression getRightHandSide() {
-    return (CExpression)super.getRightHandSide();
+    return (CExpression) super.getRightHandSide();
   }
 
   @Override
@@ -59,10 +56,6 @@ public class CExpressionAssignmentStatement extends AExpressionAssignmentStateme
       return true;
     }
 
-    if (!(obj instanceof CExpressionAssignmentStatement)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CExpressionAssignmentStatement && super.equals(obj);
   }
 }

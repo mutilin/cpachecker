@@ -35,7 +35,7 @@ public class CounterexampleToInductivity {
   public BooleanFormula getFormula(FormulaManagerView pFMGR) {
     BooleanFormulaManager bfmgr = pFMGR.getBooleanFormulaManager();
     BooleanFormula modelFormula = bfmgr.makeTrue();
-    for (Map.Entry<String, ModelValue> valueAssignment : this.model.entrySet()) {
+    for (Map.Entry<String, ModelValue> valueAssignment : model.entrySet()) {
       String variableName = valueAssignment.getKey();
       ModelValue v = valueAssignment.getValue();
       assert variableName.equals(v.getVariableName());
@@ -65,11 +65,9 @@ public class CounterexampleToInductivity {
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof CounterexampleToInductivity) {
-      CounterexampleToInductivity other = (CounterexampleToInductivity) pOther;
-      return model.equals(other.model) && getLocation().equals(other.getLocation());
-    }
-    return false;
+    return pOther instanceof CounterexampleToInductivity other
+        && model.equals(other.model)
+        && getLocation().equals(other.getLocation());
   }
 
   @Override

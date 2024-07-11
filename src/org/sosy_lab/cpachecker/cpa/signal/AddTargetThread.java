@@ -19,5 +19,4 @@ public class AddTargetThread implements SignalEffect {
   public SignalState apply(SignalState pState) {
     return pState.addTargetTo(target);
   }
-
 }

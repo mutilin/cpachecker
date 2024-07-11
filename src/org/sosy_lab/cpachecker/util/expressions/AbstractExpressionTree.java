@@ -8,30 +8,24 @@
 
 package org.sosy_lab.cpachecker.util.expressions;
 
-import com.google.common.base.Function;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
-import org.sosy_lab.cpachecker.core.counterexample.CExpressionToOrinalCodeVisitor;
+import org.sosy_lab.cpachecker.core.counterexample.CExpressionToOriginalCodeVisitor;
 
 abstract class AbstractExpressionTree<LeafType> implements ExpressionTree<LeafType> {
 
   @Override
   public String toString() {
-    return accept(
-        new ToCodeVisitor<>(
-            new Function<LeafType, String>() {
-
-              @Override
-              public String apply(LeafType pLeafExpression) {
-                if (pLeafExpression instanceof CExpression) {
-                  return ((CExpression) pLeafExpression)
-                      .accept(CExpressionToOrinalCodeVisitor.BASIC_TRANSFORMER);
-                }
-                if (pLeafExpression == null) {
-                  return "null";
-                }
-                return pLeafExpression.toString();
-              }
-            }));
+    return accept(new ToCodeVisitor<>(this::formatLeafExpression));
   }
 
+  private String formatLeafExpression(LeafType pLeafExpression) {
+    if (pLeafExpression instanceof CExpression) {
+      return ((CExpression) pLeafExpression)
+          .accept(CExpressionToOriginalCodeVisitor.BASIC_TRANSFORMER);
+    }
+    if (pLeafExpression == null) {
+      return "null";
+    }
+    return pLeafExpression.toString();
+  }
 }

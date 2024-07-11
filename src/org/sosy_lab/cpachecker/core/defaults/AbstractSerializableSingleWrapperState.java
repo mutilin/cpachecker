@@ -11,6 +11,7 @@ package org.sosy_lab.cpachecker.core.defaults;
 import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.collect.ImmutableList;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Set;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -31,12 +32,13 @@ import org.sosy_lab.cpachecker.core.interfaces.Targetable;
 public abstract class AbstractSerializableSingleWrapperState
     implements AbstractWrapperState, Targetable, Partitionable, PseudoPartitionable, Serializable {
 
-  private static final long serialVersionUID = 627183978717358384L;
+  @Serial private static final long serialVersionUID = 627183978717358384L;
 
   private final @Nullable AbstractState wrappedState;
 
   protected AbstractSerializableSingleWrapperState(@Nullable AbstractState pWrappedState) {
-    // TODO this collides with some CPAs' way of handling dummy states, but it should really be not null here
+    // TODO this collides with some CPAs' way of handling dummy states, but it should really be not
+    // null here
     // Preconditions.checkNotNull(pWrappedState);
     wrappedState = pWrappedState;
   }
@@ -47,11 +49,7 @@ public abstract class AbstractSerializableSingleWrapperState
 
   @Override
   public boolean isTarget() {
-    if (wrappedState instanceof Targetable) {
-      return ((Targetable)wrappedState).isTarget();
-    } else {
-      return false;
-    }
+    return wrappedState instanceof Targetable && ((Targetable) wrappedState).isTarget();
   }
 
   @Override
@@ -61,16 +59,16 @@ public abstract class AbstractSerializableSingleWrapperState
   }
 
   @Override
-  public Object getPartitionKey() {
+  public @Nullable Object getPartitionKey() {
     if (wrappedState instanceof Partitionable) {
-      return ((Partitionable)wrappedState).getPartitionKey();
+      return ((Partitionable) wrappedState).getPartitionKey();
     } else {
       return null;
     }
   }
 
   @Override
-  public Comparable<?> getPseudoPartitionKey() {
+  public @Nullable Comparable<?> getPseudoPartitionKey() {
     if (wrappedState instanceof PseudoPartitionable) {
       return ((PseudoPartitionable) wrappedState).getPseudoPartitionKey();
     } else {
@@ -79,7 +77,7 @@ public abstract class AbstractSerializableSingleWrapperState
   }
 
   @Override
-  public Object getPseudoHashCode() {
+  public @Nullable Object getPseudoHashCode() {
     if (wrappedState instanceof PseudoPartitionable) {
       return ((PseudoPartitionable) wrappedState).getPseudoHashCode();
     } else {

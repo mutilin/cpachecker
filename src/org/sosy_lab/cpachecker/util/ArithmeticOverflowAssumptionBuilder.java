@@ -11,11 +11,10 @@ package org.sosy_lab.cpachecker.util;
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableSetCopy;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
@@ -35,6 +34,7 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CComplexCastExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CComplexTypeDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDesignatedInitializer;
+import org.sosy_lab.cpachecker.cfa.ast.c.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionAssignmentStatement;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpressionStatement;
@@ -66,58 +66,57 @@ import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.simplification.ExpressionSimplificationVisitor;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
-import org.sosy_lab.cpachecker.cfa.types.c.CEnumType.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.types.c.CNumericTypes;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
+import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.cpa.assumptions.genericassumptions.GenericAssumptionBuilder;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
 
-/**
- * Generate assumptions related to over/underflow
- * of arithmetic operations
- */
-@Options(prefix="overflow")
-public final class ArithmeticOverflowAssumptionBuilder implements
-                                                 GenericAssumptionBuilder {
+/** Generate assumptions related to over/underflow of arithmetic operations */
+@Options(prefix = "overflow")
+public final class ArithmeticOverflowAssumptionBuilder implements GenericAssumptionBuilder {
 
-  @Option(description = "Only check live variables for overflow,"
-      + " as compiler can remove dead variables.", secure=true)
+  @Option(
+      description =
+          "Only check live variables for overflow, as compiler can remove dead variables.",
+      secure = true)
   private boolean useLiveness = true;
 
-  @Option(description = "Track overflows in left-shift operations.")
+  @Option(description = "Track overflows in left-shift operations.", secure = true)
   private boolean trackLeftShifts = true;
 
-  @Option(description = "Track overflows in additive(+/-) operations.")
+  @Option(description = "Track overflows in additive(+/-) operations.", secure = true)
   private boolean trackAdditiveOperations = true;
 
-  @Option(description = "Track overflows in multiplication operations.")
+  @Option(description = "Track overflows in multiplication operations.", secure = true)
   private boolean trackMultiplications = true;
 
-  @Option(description = "Track overflows in division(/ or %) operations.")
+  @Option(description = "Track overflows in division(/ or %) operations.", secure = true)
   private boolean trackDivisions = true;
 
-  @Option(description = "Track overflows in binary expressions involving pointers.")
+  @Option(description = "Track overflows in binary expressions involving pointers.", secure = true)
   private boolean trackPointers = false;
 
-  @Option(description = "Simplify overflow assumptions.")
+  @Option(description = "Simplify overflow assumptions.", secure = true)
   private boolean simplifyExpressions = true;
 
-  private final Map<CType, CLiteralExpression> upperBounds;
-  private final Map<CType, CLiteralExpression> lowerBounds;
-  private final Map<CType, CLiteralExpression> width;
+  @Option(description = "Check for unsigned integer overflows", secure = true)
+  private boolean checkUnsigned = false;
+
+  private final ImmutableMap<CType, CLiteralExpression> upperBounds;
+  private final ImmutableMap<CType, CLiteralExpression> lowerBounds;
+  private final ImmutableMap<CType, CLiteralExpression> width;
   private final OverflowAssumptionManager ofmgr;
   private final ExpressionSimplificationVisitor simplificationVisitor;
-  private final MachineModel machineModel;
   private final Optional<LiveVariables> liveVariables;
   private final LogManager logger;
 
   public ArithmeticOverflowAssumptionBuilder(
-      CFA cfa,
-      LogManager logger,
-      Configuration pConfiguration) throws InvalidConfigurationException {
-    this(cfa.getMachineModel(),cfa.getLiveVariables(),logger, pConfiguration);
+      CFA cfa, LogManager logger, Configuration pConfiguration)
+      throws InvalidConfigurationException {
+    this(cfa.getMachineModel(), cfa.getLiveVariables(), logger, pConfiguration);
   }
 
   public ArithmeticOverflowAssumptionBuilder(
@@ -128,31 +127,80 @@ public final class ArithmeticOverflowAssumptionBuilder implements
       throws InvalidConfigurationException {
     pConfiguration.inject(this);
     this.logger = logger;
-    this.liveVariables = pLiveVariables;
-    machineModel = pMachineModel;
+    liveVariables = pLiveVariables;
     if (useLiveness) {
       Preconditions.checkState(
-          liveVariables.isPresent(),
-          "Liveness information is required for overflow analysis.");
+          liveVariables.isPresent(), "Liveness information is required for overflow analysis.");
     }
 
-    upperBounds = new HashMap<>();
-    lowerBounds = new HashMap<>();
-    width = new HashMap<>();
+    ImmutableMap.Builder<CType, CLiteralExpression> upperBoundsBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<CType, CLiteralExpression> lowerBoundsBuilder = ImmutableMap.builder();
+    ImmutableMap.Builder<CType, CLiteralExpression> widthBuilder = ImmutableMap.builder();
 
     // TODO: find out if the bare types even occur, or if they are always converted to the SIGNED
     // variants. In that case we could remove the lines with types without the SIGNED_ prefix
     // (though this should really make no difference in performance).
-    trackType(CNumericTypes.INT);
-    trackType(CNumericTypes.SIGNED_INT);
-    trackType(CNumericTypes.LONG_INT);
-    trackType(CNumericTypes.SIGNED_LONG_INT);
-    trackType(CNumericTypes.LONG_LONG_INT);
-    trackType(CNumericTypes.SIGNED_LONG_LONG_INT);
+    trackType(
+        CNumericTypes.INT, pMachineModel, upperBoundsBuilder, lowerBoundsBuilder, widthBuilder);
+    trackType(
+        CNumericTypes.SIGNED_INT,
+        pMachineModel,
+        upperBoundsBuilder,
+        lowerBoundsBuilder,
+        widthBuilder);
+    trackType(
+        CNumericTypes.LONG_INT,
+        pMachineModel,
+        upperBoundsBuilder,
+        lowerBoundsBuilder,
+        widthBuilder);
+    trackType(
+        CNumericTypes.SIGNED_LONG_INT,
+        pMachineModel,
+        upperBoundsBuilder,
+        lowerBoundsBuilder,
+        widthBuilder);
+    trackType(
+        CNumericTypes.LONG_LONG_INT,
+        pMachineModel,
+        upperBoundsBuilder,
+        lowerBoundsBuilder,
+        widthBuilder);
+    trackType(
+        CNumericTypes.SIGNED_LONG_LONG_INT,
+        pMachineModel,
+        upperBoundsBuilder,
+        lowerBoundsBuilder,
+        widthBuilder);
 
-    ofmgr = new OverflowAssumptionManager(machineModel, logger);
+    if (checkUnsigned) {
+      trackType(
+          CNumericTypes.UNSIGNED_INT,
+          pMachineModel,
+          upperBoundsBuilder,
+          lowerBoundsBuilder,
+          widthBuilder);
+      trackType(
+          CNumericTypes.UNSIGNED_LONG_INT,
+          pMachineModel,
+          upperBoundsBuilder,
+          lowerBoundsBuilder,
+          widthBuilder);
+      trackType(
+          CNumericTypes.UNSIGNED_LONG_LONG_INT,
+          pMachineModel,
+          upperBoundsBuilder,
+          lowerBoundsBuilder,
+          widthBuilder);
+    }
+
+    upperBounds = upperBoundsBuilder.buildOrThrow();
+    lowerBounds = lowerBoundsBuilder.buildOrThrow();
+    width = widthBuilder.buildOrThrow();
+
+    ofmgr = new OverflowAssumptionManager(pMachineModel, logger);
     simplificationVisitor =
-        new ExpressionSimplificationVisitor(machineModel, new LogManagerWithoutDuplicates(logger));
+        new ExpressionSimplificationVisitor(pMachineModel, new LogManagerWithoutDuplicates(logger));
   }
 
   /**
@@ -169,7 +217,6 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     // the live variables of the successor.
     CFANode node = pEdge.getPredecessor();
     AssumptionsFinder finder = new AssumptionsFinder(result, node);
-
 
     switch (pEdge.getEdgeType()) {
       case BlankEdge:
@@ -217,7 +264,12 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     return ImmutableSet.copyOf(result);
   }
 
-  private void trackType(CSimpleType type) {
+  private static void trackType(
+      CSimpleType type,
+      MachineModel machineModel,
+      ImmutableMap.Builder<CType, CLiteralExpression> upperBoundsBuilder,
+      ImmutableMap.Builder<CType, CLiteralExpression> lowerBoundsBuilder,
+      ImmutableMap.Builder<CType, CLiteralExpression> widthBoundsBuilder) {
     CIntegerLiteralExpression typeMinValue =
         new CIntegerLiteralExpression(
             FileLocation.DUMMY, type, machineModel.getMinimalIntegerValue(type));
@@ -230,9 +282,9 @@ public final class ArithmeticOverflowAssumptionBuilder implements
             type,
             OverflowAssumptionManager.getWidthForMaxOf(machineModel.getMaximalIntegerValue(type)));
 
-    upperBounds.put(type, typeMaxValue);
-    lowerBounds.put(type, typeMinValue);
-    width.put(type, typeWidth);
+    upperBoundsBuilder.put(type, typeMaxValue);
+    lowerBoundsBuilder.put(type, typeMinValue);
+    widthBoundsBuilder.put(type, typeWidth);
   }
 
   /**
@@ -249,8 +301,7 @@ public final class ArithmeticOverflowAssumptionBuilder implements
 
       Set<ASimpleDeclaration> liveVars = liveVariables.orElseThrow().getLiveVariablesForNode(node);
       if (Sets.intersection(referencedDeclarations, liveVars).isEmpty()) {
-        logger.log(Level.FINE, "No live variables found in expression", exp,
-            "skipping");
+        logger.log(Level.FINE, "No live variables found in expression", exp, "skipping");
         return;
       }
     }
@@ -258,7 +309,7 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     if (isBinaryExpressionThatMayOverflow(exp)) {
       CBinaryExpression binexp = (CBinaryExpression) exp;
       BinaryOperator binop = binexp.getOperator();
-      CType calculationType = binexp.getCalculationType();
+      CType calculationType = CTypes.copyDequalified(binexp.getCalculationType());
       CExpression op1 = binexp.getOperand1();
       CExpression op2 = binexp.getOperand2();
       if (trackAdditiveOperations
@@ -286,7 +337,7 @@ public final class ArithmeticOverflowAssumptionBuilder implements
         }
       }
     } else if (exp instanceof CUnaryExpression) {
-      CType calculationType = exp.getExpressionType();
+      CType calculationType = CTypes.copyDequalified(exp.getExpressionType());
       CUnaryExpression unaryexp = (CUnaryExpression) exp;
       if (unaryexp.getOperator().equals(CUnaryExpression.UnaryOperator.MINUS)
           && lowerBounds.get(calculationType) != null) {
@@ -297,12 +348,10 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     } else {
       // TODO: check out and implement in case this happens
     }
-
   }
 
   private boolean isBinaryExpressionThatMayOverflow(CExpression pExp) {
-    if (pExp instanceof CBinaryExpression) {
-      CBinaryExpression binexp = (CBinaryExpression) pExp;
+    if (pExp instanceof CBinaryExpression binexp) {
       CExpression op1 = binexp.getOperand1();
       CExpression op2 = binexp.getOperand2();
       if (op1.getExpressionType() instanceof CPointerType
@@ -318,7 +367,6 @@ public final class ArithmeticOverflowAssumptionBuilder implements
       return false;
     }
   }
-
 
   private class AssumptionsFinder extends DefaultCExpressionVisitor<Void, UnrecognizedCodeException>
       implements CStatementVisitor<Void, UnrecognizedCodeException>,
@@ -394,8 +442,8 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     @Override
     public Void visit(CFunctionCallAssignmentStatement pIastFunctionCallAssignmentStatement)
         throws UnrecognizedCodeException {
-      for (CExpression arg : pIastFunctionCallAssignmentStatement
-          .getRightHandSide().getParameterExpressions()) {
+      for (CExpression arg :
+          pIastFunctionCallAssignmentStatement.getRightHandSide().getParameterExpressions()) {
         arg.accept(this);
       }
       return null;
@@ -404,9 +452,8 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     @Override
     public Void visit(CFunctionCallStatement pIastFunctionCallStatement)
         throws UnrecognizedCodeException {
-      for (CExpression arg : pIastFunctionCallStatement
-          .getFunctionCallExpression()
-          .getParameterExpressions()) {
+      for (CExpression arg :
+          pIastFunctionCallStatement.getFunctionCallExpression().getParameterExpressions()) {
         arg.accept(this);
       }
       return null;
@@ -477,9 +524,7 @@ public final class ArithmeticOverflowAssumptionBuilder implements
     }
   }
 
-  /**
-   * Whether the given operator can create new expression.
-   */
+  /** Whether the given operator can create new expression. */
   private boolean resultCanOverflow(CExpression expr) {
     if (expr instanceof CBinaryExpression) {
       switch (((CBinaryExpression) expr).getOperator()) {
@@ -503,14 +548,11 @@ public final class ArithmeticOverflowAssumptionBuilder implements
           return false;
       }
     } else if (expr instanceof CUnaryExpression) {
-      switch (((CUnaryExpression) expr).getOperator()) {
-        case MINUS:
-          return true;
-        default:
-          return false;
-      }
+      return switch (((CUnaryExpression) expr).getOperator()) {
+        case MINUS -> true;
+        default -> false;
+      };
     }
     return false;
   }
-
 }

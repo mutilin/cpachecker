@@ -19,7 +19,7 @@ public final class PropertyTargetInformation implements TargetInformation {
   private final Property property;
 
   private PropertyTargetInformation(Property pProperty) {
-    this.property = Preconditions.checkNotNull(pProperty);
+    property = Preconditions.checkNotNull(pProperty);
   }
 
   public Property getProperty() {
@@ -33,10 +33,8 @@ public final class PropertyTargetInformation implements TargetInformation {
 
   @Override
   public boolean equals(Object pOther) {
-    if (!(pOther instanceof PropertyTargetInformation)) {
-      return false;
-    }
-    return this.property.equals(((PropertyTargetInformation) pOther).property);
+    return pOther instanceof PropertyTargetInformation
+        && property.equals(((PropertyTargetInformation) pOther).property);
   }
 
   @Override
@@ -51,5 +49,4 @@ public final class PropertyTargetInformation implements TargetInformation {
   public static ImmutableSet<TargetInformation> singleton(final Property pProperty) {
     return ImmutableSet.of(PropertyTargetInformation.create(pProperty));
   }
-
 }

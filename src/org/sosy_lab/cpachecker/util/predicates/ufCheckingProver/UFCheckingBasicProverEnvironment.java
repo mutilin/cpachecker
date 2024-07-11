@@ -30,9 +30,8 @@ import org.sosy_lab.java_smt.api.Model.ValueAssignment;
 import org.sosy_lab.java_smt.api.SolverException;
 
 /**
- * Get the model, substitute implementation for UFs which were used to replace
- * non-linear numerical operations (overflow/etc), and if the model does not
- * hold anymore, generate a new one.
+ * Get the model, substitute implementation for UFs which were used to replace non-linear numerical
+ * operations (overflow/etc), and if the model does not hold anymore, generate a new one.
  */
 public class UFCheckingBasicProverEnvironment<T> implements BasicProverEnvironment<T> {
 
@@ -47,16 +46,14 @@ public class UFCheckingBasicProverEnvironment<T> implements BasicProverEnvironme
   // because we keep constraints, until the last pushed formula is popped.
   private final Deque<Integer> pushedConstraints = new ArrayDeque<>();
 
-
-  @Options(prefix="cpa.predicate.solver.ufCheckingProver")
+  @Options(prefix = "cpa.predicate.solver.ufCheckingProver")
   public static class UFCheckingProverOptions {
 
     /**
-     * For some UFs we can compute the correct result for the given parameters,
-     * but then the solver chooses new parameters and we have to compute a new result. Again, and again.
-     * Example: we try to solve "a=2 & UF_multiply(a,b)=5" and try b=[1,2,3,...].
-     * Thus we abort after some iterations and ignore the invalid result of the UF.
-     * This procedure should be sound.
+     * For some UFs we can compute the correct result for the given parameters, but then the solver
+     * chooses new parameters and we have to compute a new result. Again, and again. Example: we try
+     * to solve "a=2 & UF_multiply(a,b)=5" and try b=[1,2,3,...]. Thus we abort after some
+     * iterations and ignore the invalid result of the UF. This procedure should be sound.
      */
     @Option(description = "How often should we try to get a better evaluation?")
     private int maxIterationNum = 5;
@@ -73,13 +70,16 @@ public class UFCheckingBasicProverEnvironment<T> implements BasicProverEnvironme
     }
   }
 
-  public UFCheckingBasicProverEnvironment(LogManager pLogger, BasicProverEnvironment<T> bpe,
-      FormulaManagerView pFmgr, UFCheckingProverOptions options) {
-    this.delegate = bpe;
-    this.logger = pLogger;
-    this.bfmgr = pFmgr.getBooleanFormulaManager();
-    this.faMgr = new FunctionApplicationManager(pFmgr, pLogger, options);
-    this.options = options;
+  public UFCheckingBasicProverEnvironment(
+      LogManager pLogger,
+      BasicProverEnvironment<T> bpe,
+      FormulaManagerView pFmgr,
+      UFCheckingProverOptions pOptions) {
+    delegate = bpe;
+    logger = pLogger;
+    bfmgr = pFmgr.getBooleanFormulaManager();
+    faMgr = new FunctionApplicationManager(pFmgr, pLogger, pOptions);
+    options = pOptions;
   }
 
   @Override
@@ -112,12 +112,17 @@ public class UFCheckingBasicProverEnvironment<T> implements BasicProverEnvironme
   }
 
   @Override
-  public void push() {
+  public void push() throws InterruptedException {
 
     // add new level
     pushedConstraints.addLast(0);
 
     delegate.push();
+  }
+
+  @Override
+  public int size() {
+    return delegate.size();
   }
 
   @Override

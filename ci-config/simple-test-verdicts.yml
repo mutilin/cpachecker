@@ -14,18 +14,18 @@ lockStatistics-linux.properties:
   test/programs/cpalockator/simple/simple-5-safe.c: 'TRUE'
 lockStatistics-threadmodular-linux.properties:
   extends: lockStatistics-linux.properties
--lockator-linux-lightweight:
+--lockator-linux-lightweight:
   extends: lockStatistics-linux.properties
   test/programs/cpalockator/simple/simple-1-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-2-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-3-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-4-unsafe.c: 'TRUE'
   test/programs/cpalockator/simple/simple-5-unsafe.c: 'TRUE'
--lockator-linux:
-  extends: -lockator-linux-lightweight
--lockator-linux-shared-ref:
-  extends: -lockator-linux-lightweight
--lockator-linux-pre-shared-ref:
-  extends: -lockator-linux-lightweight
--lockator-threadmodular-linux:
-  extends: -lockator-linux-lightweight
+--lockator-linux:
+  extends: --lockator-linux-lightweight
+--lockator-linux-shared-ref:
+  extends: --lockator-linux-lightweight
+--lockator-linux-pre-shared-ref:
+  extends: --lockator-linux-lightweight
+--lockator-threadmodular-linux:
+  extends: --lockator-linux-lightweight

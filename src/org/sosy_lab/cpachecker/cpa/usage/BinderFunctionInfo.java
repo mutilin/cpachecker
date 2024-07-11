@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cpa.usage;
 
 import static com.google.common.collect.FluentIterable.from;
 
+import com.google.common.base.Ascii;
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
@@ -63,7 +64,8 @@ public class BinderFunctionInfo {
       parameterInfo =
           from(Splitter.on(",").splitToList(line))
               .transform(s -> Splitter.on(":").splitToList(s))
-              .transform(s -> Pair.of(Access.valueOf(s.get(0).toUpperCase()), getNumOrDefault(s)))
+              .transform(
+                  s -> Pair.of(Access.valueOf(Ascii.toUpperCase(s.get(0))), getNumOrDefault(s)))
               .toList();
 
       line = pConfig.getProperty(name + ".linkInfo");
@@ -95,9 +97,7 @@ public class BinderFunctionInfo {
   }
 
   public Collection<Pair<AbstractIdentifier, AbstractIdentifier>> constructIdentifiers(
-      final CExpression left,
-      final List<CExpression> params,
-      IdentifierCreator creator) {
+      final CExpression left, final List<CExpression> params, IdentifierCreator creator) {
 
     AbstractIdentifier idIn = constructIdentifier(linkInfo.getFirst(), left, params, creator);
     AbstractIdentifier idFrom = constructIdentifier(linkInfo.getSecond(), left, params, creator);

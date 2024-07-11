@@ -20,15 +20,15 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 import org.sosy_lab.cpachecker.cpa.smg.join.SMGJoinStatus;
-import org.sosy_lab.cpachecker.cpa.smg.util.PersistentSet;
 import org.sosy_lab.cpachecker.util.Pair;
 import org.sosy_lab.cpachecker.util.smg.SMG;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentSet;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGHasValueEdge;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGObject;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGPointsToEdge;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGValue;
 
-//TODO enable this tests once the write value reinterpretation was implemented
+// TODO enable this tests once the write value reinterpretation was implemented
 public class SMGJoinFieldsTest extends SMGJoinTest0 {
 
   private SMG smg1;
@@ -75,9 +75,9 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     smg2 = smg2.copyAndAddObject(obj2);
     smg2 = smg2.copyAndAddObject(oth2);
 
-    smg1 = smg1.copyAndAddValue(value1);
-    smg2 = smg2.copyAndAddValue(value2);
-    smg2 = smg2.copyAndAddValue(otherValue);
+    smg1 = smg1.copyAndAddValueWithNestingLevelZero(value1);
+    smg2 = smg2.copyAndAddValueWithNestingLevelZero(value2);
+    smg2 = smg2.copyAndAddValueWithNestingLevelZero(otherValue);
 
     smg1 = smg1.copyAndAddHVEdge(obj1hv1at0, obj1);
     smg1 = smg1.copyAndAddHVEdge(obj1hv2at7, obj1);
@@ -114,8 +114,8 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     checkFields(join.getSmg2(), fieldMap2, obj2);
   }
 
-  private void
-      checkFields(SMG pSmg, Map<BigInteger, Pair<SMGValue, BigInteger>> pFieldMap, SMGObject pObj) {
+  private void checkFields(
+      SMG pSmg, Map<BigInteger, Pair<SMGValue, BigInteger>> pFieldMap, SMGObject pObj) {
 
     Set<SMGHasValueEdge> edges = pSmg.getEdges(pObj);
 
@@ -141,7 +141,6 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     }
   }
 
-
   @Test
   @Ignore
   public void processHVEdgeSetTest() {
@@ -152,7 +151,7 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     smg2 = smg2.copyAndAddObject(obj);
     smg1 = smg1.copyAndAddObject(differentObject);
 
-    smg2 = smg2.copyAndAddValue(value1);
+    smg2 = smg2.copyAndAddValueWithNestingLevelZero(value1);
 
     SMGHasValueEdge hv0for4at0in1 = createHasValueEdgeToZero(mockType4bSize);
     SMGHasValueEdge hv0for4at0in2 = createHasValueEdgeToZero(mockType4bSize);
@@ -204,8 +203,8 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     SMGHasValueEdge smg1_4bFrom8ToNull = createHasValueEdgeToZero(mockType4bSize, 64);
 
     smg1 = smg1.copyAndAddObject(object);
-    smg1 = smg1.copyAndAddValue(value1);
-    smg1 = smg1.copyAndAddValue(value2);
+    smg1 = smg1.copyAndAddValueWithNestingLevelZero(value1);
+    smg1 = smg1.copyAndAddValueWithNestingLevelZero(value2);
     smg1 = smg1.copyAndAddHVEdge(smg1_4bFrom8ToNull, object);
     smg1 = smg1.copyAndAddHVEdge(smg1_4bFrom4ToV2, object);
     smg1 = smg1.copyAndAddHVEdge(smg1_4bFrom0ToV1, object);
@@ -234,7 +233,7 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     assertThat(seenZero).isTrue();
     assertThat(seenTwo).isTrue();
 
-    smg2 = smg2.copyAndAddValue(value1);
+    smg2 = smg2.copyAndAddValueWithNestingLevelZero(value1);
     smg2 = smg2.copyAndAddHVEdge(smg1_4bFrom0ToV1, object);
 
     hvSet = jFields.mergeNonNullValues(smg1, smg2, object, object).toSet();
@@ -250,7 +249,7 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     smg2 = smg2.copyAndAddObject(obj2);
 
     SMGValue value3 = createValue();
-    smg1 = smg1.copyAndAddValue(value3);
+    smg1 = smg1.copyAndAddValueWithNestingLevelZero(value3);
     smg1 = smg1.copyAndAddHVEdge(createHasValueEdge(mockType4bSize, value3), obj1);
 
     SMGJoinFields jf = new SMGJoinFields(smg1, smg2);
@@ -458,7 +457,6 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     assertThrows(IllegalArgumentException.class, () -> jFields.joinFields(obj1, obj2));
   }
 
-
   @Test
   public void nonMemberObjectTest2() {
     SMG smg3 = new SMG(mockType32bSize);
@@ -471,5 +469,4 @@ public class SMGJoinFieldsTest extends SMGJoinTest0 {
     SMGJoinFields jFields = new SMGJoinFields(smg3, smg4);
     assertThrows(IllegalArgumentException.class, () -> jFields.joinFields(obj1, obj2));
   }
-
 }

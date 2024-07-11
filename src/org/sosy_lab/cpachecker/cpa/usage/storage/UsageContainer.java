@@ -165,7 +165,9 @@ public class UsageContainer {
   public void removeState(final UsageState pUstate) {
     unrefinedIds.forEach((id, uset) -> uset.remove(pUstate));
     anyIds.remove(pUstate);
-    logger.log(Level.ALL, "All unsafes related to key state " + pUstate + " were removed from reached set");
+    logger.log(
+        Level.ALL,
+        "All unsafes related to key state " + pUstate + " were removed from reached set");
   }
 
   public UnrefinedUsagePointSet getUnrefinedUsages(AbstractIdentifier id) {
@@ -182,7 +184,8 @@ public class UsageContainer {
   }
 
   public void setAsRefined(AbstractIdentifier id, RefinementResult result) {
-    Preconditions.checkArgument(result.isTrue(), "Result is not true, can not set the set as refined");
+    Preconditions.checkArgument(
+        result.isTrue(), "Result is not true, can not set the set as refined");
     checkArgument(
         detector.isUnsafe(getUnrefinedUsages(id)),
         "Refinement is successful, but the unsafe is absent for identifier %s",

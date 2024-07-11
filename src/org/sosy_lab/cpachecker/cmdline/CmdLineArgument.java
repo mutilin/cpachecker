@@ -8,28 +8,44 @@
 
 package org.sosy_lab.cpachecker.cmdline;
 
+import static com.google.common.base.Preconditions.checkState;
+import static com.google.common.collect.FluentIterable.from;
 import static org.sosy_lab.cpachecker.cmdline.CmdLineArguments.putIfNotExistent;
 
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableSet;
+import com.google.errorprone.annotations.CanIgnoreReturnValue;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cmdline.CmdLineArguments.InvalidCmdlineArgumentException;
 
 abstract class CmdLineArgument implements Comparable<CmdLineArgument> {
 
   private final ImmutableSet<String> names;
   private String description = ""; // changed later, if needed
+  private @Nullable String replacementInfo;
 
   CmdLineArgument(String... pNames) {
     names = ImmutableSet.copyOf(pNames);
   }
 
+  @CanIgnoreReturnValue
   CmdLineArgument withDescription(String pDescription) {
     description = pDescription;
     return this;
+  }
+
+  @CanIgnoreReturnValue
+  CmdLineArgument withReplacementInfo(String pDeprecationNotice) {
+    replacementInfo = pDeprecationNotice;
+    return this;
+  }
+
+  String getMainName() {
+    return names.asList().get(0);
   }
 
   @Override
@@ -52,7 +68,8 @@ abstract class CmdLineArgument implements Comparable<CmdLineArgument> {
 
   @Override
   public String toString() {
-    String s = Joiner.on("/").join(names);
+    String s =
+        from(names).filter(arg -> !CmdLineArguments.isOldStyleArgument(arg)).join(Joiner.on("/"));
     if (description.isEmpty()) {
       return s;
     } else {
@@ -61,56 +78,42 @@ abstract class CmdLineArgument implements Comparable<CmdLineArgument> {
     }
   }
 
-  boolean apply(
-      Map<String, String> properties,
-      String currentArg,
-      Iterator<String> argsIt)
+  boolean apply(Map<String, String> properties, String currentArg, Iterator<String> argsIt)
       throws InvalidCmdlineArgumentException {
     if (names.contains(currentArg)) {
+      if (replacementInfo != null) {
+        Output.warning(
+            "The command-line argument '%s' is deprecated. It can be replaced by %s.",
+            currentArg, replacementInfo);
+      }
       apply0(properties, currentArg, argsIt);
       return true;
     }
     return false;
   }
 
-  abstract void apply0(
-      Map<String, String> properties,
-      String currentArg,
-      Iterator<String> argsIt)
+  abstract void apply0(Map<String, String> properties, String currentArg, Iterator<String> argsIt)
       throws InvalidCmdlineArgumentException;
 
   /** The arg is a short replacement for an option with 'one' value given as next argument. */
   static class CmdLineArgument1 extends CmdLineArgument {
 
-    private final String option;
+    private String option;
 
-    CmdLineArgument1(String pName) {
-      super(pName);
-      option = "";
+    CmdLineArgument1(String... pNames) {
+      super(pNames);
     }
 
-    CmdLineArgument1(String pName, String pOption) {
-      super(pName);
+    CmdLineArgument1 settingOption(String pOption) {
       option = pOption;
-    }
-
-    CmdLineArgument1(String pName1, String pName2, String pOption) {
-      super(pName1, pName2);
-      option = pOption;
-    }
-
-    String getOption() {
-      return option;
+      return this;
     }
 
     @Override
-    final void apply0(
-        Map<String, String> properties,
-        String currentArg,
-        Iterator<String> args)
+    final void apply0(Map<String, String> properties, String currentArg, Iterator<String> args)
         throws InvalidCmdlineArgumentException {
       if (args.hasNext()) {
-        handleArg(properties, args.next());
+        handleArg(properties, currentArg, args.next());
       } else {
         throw new InvalidCmdlineArgumentException(currentArg + " argument missing.");
       }
@@ -120,13 +123,13 @@ abstract class CmdLineArgument implements Comparable<CmdLineArgument> {
      * Handles a command-line argument.
      *
      * @param pProperties the map of configuration properties.
-     * @param pArg the value of the configuration option represented by this argument.
+     * @param pCurrentArg the command-line argument that is currently being handled
+     * @param pArgValue the value of the configuration option represented by this argument.
      */
-    void handleArg(
-        Map<String, String> pProperties,
-        String pArg)
+    void handleArg(Map<String, String> pProperties, String pCurrentArg, String pArgValue)
         throws InvalidCmdlineArgumentException {
-      putIfNotExistent(pProperties, option, pArg);
+      checkState(option != null);
+      putIfNotExistent(pProperties, option, pArgValue);
     }
   }
 
@@ -136,25 +139,24 @@ abstract class CmdLineArgument implements Comparable<CmdLineArgument> {
     private final Map<String, String> additionalIfNotExistentArgs = new HashMap<>();
     private final Map<String, String> additionalArgs = new HashMap<>();
 
-    PropertyAddingCmdLineArgument(String pName) {
-      super(pName);
+    PropertyAddingCmdLineArgument(String... pNames) {
+      super(pNames);
     }
 
+    @CanIgnoreReturnValue
     PropertyAddingCmdLineArgument settingProperty(String pName, String pValue) {
       additionalIfNotExistentArgs.put(pName, pValue);
       return this;
     }
 
+    @CanIgnoreReturnValue
     PropertyAddingCmdLineArgument overridingProperty(String pName, String pValue) {
       additionalArgs.put(pName, pValue);
       return this;
     }
 
     @Override
-    void apply0(
-        Map<String, String> properties,
-        String currentArg,
-        Iterator<String> args)
+    void apply0(Map<String, String> properties, String currentArg, Iterator<String> args)
         throws InvalidCmdlineArgumentException {
       for (Entry<String, String> e : additionalIfNotExistentArgs.entrySet()) {
         putIfNotExistent(properties, e.getKey(), e.getValue());

@@ -79,19 +79,22 @@ public class IntervalReportWriter extends FaultReportWriter {
     formulaManager.visit(interval.getInvariant(), visitor);
 
     Map<Integer, String> distinctRelevantStatements = getDistinctStatements(correspondingEdges);
-    String header = "Interpolant <strong>" + index + "</strong>:<br>"
-        + " <textarea readonly class=\"interval-scrollbox\">"
-        + visitor.getString()
-        + "</textarea><br>";
+    String header =
+        "Interpolant <strong>"
+            + index
+            + "</strong>:<br>"
+            + " <textarea readonly class=\"interval-scrollbox\">"
+            + visitor.getString()
+            + "</textarea><br>";
     StringBuilder html = new StringBuilder();
 
     if (!distinctRelevantStatements.isEmpty()) {
       html.append(" Relevant lines:\n<ul class=\"fault-lines\">\n");
       distinctRelevantStatements.entrySet().stream()
-          .sorted(Comparator.comparingInt(e -> e.getKey()))
+          .sorted(Map.Entry.comparingByKey())
           .forEach(
               e ->
-                  html.append("<li>" + "<span class=\"line-number\">")
+                  html.append("<li><span class=\"line-number\">")
                       .append(e.getKey())
                       .append("</span>")
                       .append("<span class=\"line-content\">")

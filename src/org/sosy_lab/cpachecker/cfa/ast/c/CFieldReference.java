@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
@@ -21,16 +22,17 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public final class CFieldReference extends AbstractExpression implements CLeftHandSide {
 
-  private static final long serialVersionUID = 3207784831993480113L;
-  private final String         name;
+  @Serial private static final long serialVersionUID = 3207784831993480113L;
+  private final String name;
   private final CExpression owner;
-  private final boolean        isPointerDereference;
+  private final boolean isPointerDereference;
 
-  public CFieldReference(final FileLocation pFileLocation,
-                            final CType pType,
-                            final String pName,
-                            final CExpression pOwner,
-                            final boolean pIsPointerDereference) {
+  public CFieldReference(
+      final FileLocation pFileLocation,
+      final CType pType,
+      final String pName,
+      final CExpression pOwner,
+      final boolean pIsPointerDereference) {
     super(pFileLocation, pType);
     name = pName;
     owner = pOwner;
@@ -91,8 +93,8 @@ public final class CFieldReference extends AbstractExpression implements CLeftHa
   }
 
   /**
-   * Convert an expression {@code s->m} to the equivalent {@code (*s).m}.
-   * Other expressions are returned unchanged.
+   * Convert an expression {@code s->m} to the equivalent {@code (*s).m}. Other expressions are
+   * returned unchanged.
    */
   public CFieldReference withExplicitPointerDereference() {
     if (!isPointerDereference) {
@@ -135,13 +137,13 @@ public final class CFieldReference extends AbstractExpression implements CLeftHa
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     String left =
         (owner instanceof CFieldReference)
-            ? owner.toASTString(pQualified)
-            : owner.toParenthesizedASTString(pQualified);
+            ? owner.toASTString(pAAstNodeRepresentation)
+            : owner.toParenthesizedASTString(pAAstNodeRepresentation);
     String op = isPointerDereference ? "->" : ".";
-    return left + op  + name;
+    return left + op + name;
   }
 
   @Override
@@ -155,16 +157,10 @@ public final class CFieldReference extends AbstractExpression implements CLeftHa
       return true;
     }
 
-    if (!(obj instanceof CFieldReference)
-        || !super.equals(obj)) {
-      return false;
-    }
-
-    CFieldReference other = (CFieldReference) obj;
-
-    return other.isPointerDereference == isPointerDereference
+    return obj instanceof CFieldReference other
+        && super.equals(obj)
+        && other.isPointerDereference == isPointerDereference
         && Objects.equals(other.name, name)
         && Objects.equals(other.owner, owner);
   }
-
 }

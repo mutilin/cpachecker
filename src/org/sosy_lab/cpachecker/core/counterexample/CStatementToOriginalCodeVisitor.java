@@ -23,28 +23,29 @@ import org.sosy_lab.cpachecker.exceptions.NoException;
 /**
  * Like toASTString, but with original names.
  *
- * NOT necessarily equivalent to specific parts of the original code file.
+ * <p>NOT necessarily equivalent to specific parts of the original code file.
  */
 enum CStatementToOriginalCodeVisitor implements CStatementVisitor<String, NoException> {
-
   INSTANCE;
 
   @Override
   public String visit(CExpressionStatement pIastExpressionStatement) {
     return pIastExpressionStatement
             .getExpression()
-            .accept(CExpressionToOrinalCodeVisitor.BASIC_TRANSFORMER)
+            .accept(CExpressionToOriginalCodeVisitor.BASIC_TRANSFORMER)
         + ";";
   }
 
   @Override
   public String visit(CExpressionAssignmentStatement pIastExpressionAssignmentStatement) {
 
-    CExpressionToOrinalCodeVisitor expressionToOrinalCodeVisitor =
-        CExpressionToOrinalCodeVisitor.BASIC_TRANSFORMER;
+    CExpressionToOriginalCodeVisitor expressionToOrinalCodeVisitor =
+        CExpressionToOriginalCodeVisitor.BASIC_TRANSFORMER;
 
-    String leftHandSide = pIastExpressionAssignmentStatement.getLeftHandSide().accept(expressionToOrinalCodeVisitor);
-    String rightHandSide = pIastExpressionAssignmentStatement.getRightHandSide().accept(expressionToOrinalCodeVisitor);
+    String leftHandSide =
+        pIastExpressionAssignmentStatement.getLeftHandSide().accept(expressionToOrinalCodeVisitor);
+    String rightHandSide =
+        pIastExpressionAssignmentStatement.getRightHandSide().accept(expressionToOrinalCodeVisitor);
 
     return leftHandSide + " == " + rightHandSide + "; ";
   }
@@ -52,22 +53,24 @@ enum CStatementToOriginalCodeVisitor implements CStatementVisitor<String, NoExce
   @Override
   public String visit(CFunctionCallAssignmentStatement pIastFunctionCallAssignmentStatement) {
 
-    CExpressionToOrinalCodeVisitor expressionToOrinalCodeVisitor =
-        CExpressionToOrinalCodeVisitor.BASIC_TRANSFORMER;
+    CExpressionToOriginalCodeVisitor expressionToOrinalCodeVisitor =
+        CExpressionToOriginalCodeVisitor.BASIC_TRANSFORMER;
 
-    String leftHandSide = pIastFunctionCallAssignmentStatement.getLeftHandSide().accept(expressionToOrinalCodeVisitor);
-    String rightHandSide = handleFunctionCallExpression(
-        pIastFunctionCallAssignmentStatement.getFunctionCallExpression());
+    String leftHandSide =
+        pIastFunctionCallAssignmentStatement
+            .getLeftHandSide()
+            .accept(expressionToOrinalCodeVisitor);
+    String rightHandSide =
+        handleFunctionCallExpression(
+            pIastFunctionCallAssignmentStatement.getFunctionCallExpression());
 
-    return leftHandSide
-        + " == "
-        + rightHandSide
-        + "; ";
+    return leftHandSide + " == " + rightHandSide + "; ";
   }
 
   @Override
   public String visit(CFunctionCallStatement pIastFunctionCallStatement) {
-    return handleFunctionCallExpression(pIastFunctionCallStatement.getFunctionCallExpression()) + ";";
+    return handleFunctionCallExpression(pIastFunctionCallStatement.getFunctionCallExpression())
+        + ";";
   }
 
   private static String handleFunctionCallExpression(
@@ -81,14 +84,13 @@ enum CStatementToOriginalCodeVisitor implements CStatementVisitor<String, NoExce
             lASTString,
             transform(
                 pFunctionCallExpression.getParameterExpressions(),
-                pInput -> pInput.accept(CExpressionToOrinalCodeVisitor.BASIC_TRANSFORMER)));
+                pInput -> pInput.accept(CExpressionToOriginalCodeVisitor.BASIC_TRANSFORMER)));
     lASTString.append(")");
 
     return lASTString.toString();
   }
 
   private static String parenthesize(CExpression pInput) {
-    return CExpressionToOrinalCodeVisitor.BASIC_TRANSFORMER.parenthesize(pInput);
+    return CExpressionToOriginalCodeVisitor.BASIC_TRANSFORMER.parenthesize(pInput);
   }
-
 }

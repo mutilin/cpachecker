@@ -287,9 +287,8 @@ public class LocationApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     return ProjectedLocationStateWithEdge.getInstance();
   }
-
 }

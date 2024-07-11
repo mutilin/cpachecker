@@ -169,12 +169,8 @@ public class UsageProcessor {
     return ImmutableList.copyOf(result);
   }
 
-  protected Collection<UsageInfo>
-      createUsagesForEdge(
-          @SuppressWarnings("unused") ARGState parent,
-          ARGState child,
-          CFANode node,
-          CFAEdge edge) {
+  protected Collection<UsageInfo> createUsagesForEdge(
+      @SuppressWarnings("unused") ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
     Collection<Pair<AbstractIdentifier, Access>> ids;
     List<UsageInfo> result = new ArrayList<>();
 
@@ -205,8 +201,7 @@ public class UsageProcessor {
     return result;
   }
 
-  protected Collection<Pair<AbstractIdentifier, Access>>
-      getIdsForEdge(CFAEdge pCfaEdge) {
+  protected Collection<Pair<AbstractIdentifier, Access>> getIdsForEdge(CFAEdge pCfaEdge) {
 
     // From successor!
     String fName = pCfaEdge.getSuccessor().getFunctionName();
@@ -227,10 +222,7 @@ public class UsageProcessor {
 
       case AssumeEdge:
         {
-        return visitStatement(
-            fName,
-            ((CAssumeEdge) pCfaEdge).getExpression(),
-            Access.READ);
+          return visitStatement(fName, ((CAssumeEdge) pCfaEdge).getExpression(), Access.READ);
         }
 
       case FunctionCallEdge:
@@ -238,20 +230,20 @@ public class UsageProcessor {
           return handleFunctionCall(fName, (CFunctionCallEdge) pCfaEdge);
         }
 
-        case ReturnStatementEdge:
+      case ReturnStatementEdge:
         {
           return handleReturnStatement(fName, (CReturnStatementEdge) pCfaEdge);
         }
 
       default:
         {
-        return ImmutableSet.of();
+          return ImmutableSet.of();
         }
     }
   }
 
-  private Collection<Pair<AbstractIdentifier, Access>>
-      handleReturnStatement(String fName, CReturnStatementEdge edge) {
+  private Collection<Pair<AbstractIdentifier, Access>> handleReturnStatement(
+      String fName, CReturnStatementEdge edge) {
     CExpression expr = edge.getExpression().orElse(null);
     if (expr != null) {
       return visitStatement(fName, expr, Access.READ);
@@ -259,8 +251,8 @@ public class UsageProcessor {
     return ImmutableSet.of();
   }
 
-  private Collection<Pair<AbstractIdentifier, Access>>
-      handleFunctionCall(String fName, CFunctionCallEdge edge) {
+  private Collection<Pair<AbstractIdentifier, Access>> handleFunctionCall(
+      String fName, CFunctionCallEdge edge) {
     CStatement statement = edge.getFunctionCall();
 
     if (statement instanceof CFunctionCallAssignmentStatement) {
@@ -279,14 +271,13 @@ public class UsageProcessor {
 
     } else if (statement instanceof CFunctionCallStatement) {
       return handleFunctionCallExpression(
-          fName,
-          ((CFunctionCallStatement) statement).getFunctionCallExpression());
+          fName, ((CFunctionCallStatement) statement).getFunctionCallExpression());
     }
     return ImmutableSet.of();
   }
 
-  private Collection<Pair<AbstractIdentifier, Access>>
-      handleDeclaration(String fName, CDeclarationEdge declEdge) {
+  private Collection<Pair<AbstractIdentifier, Access>> handleDeclaration(
+      String fName, CDeclarationEdge declEdge) {
 
     if (declEdge.getDeclaration().getClass() != CVariableDeclaration.class) {
       // not a variable declaration
@@ -318,8 +309,7 @@ public class UsageProcessor {
   }
 
   private Collection<Pair<AbstractIdentifier, Access>> handleFunctionCallExpression(
-      String fName,
-      final CFunctionCallExpression fcExpression) {
+      String fName, final CFunctionCallExpression fcExpression) {
 
     String functionCallName = fcExpression.getFunctionNameExpression().toASTString();
 
@@ -327,13 +317,11 @@ public class UsageProcessor {
 
     if (atomicReadFunctions.contains(functionCallName)) {
       List<CExpression> params = fcExpression.getParameterExpressions();
-      AbstractIdentifier id =
-          Identifiers.createIdentifier(params.get(0), 1, fName);
+      AbstractIdentifier id = Identifiers.createIdentifier(params.get(0), 1, fName);
       internalIds.add(Pair.of(id, Access.ATOMIC_READ));
     } else if (atomicWriteFunctions.contains(functionCallName)) {
       List<CExpression> params = fcExpression.getParameterExpressions();
-      AbstractIdentifier id =
-          Identifiers.createIdentifier(params.get(0), 1, fName);
+      AbstractIdentifier id = Identifiers.createIdentifier(params.get(0), 1, fName);
       internalIds.add(Pair.of(id, Access.ATOMIC_WRITE));
     }
 
@@ -349,16 +337,17 @@ public class UsageProcessor {
       }
     } else {
 
-      fcExpression.getParameterExpressions()
+      fcExpression
+          .getParameterExpressions()
           .forEach(p -> internalIds.addAll(visitStatement(fName, p, Access.READ)));
-      internalIds
-          .addAll(visitStatement(fName, fcExpression.getFunctionNameExpression(), Access.READ));
+      internalIds.addAll(
+          visitStatement(fName, fcExpression.getFunctionNameExpression(), Access.READ));
     }
     return internalIds;
   }
 
-  private Collection<Pair<AbstractIdentifier, Access>>
-      handleStatement(String fName, final CStatement pStatement) {
+  private Collection<Pair<AbstractIdentifier, Access>> handleStatement(
+      String fName, final CStatement pStatement) {
 
     if (pStatement instanceof CAssignment) {
       // assignment like "a = b" or "a = foo()"
@@ -378,22 +367,17 @@ public class UsageProcessor {
 
     } else if (pStatement instanceof CFunctionCallStatement) {
       return handleFunctionCallExpression(
-          fName,
-          ((CFunctionCallStatement) pStatement).getFunctionCallExpression());
+          fName, ((CFunctionCallStatement) pStatement).getFunctionCallExpression());
 
     } else if (pStatement instanceof CExpressionStatement) {
       return visitStatement(
-          fName,
-          ((CExpressionStatement) pStatement).getExpression(),
-          Access.WRITE);
+          fName, ((CExpressionStatement) pStatement).getExpression(), Access.WRITE);
     }
     return ImmutableSet.of();
   }
 
-  private Collection<Pair<AbstractIdentifier, Access>>
-      visitStatement(String fName,
-      final CExpression expression,
-      final Access access) {
+  private Collection<Pair<AbstractIdentifier, Access>> visitStatement(
+      String fName, final CExpression expression, final Access access) {
     // To avoid synchronization
     IdentifierCreator localCreator = creator.copy();
     localCreator.setCurrentFunction(fName);
@@ -403,13 +387,12 @@ public class UsageProcessor {
     return handler.getProcessedExpressions();
   }
 
-  protected void
-      createUsages(
-          AbstractIdentifier pId,
-          CFANode pNode,
-          AbstractState pChild,
-          Access pAccess,
-          List<UsageInfo> result) {
+  protected void createUsages(
+      AbstractIdentifier pId,
+      CFANode pNode,
+      AbstractState pChild,
+      Access pAccess,
+      List<UsageInfo> result) {
 
     // TODO looks like a hack
     if (pId instanceof SingleIdentifier) {
@@ -475,8 +458,7 @@ public class UsageProcessor {
     GeneralIdentifier gId = singleId.getGeneralId();
     if (localInfo.get(gId) == DataType.LOCAL) {
       logger.log(
-          Level.FINER,
-          singleId + " is considered to be local, so it wasn't add to statistics");
+          Level.FINER, singleId + " is considered to be local, so it wasn't add to statistics");
       // localTimer.stop();
       return;
     }
@@ -491,8 +473,7 @@ public class UsageProcessor {
 
     if (isPreciseLocal) {
       logger.log(
-          Level.FINER,
-          singleId + " is considered to be local, so it wasn't add to statistics");
+          Level.FINER, singleId + " is considered to be local, so it wasn't add to statistics");
       return;
     }
 
@@ -517,8 +498,8 @@ public class UsageProcessor {
     }
 
     if (isLocal && !isGlobal) {
-      logger
-          .log(Level.FINER, singleId + " is supposed to be local, so it wasn't add to statistics");
+      logger.log(
+          Level.FINER, singleId + " is supposed to be local, so it wasn't add to statistics");
       // localTimer.stop();
       return;
     }
@@ -530,7 +511,8 @@ public class UsageProcessor {
   }
 
   public void printStatistics(StatisticsWriter pWriter) {
-    pWriter.put(totalTimer)
+    pWriter
+        .put(totalTimer)
         .beginLevel()
         .put(usagePreparationTimer)
         .beginLevel()
@@ -555,8 +537,8 @@ public class UsageProcessor {
     }
 
     @Override
-    protected Collection<UsageInfo>
-        createUsagesForEdge(ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
+    protected Collection<UsageInfo> createUsagesForEdge(
+        ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
 
       DeadLockState pLocks = AbstractStates.extractStateByType(parent, DeadLockState.class);
       DeadLockState cLocks = AbstractStates.extractStateByType(child, DeadLockState.class);
@@ -591,8 +573,8 @@ public class UsageProcessor {
     }
 
     @Override
-    protected Collection<UsageInfo>
-        createUsagesForEdge(ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
+    protected Collection<UsageInfo> createUsagesForEdge(
+        ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
 
       SignalState pSignals = AbstractStates.extractStateByType(parent, SignalState.class);
       SignalState cSignals = AbstractStates.extractStateByType(child, SignalState.class);
@@ -606,8 +588,7 @@ public class UsageProcessor {
 
       if (cSignals.getSignals().size() > pSignals.getSignals().size()) {
         AbstractIdentifier sigId;
-        SignalDesc pLastSignal =
-            cSignals.getSignals().get(cSignals.getSignals().size() - 1);
+        SignalDesc pLastSignal = cSignals.getSignals().get(cSignals.getSignals().size() - 1);
 
         if (pLastSignal.num == -1) {
           sigId = AnyIdentifier.getInstance();
@@ -631,7 +612,6 @@ public class UsageProcessor {
       }
 
       return ImmutableList.of();
-
     }
   }
 
@@ -649,8 +629,8 @@ public class UsageProcessor {
     }
 
     @Override
-    protected Collection<UsageInfo>
-        createUsagesForEdge(ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
+    protected Collection<UsageInfo> createUsagesForEdge(
+        ARGState parent, ARGState child, CFANode node, CFAEdge edge) {
 
       SignalState pSignals = AbstractStates.extractStateByType(parent, SignalState.class);
       SignalState cSignals = AbstractStates.extractStateByType(child, SignalState.class);
@@ -707,7 +687,6 @@ public class UsageProcessor {
       }
 
       return ImmutableList.of();
-
     }
   }
 }

@@ -32,7 +32,8 @@ public class SignalStatistics implements Statistics {
   @Override
   public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
     StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(pOut);
-    writer.put(transfer)
+    writer
+        .put(transfer)
         .put(lessOrEquals)
         .put(createdLocalSignals)
         .put(createdGlobalSignals)

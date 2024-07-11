@@ -26,37 +26,47 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 
 /**
- * Instances of this class are configurable program analyses for analyzing a
- * program to gain information about pointer aliasing.
+ * Instances of this class are configurable program analyses for analyzing a program to gain
+ * information about pointer aliasing.
  */
-public class PointerCPA extends AbstractCPA implements StatisticsProvider,
-                                                       ConfigurableProgramAnalysisWithBAM {
+public class PointerCPA extends AbstractCPA
+    implements StatisticsProvider, ConfigurableProgramAnalysisWithBAM {
 
   @Override
   public void collectStatistics(Collection<Statistics> statsCollection) {
     statsCollection.add(statistics);
   }
 
-  @Options(prefix="cpa.pointer2")
+  @Options(prefix = "cpa.pointer2")
   public static class PointerOptions {
 
-    @Option(secure=true, values={"JOIN", "SEP"}, toUppercase=true,
-        description="which merge operator to use for PointerCPA")
+    @Option(
+        secure = true,
+        values = {"JOIN", "SEP"},
+        toUppercase = true,
+        description = "which merge operator to use for PointerCPA")
     private String merge = "JOIN";
 
-    @Option(secure=true, name="precisionFile", description="name of a file containing "
-      + "information on pointer relations")
+    @Option(
+        secure = true,
+        name = "precisionFile",
+        description = "name of a file containing " + "information on pointer relations")
     @FileOption(Type.OPTIONAL_INPUT_FILE)
     private Path path = Path.of("TrackedPointers");
 
-    @Option(secure=true, name="noOutput", description="whether the resulting Points-To map "
-      + "needs to be printed into file")
+    @Option(
+        secure = true,
+        name = "noOutput",
+        description = "whether the resulting Points-To map " + "needs to be printed into file")
     private boolean noOutput = true;
 
-    @Option(secure=true, name="useFakeLocs", description="whether to use the fake locations "
-        + "during analysis (more precise, but also slower)")
+    @Option(
+        secure = true,
+        name = "useFakeLocs",
+        description =
+            "whether to use the fake locations "
+                + "during analysis (more precise, but also slower)")
     private boolean useFakeLocs = false;
-
   }
 
   private final Statistics statistics;
@@ -79,9 +89,8 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
   public PointerCPA(PointerOptions options) {
     super(options.merge, "SEP", PointerDomain.INSTANCE, new PointerTransferRelation());
     reducer = new PointerReducer();
-    statistics = new PointerStatistics(options.noOutput, options.path,
-        getTransferRelation(),
-        reducer);
+    statistics =
+        new PointerStatistics(options.noOutput, options.path, getTransferRelation(), reducer);
     ((PointerTransferRelation) getTransferRelation()).setUseFakeLocs(options.useFakeLocs);
   }
 
@@ -94,5 +103,4 @@ public class PointerCPA extends AbstractCPA implements StatisticsProvider,
   public Reducer getReducer() {
     return reducer;
   }
-
 }

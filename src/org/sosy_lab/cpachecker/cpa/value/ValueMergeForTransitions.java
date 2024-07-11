@@ -90,15 +90,14 @@ public class ValueMergeForTransitions implements MergeOperator {
           if (values1.containsKey(mem) && !values2.containsKey(mem)) {
             Type newType = values1.get(mem).getType();
             newValues =
-                  newValues.putAndCopy(mem, new ValueAndType(UnknownValue.getInstance(), newType));
+                newValues.putAndCopy(mem, new ValueAndType(UnknownValue.getInstance(), newType));
           } else if (values2.containsKey(mem) && !values1.containsKey(mem)) {
             Type newType = values2.get(mem).getType();
             newValues =
-                  newValues.putAndCopy(mem, new ValueAndType(UnknownValue.getInstance(), newType));
+                newValues.putAndCopy(mem, new ValueAndType(UnknownValue.getInstance(), newType));
           } else if (values1.containsKey(mem) && values2.containsKey(mem)) {
             ValueAndType newType = join(values1.get(mem), values2.get(mem));
-            newValues =
-                newValues.putAndCopy(mem, newType);
+            newValues = newValues.putAndCopy(mem, newType);
           } else {
             throw new UnsupportedOperationException(
                 "Inconsistency detected: " + mem + " is missed");
@@ -106,9 +105,7 @@ public class ValueMergeForTransitions implements MergeOperator {
         }
 
         return joinStatesWithEdge(
-            state1,
-            state2,
-            new ValueAbstractEdge(new ValueAnalysisInformation(newValues)));
+            state1, state2, new ValueAbstractEdge(new ValueAnalysisInformation(newValues)));
       }
 
     } else {
@@ -147,9 +144,7 @@ public class ValueMergeForTransitions implements MergeOperator {
   }
 
   private ValueAnalysisStateWithEdge joinStatesWithEdge(
-      ValueAnalysisStateWithEdge state1,
-      ValueAnalysisStateWithEdge state2,
-      AbstractEdge edge) {
+      ValueAnalysisStateWithEdge state1, ValueAnalysisStateWithEdge state2, AbstractEdge edge) {
     ValueAnalysisState base;
 
     if (!joinStates) {

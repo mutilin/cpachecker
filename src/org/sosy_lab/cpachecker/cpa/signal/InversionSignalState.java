@@ -17,14 +17,11 @@ import org.sosy_lab.cpachecker.cpa.usage.CompatibleNode;
 
 public class InversionSignalState extends SignalState {
   public InversionSignalState(
-      ImmutableList<SignalDesc> pSignals,
-      Map<String, Integer> pPreparedId,
-      String pTo) {
+      ImmutableList<SignalDesc> pSignals, Map<String, Integer> pPreparedId, String pTo) {
     super(pSignals, pPreparedId, pTo);
   }
 
-  public InversionSignalState() {
-  }
+  public InversionSignalState() {}
 
   @Override
   protected List<SignalDesc> getNewList() {
@@ -33,8 +30,8 @@ public class InversionSignalState extends SignalState {
   }
 
   @Override
-  protected InversionSignalState
-      copy(ImmutableList<SignalDesc> pSignals, Map<String, Integer> pPreparedId, String pTo) {
+  protected InversionSignalState copy(
+      ImmutableList<SignalDesc> pSignals, Map<String, Integer> pPreparedId, String pTo) {
     return new InversionSignalState(pSignals, pPreparedId, pTo);
   }
 

@@ -40,10 +40,7 @@ public class ExpressionHandler extends DefaultCExpressionVisitor<Void, NoExcepti
   private final IdentifierCreator idCreator;
 
   public ExpressionHandler(
-      Access mode,
-      String functionName,
-      VariableSkipper pSkipper,
-      IdentifierCreator pIdCreator) {
+      Access mode, String functionName, VariableSkipper pSkipper, IdentifierCreator pIdCreator) {
     result = new ArrayList<>();
     accessMode = mode;
     fName = functionName;

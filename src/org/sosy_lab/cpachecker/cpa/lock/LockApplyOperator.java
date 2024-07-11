@@ -35,9 +35,7 @@ public class LockApplyOperator implements ApplyOperator {
   private boolean supportAtomicSections = false;
 
   // duplicates transfer relation
-  @Option(
-    description = "name of a lock, which is considered as atomic section",
-    secure = true)
+  @Option(description = "name of a lock, which is considered as atomic section", secure = true)
   private String atomicSectionLockName = "atomic_block";
 
   public LockApplyOperator(Configuration pConfig) throws InvalidConfigurationException {
@@ -82,8 +80,8 @@ public class LockApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     assert pStates.size() >= 2;
     return pStates.get(0);
   }

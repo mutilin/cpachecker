@@ -14,8 +14,8 @@ import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 
 public final class CheckLockEffect extends LockEffectWithId {
 
-  //Temporary usage until we will exactly know the parameters
-  private final static CheckLockEffect instance = new CheckLockEffect();
+  // Temporary usage until we will exactly know the parameters
+  private static final CheckLockEffect instance = new CheckLockEffect();
 
   private final boolean isTruth;
   private final int p;

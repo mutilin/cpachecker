@@ -28,5 +28,4 @@ public class EmptyVisitor implements CFAVisitor {
   public SignalEffect visitStatementEdge(CStatementEdge pStmntEdge) {
     return EmptySignalEffect.getInstance();
   }
-
 }

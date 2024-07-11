@@ -76,14 +76,10 @@ public abstract class ErrorTracePrinter {
       if (this == obj) {
         return true;
       }
-      if (!(obj instanceof TraceCore)) {
-        return false;
-      }
-      TraceCore other = (TraceCore) obj;
-      return Objects.equals(compatibleNodes, other.compatibleNodes)
-          && Objects.equals(function, other.function);
+      return obj instanceof TraceCore other
+          && compatibleNodes.equals(other.compatibleNodes)
+          && function.equals(other.function);
     }
-
   }
 
   @Option(name = "falseUnsafesOutput", description = "path to write results", secure = true)
@@ -91,9 +87,8 @@ public abstract class ErrorTracePrinter {
   private Path outputFalseUnsafes = Path.of("FalseUnsafes");
 
   @Option(
-    description = "if a file do not exist, do not include the corresponding edge",
-    secure = true
-  )
+      description = "if a file do not exist, do not include the corresponding edge",
+      secure = true)
   private boolean filterMissedFiles = false;
 
   @Option(description = "filter unsafes, which are too similar", secure = true)
@@ -155,8 +150,7 @@ public abstract class ErrorTracePrinter {
     if (filterMissedFiles) {
       FILTER_EMPTY_FILE_LOCATIONS =
           Predicates.and(
-              FILTER_EMPTY_FILE_LOCATIONS,
-              e -> Files.exists(e.getFileLocation().getFileName()));
+              FILTER_EMPTY_FILE_LOCATIONS, e -> Files.exists(e.getFileLocation().getFileName()));
     }
 
     subgraphComputer = t;
@@ -352,9 +346,7 @@ public abstract class ErrorTracePrinter {
   }
 
   protected abstract void printUnsafe(
-      AbstractIdentifier id,
-      Pair<UsageInfo, UsageInfo> pair,
-      boolean refined);
+      AbstractIdentifier id, Pair<UsageInfo, UsageInfo> pair, boolean refined);
 
   protected void init() {}
 

@@ -27,21 +27,21 @@ class IfThenElse<ConstantType> extends AbstractFormula<ConstantType> {
     Preconditions.checkNotNull(pCondition);
     Preconditions.checkNotNull(pNegativeCase);
     Preconditions.checkArgument(pPositiveCase.getTypeInfo().equals(pNegativeCase.getTypeInfo()));
-    this.condition = pCondition;
-    this.positiveCase = pPositiveCase;
-    this.negativeCase = pNegativeCase;
+    condition = pCondition;
+    positiveCase = pPositiveCase;
+    negativeCase = pNegativeCase;
   }
 
   public BooleanFormula<ConstantType> getCondition() {
-    return this.condition;
+    return condition;
   }
 
   public NumeralFormula<ConstantType> getPositiveCase() {
-    return this.positiveCase;
+    return positiveCase;
   }
 
   public NumeralFormula<ConstantType> getNegativeCase() {
-    return this.negativeCase;
+    return negativeCase;
   }
 
   @Override
@@ -59,13 +59,10 @@ class IfThenElse<ConstantType> extends AbstractFormula<ConstantType> {
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof IfThenElse) {
-      IfThenElse<?> other = (IfThenElse<?>) pOther;
-      return getCondition().equals(other.getCondition())
-          && getPositiveCase().equals(other.getPositiveCase())
-          && getNegativeCase().equals(other.getNegativeCase());
-    }
-    return false;
+    return pOther instanceof IfThenElse<?> other
+        && getCondition().equals(other.getCondition())
+        && getPositiveCase().equals(other.getPositiveCase())
+        && getNegativeCase().equals(other.getNegativeCase());
   }
 
   @Override
@@ -75,7 +72,8 @@ class IfThenElse<ConstantType> extends AbstractFormula<ConstantType> {
 
   @Override
   public <ReturnType, ParamType> ReturnType accept(
-      ParameterizedNumeralFormulaVisitor<ConstantType, ParamType, ReturnType> pVisitor, ParamType pParameter) {
+      ParameterizedNumeralFormulaVisitor<ConstantType, ParamType, ReturnType> pVisitor,
+      ParamType pParameter) {
     return pVisitor.visit(this, pParameter);
   }
 
@@ -85,5 +83,4 @@ class IfThenElse<ConstantType> extends AbstractFormula<ConstantType> {
       NumeralFormula<ConstantType> pNegativeCase) {
     return new IfThenElse<>(pCondition, pPositiveCase, pNegativeCase);
   }
-
 }

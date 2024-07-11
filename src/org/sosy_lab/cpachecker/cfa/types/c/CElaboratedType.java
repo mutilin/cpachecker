@@ -12,12 +12,13 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkState;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class CElaboratedType implements CComplexType {
 
-  private static final long serialVersionUID = -3566628634889842927L;
+  @Serial private static final long serialVersionUID = -3566628634889842927L;
   private final ComplexTypeKind kind;
   private String name;
   private final String origName;
@@ -28,8 +29,12 @@ public final class CElaboratedType implements CComplexType {
 
   private @Nullable CComplexType realType = null;
 
-  public CElaboratedType(boolean pConst, final boolean pVolatile,
-      final ComplexTypeKind pKind, final String pName, final String pOrigName,
+  public CElaboratedType(
+      boolean pConst,
+      final boolean pVolatile,
+      final ComplexTypeKind pKind,
+      final String pName,
+      final String pOrigName,
       final @Nullable CComplexType pRealType) {
     isConst = pConst;
     isVolatile = pVolatile;
@@ -66,20 +71,18 @@ public final class CElaboratedType implements CComplexType {
   }
 
   /**
-   * Get the real type which this type references
-   * (either a CCompositeType or a CEnumType, or null if unknown).
+   * Get the real type which this type references (either a CCompositeType or a CEnumType, or null
+   * if unknown).
    */
   public @Nullable CComplexType getRealType() {
     if (realType instanceof CElaboratedType) {
       // resolve chains of elaborated types
-      return ((CElaboratedType)realType).getRealType();
+      return ((CElaboratedType) realType).getRealType();
     }
     return realType;
   }
 
-  /**
-   * This method should be called only during parsing.
-   */
+  /** This method should be called only during parsing. */
   public void setRealType(CComplexType pRealType) {
     checkState(getRealType() == null);
     checkNotNull(pRealType);
@@ -114,6 +117,7 @@ public final class CElaboratedType implements CComplexType {
 
     return lASTString.toString();
   }
+
   @Override
   public String toString() {
     return getKind().toASTString() + " " + getName();
@@ -139,6 +143,18 @@ public final class CElaboratedType implements CComplexType {
   }
 
   @Override
+  public boolean hasKnownConstantSize() {
+    // similar logic as for isIncomplete
+    if (realType == null) {
+      return kind == ComplexTypeKind.ENUM; // enums are always complete and have known constant size
+    } else {
+      // need to delegate to realType because of GCC extension for VLAs in structs:
+      // https://gcc.gnu.org/onlinedocs/gcc/Variable-Length.html
+      return realType.hasKnownConstantSize();
+    }
+  }
+
+  @Override
   public <R, X extends Exception> R accept(CTypeVisitor<R, X> pVisitor) throws X {
     return pVisitor.visit(this);
   }
@@ -152,9 +168,9 @@ public final class CElaboratedType implements CComplexType {
   }
 
   /**
-   * Be careful, this method compares the CType as it is to the given object,
-   * typedefs won't be resolved. If you want to compare the type without having
-   * typedefs in it use #getCanonicalType().equals()
+   * Be careful, this method compares the CType as it is to the given object, typedefs won't be
+   * resolved. If you want to compare the type without having typedefs in it use
+   * #getCanonicalType().equals()
    */
   @Override
   public boolean equals(@Nullable Object obj) {
@@ -162,15 +178,12 @@ public final class CElaboratedType implements CComplexType {
       return true;
     }
 
-    if (!(obj instanceof CElaboratedType)) {
-      return false;
-    }
-
-    CElaboratedType other = (CElaboratedType) obj;
-
-    return isConst == other.isConst && isVolatile == other.isVolatile
-           && kind == other.kind && Objects.equals(name, other.name)
-           && Objects.equals(realType, other.realType);
+    return obj instanceof CElaboratedType other
+        && isConst == other.isConst
+        && isVolatile == other.isVolatile
+        && kind == other.kind
+        && Objects.equals(name, other.name)
+        && Objects.equals(realType, other.realType);
   }
 
   @Override
@@ -179,17 +192,12 @@ public final class CElaboratedType implements CComplexType {
       return true;
     }
 
-    if (!(obj instanceof CElaboratedType)) {
-      return false;
-    }
-
-    CElaboratedType other = (CElaboratedType) obj;
-
-    return isConst == other.isConst
-           && isVolatile == other.isVolatile
-           && kind == other.kind
-           && (Objects.equals(name, other.name) || (origName.isEmpty() && other.origName.isEmpty()))
-           && Objects.equals(realType, other.realType);
+    return obj instanceof CElaboratedType other
+        && isConst == other.isConst
+        && isVolatile == other.isVolatile
+        && kind == other.kind
+        && (Objects.equals(name, other.name) || (origName.isEmpty() && other.origName.isEmpty()))
+        && Objects.equals(realType, other.realType);
   }
 
   @Override
@@ -203,7 +211,8 @@ public final class CElaboratedType implements CComplexType {
       if ((isConst == pForceConst) && (isVolatile == pForceVolatile)) {
         return this;
       }
-      return new CElaboratedType(isConst || pForceConst, isVolatile || pForceVolatile, kind, name, origName, null);
+      return new CElaboratedType(
+          isConst || pForceConst, isVolatile || pForceVolatile, kind, name, origName, null);
     } else {
       return realType.getCanonicalType(isConst || pForceConst, isVolatile || pForceVolatile);
     }

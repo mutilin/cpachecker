@@ -46,14 +46,14 @@ import org.sosy_lab.cpachecker.cpa.pointer2.PointerCPA.PointerOptions;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerReducer;
 import org.sosy_lab.cpachecker.cpa.pointer2.PointerTransferRelation;
 
-public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnalysisWithBAM,
-                                                         StatisticsProvider, WrapperCPA {
+public class RCUSearchCPA extends AbstractCPA
+    implements ConfigurableProgramAnalysisWithBAM, StatisticsProvider, WrapperCPA {
 
   private final RCUSearchStatistics statistics;
   private final PointerCPA pointerCPA;
   private final RCUSearchReducer reducer;
 
-  RCUSearchCPA (Configuration config, LogManager pLogger) throws InvalidConfigurationException {
+  RCUSearchCPA(Configuration config, LogManager pLogger) throws InvalidConfigurationException {
     super(
         "JOIN",
         "SEP",
@@ -74,8 +74,8 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
   }
 
   @Override
-  public AbstractState getInitialState(
-      CFANode node, StateSpacePartition partition) throws InterruptedException {
+  public AbstractState getInitialState(CFANode node, StateSpacePartition partition)
+      throws InterruptedException {
     return new RCUSearchState();
   }
 
@@ -87,11 +87,11 @@ public class RCUSearchCPA extends AbstractCPA implements ConfigurableProgramAnal
 
   @Override
   public <T extends ConfigurableProgramAnalysis> T retrieveWrappedCpa(Class<T> type) {
-    if (type.isAssignableFrom(getClass())){
+    if (type.isAssignableFrom(getClass())) {
       return type.cast(this);
     }
 
-    if (type.isAssignableFrom(pointerCPA.getClass())){
+    if (type.isAssignableFrom(pointerCPA.getClass())) {
       return type.cast(pointerCPA);
     }
 

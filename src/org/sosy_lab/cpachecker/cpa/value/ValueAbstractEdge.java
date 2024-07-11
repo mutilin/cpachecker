@@ -44,13 +44,6 @@ public class ValueAbstractEdge implements AbstractEdge {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof ValueAbstractEdge)) {
-      return false;
-    }
-    ValueAbstractEdge other = (ValueAbstractEdge) obj;
-    return Objects.equals(diff, other.diff);
+    return obj instanceof ValueAbstractEdge other && Objects.equals(diff, other.diff);
   }
 }

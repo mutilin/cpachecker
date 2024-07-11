@@ -76,12 +76,9 @@ public class ThreadModularTransferRelation implements TransferRelation {
   }
 
   @Override
-  public Collection<? extends AbstractState>
-      getAbstractSuccessors(
-          AbstractState pState,
-          UnmodifiableReachedSet pReached,
-          Precision pPrecision)
-          throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessors(
+      AbstractState pState, UnmodifiableReachedSet pReached, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
 
     stats.totalTransfer.start();
 
@@ -179,7 +176,7 @@ public class ThreadModularTransferRelation implements TransferRelation {
           if (!isTarget) {
             // Projection must be independent from child edge, so we may get only one
             AbstractState projection =
-              applyOperator.project(pState, Iterables.getFirst(successors, null));
+                applyOperator.project(pState, Iterables.getFirst(successors, null));
             if (projection != null) {
               if (!(projection instanceof Targetable && ((Targetable) projection).isTarget())) {
                 result.add(projection);
@@ -188,7 +185,6 @@ public class ThreadModularTransferRelation implements TransferRelation {
             }
           }
           ConstructCompositeProjections(pState, result);
-
         }
         stats.projectOperator.stop();
       }
@@ -253,17 +249,17 @@ public class ThreadModularTransferRelation implements TransferRelation {
   }
 
   @Override
-  public Collection<? extends AbstractState>
-      getAbstractSuccessorsForEdge(AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
-          throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
+      AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
+      throws CPATransferException, InterruptedException {
     throw new UnsupportedOperationException(
         "Thread Modular CPA does not support direct transitions with CFA edges");
   }
 
   @Override
-  public Collection<? extends AbstractState>
-      getAbstractSuccessors(AbstractState pState, Precision pPrecision)
-          throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessors(
+      AbstractState pState, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
     throw new UnsupportedOperationException(
         "Thread Modular CPA does not support transitions without reached set");
   }

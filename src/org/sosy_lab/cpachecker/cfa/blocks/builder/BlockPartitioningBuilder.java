@@ -41,11 +41,13 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 /**
- * Helper class can build a <code>BlockPartitioning</code> from a partition of a program's CFA into blocks.
+ * Helper class can build a <code>BlockPartitioning</code> from a partition of a program's CFA into
+ * blocks.
  */
 public class BlockPartitioningBuilder {
 
-  private static final CFATraversal TRAVERSE_CFA_INSIDE_FUNCTION = CFATraversal.dfs().ignoreFunctionCalls();
+  private static final CFATraversal TRAVERSE_CFA_INSIDE_FUNCTION =
+      CFATraversal.dfs().ignoreFunctionCalls();
 
   protected final Map<CFANode, Set<ReferencedVariable>> referencedVariablesMap = new HashMap<>();
   protected final Map<CFANode, Set<LockIdentifier>> locks = new HashMap<>();
@@ -76,7 +78,7 @@ public class BlockPartitioningBuilder {
     Map<FunctionEntryNode, Set<CFANode>> functions = new HashMap<>();
     Map<FunctionEntryNode, Set<ReferencedVariable>> referencedVariables = new HashMap<>();
     Map<FunctionEntryNode, Set<FunctionEntryNode>> innerFunctionCalls = new HashMap<>();
-    for (FunctionEntryNode head : cfa.getAllFunctionHeads()) {
+    for (FunctionEntryNode head : cfa.entryNodes()) {
       final Set<CFANode> body = TRAVERSE_CFA_INSIDE_FUNCTION.collectNodesReachableFrom(head);
       functions.put(head, body);
       referencedVariables.put(head, collectReferencedVariables(body));
@@ -88,12 +90,13 @@ public class BlockPartitioningBuilder {
     // then get directly called functions and sum up all indirectly called functions
     Map<CFANode, Set<FunctionEntryNode>> blockFunctionCalls = new HashMap<>();
     for (CFANode callNode : callNodesMap.keySet()) {
-      Set<FunctionEntryNode> calledFunctions = getAllCalledFunctions(innerFunctionCalls,
-          collectInnerFunctionCalls(blockNodesMap.get(callNode)));
+      Set<FunctionEntryNode> calledFunctions =
+          getAllCalledFunctions(
+              innerFunctionCalls, collectInnerFunctionCalls(blockNodesMap.get(callNode)));
       blockFunctionCalls.put(callNode, calledFunctions);
     }
 
-    //now we can create the Blocks   for the BlockPartitioning
+    // now we can create the Blocks   for the BlockPartitioning
     Collection<Block> blocks = new ArrayList<>();
     for (Entry<CFANode, Set<CFANode>> entry : callNodesMap.entrySet()) {
       CFANode callNode = entry.getKey();
@@ -135,7 +138,7 @@ public class BlockPartitioningBuilder {
     Set<FunctionEntryNode> calledFunctions = new HashSet<>();
     Deque<FunctionEntryNode> waitlist = new ArrayDeque<>(directFunctions);
     while (!waitlist.isEmpty()) {
-      FunctionEntryNode entry  = waitlist.pop();
+      FunctionEntryNode entry = waitlist.pop();
       if (calledFunctions.add(entry)) {
         waitlist.addAll(innerFunctionCalls.get(entry));
       }
@@ -157,9 +160,9 @@ public class BlockPartitioningBuilder {
     Set<FunctionEntryNode> innerFunctionCalls = collectInnerFunctionCalls(nodes);
 
     if (callNodes.isEmpty()) {
-     /* What shall we do with function, which is not called from anywhere?
-      * There are problems with them at partitioning building stage
-      */
+      /* What shall we do with function, which is not called from anywhere?
+       * There are problems with them at partitioning building stage
+       */
       return;
     }
 
@@ -171,7 +174,7 @@ public class BlockPartitioningBuilder {
       }
     }
     if (registerNode == null) {
-      //It means, that there is no entry in this block. Don't add it
+      // It means, that there is no entry in this block. Don't add it
       return;
     }
     referencedVariablesMap.put(registerNode, referencedVariables);
@@ -181,16 +184,17 @@ public class BlockPartitioningBuilder {
     blockNodesMap.put(registerNode, nodes);
   }
 
-  /** get all inner function calls of the current block.
-   * Precondition: the block does not yet include function-calls
-   * (except we have a function-block of a recursive function)
+  /**
+   * get all inner function calls of the current block. Precondition: the block does not yet include
+   * function-calls (except we have a function-block of a recursive function)
    *
-   *  @return all directly called functions (transitive function calls not included) */
+   * @return all directly called functions (transitive function calls not included)
+   */
   private Set<FunctionEntryNode> collectInnerFunctionCalls(Set<CFANode> pNodes) {
     ImmutableSet.Builder<FunctionEntryNode> result = ImmutableSet.builder();
     for (CFANode node : pNodes) {
       for (CFAEdge e : CFAUtils.leavingEdges(node).filter(CFunctionCallEdge.class)) {
-        result.add(((CFunctionCallEdge)e).getSuccessor());
+        result.add(((CFunctionCallEdge) e).getSuccessor());
       }
     }
     return result.build();
@@ -218,15 +222,14 @@ public class BlockPartitioningBuilder {
     PointerState fstate = PointerState.INITIAL_STATE;
     for (CFANode node : pNodes) {
       for (int i = 0; i < node.getNumLeavingEdges(); ++i) {
-        CFAEdge e = node.getLeavingEdge(i);
+        CFAEdge edge = node.getLeavingEdge(i);
         try {
-          for (AbstractState state : pTransfer
-              .getAbstractSuccessorsForEdge(fstate, SingletonPrecision.getInstance(), e)) {
+          for (AbstractState state :
+              pTransfer.getAbstractSuccessorsForEdge(
+                  fstate, SingletonPrecision.getInstance(), edge)) {
             result.addAll(((PointerState) state).getKnownLocations());
           }
-        } catch (CPATransferException pE) {
-          continue;
-        } catch (InterruptedException pE) {
+        } catch (CPATransferException | InterruptedException e) {
           continue;
         }
       }

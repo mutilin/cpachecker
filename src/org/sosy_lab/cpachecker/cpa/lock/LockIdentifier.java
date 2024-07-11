@@ -13,7 +13,7 @@ import java.util.Objects;
 import java.util.Set;
 
 public class LockIdentifier implements Comparable<LockIdentifier> {
-  private final static Set<LockIdentifier> createdIds = new HashSet<>();
+  private static final Set<LockIdentifier> createdIds = new HashSet<>();
 
   private final String name;
 
@@ -58,11 +58,7 @@ public class LockIdentifier implements Comparable<LockIdentifier> {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof LockIdentifier)) {
-      return false;
-    }
-    LockIdentifier other = (LockIdentifier) obj;
-    return Objects.equals(name, other.name);
+    return obj instanceof LockIdentifier other && name.equals(other.name);
   }
 
   @Override
@@ -72,6 +68,6 @@ public class LockIdentifier implements Comparable<LockIdentifier> {
 
   @Override
   public int compareTo(LockIdentifier pO) {
-    return this.name.compareTo(pO.name);
+    return name.compareTo(pO.name);
   }
 }

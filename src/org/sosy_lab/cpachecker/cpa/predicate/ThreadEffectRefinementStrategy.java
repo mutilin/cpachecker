@@ -49,22 +49,20 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
           new ArrayList<>(
               transformedImmutableListCopy(
                   pInterpolants,
-                  f -> fmgr.renameFreeVariablesAndUFs(
-                      f,
-                      ThreadEffectBlockFormulaStrategy::renameVariablesBack)));
+                  f ->
+                      fmgr.renameFreeVariablesAndUFs(
+                          f, ThreadEffectBlockFormulaStrategy::renameVariablesBack)));
     }
 
     return super.performRefinement(
-        pReached,
-        pAbstractionStatesTrace,
-        pInterpolants,
-        pRepeatedCounterexample);
+        pReached, pAbstractionStatesTrace, pInterpolants, pRepeatedCounterexample);
   }
 
   @Override
   public List<ARGState> filterAbstractionStates(ARGPath pPath) {
     List<ARGState> result =
-        from(pPath.asStatesList()).skip(1)
+        from(pPath.asStatesList())
+            .skip(1)
             .filter(PredicateAbstractState::containsAbstractionState)
             .toList();
 
@@ -75,5 +73,4 @@ public class ThreadEffectRefinementStrategy extends PredicateAbstractionGlobalRe
     PredicatePrecision newPrecision = PredicatePrecision.empty();
     return newPrecision.addLocalPredicates(newPredicates.entries());
   }
-
 }

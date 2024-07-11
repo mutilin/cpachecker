@@ -112,8 +112,8 @@ class ReachedSetExecutor {
    * state from the waitlist temporary until the sub-RSE is finished, and re-add it afterwards to be
    * analyzed again, such the the computed block abstraction can be applied.
    *
-   * Synchronized access guaranteed by only instance-local access in the current
-   * {@link ReachedSetExecutor}!
+   * <p>Synchronized access guaranteed by only instance-local access in the current {@link
+   * ReachedSetExecutor}!
    */
   private final Set<AbstractState> dependsOn = new LinkedHashSet<>();
 
@@ -297,7 +297,7 @@ class ReachedSetExecutor {
   }
 
   private static String id(final Collection<AbstractState> states) {
-    return Collections2.transform(states, s -> id(s)).toString();
+    return Collections2.transform(states, ReachedSetExecutor::id).toString();
   }
 
   private static String id(final AbstractState state) {
@@ -385,8 +385,8 @@ class ReachedSetExecutor {
           : String.format(
               "result-states already registered for reached-set %s: current = %s, cached = %s",
               id(rs),
-              Collections2.transform(exitStates, s -> id(s)),
-              Collections2.transform(entry.getExitStates(), s -> id(s)));
+              Collections2.transform(exitStates, ReachedSetExecutor::id),
+              Collections2.transform(entry.getExitStates(), ReachedSetExecutor::id));
       entry.setExitStates(exitStates);
       entry.setRootOfBlock(null);
     }
@@ -560,7 +560,7 @@ class ReachedSetExecutor {
   String getDependenciesAsDot() {
     final List<String> dependencies = new ArrayList<>();
     for (ReachedSetExecutor rse : reachedSetMapping.values()) {
-      for (ReachedSetExecutor dependentRse : rse.dependingFrom.keys()) {
+      for (ReachedSetExecutor dependentRse : rse.dependingFrom.keySet()) {
         dependencies.add(String.format("\"%s\" -> \"%s\"", rse, dependentRse));
       }
     }

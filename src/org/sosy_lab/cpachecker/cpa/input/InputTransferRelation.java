@@ -31,7 +31,6 @@ import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
-import org.sosy_lab.cpachecker.cfa.model.FunctionSummaryEdge;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
@@ -41,58 +40,48 @@ public class InputTransferRelation extends SingleEdgeTransferRelation {
   private final CFA cfa;
 
   public InputTransferRelation(CFA pCFA) {
-    this.cfa = Objects.requireNonNull(pCFA);
+    cfa = Objects.requireNonNull(pCFA);
   }
 
   @Override
-  public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(AbstractState pState,
-      Precision pPrecision, CFAEdge pEdge) {
+  public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
+      AbstractState pState, Precision pPrecision, CFAEdge pEdge) {
     return Collections.singleton(getAbstractSuccessorForEdge(pEdge));
   }
 
   private InputState getAbstractSuccessorForEdge(CFAEdge pEdge) {
-    switch (pEdge.getEdgeType()) {
-      case DeclarationEdge:
-        return handleDeclarationEdge((ADeclarationEdge) pEdge);
-      case StatementEdge:
-        return handleStatementEdge((AStatementEdge) pEdge);
-      case FunctionCallEdge:
-        return handleFunctionCallEdge((FunctionCallEdge) pEdge);
-      default:
-        return InputState.empty();
-    }
+    return switch (pEdge.getEdgeType()) {
+      case DeclarationEdge -> handleDeclarationEdge((ADeclarationEdge) pEdge);
+      case StatementEdge -> handleStatementEdge((AStatementEdge) pEdge);
+      case FunctionCallEdge -> handleFunctionCallEdge((FunctionCallEdge) pEdge);
+      default -> InputState.empty();
+    };
   }
 
   private static InputState handleDeclarationEdge(ADeclarationEdge pEdge) {
     ADeclaration declaration = pEdge.getDeclaration();
-    if (declaration instanceof AVariableDeclaration) {
-      AVariableDeclaration variableDeclaration = (AVariableDeclaration) declaration;
-      if (variableDeclaration.getInitializer() == null) {
-        return InputState.forInputs(Collections.singleton(variableDeclaration.getQualifiedName()));
-      }
+    if ((declaration instanceof AVariableDeclaration variableDeclaration)
+        && (variableDeclaration.getInitializer() == null)) {
+      return InputState.forInputs(Collections.singleton(variableDeclaration.getQualifiedName()));
     }
     return InputState.empty();
   }
 
   private InputState handleStatementEdge(AStatementEdge pEdge) {
     AStatement statement = pEdge.getStatement();
-    if (statement instanceof AAssignment) {
-      AAssignment assignment = (AAssignment) statement;
+    if (statement instanceof AAssignment assignment) {
       ALeftHandSide lhs = assignment.getLeftHandSide();
       if (!(lhs instanceof AIdExpression)) {
         // Unhandled left-hand side
         return InputState.empty();
       }
       String lhsVariable = ((AIdExpression) lhs).getDeclaration().getQualifiedName();
-      if (assignment instanceof AFunctionCallAssignmentStatement) {
-        AFunctionCallAssignmentStatement callAssignment =
-            (AFunctionCallAssignmentStatement) assignment;
+      if (assignment instanceof AFunctionCallAssignmentStatement callAssignment) {
         AFunctionCallExpression callExpression = callAssignment.getRightHandSide();
         AExpression functionNameExpression = callExpression.getFunctionNameExpression();
-        if (functionNameExpression instanceof AIdExpression) {
-          AIdExpression functionIdExpression = (AIdExpression) functionNameExpression;
+        if (functionNameExpression instanceof AIdExpression functionIdExpression) {
           String functionName = functionIdExpression.getName();
-          FunctionEntryNode functionEntryNode = cfa.getAllFunctions().get(functionName);
+          FunctionEntryNode functionEntryNode = cfa.getFunctionHead(functionName);
           if (functionEntryNode == null) {
             // External function
             return InputState.forInputs(ImmutableSet.of(lhsVariable, functionName));
@@ -108,11 +97,7 @@ public class InputTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private static InputState handleFunctionCallEdge(FunctionCallEdge pEdge) {
-    FunctionSummaryEdge summaryEdge = pEdge.getSummaryEdge();
-    if (summaryEdge == null) {
-      return InputState.empty();
-    }
-    return handleFunctionCall(summaryEdge.getFunctionEntry().getFunctionParameters(), pEdge.getArguments());
+    return handleFunctionCall(pEdge.getSuccessor().getFunctionParameters(), pEdge.getArguments());
   }
 
   private static InputState handleFunctionCall(
@@ -129,5 +114,4 @@ public class InputTransferRelation extends SingleEdgeTransferRelation {
     }
     return InputState.forInputs(inputs.build());
   }
-
 }

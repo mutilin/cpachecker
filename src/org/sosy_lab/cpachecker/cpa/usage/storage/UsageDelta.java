@@ -20,7 +20,7 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 public class UsageDelta implements Delta<List<CompatibleNode>> {
 
   private static class EmptyUsageDelta extends UsageDelta {
-    private final static EmptyUsageDelta instance = new EmptyUsageDelta();
+    private static final EmptyUsageDelta instance = new EmptyUsageDelta();
 
     public EmptyUsageDelta() {
       super(ImmutableList.of());
@@ -100,14 +100,9 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
 
   @Override
   public boolean equals(Object pDelta) {
-    if (pDelta == EmptyUsageDelta.instance) {
-      return false;
-    }
-    if (pDelta instanceof UsageDelta) {
-      UsageDelta pOther = (UsageDelta) pDelta;
-      return nestedDeltas.equals(pOther.nestedDeltas);
-    }
-    return false;
+    return pDelta != EmptyUsageDelta.instance
+        && pDelta instanceof UsageDelta other
+        && nestedDeltas.equals(other.nestedDeltas);
   }
 
   @Override
@@ -116,8 +111,8 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
   }
 
   @SuppressWarnings("unchecked")
-  public static UsageDelta
-      constructDeltaBetween(AbstractState reducedState, AbstractState rootState) {
+  public static UsageDelta constructDeltaBetween(
+      AbstractState reducedState, AbstractState rootState) {
 
     ImmutableList.Builder<Delta<CompatibleNode>> storedStates = ImmutableList.builder();
 
@@ -177,5 +172,4 @@ public class UsageDelta implements Delta<List<CompatibleNode>> {
       return this;
     }
   }
-
 }

@@ -8,8 +8,8 @@
 
 package org.sosy_lab.cpachecker.cpa.automaton;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
 import java.util.List;
 
 public class Automata {
@@ -26,9 +26,10 @@ public class Automata {
         new AutomatonTransition.Builder(AutomatonBoolExpr.MatchLoopStart.INSTANCE, targetState)
             .build();
 
-    AutomatonInternalState initState = new AutomatonInternalState(initStateName, Lists.newArrayList(toInit, toTarget), false, true);
+    AutomatonInternalState initState =
+        new AutomatonInternalState(initStateName, ImmutableList.of(toInit, toTarget), false, true);
 
-    List<AutomatonInternalState> states = Lists.newArrayList(initState, targetState);
+    List<AutomatonInternalState> states = ImmutableList.of(initState, targetState);
 
     try {
       LOOP_HEAD_TARGET_AUTOMATON =
@@ -42,8 +43,5 @@ public class Automata {
     return LOOP_HEAD_TARGET_AUTOMATON;
   }
 
-  private Automata() {
-
-  }
-
+  private Automata() {}
 }

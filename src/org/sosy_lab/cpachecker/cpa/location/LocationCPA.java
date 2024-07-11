@@ -11,7 +11,6 @@ package org.sosy_lab.cpachecker.cpa.location;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import java.util.Collection;
-import java.util.Optional;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.cpachecker.cfa.CFA;
@@ -30,23 +29,18 @@ import org.sosy_lab.cpachecker.core.interfaces.Statistics;
 import org.sosy_lab.cpachecker.core.interfaces.StatisticsProvider;
 import org.sosy_lab.cpachecker.core.interfaces.pcc.ProofChecker.ProofCheckerCPA;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
-import org.sosy_lab.cpachecker.util.globalinfo.CFAInfo;
-import org.sosy_lab.cpachecker.util.globalinfo.GlobalInfo;
 
 public class LocationCPA extends AbstractCPA
-    implements ConfigurableProgramAnalysisWithBAM, ProofCheckerCPA, StatisticsProvider,
-    ConfigurableProgramAnalysisTM {
+    implements ConfigurableProgramAnalysisWithBAM,
+        ProofCheckerCPA,
+        StatisticsProvider,
+        ConfigurableProgramAnalysisTM {
 
   private final LocationStateFactory stateFactory;
 
   private LocationCPA(LocationStateFactory pStateFactory) {
     super("sep", "sep", new LocationTransferRelation(pStateFactory, new LocationStatistics()));
     stateFactory = pStateFactory;
-
-    Optional<CFAInfo> cfaInfo = GlobalInfo.getInstance().getCFAInfo();
-    if (cfaInfo.isPresent()) {
-      cfaInfo.orElseThrow().storeLocationStateFactory(stateFactory);
-    }
   }
 
   public static CPAFactory factory() {
@@ -64,7 +58,9 @@ public class LocationCPA extends AbstractCPA
   }
 
   @Override
-  public boolean areAbstractSuccessors(AbstractState pElement, CFAEdge pCfaEdge, Collection<? extends AbstractState> pSuccessors) throws CPATransferException, InterruptedException {
+  public boolean areAbstractSuccessors(
+      AbstractState pElement, CFAEdge pCfaEdge, Collection<? extends AbstractState> pSuccessors)
+      throws CPATransferException, InterruptedException {
     ImmutableSet<? extends AbstractState> successors = ImmutableSet.copyOf(pSuccessors);
     ImmutableSet<? extends AbstractState> actualSuccessors =
         ImmutableSet.copyOf(
@@ -72,6 +68,10 @@ public class LocationCPA extends AbstractCPA
                 .getAbstractSuccessorsForEdge(
                     pElement, SingletonPrecision.getInstance(), pCfaEdge));
     return successors.equals(actualSuccessors);
+  }
+
+  public LocationStateFactory getStateFactory() {
+    return stateFactory;
   }
 
   @Override

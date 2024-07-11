@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cpa.local;
 
 import static com.google.common.collect.FluentIterable.from;
 
+import com.google.common.base.Ascii;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
@@ -20,7 +21,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.BiFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.core.defaults.LatticeAbstractState;
 import org.sosy_lab.cpachecker.cpa.usage.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
@@ -35,26 +36,26 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
 
     @Override
     public String toString() {
-      return name().toLowerCase();
+      return Ascii.toLowerCase(name());
     }
 
-    public static final BiFunction<DataType, DataType, DataType> max =
-        (d1, d2) -> {
-          if (d1 == GLOBAL || d2 == GLOBAL) {
-            return GLOBAL;
-          } else if (d1 == null || d2 == null) {
-            return null;
-          } else {
-            return LOCAL;
-          }
-        };
+    public static final DataType max(DataType d1, DataType d2) {
+      if (d1 == GLOBAL || d2 == GLOBAL) {
+        return GLOBAL;
+      } else if (d1 == null || d2 == null) {
+        return null;
+      } else {
+        return LOCAL;
+      }
+    }
   }
+
   // map from variable id to its type
-  protected final LocalState previousState;
+  protected final @Nullable LocalState previousState;
   protected final Map<AbstractIdentifier, DataType> DataInfo;
   protected final ImmutableSet<String> alwaysLocalData;
 
-  private final static LocalState RESETED_STATE = new LocalState(ImmutableMap.of(), null, null);
+  private static final LocalState RESETED_STATE = new LocalState(ImmutableMap.of(), null, null);
 
   protected LocalState(
       Map<AbstractIdentifier, DataType> oldMap, LocalState state, ImmutableSet<String> localData) {
@@ -126,10 +127,8 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
   }
 
   public boolean checkIsAlwaysLocal(AbstractIdentifier name) {
-    if (name instanceof SingleIdentifier) {
-      return alwaysLocalData.contains(((SingleIdentifier) name).getName());
-    }
-    return false;
+    return name instanceof SingleIdentifier
+        && alwaysLocalData.contains(((SingleIdentifier) name).getName());
   }
 
   private void putIntoDataInfo(AbstractIdentifier name, DataType type) {
@@ -216,7 +215,7 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
   @Override
   public LocalState join(LocalState pState2) {
     // by definition of Merge operator we should return state2, not this!
-    if (this.equals(pState2)) {
+    if (equals(pState2)) {
       return pState2;
     }
     LocalState joinedPreviousState = null;
@@ -233,11 +232,11 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
 
     LocalState joinState = this.copy(new HashMap<>(), joinedPreviousState);
 
-    Sets.union(this.DataInfo.keySet(), pState2.DataInfo.keySet())
+    Sets.union(DataInfo.keySet(), pState2.DataInfo.keySet())
         .forEach(
             id ->
                 joinState.putIntoDataInfo(
-                    id, DataType.max.apply(DataInfo.get(id), pState2.DataInfo.get(id))));
+                    id, DataType.max(DataInfo.get(id), pState2.DataInfo.get(id))));
 
     return joinState;
   }
@@ -245,7 +244,7 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
   @Override
   public boolean isLessOrEqual(LocalState pState2) {
     // LOCAL < NULL < GLOBAL
-    if (from(this.DataInfo.keySet())
+    if (from(DataInfo.keySet())
         .filter(Predicates.not(this::isLocal))
         .anyMatch(i -> !pState2.DataInfo.containsKey(i) || pState2.isLocal(i))) {
       return false;
@@ -253,7 +252,7 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
 
     if (from(pState2.DataInfo.keySet())
         .filter(pState2::isLocal)
-        .anyMatch(i -> !this.DataInfo.containsKey(i))) {
+        .anyMatch(i -> !DataInfo.containsKey(i))) {
       return false;
     }
     /*for (AbstractIdentifier name : this.DataInfo.keySet()) {
@@ -292,11 +291,8 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof LocalState)) {
-      return false;
-    }
-    LocalState other = (LocalState) obj;
-    return Objects.equals(DataInfo, other.DataInfo)
+    return obj instanceof LocalState other
+        && DataInfo.equals(other.DataInfo)
         && Objects.equals(previousState, other.previousState);
   }
 
@@ -316,12 +312,14 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
 
   public static class LocalStateComplete extends LocalState {
     protected LocalStateComplete(
-        Map<AbstractIdentifier, DataType> oldMap, LocalState state, ImmutableSet<String> localData) {
+        Map<AbstractIdentifier, DataType> oldMap,
+        LocalState state,
+        ImmutableSet<String> localData) {
       super(oldMap, state, localData);
     }
 
-    public static LocalStateComplete
-        createInitialLocalStateComplete(ImmutableSet<String> localData) {
+    public static LocalStateComplete createInitialLocalStateComplete(
+        ImmutableSet<String> localData) {
       return new LocalStateComplete(new HashMap<>(), null, localData);
     }
 
@@ -341,6 +339,5 @@ public class LocalState implements LatticeAbstractState<LocalState>, LocalInfoPr
     protected LocalStateComplete copy(Map<AbstractIdentifier, DataType> oldMap, LocalState state) {
       return new LocalStateComplete(oldMap, state, this.alwaysLocalData);
     }
-
   }
 }

@@ -10,6 +10,7 @@ package org.sosy_lab.cpachecker.cpa.constraints.util;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import com.google.common.collect.ImmutableSet;
 import org.junit.Test;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
@@ -55,16 +56,17 @@ public class StateSimplifierTest {
   private final SymbolicExpression group2Id2 =
       factory.asConstant(factory.newIdentifier(memLoc1), defaultNumericType);
 
-  private final Constraint group1Constraint1 = (Constraint)
-      factory.greaterThanOrEqual(group1Id1, group1Id2, defaultNumericType, defaultNumericType);
-  private final Constraint group1Constraint2 = (Constraint)
-      factory.lessThanOrEqual(group1Id2, group1Id1, defaultNumericType, defaultNumericType);
+  private final Constraint group1Constraint1 =
+      (Constraint)
+          factory.greaterThanOrEqual(group1Id1, group1Id2, defaultNumericType, defaultNumericType);
+  private final Constraint group1Constraint2 =
+      (Constraint)
+          factory.lessThanOrEqual(group1Id2, group1Id1, defaultNumericType, defaultNumericType);
 
-  private final Constraint group2Constraint1 = (Constraint)
-      factory.lessThan(group2Id1, number, defaultNumericType, defaultNumericType);
-  private final Constraint group2Constraint2 = (Constraint)
-      factory.lessThan(group2Id2, group2Id1, defaultNumericType, defaultNumericType);
-
+  private final Constraint group2Constraint1 =
+      (Constraint) factory.lessThan(group2Id1, number, defaultNumericType, defaultNumericType);
+  private final Constraint group2Constraint2 =
+      (Constraint) factory.lessThan(group2Id2, group2Id1, defaultNumericType, defaultNumericType);
 
   private final MemoryLocation group1MemLoc1 = MemoryLocation.forIdentifier("a");
   private final MemoryLocation group1MemLoc2 = MemoryLocation.forIdentifier("b");
@@ -72,12 +74,10 @@ public class StateSimplifierTest {
   private final MemoryLocation group2MemLoc2 = MemoryLocation.forIdentifier("d");
 
   public StateSimplifierTest() throws InvalidConfigurationException {
-    Configuration config = Configuration.builder()
-        .setOption("cpa.constraints.removeTrivial", "true")
-        .build();
+    Configuration config =
+        Configuration.builder().setOption("cpa.constraints.removeTrivial", "true").build();
     simplifier = new StateSimplifier(config, new ConstraintsStatistics());
   }
-
 
   @Test
   public void testRemoveOutdatedConstraints_allConstraintsOutdated() {
@@ -85,9 +85,10 @@ public class StateSimplifierTest {
 
     ConstraintsState constraintsState = getSampleConstraints();
 
-    simplifier.removeOutdatedConstraints(constraintsState, initialValueState);
+    ConstraintsState simplifiedState =
+        simplifier.removeOutdatedConstraints(constraintsState, initialValueState);
 
-    assertThat(constraintsState).isEmpty();
+    assertThat(simplifiedState).isEmpty();
   }
 
   @Test
@@ -99,14 +100,13 @@ public class StateSimplifierTest {
 
     ConstraintsState constraintsState = getSampleConstraints();
 
-    simplifier.removeOutdatedConstraints(constraintsState, valueState);
+    ConstraintsState simplifiedState =
+        simplifier.removeOutdatedConstraints(constraintsState, valueState);
 
-    assertThat(group2ConstraintsExist(constraintsState)).isTrue();
+    assertThat(group2ConstraintsExist(simplifiedState)).isTrue();
   }
 
-  private boolean group2ConstraintsExist(
-      ConstraintsState pNewState
-  ) {
+  private boolean group2ConstraintsExist(ConstraintsState pNewState) {
     return pNewState.contains(group2Constraint1) && pNewState.contains(group2Constraint2);
   }
 
@@ -119,21 +119,17 @@ public class StateSimplifierTest {
     valueState.forget(group2MemLoc2);
     ConstraintsState constraintsState = getSampleConstraints();
 
-    simplifier.removeOutdatedConstraints(constraintsState, valueState);
+    ConstraintsState simplifiedState =
+        simplifier.removeOutdatedConstraints(constraintsState, valueState);
 
-    assertThat(constraintsState).hasSize(1);
-    assertThat(constraintsState).contains(group2Constraint1);
+    assertThat(simplifiedState).hasSize(1);
+    assertThat(simplifiedState).contains(group2Constraint1);
   }
 
   private ConstraintsState getSampleConstraints() {
-    ConstraintsState state = new ConstraintsState();
-
-    state.add(group1Constraint1);
-    state.add(group1Constraint2);
-    state.add(group2Constraint1);
-    state.add(group2Constraint2);
-
-    return state;
+    return new ConstraintsState(
+        ImmutableSet.of(
+            group1Constraint1, group1Constraint2, group2Constraint1, group2Constraint2));
   }
 
   private ValueAnalysisState getCompleteValueState() {
@@ -146,5 +142,4 @@ public class StateSimplifierTest {
 
     return state;
   }
-
 }

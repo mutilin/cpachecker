@@ -8,8 +8,8 @@
 
 package org.sosy_lab.cpachecker.cpa.location;
 
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -36,7 +36,7 @@ public class LocationTransferRelationBackwards implements TransferRelation {
 
   @Override
   public Collection<LocationState> getAbstractSuccessorsForEdge(
-      AbstractState state, Precision prec,  CFAEdge cfaEdge) throws CPATransferException {
+      AbstractState state, Precision prec, CFAEdge cfaEdge) throws CPATransferException {
 
     LocationState predState = (LocationState) state;
     CFANode predLocation = predState.getLocationNode();
@@ -49,10 +49,10 @@ public class LocationTransferRelationBackwards implements TransferRelation {
   }
 
   @Override
-  public Collection<LocationState> getAbstractSuccessors(AbstractState state,
-      Precision prec) throws CPATransferException {
+  public Collection<LocationState> getAbstractSuccessors(AbstractState state, Precision prec)
+      throws CPATransferException {
 
-    CFANode predLocation = ((LocationState)state).getLocationNode();
+    CFANode predLocation = ((LocationState) state).getLocationNode();
 
     if (state instanceof AbstractStateWithEdge) {
       AbstractEdge edge = ((AbstractStateWithEdge) state).getAbstractEdge();

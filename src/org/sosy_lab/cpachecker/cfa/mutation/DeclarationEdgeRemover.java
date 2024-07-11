@@ -58,5 +58,4 @@ class DeclarationEdgeRemover extends SingleEdgeRemover {
     return decl instanceof AVariableDeclaration
         && !dc.getUsedLocalVariables().get(pNode.getFunction().getName()).contains(decl);
   }
-
 }

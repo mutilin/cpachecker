@@ -9,6 +9,8 @@
 package org.sosy_lab.cpachecker.cpa.usage.storage;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.Comparators;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -146,7 +148,7 @@ public class ConcurrentUsageExtractor {
     traversalTimer.start();
 
     active = true;
-    assert(tasks.isEmpty());
+    assert tasks.isEmpty();
     List<Thread> workers = new ArrayList<>();
 
     synchronized (tasks) {
@@ -234,7 +236,8 @@ public class ConcurrentUsageExtractor {
   public void printStatistics(StatisticsWriter pWriter) {
     int threads = useConcurrentExtraction ? Runtime.getRuntime().availableProcessors() : 1;
     StatisticsWriter writer =
-        pWriter.spacer()
+        pWriter
+            .spacer()
             .put("Number of concurrent extractors", threads)
             .put(totalTimer)
             .beginLevel()
@@ -257,7 +260,8 @@ public class ConcurrentUsageExtractor {
 
     // Timers are disabled due to problems with synchronization
     // usageProcessor.printStatistics(writer);
-    writer.endLevel()
+    writer
+        .endLevel()
         .put(addingToContainerTimer)
         .put(usageExpandingTimer)
         .endLevel()
@@ -265,7 +269,7 @@ public class ConcurrentUsageExtractor {
         .put(finalSetCounter);
   }
 
-  private static abstract class AbstractTask implements Comparable<AbstractTask> {
+  private abstract static class AbstractTask implements Comparable<AbstractTask> {
     protected final ARGState firstState;
 
     AbstractTask(ARGState pState) {
@@ -274,7 +278,9 @@ public class ConcurrentUsageExtractor {
 
     @Override
     public int compareTo(AbstractTask pArg0) {
-      return firstState.getStateId() - pArg0.firstState.getStateId();
+      return ComparisonChain.start()
+          .compare(firstState.getStateId(), pArg0.firstState.getStateId())
+          .result();
     }
   }
 
@@ -283,10 +289,7 @@ public class ConcurrentUsageExtractor {
     private final ReachedSet reached;
     private final List<AbstractState> expandedStack;
 
-    ReachedSetTask(
-        ReachedSet pSet,
-        UsageDelta pDelta,
-        List<AbstractState> pExpandedStack) {
+    ReachedSetTask(ReachedSet pSet, UsageDelta pDelta, List<AbstractState> pExpandedStack) {
 
       super((ARGState) pSet.getFirstState());
       currentDelta = pDelta;
@@ -296,23 +299,22 @@ public class ConcurrentUsageExtractor {
 
     @Override
     public int compareTo(AbstractTask pArg0) {
+      // Special compare with super
       int res = super.compareTo(pArg0);
       if (res != 0) {
         return res;
       }
 
       ReachedSetTask rTask = (ReachedSetTask) pArg0;
-      int size = Math.min(expandedStack.size(), rTask.expandedStack.size());
-      for (int i = 0; i < size; i++) {
-        ARGState state1 = (ARGState) expandedStack.get(expandedStack.size() - i - 1);
-        ARGState state2 = (ARGState) rTask.expandedStack.get(rTask.expandedStack.size() - i - 1);
-        res = state1.getStateId() - state2.getStateId();
-        if (res != 0) {
-          return res;
-        }
-      }
-
-      throw new AssertionError("Should not be two equal tasks");
+      return ComparisonChain.start()
+          .compare(
+              expandedStack,
+              rTask.expandedStack,
+              Comparators.lexicographical(
+                  (s1, s2) -> {
+                    return ((ARGState) s1).compareTo(((ARGState) s2));
+                  }))
+          .result();
     }
 
     @Override
@@ -325,16 +327,10 @@ public class ConcurrentUsageExtractor {
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (!(obj instanceof ReachedSetTask)) {
-        return false;
-      }
-      ReachedSetTask other = (ReachedSetTask) obj;
-      return Objects.equals(currentDelta, other.currentDelta)
-          && Objects.equals(expandedStack, other.expandedStack)
-          && Objects.equals(reached, other.reached);
+      return obj instanceof ReachedSetTask other
+          && currentDelta.equals(other.currentDelta)
+          && expandedStack.equals(other.expandedStack)
+          && reached.equals(other.reached);
     }
   }
 
@@ -523,19 +519,17 @@ public class ConcurrentUsageExtractor {
     private final List<Pair<UsageDelta, List<AbstractState>>> stacks;
 
     UsageSetTask(
-        AbstractState pFirst,
-        List<Pair<UsageDelta, List<AbstractState>>> pExpandedStacks) {
+        AbstractState pFirst, List<Pair<UsageDelta, List<AbstractState>>> pExpandedStacks) {
       super((ARGState) pFirst);
       stacks = pExpandedStacks;
     }
 
     @Override
     public int compareTo(AbstractTask pArg0) {
+      // Special compare to check an assert
       int res = super.compareTo(pArg0);
-      if (res != 0) {
-        return res;
-      }
-      throw new AssertionError("Should not be two equal tasks");
+      assert res != 0 : "Should not be two equal tasks";
+      return res;
     }
 
     @Override
@@ -548,14 +542,9 @@ public class ConcurrentUsageExtractor {
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (!(obj instanceof UsageSetTask)) {
-        return false;
-      }
-      UsageSetTask other = (UsageSetTask) obj;
-      return Objects.equals(firstState, other.firstState) && Objects.equals(stacks, other.stacks);
+      return obj instanceof UsageSetTask other
+          && firstState.equals(other.firstState)
+          && stacks.equals(other.stacks);
     }
   }
 

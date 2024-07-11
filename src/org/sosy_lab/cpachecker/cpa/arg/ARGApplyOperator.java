@@ -107,8 +107,8 @@ public class ARGApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     assert pStates.size() >= 2;
     assert pStates.size() - pEdges.size() == 1;
 
@@ -117,9 +117,9 @@ public class ARGApplyOperator implements ApplyOperator {
     for (int i = 0; i < pStates.size() - 1; i++) {
       ARGState state = (ARGState) pStates.get(i);
       AbstractEdge edge =
-          ((AbstractStateWithEdge) AbstractStates
-              .extractStateByType(state, AbstractStateWithLocations.class))
-                  .getAbstractEdge();
+          ((AbstractStateWithEdge)
+                  AbstractStates.extractStateByType(state, AbstractStateWithLocations.class))
+              .getAbstractEdge();
       assert edge instanceof WrapperCFAEdge;
       CFAEdge realEdge = ((WrapperCFAEdge) edge).getCFAEdge();
       if (realEdge instanceof CDeclarationEdge

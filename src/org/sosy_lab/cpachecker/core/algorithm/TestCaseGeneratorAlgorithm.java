@@ -11,6 +11,7 @@ package org.sosy_lab.cpachecker.core.algorithm;
 import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Preconditions;
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -62,19 +63,28 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
   }
 
   @Option(
-    secure = true,
-    name = "inStats",
-    description = "display all test targets and non-covered test targets in statistics"
-  )
+      secure = true,
+      name = "inStats",
+      description = "display all test targets and non-covered test targets in statistics")
   private boolean printTestTargetInfoInStats = false;
 
-  @Option(secure = true,  description = "when generating tests covering error call stop as soon as generated one test case and report false (only possible in combination with error call property specification")
+  @Option(
+      secure = true,
+      description =
+          "when generating tests covering error call stop as soon as generated one test case and"
+              + " report false (only possible in combination with error call property"
+              + " specification")
   private boolean reportCoveredErrorCallAsError = false;
 
   @Option(secure = true, name = "progress", description = "defines how progress is computed")
   private ProgressComputation progressType = ProgressComputation.RELATIVE_TOTAL;
 
-
+  @Option(
+      secure = true,
+      name = "mutants",
+      description =
+          "how many mutated test cases should be additionally generated (disabled if <= 0)")
+  private int numMutations = 0;
 
   private final Algorithm algorithm;
   private final AssumptionToEdgeAllocator assumptionToEdgeAllocator;
@@ -110,6 +120,8 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
 
     exporter = new TestCaseExporter(pCfa, logger, pConfig);
 
+    numMutations = Math.max(numMutations, 0);
+
     if (pSpec.getProperties().size() == 1) {
       specProp = pSpec.getProperties().iterator().next();
       Preconditions.checkArgument(
@@ -126,13 +138,8 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
     // clean up ARG
     if (pReached.getWaitlist().size() > 1
         || !pReached.getWaitlist().contains(pReached.getFirstState())) {
-      pReached
-          .getWaitlist()
-          .stream()
-          .filter(
-              (AbstractState state) -> {
-                return !((ARGState) state).getChildren().isEmpty();
-              })
+      pReached.getWaitlist().stream()
+          .filter((AbstractState state) -> !((ARGState) state).getChildren().isEmpty())
           .forEach(
               (AbstractState state) -> {
                 ARGState argState = (ARGState) state;
@@ -149,14 +156,13 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
     }
 
     try {
-      boolean shouldReturnFalse, ignoreTargetState;
       while (pReached.hasWaitingState() && !testTargets.isEmpty()) {
         shutdownNotifier.shutdownIfNecessary();
-        shouldReturnFalse = false;
-        ignoreTargetState = false;
+        boolean shouldReturnFalse = false;
+        boolean ignoreTargetState = false;
 
         assert ARGUtils.checkARG(pReached);
-        assert (from(pReached).filter(AbstractStates::isTargetState).isEmpty());
+        assert from(pReached).filter(AbstractStates::isTargetState).isEmpty();
 
         AlgorithmStatus status = AlgorithmStatus.UNSOUND_AND_IMPRECISE;
         try {
@@ -202,11 +208,16 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
               if (testTargets.contains(targetEdge)) {
 
                 if (status.isPrecise()) {
-                  CounterexampleInfo cexInfo = ARGUtils.tryGetOrCreateCounterexampleInformation(argState, cpa, assumptionToEdgeAllocator).orElseThrow();
-                  exporter.writeTestCaseFiles(cexInfo, Optional.ofNullable(specProp));
+                  CounterexampleInfo cexInfo =
+                      ARGUtils.tryGetOrCreateCounterexampleInformation(
+                              argState, cpa, assumptionToEdgeAllocator)
+                          .orElseThrow();
+                  exporter.writeTestCaseFilesAndMutations(
+                      cexInfo, Optional.ofNullable(specProp), numMutations);
 
                   logger.log(Level.FINE, "Removing test target: " + targetEdge);
                   testTargets.remove(targetEdge);
+                  TestTargetProvider.processTargetPath(cexInfo);
 
                   if (shouldReportCoveredErrorCallAsError()) {
                     addErrorStateWithTargetInformation(pReached);
@@ -273,7 +284,7 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
     Preconditions.checkState(shouldReportCoveredErrorCallAsError());
     pReached.add(
         new DummyErrorState(pReached.getLastState()) {
-          private static final long serialVersionUID = 5522643115974481914L;
+          @Serial private static final long serialVersionUID = 5522643115974481914L;
 
           @Override
           public Set<TargetInformation> getTargetInformation() {
@@ -297,13 +308,11 @@ public class TestCaseGeneratorAlgorithm implements ProgressReportingAlgorithm, S
 
   @Override
   public double getProgress() {
-    switch (progressType) {
-      case ABSOLUTE:
-        return progress;
-      case RELATIVE_TOTAL:
-        return progress / Math.max(1, TestTargetProvider.getTotalNumberOfTestTargets());
-      default:
-        throw new AssertionError("Unhandled progress computation type: " + progressType);
-    }
+    return switch (progressType) {
+      case ABSOLUTE -> progress;
+      case RELATIVE_TOTAL ->
+          progress / Math.max(1, TestTargetProvider.getTotalNumberOfTestTargets());
+      default -> throw new AssertionError("Unhandled progress computation type: " + progressType);
+    };
   }
 }

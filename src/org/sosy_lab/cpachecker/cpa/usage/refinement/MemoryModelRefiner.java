@@ -30,8 +30,9 @@ import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-public class MemoryModelRefiner extends
-    WrappedConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>, Pair<ExtendedARGPath, ExtendedARGPath>> {
+public class MemoryModelRefiner
+    extends WrappedConfigurableRefinementBlock<
+        Pair<ExtendedARGPath, ExtendedARGPath>, Pair<ExtendedARGPath, ExtendedARGPath>> {
 
   private final StatTimer totalTime = new StatTimer("Time for MemoryModel refiner");
   private final StatTimer refiningPaths = new StatTimer("Refining joined paths");
@@ -79,7 +80,7 @@ public class MemoryModelRefiner extends
 
       RefinementResult result = RefinementResult.createFalse();
       if (counterexampleInfo != null && counterexampleInfo.isSpurious()) {
-        assert (counterexampleInfo2.isSpurious());
+        assert counterexampleInfo2.isSpurious();
         spuriousPaths.inc();
         PredicatePrecision lastPrecision = strategy.getNewPrecision();
         List<ARGState> allStates = new ArrayList<>(secondPath.asStatesList());
@@ -88,8 +89,7 @@ public class MemoryModelRefiner extends
 
         if (!affectedStates.isEmpty()) {
           result.addInfo(MemoryModelRefiner.class, affectedStates);
-          assert (lastPrecision != null);
-          assert (!lastPrecision.isEmpty());
+          assert lastPrecision != null && !lastPrecision.isEmpty();
           result.addPrecision(lastPrecision);
         }
       } else {
@@ -123,11 +123,11 @@ public class MemoryModelRefiner extends
 
   private void storeInfo(ExtendedARGPath path1, ExtendedARGPath path2) {
     PredicateAbstractState state1 =
-        AbstractStates
-            .extractStateByType(path1.getUsageInfo().getKeyState(), PredicateAbstractState.class);
+        AbstractStates.extractStateByType(
+            path1.getUsageInfo().getKeyState(), PredicateAbstractState.class);
     PredicateAbstractState state2 =
-        AbstractStates
-            .extractStateByType(path2.getUsageInfo().getKeyState(), PredicateAbstractState.class);
+        AbstractStates.extractStateByType(
+            path2.getUsageInfo().getKeyState(), PredicateAbstractState.class);
 
     strategy.addPathFormulas(state1.getPathFormula(), state2.getPathFormula());
   }
@@ -156,5 +156,4 @@ public class MemoryModelRefiner extends
     }
     wrappedRefiner.printStatistics(pOut);
   }
-
 }

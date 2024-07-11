@@ -10,7 +10,6 @@ package org.sosy_lab.cpachecker.cfa.mutation;
 
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableSetCopy;
 
-import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableSet;
 import java.util.ArrayList;
 import java.util.List;

@@ -8,6 +8,8 @@
 
 package org.sosy_lab.cpachecker.util.smg.graph;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 import java.math.BigInteger;
 
 /**
@@ -32,12 +34,15 @@ public class SMGPointsToEdge implements SMGEdge, Comparable<SMGPointsToEdge> {
    */
   public SMGPointsToEdge(
       SMGObject pPointsToObject, BigInteger pOffset, SMGTargetSpecifier pTargetSpecifier) {
+    Preconditions.checkNotNull(pPointsToObject);
+    Preconditions.checkNotNull(pOffset);
+    Preconditions.checkNotNull(pTargetSpecifier);
     pointsToObject = pPointsToObject;
     offset = pOffset;
     targetSpecifier = pTargetSpecifier;
   }
 
-  /** @return the SMGObject this edge points to. */
+  /** Returns the SMGObject this edge points to. */
   public SMGObject pointsTo() {
     return pointsToObject;
   }
@@ -52,43 +57,46 @@ public class SMGPointsToEdge implements SMGEdge, Comparable<SMGPointsToEdge> {
   }
 
   @Override
-  public int compareTo(SMGPointsToEdge pArg0) {
-    if (pointsToObject.compareTo(pArg0.pointsToObject) == 0) {
-      if (offset.compareTo(pArg0.offset) == 0) {
-        if (targetSpecifier == pArg0.targetSpecifier) {
-          return 0;
-        } else {
-          return 1;
-        }
-      } else {
-        return offset.compareTo(pArg0.offset);
-      }
-    } else {
-      return pointsToObject.compareTo(pArg0.pointsToObject);
-    }
+  public int compareTo(SMGPointsToEdge pOther) {
+    return ComparisonChain.start()
+        .compare(pointsToObject, pOther.pointsToObject)
+        .compare(offset, pOther.offset)
+        .compare(targetSpecifier, pOther.targetSpecifier)
+        .result();
   }
 
   @Override
   public boolean equals(Object other) {
-    if (!(other instanceof SMGPointsToEdge)) {
-      return false;
-    }
-    SMGPointsToEdge otherEdge = (SMGPointsToEdge) other;
-    if (otherEdge.offset.equals(offset)
+    return other instanceof SMGPointsToEdge otherEdge
+        && otherEdge.offset.equals(offset)
         && otherEdge.pointsToObject.equals(pointsToObject)
-        && targetSpecifier.equals(otherEdge.targetSpecifier)) {
-      return true;
-    }
-    return false;
+        && targetSpecifier.equals(otherEdge.targetSpecifier);
   }
 
   @Override
   public int hashCode() {
-    return super.hashCode();
+    return targetSpecifier.hashCode() + 31 * pointsToObject.hashCode() + 41 * offset.intValue();
   }
 
   public void setTargetSpecifier(SMGTargetSpecifier pTargetSpecifier) {
     targetSpecifier = pTargetSpecifier;
   }
 
+  public SMGPointsToEdge copyAndSetTargetSpecifier(SMGTargetSpecifier pTargetSpecifier) {
+    return new SMGPointsToEdge(pointsToObject, offset, pTargetSpecifier);
+  }
+
+  @Override
+  public String toString() {
+    return " -> (" + specToString() + ") [" + offset + "] " + pointsToObject;
+  }
+
+  private String specToString() {
+    return switch (targetSpecifier) {
+      case IS_REGION -> "reg";
+      case IS_LAST_POINTER -> "lst";
+      case IS_FIRST_POINTER -> "fst";
+      case IS_ALL_POINTER -> "all";
+    };
+  }
 }

@@ -32,12 +32,10 @@ public class ThreadAbstractionState
   private final String currentThread;
   private final boolean selfParallel;
 
-  protected final static String MAIN_THREAD = "main";
+  protected static final String MAIN_THREAD = "main";
 
   protected ThreadAbstractionState(
-      Map<String, CFAEdge> Tset,
-      String pCurrent,
-      boolean pSelfParallel) {
+      Map<String, CFAEdge> Tset, String pCurrent, boolean pSelfParallel) {
     threadSet = Tset;
     currentThread = pCurrent;
     selfParallel = pSelfParallel;
@@ -86,12 +84,9 @@ public class ThreadAbstractionState
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof ThreadAbstractionState)) {
-      return false;
-    }
-    ThreadAbstractionState pOther = (ThreadAbstractionState) obj;
-    return this.currentThread.equals(pOther.currentThread)
-        && this.threadSet.equals(pOther.threadSet);
+    return obj instanceof ThreadAbstractionState other
+        && currentThread.equals(other.currentThread)
+        && threadSet.equals(other.threadSet);
   }
 
   @Override

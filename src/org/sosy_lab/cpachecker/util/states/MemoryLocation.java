@@ -15,6 +15,7 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Ordering;
 import com.google.errorprone.annotations.Immutable;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -25,7 +26,7 @@ import org.sosy_lab.cpachecker.cfa.ast.ASimpleDeclaration;
 @Immutable
 public final class MemoryLocation implements Comparable<MemoryLocation>, Serializable {
 
-  private static final long serialVersionUID = -8910967707373729034L;
+  @Serial private static final long serialVersionUID = -8910967707373729034L;
   private final @Nullable String functionName;
   private final String identifier;
   private final @Nullable Long offset;
@@ -46,13 +47,8 @@ public final class MemoryLocation implements Comparable<MemoryLocation>, Seriali
       return true;
     }
 
-    if (!(other instanceof MemoryLocation)) {
-      return false;
-    }
-
-    MemoryLocation otherLocation = (MemoryLocation) other;
-
-    return Objects.equals(functionName, otherLocation.functionName)
+    return other instanceof MemoryLocation otherLocation
+        && Objects.equals(functionName, otherLocation.functionName)
         && Objects.equals(identifier, otherLocation.identifier)
         && Objects.equals(offset, otherLocation.offset);
   }
@@ -157,11 +153,21 @@ public final class MemoryLocation implements Comparable<MemoryLocation>, Seriali
    * as an opaque identifier and only be passed to {@link #parseExtendedQualifiedName(String)}.
    */
   public String getExtendedQualifiedName() {
-    String variableName = isOnFunctionStack() ? (functionName + "::" + identifier) : identifier;
+    String variableName = getQualifiedName();
     if (offset == null) {
       return variableName;
     }
     return variableName + "/" + offset;
+  }
+
+  /**
+   * Returns the qualified name consisting of the function name if present and the identifier. Note:
+   * MemoryLocation consists of more than just those Strings!
+   *
+   * @return a String representing the qualified name consisting of function name and identifier.
+   */
+  public String getQualifiedName() {
+    return isOnFunctionStack() ? (functionName + "::" + identifier) : identifier;
   }
 
   public boolean isOnFunctionStack() {
@@ -185,8 +191,8 @@ public final class MemoryLocation implements Comparable<MemoryLocation>, Seriali
   }
 
   /**
-   * Gets the offset of a reference. Only valid for references.
-   * See {@link MemoryLocation#isReference()}.
+   * Gets the offset of a reference. Only valid for references. See {@link
+   * MemoryLocation#isReference()}.
    *
    * @return the offset of a reference.
    */

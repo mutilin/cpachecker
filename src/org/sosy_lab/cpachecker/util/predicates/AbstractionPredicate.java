@@ -12,9 +12,7 @@ import com.google.common.base.Preconditions;
 import org.sosy_lab.cpachecker.util.predicates.regions.Region;
 import org.sosy_lab.java_smt.api.BooleanFormula;
 
-/**
- * A generic representation of a predicate
- */
+/** A generic representation of a predicate */
 public class AbstractionPredicate {
 
   private final Region abstractVariable;
@@ -47,14 +45,11 @@ public class AbstractionPredicate {
 
   @Override
   public boolean equals(Object pObj) {
-    if (pObj == this) {
+    if (this == pObj) {
       return true;
-    } else if (!(pObj instanceof AbstractionPredicate)) {
-      return false;
-    } else {
-      AbstractionPredicate other = (AbstractionPredicate)pObj;
-      return this.abstractVariable.equals(other.abstractVariable);
     }
+    return pObj instanceof AbstractionPredicate other
+        && abstractVariable.equals(other.abstractVariable);
   }
 
   @Override

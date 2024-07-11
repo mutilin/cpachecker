@@ -8,39 +8,37 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
+public final class CFieldDesignator extends CDesignator {
 
-public class CFieldDesignator extends CDesignator {
+  @Serial private static final long serialVersionUID = -1418942274162299596L;
+  private final String name;
 
-  private static final long serialVersionUID = -1418942274162299596L;
-  private final String         name;
-
-  public CFieldDesignator(final FileLocation pFileLocation,
-                            final String pName) {
+  public CFieldDesignator(final FileLocation pFileLocation, final String pName) {
     super(pFileLocation);
     name = pName;
   }
-
 
   public String getFieldName() {
     return name;
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     return toASTString();
   }
 
   @Override
   public String toASTString() {
-    return "."  + name;
+    return "." + name;
   }
 
   @Override
-  public String toParenthesizedASTString(boolean pQualified) {
-    return toASTString(pQualified);
+  public String toParenthesizedASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
+    return toASTString(pAAstNodeRepresentation);
   }
 
   @Override
@@ -62,22 +60,14 @@ public class CFieldDesignator extends CDesignator {
     return result;
   }
 
-
   @Override
   public boolean equals(Object obj) {
     if (this == obj) {
       return true;
     }
 
-    if (!(obj instanceof CFieldDesignator)
-        || !super.equals(obj)) {
-      return false;
-    }
-
-    CFieldDesignator other = (CFieldDesignator) obj;
-
-    return Objects.equals(other.name, name);
+    return obj instanceof CFieldDesignator other
+        && super.equals(obj)
+        && Objects.equals(other.name, name);
   }
-
-
 }

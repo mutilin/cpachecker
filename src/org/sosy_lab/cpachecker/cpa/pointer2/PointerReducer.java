@@ -63,16 +63,15 @@ public class PointerReducer implements Reducer {
     PointerState clonedState = (PointerState) rootState;
     for (MemoryLocation ptr : ((PointerState) reducedState).getTrackedMemoryLocations()) {
       clonedState =
-          clonedState
-              .addPointsToInformation(ptr, ((PointerState) reducedState).getPointsToSet(ptr));
+          clonedState.addPointsToInformation(
+              ptr, ((PointerState) reducedState).getPointsToSet(ptr));
     }
     expandTime.stop();
     return clonedState;
   }
 
   @Override
-  public Precision getVariableReducedPrecision(
-      Precision precision, Block context) {
+  public Precision getVariableReducedPrecision(Precision precision, Block context) {
     return precision;
   }
 
@@ -83,8 +82,7 @@ public class PointerReducer implements Reducer {
   }
 
   @Override
-  public Object getHashCodeForState(
-      AbstractState stateKey, Precision precisionKey) {
+  public Object getHashCodeForState(AbstractState stateKey, Precision precisionKey) {
     return Pair.of(stateKey, precisionKey);
   }
 

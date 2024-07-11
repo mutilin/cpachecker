@@ -41,9 +41,7 @@ public class LocalReducer extends GenericReducer<LocalState, Precision> {
 
   @Override
   protected Precision getVariableExpandedPrecision0(
-      Precision pRootPrecision,
-      Block pRootContext,
-      Precision pReducedPrecision) {
+      Precision pRootPrecision, Block pRootContext, Precision pReducedPrecision) {
     return pRootPrecision;
   }
 

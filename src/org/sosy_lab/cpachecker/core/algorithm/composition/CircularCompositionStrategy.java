@@ -30,12 +30,14 @@ public class CircularCompositionStrategy extends AlgorithmCompositionStrategy
     implements Statistics {
 
   @Option(
-    secure = true,
-    description = "If adaptTimeLimits is set and all configurations support progress reports, "
-        + "in each cycle the time limits per configuration are newly calculated based on the progress")
+      secure = true,
+      description =
+          "If adaptTimeLimits is set and all configurations support progress reports, in each cycle"
+              + " the time limits per configuration are newly calculated based on the progress")
   private boolean adaptTimeLimits = false;
 
   private int inCycleCount;
+  private int cycleLength;
   private int noOfRounds;
 
   protected Iterator<AlgorithmContext> algorithmContextCycle;
@@ -49,9 +51,24 @@ public class CircularCompositionStrategy extends AlgorithmCompositionStrategy
   @Override
   protected void initializeAlgorithmContexts(List<AnnotatedValue<Path>> pConfigFiles) {
     super.initializeAlgorithmContexts(pConfigFiles);
-    algorithmContextCycle = Iterables.cycle(algorithmContexts).iterator();
+    setUpCyclingIteration();
     inCycleCount = 1;
     noOfRounds = 0;
+  }
+
+  private boolean considerContext(AlgorithmContext pAlgCtxt) {
+    return !pAlgCtxt.isRecursiveOnlyConfiguration() || considerRecursiveContexts;
+  }
+
+  private boolean setUpCyclingIteration() {
+    int newLength = Iterables.size(Iterables.filter(algorithmContexts, this::considerContext));
+    if (algorithmContextCycle == null || newLength != cycleLength) {
+      cycleLength = newLength;
+      algorithmContextCycle =
+          Iterables.cycle(Iterables.filter(algorithmContexts, this::considerContext)).iterator();
+      return true;
+    }
+    return false;
   }
 
   private void computeAndSetNewTimeLimits() {
@@ -60,6 +77,9 @@ public class CircularCompositionStrategy extends AlgorithmCompositionStrategy
     boolean mayAdapt = true;
 
     for (AlgorithmContext context : algorithmContexts) {
+      if (!considerContext(context)) {
+        continue;
+      }
       totalDistributableTimeBudget += context.getTimeLimit() - AlgorithmContext.DEFAULT_TIME_LIMIT;
       totalRelativeProgress += (context.getProgress() / context.getTimeLimit());
       mayAdapt &= context.getProgress() >= 0;
@@ -70,12 +90,13 @@ public class CircularCompositionStrategy extends AlgorithmCompositionStrategy
     }
 
     for (AlgorithmContext context : algorithmContexts) {
-      if (mayAdapt) {
+      if (mayAdapt && considerContext(context)) {
         context.adaptTimeLimit(
             AlgorithmContext.DEFAULT_TIME_LIMIT
-                + (int) Math.round(
-                    ((context.getProgress() / context.getTimeLimit()) / totalRelativeProgress)
-                        * totalDistributableTimeBudget));
+                + (int)
+                    Math.round(
+                        ((context.getProgress() / context.getTimeLimit()) / totalRelativeProgress)
+                            * totalDistributableTimeBudget));
       }
     }
   }
@@ -87,13 +108,14 @@ public class CircularCompositionStrategy extends AlgorithmCompositionStrategy
 
   @Override
   public AlgorithmContext getNextAlgorithm() {
-
-    if (inCycleCount == algorithmContexts.size()) { // TODO
+    if (inCycleCount == cycleLength) {
       inCycleCount = 0;
       noOfRounds++;
       logger.log(Level.INFO, "Circular composition strategy starts next iteration...");
-      if (adaptTimeLimits) {
-        computeAndSetNewTimeLimits();
+      if (!setUpCyclingIteration()) {
+        if (adaptTimeLimits) {
+          computeAndSetNewTimeLimits();
+        }
       }
       for (AlgorithmContext tempContext : algorithmContexts) {
         tempContext.resetProgress();
@@ -116,14 +138,13 @@ public class CircularCompositionStrategy extends AlgorithmCompositionStrategy
           "Time spent in analysis "
               + (i + 1)
               + ":    "
-              + algorithmContexts.get(i).getTotalTimeSpent().asSeconds());
+              + algorithmContexts.get(i).getTotalTimeSpent().asSeconds()
+              + "s");
     }
-
   }
 
   @Override
   public @Nullable String getName() {
     return "Circular Composition";
   }
-
 }

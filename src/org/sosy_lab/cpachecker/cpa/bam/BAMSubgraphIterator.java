@@ -32,10 +32,10 @@ public class BAMSubgraphIterator implements ARGPathIterator {
   private final BAMMultipleCEXSubgraphComputer subgraphComputer;
   private final BAMDataManager data;
 
-  //Internal state of iterator:
-  //First state of previously constructed path
+  // Internal state of iterator:
+  // First state of previously constructed path
   private BackwardARGState firstState;
-  //Iterators for branching points
+  // Iterators for branching points
   private Map<ARGState, Iterator<ARGState>> toCallerStatesIterator = new HashMap<>();
   private boolean hasNextPath;
   private final List<AbstractState> expandedStack;
@@ -53,11 +53,10 @@ public class BAMSubgraphIterator implements ARGPathIterator {
     expandedStack = pExpandedStack;
   }
 
-  //Actually it is possible to implement an optimization,
-  //which allows to search forks not from the first state, but from a some middle state
+  // Actually it is possible to implement an optimization,
+  // which allows to search forks not from the first state, but from a some middle state
   private ARGPath computeNextPath(
-      BackwardARGState lastAffectedState,
-      Set<List<Integer>> pRefinedStates) {
+      BackwardARGState lastAffectedState, Set<List<Integer>> pRefinedStates) {
     assert lastAffectedState != null;
 
     ARGState nextParent = null;
@@ -71,7 +70,7 @@ public class BAMSubgraphIterator implements ARGPathIterator {
     Iterator<BackwardARGState> forkIterator = potentialBranchingStates.iterator();
 
     do {
-      //Determine next branching point
+      // Determine next branching point
       nextParent = null;
       // Set<ARGState> processed = new HashSet<>();
 
@@ -87,8 +86,8 @@ public class BAMSubgraphIterator implements ARGPathIterator {
         // if (nextParent == null) {
         // processed.add(childOfReducedState.getARGState());
         // } else {
-          // Reset all iterators if we switch to the next branching point,
-          // so all upper points should be reexplored
+        // Reset all iterators if we switch to the next branching point,
+        // so all upper points should be reexplored
         // processed.forEach(s -> toCallerStatesIterator.remove(s));
         // processed.clear();
         // }
@@ -99,14 +98,14 @@ public class BAMSubgraphIterator implements ARGPathIterator {
         return null;
       }
 
-      //Because of cached paths, we cannot change the part of it
+      // Because of cached paths, we cannot change the part of it
       BackwardARGState rootOfTheClonedPath = cloneTheRestOfPath(childOfReducedState);
       BackwardARGState nextBranchingParentOnPath = new BackwardARGState(nextParent);
       rootOfTheClonedPath.addParent(nextBranchingParentOnPath);
       // Restore the new path from branching point
       newPath =
-          subgraphComputer
-              .restorePathFrom(nextBranchingParentOnPath, pRefinedStates, expandedStack);
+          subgraphComputer.restorePathFrom(
+              nextBranchingParentOnPath, pRefinedStates, expandedStack);
 
     } while (newPath == null);
 
@@ -115,33 +114,32 @@ public class BAMSubgraphIterator implements ARGPathIterator {
 
   private BackwardARGState cloneTheRestOfPath(BackwardARGState pChildOfForkState) {
     BackwardARGState stateOnOriginPath = pChildOfForkState;
-    BackwardARGState stateOnClonedPath = stateOnOriginPath.copy(), tmpStateOnPath;
+    BackwardARGState stateOnClonedPath = stateOnOriginPath.copy();
     BackwardARGState root = stateOnClonedPath;
 
     while (!stateOnOriginPath.getChildren().isEmpty()) {
       // assert stateOnOriginPath.getChildren().size() == 1;
       stateOnOriginPath = getNextStateOnPath(stateOnOriginPath);
-      tmpStateOnPath = stateOnOriginPath.copy();
+      BackwardARGState tmpStateOnPath = stateOnOriginPath.copy();
       tmpStateOnPath.addParent(stateOnClonedPath);
       stateOnClonedPath = tmpStateOnPath;
     }
     return root;
   }
 
-  /** Finds the parentState (in ARG), which corresponds to the child (in the path)
+  /**
+   * Finds the parentState (in ARG), which corresponds to the child (in the path)
    *
    * @param forkChildInPath child, which has more than one parents, which are not yet explored
    * @return found parent state
    */
-
   private ARGState findNextExpandedState(BackwardARGState forkChildInPath) {
-
 
     Iterator<ARGState> iterator;
     ARGState forkChildInARG = forkChildInPath.getARGState();
 
     if (toCallerStatesIterator.containsKey(forkChildInARG)) {
-      //Means we have already handled this state, just get the next one
+      // Means we have already handled this state, just get the next one
       iterator = toCallerStatesIterator.get(forkChildInARG);
     } else {
       // assert forkChildInARG.getParents().size() == 1;
@@ -153,23 +151,22 @@ public class BAMSubgraphIterator implements ARGPathIterator {
               .transform(s -> (ARGState) s)
               .iterator();
 
-      //We get this fork the second time (the first one was from path computer)
-      //Found the caller, we have explored the first time
+      // We get this fork the second time (the first one was from path computer)
+      // Found the caller, we have explored the first time
       toCallerStatesIterator.put(forkChildInARG, iterator);
     }
 
     if (iterator.hasNext()) {
       return iterator.next();
     } else {
-      //We do not find next branching parent for the given state
+      // We do not find next branching parent for the given state
       return null;
     }
   }
 
   /**
-   * Due to special structure of ARGPath,
-   * the real fork state (reduced entry) is not included into it.
-   * We need to get it.
+   * Due to special structure of ARGPath, the real fork state (reduced entry) is not included into
+   * it. We need to get it.
    *
    * @param parent a state after that we need to found a fork
    * @return a state of the nearest fork
@@ -186,7 +183,7 @@ public class BAMSubgraphIterator implements ARGPathIterator {
       currentStateOnPath = getNextStateOnPath(currentStateOnPath);
       ARGState currentStateInARG = currentStateOnPath.getARGState();
 
-      //No matter which parent to take - interesting one is single anyway
+      // No matter which parent to take - interesting one is single anyway
       ARGState parentInARG = currentStateInARG.getParents().iterator().next();
 
       // Check if it is an exit state, we are waiting
@@ -196,23 +193,23 @@ public class BAMSubgraphIterator implements ARGPathIterator {
         assert parentInARG.getParents().isEmpty();
         assert AbstractStates.extractLocation(parentInARG) instanceof FunctionEntryNode;
 
-        //Now we should check, that there is no corresponding exit state in the path
-        //only in this case this is a real fork
+        // Now we should check, that there is no corresponding exit state in the path
+        // only in this case this is a real fork
 
-        //This is expanded state on the path at function call
+        // This is expanded state on the path at function call
         ARGState expandedEntryState = getPreviousStateOnPath(currentStateOnPath).getARGState();
 
-        //Save child and if we meet it, we remove the parent as not a fork
+        // Save child and if we meet it, we remove the parent as not a fork
         mapToPath.put(expandedEntryState, currentStateOnPath);
         potentialForkStates.add(currentStateOnPath);
       }
 
-      //parentInARG may be an expanded exit state, which is not stored in the path
-      //check it using parent of parent
+      // parentInARG may be an expanded exit state, which is not stored in the path
+      // check it using parent of parent
       from(parentInARG.getParents())
-        .filter(mapToPath::containsKey)
-        .transform(mapToPath::get)
-        .forEach(potentialForkStates::remove);
+          .filter(mapToPath::containsKey)
+          .transform(mapToPath::get)
+          .forEach(potentialForkStates::remove);
     }
 
     return potentialForkStates;
@@ -227,8 +224,8 @@ public class BAMSubgraphIterator implements ARGPathIterator {
     if (firstState == null) {
       // The first time, we have no path to iterate
       path =
-          subgraphComputer
-              .restorePathFrom(new BackwardARGState(targetState), pRefinedStatesIds, expandedStack);
+          subgraphComputer.restorePathFrom(
+              new BackwardARGState(targetState), pRefinedStatesIds, expandedStack);
     } else {
       path = computeNextPath(firstState, pRefinedStatesIds);
     }

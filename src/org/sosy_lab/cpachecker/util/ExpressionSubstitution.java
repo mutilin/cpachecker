@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.util;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.c.CAddressOfLabelExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CArraySubscriptExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CBinaryExpression;
@@ -94,8 +95,8 @@ public final class ExpressionSubstitution {
 
     public SubstitutingVisitor(
         Substitution pSubstitution, CBinaryExpressionBuilder pBinExpBuilder) {
-      this.substitution = pSubstitution;
-      this.binExpBuilder = pBinExpBuilder;
+      substitution = pSubstitution;
+      binExpBuilder = pBinExpBuilder;
     }
 
     @Override
@@ -253,7 +254,7 @@ public final class ExpressionSubstitution {
 
   public static class SubstitutionException extends Exception {
 
-    private static final long serialVersionUID = 1L;
+    @Serial private static final long serialVersionUID = 1L;
 
     public SubstitutionException(String pMessage) {
       super(pMessage);

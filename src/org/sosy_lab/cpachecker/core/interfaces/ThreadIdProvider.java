@@ -27,9 +27,5 @@ import org.sosy_lab.cpachecker.util.Pair;
 public interface ThreadIdProvider extends AbstractState {
   public String getThreadIdForEdge(CFAEdge pEdge);
 
-  public List<Pair<String, String>>
-      getSpawnedThreadIdByEdge(
-          CFAEdge pEdge,
-          ARGState pState);
-
+  public List<Pair<String, String>> getSpawnedThreadIdByEdge(CFAEdge pEdge, ARGState pState);
 }

@@ -10,16 +10,18 @@ include: /build/gitlab-ci.yml
 
 variables:
   # Version of https://gitlab.com/sosy-lab/software/refaster/ to use
-  REFASTER_REPO_REVISION: 8b7f38e2afedf64b3cfa9592bbb8790b88f58352
+  REFASTER_REPO_REVISION: bba447e6b8e1df7ef8cdb6864319a4569e3e275b
   # Needs to be synchronized with Error Prone version in lib/ivy.xml
-  REFASTER_VERSION: 2.9.0
+  REFASTER_VERSION: 2.27.1
   PIP_CACHE_DIR: "${CI_PROJECT_DIR}/.cache/pip"
+  npm_config_cache: "${CI_PROJECT_DIR}/.cache/npm"
+  npm_config_prefer_offline: "true"
 
 .node-cache: &node-cache
   cache:
     key: "${CI_JOB_NAME}"
     paths:
-      - "src/org/sosy_lab/cpachecker/core/counterexample/node_modules"
+      - ".cache/npm"
 
 .binary_check: &binary_check
   stage: checks
@@ -35,33 +37,34 @@ variables:
     reports:
       junit: "output/configuration-checks/TESTS-TestSuites.xml"
 
-configuration-checks:jdk-11:
-  <<: *configuration-checks
-  dependencies:
-    - build-dependencies
-    - build:jdk-11
-  needs:
-    - build-dependencies
-    - build:jdk-11
+configuration-documentation:
+  <<: *binary_check
+  script:
+    - "cp doc/ConfigurationOptions.txt doc/ConfigurationOptions.txt.old"
+    - "ant $ANT_PROPS_CHECKS build-documentation -Ddocumentation.uptodate=false"
+    - "diff doc/ConfigurationOptions.txt.old doc/ConfigurationOptions.txt"
+
 
 forbidden-apis:
   <<: *binary_check
   script: "ant $ANT_PROPS_CHECKS forbiddenapis"
-  dependencies:
-    - build-dependencies
-    - build:jdk-11
-  needs:
-    - build-dependencies
-    - build:jdk-11
+
+
+# check-code-patterns:
+#   stage: checks
+#   script: "build/check-code-patterns.sh"
+#   dependencies: []
+#   needs: []
+#   image: ubuntu:20.04
 
 build-tar:
   stage: checks
   dependencies:
     - build-dependencies
-    - build:jdk-11
+    - build
   needs:
     - build-dependencies
-    - build:jdk-11
+    - build
   script: "ant $ANT_PROPS_CHECKS dist-unix -Dnamet=cpachecker"
   artifacts:
     paths:
@@ -69,18 +72,3 @@ build-tar:
   rules:
     - if: $CI_COMMIT_BRANCH == $MASTER_BRANCH
       when: always
-
-# Checks python script
-# flake8:
-#   stage: checks
-#   dependencies: []
-#   needs: []
-#   image: python:3.8
-#   before_script:
-#     - "pip install flake8 flake8-awesome"
-#   script:
-#     - flake8
-
-# Lots of changes in all sources
-check-format:
-  only: []

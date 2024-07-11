@@ -37,11 +37,13 @@ class EmptyBranchPruner
         EmptyBranchPruner.RollbackInfo, EmptyBranchPruner.RollbackInfo> {
   static class RollbackInfo {
     CFANode branchingNode;
+
     /** Null if both are removed */
     CFANode removedSuccessor;
 
     CFAEdge otherEdge;
-    int i, j;
+    int i;
+    int j;
 
     public RollbackInfo(CFANode pBranchingNode) {
       branchingNode = pBranchingNode;

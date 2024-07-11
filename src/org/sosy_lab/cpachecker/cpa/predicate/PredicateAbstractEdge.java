@@ -37,9 +37,7 @@ public class PredicateAbstractEdge implements AbstractEdge {
     private final Map<String, CType> types;
 
     public FormulaDescription(
-        CAssignment pAssignment,
-        BooleanFormula pFormula,
-        Map<String, CType> pInfo) {
+        CAssignment pAssignment, BooleanFormula pFormula, Map<String, CType> pInfo) {
       assignment = pAssignment;
       formula = pFormula;
       types = pInfo;
@@ -64,15 +62,10 @@ public class PredicateAbstractEdge implements AbstractEdge {
 
     @Override
     public boolean equals(Object pOther) {
-      if (pOther == this) {
+      if (this == pOther) {
         return true;
       }
-      if (pOther instanceof FormulaDescription) {
-        boolean res = Objects.equals(formula, ((FormulaDescription) pOther).formula);
-        return res;
-      } else {
-        return false;
-      }
+      return pOther instanceof FormulaDescription other && formula.equals(other.formula);
     }
 
     @Override
@@ -81,7 +74,7 @@ public class PredicateAbstractEdge implements AbstractEdge {
     }
   }
 
-  private final static PredicateAbstractEdge havocEdge =
+  private static final PredicateAbstractEdge havocEdge =
       new PredicateAbstractEdge(ImmutableList.of());
 
   private final Collection<FormulaDescription> formula;
@@ -102,5 +95,4 @@ public class PredicateAbstractEdge implements AbstractEdge {
   public String toString() {
     return formula.toString();
   }
-
 }

@@ -14,20 +14,15 @@ import static org.sosy_lab.cpachecker.util.CFAUtils.leavingEdges;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.VerifyException;
-import com.google.common.collect.FluentIterable;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import java.math.BigInteger;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.logging.Level;
-import org.sosy_lab.common.log.LogManager;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.ast.ADeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.AStatement;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
@@ -50,14 +45,11 @@ import org.sosy_lab.cpachecker.cfa.ast.c.DefaultCExpressionVisitor;
 import org.sosy_lab.cpachecker.cfa.model.ADeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.AStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.AssumeEdge;
-import org.sosy_lab.cpachecker.cfa.model.BlankEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.cfa.model.CFATerminationNode;
-import org.sosy_lab.cpachecker.cfa.model.FunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.cfa.model.FunctionExitNode;
-import org.sosy_lab.cpachecker.cfa.model.FunctionReturnEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CAssumeEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryStatementEdge;
@@ -71,86 +63,57 @@ public class CFACheck {
   /**
    * Traverse the CFA and run a series of checks at each node
    *
-   * @param pEntry Node to start traversal from (function entry)
-   * @param pNodes Optional set of all nodes in the function CFA
-   * @param pMachineModel model to get the size of types
+   * @param cfa Node to start traversal from
+   * @param nodes Optional set of all nodes in the CFA (may be null)
+   * @param machineModel model to get the size of types
    * @return true if all checks succeed
    * @throws VerifyException if not all checks succeed
    */
   public static boolean check(
-      FunctionEntryNode pEntry, Set<CFANode> pNodes, MachineModel pMachineModel)
+      FunctionEntryNode cfa, @Nullable Set<CFANode> nodes, MachineModel machineModel)
       throws VerifyException {
-
-    for (CFANode n : pNodes) {
-      verify(
-          n.getFunction().equals(pEntry.getFunction()),
-          "Node %s is not from same function as entry node %s",
-          debugFormat(n),
-          debugFormat(pEntry));
-    }
 
     Set<CFANode> visitedNodes = new TreeSet<>();
     Deque<CFANode> waitingNodeList = new ArrayDeque<>();
 
-    waitingNodeList.add(pEntry);
+    waitingNodeList.add(cfa);
     while (!waitingNodeList.isEmpty()) {
       CFANode node = waitingNodeList.poll();
 
       if (visitedNodes.add(node)) {
+        Iterables.addAll(waitingNodeList, CFAUtils.successorsOf(node));
         Iterables.addAll(
-            waitingNodeList,
-            CFAUtils.successorsOf(node)
-                .filter(succ -> succ.getFunction().equals(node.getFunction())));
-        // just to be sure to get ALL nodes.
-        Iterables.addAll(
-            waitingNodeList,
-            CFAUtils.predecessorsOf(node)
-                .filter(succ -> succ.getFunction().equals(node.getFunction())));
+            waitingNodeList, CFAUtils.predecessorsOf(node)); // just to be sure to get ALL nodes.
 
         // The actual checks
-        isConsistentAsGraphNode(node);
-        isConsistentAsCFANode(node, pMachineModel);
+        isConsistent(node, machineModel);
+        checkEdgeCount(node);
+
+        // If the function entry node has a function exit node, the exit node must be part of the
+        // CFA, so we check it here. This check detects function exit nodes that are unreachable but
+        // have not been removed.
+        if (node instanceof FunctionEntryNode) {
+          ((FunctionEntryNode) node).getExitNode().ifPresent(CFACheck::checkEdgeCount);
+        }
       }
     }
 
-    if (!visitedNodes.equals(pNodes)) {
-      var expVis = Sets.difference(pNodes, visitedNodes);
-      var visExp = Sets.difference(visitedNodes, pNodes);
-      List<Object> msgBits = new ArrayList<>();
-
-      if (expVis.size() == 1) {
-        msgBits.add("Node in");
-        msgBits.add(pEntry.getFunctionName());
-        msgBits.add("CFA but not reachable through traversal:");
-        msgBits.add(debugFormat(Iterables.getOnlyElement(expVis)));
-      } else {
-        msgBits.add(String.valueOf(expVis.size()));
-        msgBits.add("nodes in");
-        msgBits.add(pEntry.getFunctionName());
-        msgBits.add("CFA but not reachable through traversal");
-      }
-
-      if (visExp.size() == 1) {
-        msgBits.add("\nNode reachable through traversal but not in");
-        msgBits.add(pEntry.getFunctionName());
-        msgBits.add("CFA:");
-        msgBits.add(debugFormat(Iterables.getOnlyElement(visExp)));
-      } else {
-        msgBits.add('\n' + String.valueOf(visExp.size()));
-        msgBits.add("nodes reachable through traversal but not in");
-        msgBits.add(pEntry.getFunctionName());
-        msgBits.add("CFA");
-      }
-
-      throw new VerifyException('\n' + Joiner.on(' ').join(msgBits));
+    if (nodes != null) {
+      verify(
+          visitedNodes.equals(nodes),
+          """
+          Nodes in CFA but not reachable through traversal: %s
+          Nodes reached that are not in CFA: %s""",
+          Iterables.transform(Sets.difference(nodes, visitedNodes), CFACheck::debugFormat),
+          Iterables.transform(Sets.difference(visitedNodes, nodes), CFACheck::debugFormat));
     }
 
     return true;
   }
 
   /**
-   * This method returns a lazy object where {@link Object#toString} can be called.
-   * In most cases we do not need to build the String, thus we can avoid some overhead here.
+   * This method returns a lazy object where {@link Object#toString} can be called. In most cases we
+   * do not need to build the String, thus we can avoid some overhead here.
    */
   private static Object debugFormat(CFANode node) {
     return new Object() {
@@ -184,46 +147,27 @@ public class CFACheck {
 
   /**
    * Verify that the number of edges and their types match.
+   *
    * @param pNode Node to be checked
    */
-  private static void isConsistentAsCFANode(CFANode pNode, MachineModel pMachineModel) {
+  private static void checkEdgeCount(CFANode pNode) {
 
-    if (pNode instanceof FunctionEntryNode) {
+    // check entering edges
+    int entering = pNode.getNumEnteringEdges();
+    if (entering == 0) {
       verify(
-          CFAUtils.enteringEdges(pNode).allMatch(e -> e instanceof FunctionCallEdge),
-          "FunctionentryNode %s has entering edges other than FunctionCallEdge",
-          debugFormat(pNode));
-      verify(
-          pNode.getNumLeavingEdges() == 1 && pNode.getLeavingEdge(0) instanceof BlankEdge,
-          "FunctionEntryNode %s has wrong leaving edges",
-          debugFormat(pNode));
+          pNode instanceof FunctionEntryNode,
+          "Dead code: node %s has no incoming edges (successors are %s)",
+          debugFormat(pNode),
+          CFAUtils.successorsOf(pNode).transform(CFACheck::debugFormat));
+    }
 
-    } else if (pNode instanceof FunctionExitNode) {
-      // XXX there may be no entering edges if function does not return
-      verify(
-          CFAUtils.leavingEdges(pNode).allMatch(e -> e instanceof FunctionReturnEdge),
-          "FunctionExitNode %s has leaving edges other than FunctionReturnEdge",
-          debugFormat(pNode));
-
-    } else if (pNode instanceof CFATerminationNode) {
-      verify(
-          pNode.getNumEnteringEdges() > 0,
-          "CFATerminationNode %s has no entering edges",
-          debugFormat(pNode));
-      verify(
-          pNode.getNumLeavingEdges() == 0,
-          "CFATerminationNode %s is not a dead end",
-          debugFormat(pNode));
-
-    } else {
-      // usual node or label node
-      // check entering edges
-      verify(pNode.getNumEnteringEdges() > 0, "%s has no entering edges", debugFormat(pNode));
-
-      // check leaving edges
+    // check leaving edges
+    if (!(pNode instanceof FunctionExitNode)) {
       switch (pNode.getNumLeavingEdges()) {
         case 0:
-          throw new VerifyException("Dead end at node " + debugFormat(pNode));
+          verify(pNode instanceof CFATerminationNode, "Dead end at node %s", debugFormat(pNode));
+          break;
 
         case 1:
           CFAEdge edge = pNode.getLeavingEdge(0);
@@ -235,56 +179,35 @@ public class CFACheck {
               !(edge instanceof CFunctionSummaryStatementEdge),
               "CFunctionSummaryStatementEdge is not paired with CFunctionCallEdge at node %s",
               debugFormat(pNode));
-          verify(
-              (edge instanceof FunctionCallEdge) == (pNode.getLeavingSummaryEdge() != null),
-              "FunctionCallEdge is not paired with FunctionsummaryEdge at node %s",
-              debugFormat(pNode));
-
-          checkEdge(edge, pMachineModel);
           break;
 
         case 2:
           CFAEdge edge1 = pNode.getLeavingEdge(0);
           CFAEdge edge2 = pNode.getLeavingEdge(1);
-          //relax this assumption for summary edges
+          // relax this assumption for summary edges
           if (edge1 instanceof CFunctionSummaryStatementEdge) {
             verify(
                 edge2 instanceof CFunctionCallEdge,
                 "CFunctionSummaryStatementEdge is not paired with CFunctionCallEdge at node %s",
-                debugFormat(pNode));
-            verify(
-                pNode.getLeavingSummaryEdge() != null,
-                "CFunctionSummaryStatementEdge is not paired with summary edge at node %s",
                 debugFormat(pNode));
           } else if (edge2 instanceof CFunctionSummaryStatementEdge) {
             verify(
                 edge1 instanceof CFunctionCallEdge,
                 "CFunctionSummaryStatementEdge is not paired with CFunctionCallEdge at node %s",
                 debugFormat(pNode));
-            verify(
-                pNode.getLeavingSummaryEdge() != null,
-                "CFunctionSummaryStatementEdge is not paired with summary edge at node %s",
-                debugFormat(pNode));
           } else {
             verify(
                 (edge1 instanceof AssumeEdge) && (edge2 instanceof AssumeEdge),
                 "Branching without conditions at node %s",
                 debugFormat(pNode));
-            verify(
-                pNode.getLeavingSummaryEdge() == null,
-                "node %s has AssumeEdges and summary edge",
-                debugFormat(pNode));
 
-          AssumeEdge ae1 = (AssumeEdge)edge1;
-          AssumeEdge ae2 = (AssumeEdge)edge2;
+            AssumeEdge ae1 = (AssumeEdge) edge1;
+            AssumeEdge ae2 = (AssumeEdge) edge2;
             verify(
                 ae1.getTruthAssumption() != ae2.getTruthAssumption(),
                 "Inconsistent branching at node %s",
                 debugFormat(pNode));
           }
-
-          checkEdge(edge1, pMachineModel);
-          checkEdge(edge2, pMachineModel);
           break;
 
         default:
@@ -294,16 +217,18 @@ public class CFACheck {
   }
 
   /**
-   * Check all entering and leaving edges for corresponding leaving/entering edges
-   * at predecessor/successor nodes, and that there are no duplicates
+   * Check all entering and leaving edges for corresponding leaving/entering edges at
+   * predecessor/successor nodes, and that there are no duplicates
+   *
    * @param pNode Node to be checked
    */
-  private static void isConsistentAsGraphNode(CFANode pNode) {
+  private static void isConsistent(CFANode pNode, MachineModel machineModel) {
     Set<CFAEdge> seenEdges = new HashSet<>();
     Set<CFANode> seenNodes = new HashSet<>();
 
     for (CFAEdge edge : leavingEdges(pNode)) {
       verify(seenEdges.add(edge), "Duplicate leaving edge %s on node %s", edge, debugFormat(pNode));
+      checkEdge(edge, machineModel);
 
       CFANode successor = edge.getSuccessor();
       verify(
@@ -498,20 +423,5 @@ public class CFACheck {
     protected Void visitDefault(CExpression pExp) throws RuntimeException {
       return null; // ignore the expression
     }
-  }
-
-  public static boolean checkFull(CFA pCfa, LogManager pLogger) {
-    for (String name : pCfa.getAllFunctionNames()) {
-      ImmutableSet<CFANode> functionNodes =
-          FluentIterable.from(pCfa.getAllNodes())
-              .filter(n -> n.getFunctionName().equals(name))
-              .toSet();
-      try {
-        assert check(pCfa.getFunctionHead(name), functionNodes, pCfa.getMachineModel());
-      } catch (VerifyException e) {
-        pLogger.logfUserException(Level.WARNING, e, "Inconsistent function %s in full CFA", name);
-      }
-    }
-    return true;
   }
 }

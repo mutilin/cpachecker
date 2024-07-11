@@ -1,4 +1,4 @@
--lockator-linux:
+--lockator-linux:
   test/programs/cpalockator/threads/threads-1-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-1-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-2-safe.c: 'TRUE'
@@ -15,15 +15,15 @@
   test/programs/cpalockator/threads/threads-7-unsafe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-8-safe.c: 'TRUE'
   test/programs/cpalockator/threads/threads-8-unsafe.c: 'FALSE'
--lockator-linux-shared-ref:
-  extends: -lockator-linux
--lockator-linux-pre-shared-ref:
-  extends: -lockator-linux
--lockator-threadmodular-linux:
-  extends: -lockator-linux
+--lockator-linux-shared-ref:
+  extends: --lockator-linux
+--lockator-linux-pre-shared-ref:
+  extends: --lockator-linux
+--lockator-threadmodular-linux:
+  extends: --lockator-linux
   test/programs/cpalockator/threads/threads-4-safe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-5-safe.c: 'FALSE'
   test/programs/cpalockator/threads/threads-8-safe.c: 'FALSE'
--lockator-linux-lightweight:
-  extends: -lockator-linux
+--lockator-linux-lightweight:
+  extends: --lockator-linux
   test/programs/cpalockator/threads/threads-6-safe.c: 'FALSE'

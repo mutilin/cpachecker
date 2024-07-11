@@ -14,8 +14,6 @@ import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.Table;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Collections;
 import java.util.Map;
@@ -30,11 +28,9 @@ import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
  * A Partition is a Wrapper for a Collection of vars, values and edges. The Partitions are disjunct,
  * so no variable and no edge is in 2 Partitions.
  */
-public class Partition implements Comparable<Partition>, Serializable {
+public class Partition implements Comparable<Partition> {
 
-  private static final long serialVersionUID = 1L;
-
-  private transient static final UniqueIdGenerator idGenerator = new UniqueIdGenerator();
+  private static final UniqueIdGenerator idGenerator = new UniqueIdGenerator();
 
   /** we use an index to track the "age" of a partition. */
   private final int index;
@@ -42,12 +38,10 @@ public class Partition implements Comparable<Partition>, Serializable {
   private final NavigableSet<String> vars = new TreeSet<>();
   private final NavigableSet<BigInteger> values = new TreeSet<>();
 
-  @SuppressFBWarnings("SE_BAD_FIELD")
   private final Multimap<CFAEdge, Integer> edges = HashMultimap.create();
 
   private final Map<String, Partition> varToPartition;
 
-  @SuppressFBWarnings("SE_BAD_FIELD")
   private final Table<CFAEdge, Integer, Partition> edgeToPartition;
 
   Partition(
@@ -86,11 +80,11 @@ public class Partition implements Comparable<Partition>, Serializable {
 
   /** copies all data from other to current partition */
   void merge(Partition other) {
-    assert this.varToPartition == other.varToPartition;
+    assert varToPartition == other.varToPartition;
 
-    this.vars.addAll(other.vars);
-    this.values.addAll(other.values);
-    this.edges.putAll(other.edges);
+    vars.addAll(other.vars);
+    values.addAll(other.values);
+    edges.putAll(other.edges);
 
     // update mapping of vars
     for (String var : other.vars) {
@@ -120,6 +114,6 @@ public class Partition implements Comparable<Partition>, Serializable {
 
   @Override
   public int compareTo(Partition other) {
-    return Integer.compare(this.index, other.index);
+    return Integer.compare(index, other.index);
   }
 }

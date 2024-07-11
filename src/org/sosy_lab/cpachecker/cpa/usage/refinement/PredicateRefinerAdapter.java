@@ -96,8 +96,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
         // it may be, if there are no valuable interpolants: ..., true, false, ...
         result.addInfo(PredicateRefinerAdapter.class, affectedStates);
         PredicatePrecision lastPrecision = strategy.getNewPrecision();
-        assert (lastPrecision != null);
-        assert (!lastPrecision.isEmpty());
+        assert lastPrecision != null && !lastPrecision.isEmpty();
         result.addPrecision(lastPrecision);
       }
     }
@@ -108,11 +107,12 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
   }
 
   @Override
-  protected void handleUpdateSignal(Class<? extends RefinementInterface> pCallerClass, Object pData) {
+  protected void handleUpdateSignal(
+      Class<? extends RefinementInterface> pCallerClass, Object pData) {
     if (pCallerClass.equals(IdentifierIterator.class)) {
       if (pData instanceof ReachedSet) {
-        //Updating new reached set
-        updateReachedSet((ReachedSet)pData);
+        // Updating new reached set
+        updateReachedSet((ReachedSet) pData);
       }
     }
   }
@@ -127,15 +127,13 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
 
   @Override
   protected void printAdditionalStatistics(StatisticsWriter pOut) {
-    pOut.put(externalRefinement)
-        .put(solverFailures)
-        .put(numberOfBAMupdates);
+    pOut.put(externalRefinement).put(solverFailures).put(numberOfBAMupdates);
   }
 
   @Override
   public void collectStatistics(Collection<Statistics> pStats) {
     if (refiner instanceof StatisticsProvider) {
-      ((StatisticsProvider)refiner).collectStatistics(pStats);
+      ((StatisticsProvider) refiner).collectStatistics(pStats);
     }
     super.collectStatistics(pStats);
   }
@@ -153,18 +151,20 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
         final Configuration config,
         final LogManager logger,
         final Solver pSolver,
-        final PredicateAbstractionManager pPredAbsMgr, Function<ARGState, ARGState> pTransformer) throws InvalidConfigurationException {
+        final PredicateAbstractionManager pPredAbsMgr,
+        Function<ARGState, ARGState> pTransformer)
+        throws InvalidConfigurationException {
       super(config, logger, pPredAbsMgr, pSolver);
       transformer = pTransformer;
     }
 
     @Override
     protected void finishRefinementOfPath(
-            ARGState pUnreachableState,
-            List<ARGState> pAffectedStates,
-            ARGReachedSet pReached,
-            List<ARGState> abstractionStatesTrace,
-            boolean pRepeatedCounterexample)
+        ARGState pUnreachableState,
+        List<ARGState> pAffectedStates,
+        ARGReachedSet pReached,
+        List<ARGState> abstractionStatesTrace,
+        boolean pRepeatedCounterexample)
         throws CPAException, InterruptedException {
 
       super.finishRefinementOfPath(
@@ -174,9 +174,7 @@ public class PredicateRefinerAdapter extends GenericSinglePathRefiner {
           abstractionStatesTrace,
           pRepeatedCounterexample);
 
-        from(pAffectedStates)
-          .transform(transformer)
-          .forEach(affectedStates::add);
+      from(pAffectedStates).transform(transformer).forEach(affectedStates::add);
     }
 
     @Override

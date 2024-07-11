@@ -13,7 +13,8 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cpa.local.LocalTransferRelation;
 
 @SuppressWarnings("EqualsGetClass") // should be refactored
-public abstract class SingleIdentifier implements AbstractIdentifier {
+public abstract sealed class SingleIdentifier implements AbstractIdentifier
+    permits FunctionIdentifier, StructureIdentifier, VariableIdentifier, RegionIdentifier {
 
   protected final String name;
   protected final CType type;
@@ -85,17 +86,18 @@ public abstract class SingleIdentifier implements AbstractIdentifier {
 
   @Override
   public int compareTo(AbstractIdentifier pO) {
+    // FIXME cf. #1110
     if (!(pO instanceof SingleIdentifier)) {
       return 1;
     } else {
       SingleIdentifier other = (SingleIdentifier) pO;
-      int result = this.name.compareTo(other.name);
+      int result = name.compareTo(other.name);
       if (result != 0) {
         return result;
       }
-      if (this.type != null) {
+      if (type != null) {
         if (other.type != null) {
-          result = this.type.toASTString("").compareTo(other.type.toASTString(""));
+          result = type.toASTString("").compareTo(other.type.toASTString(""));
           if (result != 0) {
             return result;
           }
@@ -105,7 +107,7 @@ public abstract class SingleIdentifier implements AbstractIdentifier {
       } else if (other.type != null) {
         return -1;
       }
-      return this.dereference - other.dereference;
+      return dereference - other.dereference;
     }
   }
 }

@@ -48,5 +48,4 @@ public class LocationStatistics implements Statistics {
   public @Nullable String getName() {
     return "LocationCPA";
   }
-
 }

@@ -13,6 +13,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Strings.isNullOrEmpty;
 
 import com.google.common.base.Joiner;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Set;
 import org.sosy_lab.common.collect.PathCopyingPersistentTreeMap;
@@ -25,11 +26,11 @@ import org.sosy_lab.cpachecker.util.CFAUtils;
 public class FunctionPointerState
     implements LatticeAbstractState<FunctionPointerState>, Serializable, Graphable {
 
-  private static final long serialVersionUID = -1951853216031911649L;
+  @Serial private static final long serialVersionUID = -1951853216031911649L;
 
   interface FunctionPointerTarget {}
 
-  static final class UnknownTarget implements FunctionPointerTarget {
+  public static final class UnknownTarget implements FunctionPointerTarget {
     private static final UnknownTarget instance = new UnknownTarget();
 
     private UnknownTarget() {}
@@ -54,8 +55,8 @@ public class FunctionPointerState
     }
   }
 
-  static final class InvalidTarget implements FunctionPointerTarget, Serializable {
-    private static final long serialVersionUID = 7067934518471075538L;
+  public static final class InvalidTarget implements FunctionPointerTarget, Serializable {
+    @Serial private static final long serialVersionUID = 7067934518471075538L;
     private static final InvalidTarget instance = new InvalidTarget();
 
     private InvalidTarget() {}
@@ -80,9 +81,9 @@ public class FunctionPointerState
     }
   }
 
-  static final class NamedFunctionTarget implements FunctionPointerTarget, Serializable {
+  public static final class NamedFunctionTarget implements FunctionPointerTarget, Serializable {
 
-    private static final long serialVersionUID = 9001748459212617220L;
+    @Serial private static final long serialVersionUID = 9001748459212617220L;
     private final String functionName;
 
     public NamedFunctionTarget(String pFunctionName) {
@@ -102,7 +103,7 @@ public class FunctionPointerState
     @Override
     public boolean equals(Object pObj) {
       return pObj instanceof NamedFunctionTarget
-          && ((NamedFunctionTarget)pObj).functionName.equals(this.functionName);
+          && ((NamedFunctionTarget) pObj).functionName.equals(functionName);
     }
 
     @Override
@@ -111,7 +112,7 @@ public class FunctionPointerState
     }
   }
 
-  static class Builder {
+  public static class Builder {
 
     private final FunctionPointerState oldState;
     private PersistentSortedMap<String, FunctionPointerTarget> values;
@@ -126,7 +127,11 @@ public class FunctionPointerState
       return values.getOrDefault(variableName, UnknownTarget.getInstance());
     }
 
-    void setTarget(String variableName, FunctionPointerTarget target) {
+    public Set<String> getValues() {
+      return values.keySet();
+    }
+
+    public void setTarget(String variableName, FunctionPointerTarget target) {
       if (target == UnknownTarget.getInstance()) {
         values = values.removeAndCopy(variableName);
       } else {
@@ -140,7 +145,7 @@ public class FunctionPointerState
       }
     }
 
-    FunctionPointerState build() {
+    public FunctionPointerState build() {
       if (values == oldState.pointerVariableValues) {
         return oldState;
       } else if (values.isEmpty()) {
@@ -203,10 +208,10 @@ public class FunctionPointerState
   public boolean isLessOrEqual(FunctionPointerState pElement) {
     // check if the other map is a subset of this map
 
-    if (this.pointerVariableValues.size() < pElement.pointerVariableValues.size()) {
+    if (pointerVariableValues.size() < pElement.pointerVariableValues.size()) {
       return false;
     }
-    return this.pointerVariableValues.entrySet().containsAll(pElement.pointerVariableValues.entrySet());
+    return pointerVariableValues.entrySet().containsAll(pElement.pointerVariableValues.entrySet());
   }
 
   @Override
@@ -216,12 +221,11 @@ public class FunctionPointerState
 
   @Override
   public boolean equals(Object pObj) {
-    if (pObj == this) {
+    if (this == pObj) {
       return true;
-    } else if (!(pObj instanceof FunctionPointerState)) {
-      return false;
     }
-    return this.pointerVariableValues.equals(((FunctionPointerState)pObj).pointerVariableValues);
+    return pObj instanceof FunctionPointerState
+        && pointerVariableValues.equals(((FunctionPointerState) pObj).pointerVariableValues);
   }
 
   @Override
@@ -231,6 +235,4 @@ public class FunctionPointerState
     }
     return hashCode;
   }
-
-
 }

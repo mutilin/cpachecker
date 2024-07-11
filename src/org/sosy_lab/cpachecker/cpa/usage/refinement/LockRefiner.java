@@ -57,8 +57,8 @@ import org.sosy_lab.cpachecker.util.statistics.StatTimer;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
 public class LockRefiner
-    extends
-    WrappedConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>, Pair<ExtendedARGPath, ExtendedARGPath>> {
+    extends WrappedConfigurableRefinementBlock<
+        Pair<ExtendedARGPath, ExtendedARGPath>, Pair<ExtendedARGPath, ExtendedARGPath>> {
 
   private final LockTransferRelation transfer;
   private final LockReducer reducer;
@@ -86,14 +86,13 @@ public class LockRefiner
     refineOnlyIncompatiblePairs = pRefineOnlyIncompatiblePairs;
   }
 
-  protected AbstractLockState findLastState(List<CFAEdge> edges)
-      throws CPAException {
+  protected AbstractLockState findLastState(List<CFAEdge> edges) throws CPAException {
     AbstractLockState currentState = initialLockState;
 
     for (CFAEdge edge : edges) {
       Collection<? extends AbstractState> successors =
-          transfer
-              .getAbstractSuccessorsForEdge(currentState, SingletonPrecision.getInstance(), edge);
+          transfer.getAbstractSuccessorsForEdge(
+              currentState, SingletonPrecision.getInstance(), edge);
 
       if (successors.isEmpty()) {
         // Means we do not consider assume edge
@@ -118,8 +117,7 @@ public class LockRefiner
     // We cannot use last arg state, as it is not expanded!
     // LockState in Usage is correct
     ARGState initialState = firstPath.getFirstState();
-    initialLockState =
-        AbstractStates.extractStateByType(initialState, AbstractLockState.class);
+    initialLockState = AbstractStates.extractStateByType(initialState, AbstractLockState.class);
     AbstractLockState firstLastLockState = firstPath.getUsageInfo().getLockState();
     AbstractLockState secondLastLockState = secondPath.getUsageInfo().getLockState();
 
@@ -191,10 +189,11 @@ public class LockRefiner
     return result;
   }
 
-  private LockIdentifier
-      getInconsistentLockId(AbstractLockState pRealState, AbstractLockState pLastState) {
+  private LockIdentifier getInconsistentLockId(
+      AbstractLockState pRealState, AbstractLockState pLastState) {
     Collection<LockIdentifier> ids =
-        from(pRealState.getDifference(pLastState)).filter(LockEffectWithId.class)
+        from(pRealState.getDifference(pLastState))
+            .filter(LockEffectWithId.class)
             .transform(LockEffectWithId::getAffectedLock)
             .toList();
 
@@ -220,9 +219,7 @@ public class LockRefiner
   }
 
   private List<ARGState> extractStatesAndUpdatePrecision(
-      ExtendedARGPath pPath,
-      List<CFAEdge> pEdges,
-      Set<Entry<CFANode, LockIdentifier>> toPrecision)
+      ExtendedARGPath pPath, List<CFAEdge> pEdges, Set<Entry<CFANode, LockIdentifier>> toPrecision)
       throws UnrecognizedCodeException {
 
     Collection<Map.Entry<CFANode, LockIdentifier>> newPrec = getNewPrecision(null, pEdges);
@@ -230,11 +227,8 @@ public class LockRefiner
     return extractStates(newPrec, pPath);
   }
 
-  private Collection<Map.Entry<CFANode, LockIdentifier>>
-      getNewPrecision(
-          LockIdentifier pId,
-          List<CFAEdge> pEdges)
-          throws UnrecognizedCodeException {
+  private Collection<Map.Entry<CFANode, LockIdentifier>> getNewPrecision(
+      LockIdentifier pId, List<CFAEdge> pEdges) throws UnrecognizedCodeException {
     AbstractLockState currentState = initialLockState;
 
     newPrecisionTimer.start();
@@ -292,8 +286,8 @@ public class LockRefiner
     return set.entrySet();
   }
 
-  private List<ARGState>
-      extractStates(Iterable<Entry<CFANode, LockIdentifier>> newPrecision, ExtendedARGPath pPath) {
+  private List<ARGState> extractStates(
+      Iterable<Entry<CFANode, LockIdentifier>> newPrecision, ExtendedARGPath pPath) {
     if (Iterables.isEmpty(newPrecision)) {
       return ImmutableList.of();
     } else {
@@ -307,8 +301,8 @@ public class LockRefiner
         .toList();
   }
 
-  private List<ARGState>
-      getAffectedStates(Iterable<Entry<CFANode, LockIdentifier>> prec, ExtendedARGPath pPath) {
+  private List<ARGState> getAffectedStates(
+      Iterable<Entry<CFANode, LockIdentifier>> prec, ExtendedARGPath pPath) {
     FluentIterable<CFANode> nodes = from(prec).transform(p -> p.getKey());
     pPath.setAsFalse();
     return from(pPath.asStatesList())

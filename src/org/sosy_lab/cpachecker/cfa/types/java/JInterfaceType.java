@@ -13,6 +13,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import java.io.Serial;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -23,9 +24,9 @@ import org.sosy_lab.cpachecker.cfa.ast.java.VisibilityModifier;
  *
  * <p>A Java interface is described by its name, visibility and the interfaces it extends.
  */
-public final class JInterfaceType extends JClassOrInterfaceType implements JReferenceType {
+public final class JInterfaceType extends JClassOrInterfaceType {
 
-  private static final long serialVersionUID = 1985477760453866693L;
+  @Serial private static final long serialVersionUID = 1985477760453866693L;
 
   private static final JInterfaceType UNRESOLVABLE_TYPE =
       new JInterfaceType(

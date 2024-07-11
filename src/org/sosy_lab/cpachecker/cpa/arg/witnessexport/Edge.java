@@ -37,12 +37,12 @@ public class Edge implements Comparable<Edge> {
     Preconditions.checkNotNull(pSource);
     Preconditions.checkNotNull(pTarget);
     Preconditions.checkNotNull(pLabel);
-    this.source = pSource;
-    this.target = pTarget;
-    this.label = pLabel;
+    source = pSource;
+    target = pTarget;
+    label = pLabel;
 
     // we assume immutable members and can eagerly compute the hashcode
-    this.hashCode = Objects.hash(label, source, target);
+    hashCode = Objects.hash(label, source, target);
   }
 
   @Override
@@ -69,14 +69,11 @@ public class Edge implements Comparable<Edge> {
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof Edge) {
-      Edge other = (Edge) pOther;
-      return hashCode == other.hashCode
-          && source.equals(other.source)
-          && target.equals(other.target)
-          && label.equals(other.label);
-    }
-    return false;
+    return pOther instanceof Edge other
+        && hashCode == other.hashCode
+        && source.equals(other.source)
+        && target.equals(other.target)
+        && label.equals(other.label);
   }
 
   public String getSource() {

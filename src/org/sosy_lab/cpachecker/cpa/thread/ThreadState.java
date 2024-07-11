@@ -11,11 +11,12 @@ package org.sosy_lab.cpachecker.cpa.thread;
 import static org.sosy_lab.cpachecker.cpa.thread.ThreadTransferRelation.isThreadCreateFunction;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Comparators;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -44,7 +45,7 @@ public class ThreadState
   public enum ThreadStatus {
     PARENT_THREAD,
     CREATED_THREAD,
-    SELF_PARALLEL_THREAD;
+    SELF_PARALLEL_THREAD,
   }
 
   protected final Map<String, ThreadStatus> threadSet;
@@ -56,7 +57,8 @@ public class ThreadState
   protected final String currentThread;
   protected final int currentPriority;
 
-  protected final static String mainThread = "main";
+  protected static final String mainThread = "main";
+
   // Spotbug suggests to remove protected, which is worse
   @SuppressFBWarnings("MS_PKGPROTECT")
   protected static SelfSupport selfHandle;
@@ -84,47 +86,23 @@ public class ThreadState
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof ThreadState)) {
-      return false;
-    }
-    ThreadState other = (ThreadState) obj;
-    return Objects.equals(removedSet, other.removedSet)
-        && Objects.equals(threadSet, other.threadSet);
+    return obj instanceof ThreadState other
+        && removedSet.equals(other.removedSet)
+        && threadSet.equals(other.threadSet);
   }
 
   @Override
   public int compareTo(CompatibleState pOther) {
     ThreadState other = (ThreadState) pOther;
-    int result = other.threadSet.size() - this.threadSet.size(); // decreasing queue
-
-    if (result != 0) {
-      return result;
-    }
-
-    if (threadSet == other.threadSet) {
-      return 0;
-    }
-
-    Iterator<Entry<String, ThreadStatus>> thisIterator = this.threadSet.entrySet().iterator();
-    Iterator<Entry<String, ThreadStatus>> otherIterator = other.threadSet.entrySet().iterator();
-
-    while (thisIterator.hasNext() && otherIterator.hasNext()) {
-      Entry<String, ThreadStatus> thisEntry = thisIterator.next();
-      Entry<String, ThreadStatus> otherEntry = otherIterator.next();
-      String thisLabel = thisEntry.getKey();
-      String otherLabel = otherEntry.getKey();
-      result = thisLabel.compareTo(otherLabel);
-      if (result != 0) {
-        return result;
-      }
-      ThreadStatus thisStatus = this.threadSet.get(thisLabel);
-      ThreadStatus otherStatus = other.threadSet.get(otherLabel);
-      result = thisStatus.compareTo(otherStatus);
-      if (result != 0) {
-        return result;
-      }
-    }
-    return 0;
+    return ComparisonChain.start()
+        .compare(threadSet.size(), other.threadSet.size())
+        .compare(
+            threadSet.entrySet(),
+            other.threadSet.entrySet(),
+            Comparators.lexicographical(
+                Entry.<String, ThreadStatus>comparingByKey()
+                    .thenComparing(Entry.comparingByValue())))
+        .result();
   }
 
   @Override
@@ -176,7 +154,7 @@ public class ThreadState
 
   @Override
   public boolean cover(CompatibleNode pNode) {
-    return ((ThreadState)pNode).isLessOrEqual(this);
+    return ((ThreadState) pNode).isLessOrEqual(this);
   }
 
   @Override
@@ -186,8 +164,7 @@ public class ThreadState
 
   @Override
   public boolean isLessOrEqual(ThreadState pOther) {
-    boolean b =
-        Objects.equals(removedSet, pOther.removedSet);
+    boolean b = Objects.equals(removedSet, pOther.removedSet);
     if (b && pOther.threadSet == threadSet) {
       return true;
     }
@@ -226,8 +203,8 @@ public class ThreadState
     return this.toString();
   }
 
-  public ThreadState
-      copyWith(String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+  public ThreadState copyWith(
+      String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
     return new ThreadState(pId, pCurrent, pPrio, tSet, this.removedSet);
   }
 
@@ -268,8 +245,7 @@ public class ThreadState
   }
 
   @Override
-  public List<Pair<String, String>>
-      getSpawnedThreadIdByEdge(CFAEdge pEdge, ARGState pState) {
+  public List<Pair<String, String>> getSpawnedThreadIdByEdge(CFAEdge pEdge, ARGState pState) {
 
     if (pEdge.getEdgeType() == CFAEdgeType.FunctionCallEdge) {
       CFunctionCall fCall = ((CFunctionCallEdge) pEdge).getSummaryEdge().getExpression();

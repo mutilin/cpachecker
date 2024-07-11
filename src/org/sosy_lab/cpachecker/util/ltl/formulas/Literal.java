@@ -25,9 +25,9 @@ public final class Literal implements LtlFormula {
 
   private Literal(Literal pOther) {
     requireNonNull(pOther);
-    this.atom = pOther.atom;
-    this.negated = !pOther.negated;
-    this.negation = pOther;
+    atom = pOther.atom;
+    negated = !pOther.negated;
+    negation = pOther;
   }
 
   public Literal(String pName) {
@@ -37,9 +37,9 @@ public final class Literal implements LtlFormula {
   public Literal(String pName, boolean pNegated) {
     requireNonNull(pName);
 
-    this.atom = pName;
-    this.negated = pNegated;
-    this.negation = new Literal(this);
+    atom = pName;
+    negated = pNegated;
+    negation = new Literal(this);
   }
 
   @Override
@@ -52,14 +52,7 @@ public final class Literal implements LtlFormula {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof Literal)) {
-      return false;
-    }
-    Literal other = (Literal) obj;
-    return atom.equals(other.atom) && negated == other.negated;
+    return obj instanceof Literal other && atom.equals(other.atom) && negated == other.negated;
   }
 
   public String getAtom() {

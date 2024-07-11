@@ -91,7 +91,7 @@ public class UnrefinedUsagePointSet {
   }
 
   public void remove(UsageState pUstate) {
-    //Attention! Use carefully. May not work
+    // Attention! Use carefully. May not work
     for (UsagePoint point : new TreeSet<>(usageInfoSets.keySet())) {
       Set<UsageInfo> uset = usageInfoSets.get(point);
 

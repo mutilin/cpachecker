@@ -147,5 +147,4 @@ public class ThreadModularReachedSet extends ForwardingReachedSet {
     threadTransitions.clear();
     projections.clear();
   }
-
 }

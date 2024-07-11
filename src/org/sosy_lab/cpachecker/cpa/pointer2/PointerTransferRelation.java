@@ -17,7 +17,6 @@ import com.google.common.collect.Iterables;
 import java.math.BigInteger;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -75,7 +74,6 @@ import org.sosy_lab.cpachecker.cfa.model.FunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CDeclarationEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionCallEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CFunctionReturnEdge;
-import org.sosy_lab.cpachecker.cfa.model.c.CFunctionSummaryEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CReturnStatementEdge;
 import org.sosy_lab.cpachecker.cfa.model.c.CStatementEdge;
 import org.sosy_lab.cpachecker.cfa.types.Type;
@@ -86,6 +84,7 @@ import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType.CCompositeTypeMemberDe
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CStorageClass;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
+import org.sosy_lab.cpachecker.cfa.types.c.CTypes;
 import org.sosy_lab.cpachecker.core.defaults.SingleEdgeTransferRelation;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
@@ -108,7 +107,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   @Override
   public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
       AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
-          throws CPATransferException, InterruptedException {
+      throws CPATransferException, InterruptedException {
     PointerState pointerState = (PointerState) pState;
     PointerState resultState = getAbstractSuccessor(pointerState, pCfaEdge);
     return resultState == null
@@ -127,30 +126,30 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     transferTime.start();
     try {
       switch (pCfaEdge.getEdgeType()) {
-      case AssumeEdge:
-        resultState = handleAssumeEdge(pState, (AssumeEdge) pCfaEdge);
-        break;
-      case BlankEdge:
-        break;
-      case CallToReturnEdge:
-        break;
-      case DeclarationEdge:
-        resultState = handleDeclarationEdge(pState, (CDeclarationEdge) pCfaEdge);
-        break;
-      case FunctionCallEdge:
-        resultState = handleFunctionCallEdge(pState, ((CFunctionCallEdge) pCfaEdge));
-        break;
-      case FunctionReturnEdge:
-        resultState = handleFunctionReturnEdge(pState, ((CFunctionReturnEdge) pCfaEdge));
-        break;
-      case ReturnStatementEdge:
-        resultState = handleReturnStatementEdge(pState, (CReturnStatementEdge) pCfaEdge);
-        break;
-      case StatementEdge:
-        resultState = handleStatementEdge(pState, (CStatementEdge) pCfaEdge);
-        break;
-      default:
-        throw new UnrecognizedCodeException("Unrecognized CFA edge.", pCfaEdge);
+        case AssumeEdge:
+          resultState = handleAssumeEdge(pState, (AssumeEdge) pCfaEdge);
+          break;
+        case BlankEdge:
+          break;
+        case CallToReturnEdge:
+          break;
+        case DeclarationEdge:
+          resultState = handleDeclarationEdge(pState, (CDeclarationEdge) pCfaEdge);
+          break;
+        case FunctionCallEdge:
+          resultState = handleFunctionCallEdge(pState, ((CFunctionCallEdge) pCfaEdge));
+          break;
+        case FunctionReturnEdge:
+          resultState = handleFunctionReturnEdge(pState, ((CFunctionReturnEdge) pCfaEdge));
+          break;
+        case ReturnStatementEdge:
+          resultState = handleReturnStatementEdge(pState, (CReturnStatementEdge) pCfaEdge);
+          break;
+        case StatementEdge:
+          resultState = handleStatementEdge(pState, (CStatementEdge) pCfaEdge);
+          break;
+        default:
+          throw new UnrecognizedCodeException("Unrecognized CFA edge.", pCfaEdge);
       }
     } finally {
       transferTime.stop();
@@ -160,16 +159,13 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
   private PointerState handleFunctionReturnEdge(PointerState pState, CFunctionReturnEdge pCfaEdge)
       throws UnrecognizedCodeException {
-    CFunctionSummaryEdge summaryEdge = pCfaEdge.getSummaryEdge();
-    CFunctionCall callEdge = summaryEdge.getExpression();
+    CFunctionCall callEdge = pCfaEdge.getFunctionCall();
 
-    if (callEdge instanceof CFunctionCallAssignmentStatement) {
-      CFunctionCallAssignmentStatement callAssignment = (CFunctionCallAssignmentStatement) callEdge;
-      Optional<MemoryLocation> returnVar =
-          getFunctionReturnVariable(summaryEdge.getFunctionEntry());
+    if (callEdge instanceof CFunctionCallAssignmentStatement callAssignment) {
+      Optional<MemoryLocation> returnVar = getFunctionReturnVariable(pCfaEdge.getFunctionEntry());
 
       assert returnVar.isPresent()
-          : "Return edge with assignment, but no return variable: " + summaryEdge;
+          : "Return edge with assignment, but no return variable: " + pCfaEdge;
 
       LocationSet pointedTo = pState.getPointsToSet(returnVar.orElseThrow());
 
@@ -182,13 +178,11 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   private PointerState handleAssumeEdge(PointerState pState, AssumeEdge pAssumeEdge)
       throws UnrecognizedCodeException {
     AExpression expression = pAssumeEdge.getExpression();
-    if (expression instanceof ABinaryExpression) {
-      ABinaryExpression binOp = (ABinaryExpression) expression;
-      if (binOp.getOperator() == BinaryOperator.EQUALS) {
-        Optional<Boolean> areEq = areEqual(pState, binOp.getOperand1(), binOp.getOperand2());
-        if (areEq.isPresent() && areEq.orElseThrow() != pAssumeEdge.getTruthAssumption()) {
-          return null;
-        }
+    if ((expression instanceof ABinaryExpression binOp)
+        && (binOp.getOperator() == BinaryOperator.EQUALS)) {
+      Optional<Boolean> areEq = areEqual(pState, binOp.getOperand1(), binOp.getOperand2());
+      if (areEq.isPresent() && areEq.orElseThrow() != pAssumeEdge.getTruthAssumption()) {
+        return null;
       }
     }
     return pState;
@@ -204,57 +198,47 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       equalityTime.start();
     }
     try {
-      if (pOperand1 instanceof CBinaryExpression) {
-        CBinaryExpression op1 = (CBinaryExpression) pOperand1;
+      if (pOperand1 instanceof CBinaryExpression op1) {
         if (op1.getOperator() == BinaryOperator.EQUALS) {
-          if (pOperand2 instanceof CIntegerLiteralExpression) {
-            CIntegerLiteralExpression op2 = (CIntegerLiteralExpression) pOperand2;
+          if (pOperand2 instanceof CIntegerLiteralExpression op2) {
             if (op2.getValue().equals(BigInteger.ZERO)) {
               return negate(areEqual(pPointerState, op1.getOperand1(), op1.getOperand2()));
             }
-          } else if (pOperand2 instanceof CCharLiteralExpression) {
-            CCharLiteralExpression op2 = (CCharLiteralExpression) pOperand2;
-            if (op2.getCharacter() == 0) {
-              return negate(areEqual(pPointerState, op1.getOperand1(), op1.getOperand2()));
-            }
+          } else if ((pOperand2 instanceof CCharLiteralExpression op2)
+              && (op2.getCharacter() == 0)) {
+            return negate(areEqual(pPointerState, op1.getOperand1(), op1.getOperand2()));
           }
-          return Optional.empty();
         }
+        return Optional.empty();
       }
-      if (pOperand1 instanceof CExpression && pOperand2 instanceof CExpression) {
-        CExpression operand1 = (CExpression) pOperand1;
-        CExpression operand2 = (CExpression) pOperand2;
+      if (pOperand1 instanceof CExpression operand1 && pOperand2 instanceof CExpression operand2) {
         LocationSet op1LocationSet = asLocations(operand1, pPointerState);
         LocationSet op2LocationSet = asLocations(operand2, pPointerState);
-        if (op1LocationSet instanceof ExplicitLocationSet
-            && op2LocationSet instanceof ExplicitLocationSet) {
-          if (op1LocationSet.equals(op2LocationSet)) {
-            if (operand1 instanceof CIdExpression && operand2 instanceof CIdExpression) {
-              return Optional.of(true);
-            }
-            if (operand1 instanceof CFieldReference && operand2 instanceof CFieldReference) {
-              CFieldReference op1 = (CFieldReference) operand1;
-              CFieldReference op2 = (CFieldReference) operand2;
-              if (op1.isPointerDereference() == op2.isPointerDereference()) {
-                return areEqual(pPointerState, op1.getFieldOwner(), op2.getFieldOwner());
-              }
+        if ((op1LocationSet instanceof ExplicitLocationSet
+                && op2LocationSet instanceof ExplicitLocationSet)
+            && op1LocationSet.equals(op2LocationSet)) {
+          if (operand1 instanceof CIdExpression && operand2 instanceof CIdExpression) {
+            return Optional.of(true);
+          }
+          if (operand1 instanceof CFieldReference op1 && operand2 instanceof CFieldReference op2) {
+            if (op1.isPointerDereference() == op2.isPointerDereference()) {
+              return areEqual(pPointerState, op1.getFieldOwner(), op2.getFieldOwner());
             }
           }
         }
-        if (operand1 instanceof CUnaryExpression && op2LocationSet instanceof ExplicitLocationSet) {
-          CUnaryExpression op1 = (CUnaryExpression) operand1;
-          if (op1.getOperator() == UnaryOperator.AMPER) {
-            return pointsTo(pPointerState, (ExplicitLocationSet) op2LocationSet, op1.getOperand());
-          }
+        if ((operand1 instanceof CUnaryExpression op1
+                && op2LocationSet instanceof ExplicitLocationSet)
+            && (op1.getOperator() == UnaryOperator.AMPER)) {
+          return pointsTo(pPointerState, (ExplicitLocationSet) op2LocationSet, op1.getOperand());
         }
-        if (operand2 instanceof CUnaryExpression && op1LocationSet instanceof ExplicitLocationSet) {
-          CUnaryExpression op2 = (CUnaryExpression) operand2;
-          if (op2.getOperator() == UnaryOperator.AMPER) {
-            return pointsTo(pPointerState, (ExplicitLocationSet) op1LocationSet, op2.getOperand());
-          }
+        if ((operand2 instanceof CUnaryExpression op2
+                && op1LocationSet instanceof ExplicitLocationSet)
+            && (op2.getOperator() == UnaryOperator.AMPER)) {
+          return pointsTo(pPointerState, (ExplicitLocationSet) op1LocationSet, op2.getOperand());
         }
       }
       return Optional.empty();
+
     } finally {
       if (!b) {
         equalityTime.stop();
@@ -267,8 +251,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       throws UnrecognizedCodeException {
     if (pLocations.getSize() == 1) {
       LocationSet candidateTargets = asLocations(pCandidateTarget, pState);
-      if (candidateTargets instanceof ExplicitLocationSet) {
-        ExplicitLocationSet explicitCandidateTargets = (ExplicitLocationSet) candidateTargets;
+      if (candidateTargets instanceof ExplicitLocationSet explicitCandidateTargets) {
         MemoryLocation location = pLocations.iterator().next();
         LocationSet actualTargets = pState.getPointsToSet(location);
         if (actualTargets.isBot()) {
@@ -328,14 +311,16 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   private PointerState handleFunctionCallEdge(
       PointerState pState, CFunctionCallEdge pCFunctionCallEdge) throws UnrecognizedCodeException {
     PointerState newState = pState;
-    List<CParameterDeclaration> formalParams = pCFunctionCallEdge.getSuccessor().getFunctionParameters();
+    List<CParameterDeclaration> formalParams =
+        pCFunctionCallEdge.getSuccessor().getFunctionParameters();
     List<CExpression> actualParams = pCFunctionCallEdge.getArguments();
     int limit = Math.min(formalParams.size(), actualParams.size());
     formalParams = FluentIterable.from(formalParams).limit(limit).toList();
     actualParams = FluentIterable.from(actualParams).limit(limit).toList();
 
     // Handle the mapping of arguments to formal parameters
-    for (Pair<CParameterDeclaration, CExpression> param : Pair.zipList(formalParams, actualParams)) {
+    for (Pair<CParameterDeclaration, CExpression> param :
+        Pair.zipList(formalParams, actualParams)) {
       CExpression actualParam = param.getSecond();
       CParameterDeclaration formalParam = param.getFirst();
       MemoryLocation location = toLocation(formalParam);
@@ -366,36 +351,36 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
 
   private MemoryLocation toLocation(Type pType, String name) {
     Type type = pType;
-    if (type instanceof CType) {
-      type = ((CType) type).getCanonicalType();
+    if (type instanceof CType cType) {
+      type = CTypes.copyDequalified(cType.getCanonicalType());
     }
     if (isStructOrUnion(type)) {
-      return MemoryLocation.parseExtendedQualifiedName(type.toString()); // TODO find a better way to handle this
+      // TODO find a better way to handle this
+      return MemoryLocation.forIdentifier(type.toString());
     }
     return MemoryLocation.parseExtendedQualifiedName(name);
   }
 
   private static boolean isStructOrUnion(Type pType) {
-    Type type = pType instanceof CType ? ((CType) pType).getCanonicalType() : pType;
-    if (type instanceof CComplexType) {
-      return EnumSet.of(ComplexTypeKind.STRUCT, ComplexTypeKind.UNION)
-          .contains(((CComplexType) type).getKind());
-    }
-    return false;
+    return pType instanceof CType cType
+        && cType.getCanonicalType() instanceof CComplexType complexType
+        && (complexType.getKind() == ComplexTypeKind.STRUCT
+            || complexType.getKind() == ComplexTypeKind.UNION);
   }
 
   private PointerState handleStatementEdge(PointerState pState, CStatementEdge pCfaEdge)
       throws UnrecognizedCodeException {
-    if (pCfaEdge.getStatement() instanceof CAssignment) {
-      CAssignment assignment = (CAssignment) pCfaEdge.getStatement();
+    if (pCfaEdge.getStatement() instanceof CAssignment assignment) {
 
       if (assignment instanceof CFunctionCallAssignmentStatement) {
         // we don't consider summary edges, so if we encounter a function call assignment edge,
         // this means that the called function is not defined.
         // If the function returns a non-deterministic pointer,
         // handle it that way. Otherwise, assume that no existing variable is pointed to.
-        if (isNondetPointerReturn(((CFunctionCallAssignmentStatement) assignment)
-            .getFunctionCallExpression().getFunctionNameExpression())) {
+        if (isNondetPointerReturn(
+            ((CFunctionCallAssignmentStatement) assignment)
+                .getFunctionCallExpression()
+                .getFunctionNameExpression())) {
           return handleAssignment(pState, assignment.getLeftHandSide(), LocationSetTop.INSTANCE);
         } else {
           return pState;
@@ -410,12 +395,8 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private boolean isNondetPointerReturn(CExpression pFunctionNameExpression) {
-    if (pFunctionNameExpression instanceof CIdExpression) {
-      String functionName = ((CIdExpression) pFunctionNameExpression).getName();
-      return functionName.equals("__VERIFIER_nondet_pointer");
-    } else {
-      return false;
-    }
+    return pFunctionNameExpression instanceof CIdExpression idExpression
+        && idExpression.getName().equals("__VERIFIER_nondet_pointer");
   }
 
   private PointerState handleAssignment(
@@ -453,9 +434,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private PointerState handleAssignment(
-      PointerState pState,
-      LocationSet locationSet,
-      LocationSet pRightHandSide) {
+      PointerState pState, LocationSet locationSet, LocationSet pRightHandSide) {
 
     final Iterable<MemoryLocation> locations;
     if (locationSet.isTop()) {
@@ -478,7 +457,8 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     return handleAssignment(pState, pLhsLocation, asLocations(pRightHandSide, pState, 1));
   }
 
-  private PointerState handleAssignment(PointerState pState, MemoryLocation pLeftHandSide, LocationSet pRightHandSide) {
+  private PointerState handleAssignment(
+      PointerState pState, MemoryLocation pLeftHandSide, LocationSet pRightHandSide) {
     return pState.addPointsToInformation(pLeftHandSide, pRightHandSide);
   }
 
@@ -501,12 +481,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       if (declarationType instanceof CPointerType) {
         fakeInitializer = getFakeInitializer(pDeclaration);
       }
-      return handleWithInitializer(
-          pState,
-          location,
-          declarationType,
-          initializer,
-          fakeInitializer);
+      return handleWithInitializer(pState, location, declarationType, initializer, fakeInitializer);
     } else if (useFakeLocs && declarationType instanceof CPointerType) {
       // creating a fake pointer to init current pointer
       initializer = getFakeInitializer(pDeclaration);
@@ -518,14 +493,21 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   private CInitializer getFakeInitializer(CVariableDeclaration pDeclaration) {
     CType pDeclarationType = pDeclaration.getType();
     FileLocation fLoc = FileLocation.DUMMY;
-    String ptrName = "##" + pDeclaration.getQualifiedName().replace(':','#');
-    CVariableDeclaration varDec = new CVariableDeclaration(fLoc,true,
-                                            CStorageClass.AUTO, CPointerType.POINTER_TO_VOID,
-                                            ptrName, ptrName, ptrName, null);
-    CIdExpression idExpression = new CIdExpression(fLoc, CPointerType.POINTER_TO_VOID,
-                                            pDeclaration.getName(), varDec);
-    CUnaryExpression uExpr = new CUnaryExpression(fLoc, pDeclarationType,
-                                            idExpression, UnaryOperator.AMPER);
+    String ptrName = "##" + pDeclaration.getQualifiedName().replace(':', '#');
+    CVariableDeclaration varDec =
+        new CVariableDeclaration(
+            fLoc,
+            true,
+            CStorageClass.AUTO,
+            CPointerType.POINTER_TO_VOID,
+            ptrName,
+            ptrName,
+            ptrName,
+            null);
+    CIdExpression idExpression =
+        new CIdExpression(fLoc, CPointerType.POINTER_TO_VOID, pDeclaration.getName(), varDec);
+    CUnaryExpression uExpr =
+        new CUnaryExpression(fLoc, pDeclarationType, idExpression, UnaryOperator.AMPER);
     return new CInitializerExpression(pDeclaration.getFileLocation(), uExpr);
   }
 
@@ -563,28 +545,27 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     }
 
     CInitializerVisitor<LocationSet, UnrecognizedCodeException> visitor =
-    new CInitializerVisitor<>() {
+        new CInitializerVisitor<>() {
 
-      @Override
-      public LocationSet visit(CInitializerExpression pInitializerExpression)
-          throws UnrecognizedCodeException {
-        return asLocations(pInitializerExpression.getExpression(), pState, 1);
-      }
+          @Override
+          public LocationSet visit(CInitializerExpression pInitializerExpression)
+              throws UnrecognizedCodeException {
+            return asLocations(pInitializerExpression.getExpression(), pState, 1);
+          }
 
-      @Override
-      public LocationSet visit(CInitializerList pInitializerList)
-          throws UnrecognizedCodeException {
-        return LocationSetTop.INSTANCE;
-      }
+          @Override
+          public LocationSet visit(CInitializerList pInitializerList)
+              throws UnrecognizedCodeException {
+            return LocationSetTop.INSTANCE;
+          }
 
-      @Override
-      public LocationSet visit(CDesignatedInitializer pCStructInitializerPart)
-          throws UnrecognizedCodeException {
-        return LocationSetTop.INSTANCE;
-      }
+          @Override
+          public LocationSet visit(CDesignatedInitializer pCStructInitializerPart)
+              throws UnrecognizedCodeException {
+            return LocationSetTop.INSTANCE;
+          }
         };
-    LocationSet rhs =
-        pInitializer.accept(visitor);
+    LocationSet rhs = pInitializer.accept(visitor);
 
     if (rhs == LocationSetBot.INSTANCE && pFakeInitializer != null) {
       rhs = pFakeInitializer.accept(visitor);
@@ -614,7 +595,6 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   private static MemoryLocation fieldReferenceToMemoryLocation(
       CType pFieldOwnerType, boolean pIsPointerDeref, String pFieldName) {
     CType type = pFieldOwnerType.getCanonicalType();
-    final String prefix;
     if (pIsPointerDeref) {
       if (!(type instanceof CPointerType)) {
         throw new AssertionError();
@@ -623,14 +603,13 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
       if (innerType instanceof CPointerType) {
         throw new AssertionError();
       }
-      prefix = innerType.toString();
-    } else {
-      prefix = type.toString();
+      type = innerType;
     }
+    String prefix = CTypes.copyDequalified(type).toString();
     String infix = ".";
     String suffix = pFieldName;
     // TODO use offsets instead
-    return MemoryLocation.parseExtendedQualifiedName(prefix + infix + suffix);
+    return MemoryLocation.forIdentifier(prefix + infix + suffix);
   }
 
   private static LocationSet asLocations(
@@ -663,8 +642,8 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
                   if (pointsToSet.isTop()) {
                     result.addAll(pState.getKnownLocations());
                     break;
-                  } else if (!pointsToSet.isBot() && pointsToSet instanceof ExplicitLocationSet) {
-                    ExplicitLocationSet explicitLocationSet = (ExplicitLocationSet) pointsToSet;
+                  } else if (!pointsToSet.isBot()
+                      && pointsToSet instanceof ExplicitLocationSet explicitLocationSet) {
                     Iterables.addAll(result, explicitLocationSet);
                   }
                 }
@@ -679,9 +658,9 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
               throws UnrecognizedCodeException {
             MemoryLocation memoryLocation = fieldReferenceToMemoryLocation(pIastFieldReference);
             if (pIastFieldReference.isPointerDereference()) {
-                  LocationSet set = pState.getPointsToSet(memoryLocation);
-                  if (set != LocationSetBot.INSTANCE) {
-                    return set;
+              LocationSet set = pState.getPointsToSet(memoryLocation);
+              if (set != LocationSetBot.INSTANCE) {
+                return set;
               }
             }
             return toLocationSet(Collections.singleton(memoryLocation));
@@ -690,11 +669,11 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
           @Override
           public LocationSet visit(CIdExpression pIastIdExpression)
               throws UnrecognizedCodeException {
-            Type type = pIastIdExpression.getExpressionType();
+            CType type = CTypes.copyDequalified(pIastIdExpression.getExpressionType());
             final MemoryLocation location;
             if (isStructOrUnion(type)) {
-              location =
-                  MemoryLocation.parseExtendedQualifiedName(type.toString()); // TODO find a better way to handle this
+              // TODO find a better way to handle this
+              location = MemoryLocation.forIdentifier(type.toString());
             } else {
               CSimpleDeclaration declaration = pIastIdExpression.getDeclaration();
               if (declaration != null) {
@@ -832,16 +811,15 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   /**
-   * Gets the locations represented by the given location set considering the
-   * context of the given state. The returned iterable is guaranteed to be free
-   * of duplicates.
+   * Gets the locations represented by the given location set considering the context of the given
+   * state. The returned iterable is guaranteed to be free of duplicates.
    *
    * @param pState the context.
    * @param pLocationSet the location set.
-   *
    * @return the locations represented by the given location set.
    */
-  public static Iterable<MemoryLocation> toNormalSet(PointerState pState, LocationSet pLocationSet) {
+  public static Iterable<MemoryLocation> toNormalSet(
+      PointerState pState, LocationSet pLocationSet) {
     if (pLocationSet.isBot()) {
       return ImmutableSet.of();
     }
@@ -866,8 +844,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
         AExpression functionNameExpression = functionCallExpression.getFunctionNameExpression();
         if (functionNameExpression instanceof CPointerExpression) {
           CExpression derefNameExpr = ((CPointerExpression) functionNameExpression).getOperand();
-          if (derefNameExpr instanceof CFieldReference) {
-            CFieldReference fieldReference = (CFieldReference) derefNameExpr;
+          if (derefNameExpr instanceof CFieldReference fieldReference) {
             Optional<CallstackState> callstackState = find(pOtherStates, CallstackState.class);
             if (callstackState.isPresent()) {
               return strengthenFieldReference(
@@ -881,16 +858,13 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
   }
 
   private static Optional<AFunctionCall> asFunctionCall(CFAEdge pEdge) {
-    if (pEdge instanceof AStatementEdge) {
-      AStatementEdge statementEdge = (AStatementEdge) pEdge;
+    if (pEdge instanceof AStatementEdge statementEdge) {
       if (statementEdge.getStatement() instanceof AFunctionCall) {
         return Optional.of((AFunctionCall) statementEdge.getStatement());
       }
-    } else if (pEdge instanceof FunctionCallEdge) {
-      FunctionCallEdge functionCallEdge = (FunctionCallEdge) pEdge;
-      return Optional.of(functionCallEdge.getSummaryEdge().getExpression());
-    } else if (pEdge instanceof FunctionSummaryEdge) {
-      FunctionSummaryEdge functionSummaryEdge = (FunctionSummaryEdge) pEdge;
+    } else if (pEdge instanceof FunctionCallEdge functionCallEdge) {
+      return Optional.of(functionCallEdge.getFunctionCall());
+    } else if (pEdge instanceof FunctionSummaryEdge functionSummaryEdge) {
       return Optional.of(functionSummaryEdge.getExpression());
     }
     return Optional.empty();
@@ -901,8 +875,7 @@ public class PointerTransferRelation extends SingleEdgeTransferRelation {
     MemoryLocation memoryLocation =
         PointerTransferRelation.fieldReferenceToMemoryLocation(pFieldReference);
     LocationSet targets = pPointerState.getPointsToSet(memoryLocation);
-    if (targets instanceof ExplicitLocationSet) {
-      ExplicitLocationSet explicitTargets = ((ExplicitLocationSet) targets);
+    if (targets instanceof ExplicitLocationSet explicitTargets) {
       for (MemoryLocation target : explicitTargets) {
         if (target.getIdentifier().equals(pCallstackState.getCurrentFunction())) {
           return Collections.singleton(pPointerState);

@@ -12,7 +12,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import java.util.Optional;
-import org.sosy_lab.cpachecker.core.defaults.AbstractSingleWrapperState;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.PrecisionAdjustment;
@@ -28,8 +27,7 @@ class UsagePrecisionAdjustment implements PrecisionAdjustment {
   private final UsageCPAStatistics stats;
 
   public UsagePrecisionAdjustment(
-      PrecisionAdjustment pWrappedPrecAdjustment,
-      UsageCPAStatistics pStats) {
+      PrecisionAdjustment pWrappedPrecAdjustment, UsageCPAStatistics pStats) {
     wrappedPrecAdjustment = pWrappedPrecAdjustment;
     stats = pStats;
   }
@@ -49,7 +47,7 @@ class UsagePrecisionAdjustment implements PrecisionAdjustment {
 
     UnmodifiableReachedSet elements =
         new UnmodifiableReachedSetView(
-            pElements, (state) -> ((UsageState) state).getWrappedState(), Functions.identity());
+            pElements, state -> ((UsageState) state).getWrappedState(), Functions.identity());
 
     AbstractState oldElement = element.getWrappedState();
 
@@ -58,7 +56,7 @@ class UsagePrecisionAdjustment implements PrecisionAdjustment {
             oldElement,
             oldPrecision,
             elements,
-            Functions.compose((state) -> ((UsageState) state).getWrappedState(), stateProjection),
+            Functions.compose(state -> ((UsageState) state).getWrappedState(), stateProjection),
             fullState);
 
     if (!optionalUnwrappedResult.isPresent()) {
@@ -75,12 +73,12 @@ class UsagePrecisionAdjustment implements PrecisionAdjustment {
     if ((oldElement == newElement) && (oldPrecision == newPrecision)) {
       // nothing has changed
       stats.precTimer.stop();
-      return Optional.of(PrecisionAdjustmentResult.create(pElement, oldPrecision, action));
+      return Optional.of(new PrecisionAdjustmentResult(pElement, oldPrecision, action));
     }
 
     UsageState resultElement = element.copy(newElement);
 
     stats.precTimer.stop();
-    return Optional.of(PrecisionAdjustmentResult.create(resultElement, newPrecision, action));
+    return Optional.of(new PrecisionAdjustmentResult(resultElement, newPrecision, action));
   }
 }

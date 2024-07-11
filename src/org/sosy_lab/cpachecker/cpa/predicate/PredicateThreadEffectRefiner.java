@@ -69,10 +69,11 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
   private final StatCounter spuriousMainPaths = new StatCounter("Number of spurious main paths");
 
   @Option(
-    secure = true,
-    name = "skipParentEffects",
-    description = "Projections can be projected from states with 'parent-child' relation."
-        + "Only refine paths to child states.")
+      secure = true,
+      name = "skipParentEffects",
+      description =
+          "Projections can be projected from states with 'parent-child' relation."
+              + "Only refine paths to child states.")
   private boolean skipParentEffects = true;
 
   // the previously analyzed counterexample to detect repeated counterexamples
@@ -110,9 +111,9 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
   }
 
   @Override
-  public CounterexampleInfo
-      performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace)
-          throws CPAException, InterruptedException {
+  public CounterexampleInfo performRefinementForPath(
+      final ARGReachedSet pReached, final ARGPath allStatesTrace)
+      throws CPAException, InterruptedException {
     totalTime.start();
     try {
 
@@ -120,8 +121,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
       repeatedCEXcheck.start();
       final ImmutableList<CFANode> errorPath =
-          allStatesTrace.asStatesList()
-              .stream()
+          allStatesTrace.asStatesList().stream()
               .map(AbstractStates::extractLocation)
               .filter(x -> x != null)
               .collect(ImmutableList.toImmutableList());
@@ -129,8 +129,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
         if (repeatedCEX(allStatesTrace)) {
           repeatedCEXcheck.stop();
           throw new RefinementFailedException(
-              RefinementFailedException.Reason.RepeatedCounterexample,
-              null);
+              RefinementFailedException.Reason.RepeatedCounterexample, null);
         }
       }
       lastErrorPath = errorPath;
@@ -151,7 +150,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
       // spurious.
 
       List<ARGState> statesInMainPath = new ArrayList<>(); // list of all states in main path from
-                                                           // the first to the current
+      // the first to the current
       boolean spuriousCexFound = false;
       effectCheckTime.start();
       for (ARGState state : allStatesTrace.asStatesList()) {
@@ -159,7 +158,8 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
           projectionsTotal.inc();
           boolean allEffectsSpurious = true;
-          for (ARGState effect : modifySetOfEffects(state.getAppliedFrom().getSecond().getProjectedFrom())) {
+          for (ARGState effect :
+              modifySetOfEffects(state.getAppliedFrom().getSecond().getProjectedFrom())) {
 
             // Note, not getOnePathTo, to be sure, the sequence is the same
             pathExtraction.start();
@@ -195,7 +195,6 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
           if (allEffectsSpurious) {
             spuriousCexFound = true;
           }
-
         }
         statesInMainPath.add(state);
       }
@@ -248,8 +247,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
 
   private boolean repeatedCEX(ARGPath path) {
     ImmutableList<ARGState> appliedStates =
-        path.asStatesList()
-            .stream()
+        path.asStatesList().stream()
             .filter(x -> x.getAppliedFrom() != null)
             .collect(ImmutableList.toImmutableList());
 
@@ -258,9 +256,7 @@ public class PredicateThreadEffectRefiner extends PredicateCPARefiner {
     for (ARGState state : appliedStates) {
       for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
         errorPathsToEffects.add(
-            ARGUtils.getOnePathTo(effect)
-                .asStatesList()
-                .stream()
+            ARGUtils.getOnePathTo(effect).asStatesList().stream()
                 .map(AbstractStates::extractLocation)
                 .filter(x -> x != null)
                 .collect(ImmutableList.toImmutableList()));

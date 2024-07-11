@@ -8,20 +8,21 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AUnaryExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-public class CUnaryExpression extends AUnaryExpression implements CExpression {
+public final class CUnaryExpression extends AUnaryExpression implements CExpression {
 
+  @Serial private static final long serialVersionUID = -7701970127701577207L;
 
-
-  private static final long serialVersionUID = -7701970127701577207L;
-
-  public CUnaryExpression(final FileLocation pFileLocation,
-                             final CType pType, final CExpression pOperand,
-                             final UnaryOperator pOperator) {
+  public CUnaryExpression(
+      final FileLocation pFileLocation,
+      final CType pType,
+      final CExpression pOperand,
+      final UnaryOperator pOperator) {
     super(pFileLocation, pType, pOperand, pOperator);
     assert pOperator != UnaryOperator.AMPER || pType.getCanonicalType() instanceof CPointerType
         : "Expression " + this + " has unexpected non-pointer type " + pType;
@@ -43,11 +44,15 @@ public class CUnaryExpression extends AUnaryExpression implements CExpression {
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     if (getOperator() == UnaryOperator.SIZEOF || getOperator() == UnaryOperator.ALIGNOF) {
-      return getOperator().getOperator() + "(" + getOperand().toASTString(pQualified) + ")";
+      return getOperator().getOperator()
+          + "("
+          + getOperand().toASTString(pAAstNodeRepresentation)
+          + ")";
     } else {
-      return getOperator().getOperator() + getOperand().toParenthesizedASTString(pQualified);
+      return getOperator().getOperator()
+          + getOperand().toParenthesizedASTString(pAAstNodeRepresentation);
     }
   }
 
@@ -67,11 +72,11 @@ public class CUnaryExpression extends AUnaryExpression implements CExpression {
   }
 
   public enum UnaryOperator implements AUnaryExpression.AUnaryOperator {
-    MINUS  ("-"),
-    AMPER  ("&"),
-    TILDE  ("~"),
-    SIZEOF ("sizeof"),
-    ALIGNOF ("__alignof__"),
+    MINUS("-"),
+    AMPER("&"),
+    TILDE("~"),
+    SIZEOF("sizeof"),
+    ALIGNOF("__alignof__"),
     ;
 
     private final String mOp;
@@ -80,9 +85,7 @@ public class CUnaryExpression extends AUnaryExpression implements CExpression {
       mOp = pOp;
     }
 
-    /**
-     * Returns the string representation of this operator (e.g. "*", "+").
-     */
+    /** Returns the string representation of this operator (e.g. "*", "+"). */
     @Override
     public String getOperator() {
       return mOp;
@@ -100,10 +103,6 @@ public class CUnaryExpression extends AUnaryExpression implements CExpression {
       return true;
     }
 
-    if (!(obj instanceof CUnaryExpression)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CUnaryExpression && super.equals(obj);
   }
 }

@@ -26,6 +26,7 @@ package org.sosy_lab.cpachecker.cpa.rcucpa;
 import static com.google.common.collect.FluentIterable.from;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableListMultimap;
@@ -49,8 +50,11 @@ import org.sosy_lab.cpachecker.cpa.usage.LocalInfoProvider;
 import org.sosy_lab.cpachecker.util.identifiers.AbstractIdentifier;
 import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 
-public class RCUState implements LatticeAbstractState<RCUState>,
-    CompatibleNode, LocalInfoProvider, AliasInfoProvider {
+public class RCUState
+    implements LatticeAbstractState<RCUState>,
+        CompatibleNode,
+        LocalInfoProvider,
+        AliasInfoProvider {
   private final ImmutableMultimap<AbstractIdentifier, AbstractIdentifier> rcuRelations;
   private final ImmutableSet<AbstractIdentifier> outdatedRCU;
   private final ImmutableSet<SingleIdentifier> localAgain;
@@ -128,16 +132,9 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
   RCUState fillLocal() {
     ImmutableSet<SingleIdentifier> local =
-        FluentIterable
-            .concat(
-                from(outdatedRCU).filter(SingleIdentifier.class),
-                localAgain)
-            .toSet();
+        FluentIterable.concat(from(outdatedRCU).filter(SingleIdentifier.class), localAgain).toSet();
 
-    return new RCUState(lockState, rcuRelations,
-        ImmutableSet.of(),
-        local,
-        temporaryIds);
+    return new RCUState(lockState, rcuRelations, ImmutableSet.of(), local, temporaryIds);
   }
 
   RCUState addToOutdated(AbstractIdentifier pRcuPtr) {
@@ -148,20 +145,21 @@ public class RCUState implements LatticeAbstractState<RCUState>,
         outdated.add(entry.getKey());
       }
     }
-    return new RCUState(lockState, rcuRelations,
-        ImmutableSet.copyOf(outdated),
-        localAgain,
-        temporaryIds);
+    return new RCUState(
+        lockState, rcuRelations, ImmutableSet.copyOf(outdated), localAgain, temporaryIds);
   }
 
   RCUState addToRelations(AbstractIdentifier pAil, AbstractIdentifier pInit) {
     if (pInit != null) {
-      Multimap<AbstractIdentifier, AbstractIdentifier> relations = LinkedListMultimap.create(rcuRelations);
+      Multimap<AbstractIdentifier, AbstractIdentifier> relations =
+          LinkedListMultimap.create(rcuRelations);
       relations.put(pAil, pInit);
       return new RCUState(
           lockState,
           ImmutableListMultimap.copyOf(relations),
-                          outdatedRCU, localAgain, temporaryIds);
+          outdatedRCU,
+          localAgain,
+          temporaryIds);
     }
     return this;
   }
@@ -174,76 +172,41 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
   @Override
   public int compareTo(CompatibleState o) {
-    Preconditions.checkArgument(o instanceof RCUState);
     RCUState other = (RCUState) o;
-    int res = lockState.compareTo(other.lockState);
-    if (res != 0) {
-      return res;
-    }
-    if (equals(o)) {
-      return 0;
-    }
-    res = rcuRelations.size() - other.rcuRelations.size();
-    if (res != 0) {
-      if (rcuRelations.entries().containsAll(other.rcuRelations.entries())) {
-        return 1;
-      }
-      if (other.rcuRelations.entries().containsAll(rcuRelations.entries())) {
-        return -1;
-      }
-      return res;
-    }
-    res = outdatedRCU.size() - other.outdatedRCU.size();
-    if (res != 0) {
-      if (outdatedRCU.containsAll(other.outdatedRCU)) {
-        return 1;
-      }
-      if (other.outdatedRCU.containsAll(outdatedRCU)) {
-        return -1;
-      }
-      return res;
-    }
-    res = localAgain.size() - other.localAgain.size();
-    if (res != 0) {
-      if (localAgain.containsAll(other.localAgain)) {
-        return 1;
-      }
-      if (other.localAgain.containsAll(localAgain)) {
-        return -1;
-      }
-      return res;
-    }
-    res = temporaryIds.size() - other.temporaryIds.size();
-    if (res != 0) {
-      if (temporaryIds.entrySet().containsAll(other.temporaryIds.entrySet())) {
-        return 1;
-      }
-      if (other.temporaryIds.entrySet().containsAll(temporaryIds.entrySet())) {
-        return -1;
-      }
-      return res;
-    }
-    // TODO: No ideas
-    return toString().compareTo(other.toString());
+    return ComparisonChain.start()
+        .compare(lockState, other.lockState)
+        .compare(rcuRelations.size(), other.rcuRelations.size())
+        .compare(outdatedRCU.size(), other.outdatedRCU.size())
+        .compare(localAgain.size(), other.localAgain.size())
+        .compare(temporaryIds.size(), other.temporaryIds.size())
+        // TODO: No ideas
+        .compare(toString(), other.toString())
+        .result();
   }
 
   @Override
   public String toString() {
-    String result = "Lock state: " + lockState
-        + "\nRCU relations: " + rcuRelations
-        + "\nOutdated RCU: " + outdatedRCU
-        + "\nLocal Again: " + localAgain
-        + "\nTmp mapping: " + temporaryIds;
+    String result =
+        "Lock state: "
+            + lockState
+            + "\nRCU relations: "
+            + rcuRelations
+            + "\nOutdated RCU: "
+            + outdatedRCU
+            + "\nLocal Again: "
+            + localAgain
+            + "\nTmp mapping: "
+            + temporaryIds;
     return result;
   }
 
   public static RCUState copyOf(RCUState pState) {
     return new RCUState(
         pState.lockState,
-                        pState.rcuRelations,
-                        pState.outdatedRCU,
-                        pState.localAgain,
-                        pState.temporaryIds);
+        pState.rcuRelations,
+        pState.outdatedRCU,
+        pState.localAgain,
+        pState.temporaryIds);
   }
 
   @Override
@@ -270,20 +233,13 @@ public class RCUState implements LatticeAbstractState<RCUState>,
     if (this == pO) {
       return true;
     }
-    if (!(pO instanceof RCUState)) {
-      return false;
-    }
-
-    RCUState rcuState = (RCUState) pO;
-
     // Problems with equals of Multimap
-    return Objects.equals(rcuRelations.asMap(), rcuState.rcuRelations.asMap())
-        && Objects.equals(
-            outdatedRCU,
-            rcuState.outdatedRCU)
-        && Objects.equals(localAgain, rcuState.localAgain)
-        && Objects.equals(lockState, rcuState.lockState)
-        && Objects.equals(temporaryIds, rcuState.temporaryIds);
+    return pO instanceof RCUState other
+        && Objects.equals(rcuRelations.asMap(), other.rcuRelations.asMap())
+        && outdatedRCU.equals(other.outdatedRCU)
+        && localAgain.equals(other.localAgain)
+        && lockState.equals(other.lockState)
+        && temporaryIds.equals(other.temporaryIds);
   }
 
   @Override
@@ -331,46 +287,30 @@ public class RCUState implements LatticeAbstractState<RCUState>,
 
   RCUState incRCURead() {
     return new RCUState(
-        lockState.incRCURead(),
-        rcuRelations,
-        outdatedRCU,
-        localAgain,
-        temporaryIds);
+        lockState.incRCURead(), rcuRelations, outdatedRCU, localAgain, temporaryIds);
   }
 
   RCUState decRCURead() {
     return new RCUState(
-        lockState.decRCURead(),
-        rcuRelations,
-        outdatedRCU, localAgain, temporaryIds);
+        lockState.decRCURead(), rcuRelations, outdatedRCU, localAgain, temporaryIds);
   }
 
   RCUState markRead() {
-    return new RCUState(
-        lockState.markRead(),
-        rcuRelations,
-        outdatedRCU,
-        localAgain,
-        temporaryIds);
+    return new RCUState(lockState.markRead(), rcuRelations, outdatedRCU, localAgain, temporaryIds);
   }
 
   RCUState markWrite() {
-    return new RCUState(lockState.markWrite(), rcuRelations,
-        outdatedRCU, localAgain, temporaryIds);
+    return new RCUState(lockState.markWrite(), rcuRelations, outdatedRCU, localAgain, temporaryIds);
   }
 
   RCUState clearLock() {
-    return new RCUState(lockState.clearLock(), rcuRelations,
-        outdatedRCU, localAgain, temporaryIds);
+    return new RCUState(lockState.clearLock(), rcuRelations, outdatedRCU, localAgain, temporaryIds);
   }
 
   RCUState addTmpMapping(AbstractIdentifier tmp, AbstractIdentifier nonTmp) {
     Map<AbstractIdentifier, AbstractIdentifier> map = new TreeMap<>(temporaryIds);
     map.put(tmp, nonTmp);
-    return new RCUState(lockState, rcuRelations,
-        outdatedRCU,
-        localAgain,
-        ImmutableMap.copyOf(map));
+    return new RCUState(lockState, rcuRelations, outdatedRCU, localAgain, ImmutableMap.copyOf(map));
   }
 
   public AbstractIdentifier getNonTemporaryId(AbstractIdentifier pId) {

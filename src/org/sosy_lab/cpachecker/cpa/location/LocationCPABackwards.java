@@ -38,6 +38,10 @@ public class LocationCPABackwards extends AbstractCPA {
         new LocationStateFactory(pCFA, AnalysisDirection.BACKWARD, pConfig));
   }
 
+  public LocationStateFactory getStateFactory() {
+    return stateFactory;
+  }
+
   @Override
   public AbstractState getInitialState(CFANode pNode, StateSpacePartition pPartition) {
     return Iterables.getOnlyElement(stateFactory.getState(pNode));

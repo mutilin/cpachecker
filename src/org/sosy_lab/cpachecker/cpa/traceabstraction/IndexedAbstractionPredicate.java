@@ -8,6 +8,8 @@
 
 package org.sosy_lab.cpachecker.cpa.traceabstraction;
 
+import static com.google.common.base.Verify.verify;
+
 import java.util.Objects;
 import org.sosy_lab.cpachecker.util.predicates.AbstractionPredicate;
 
@@ -36,31 +38,20 @@ class IndexedAbstractionPredicate implements Comparable<IndexedAbstractionPredic
       return true;
     }
 
-    if (!(pOther instanceof IndexedAbstractionPredicate)) {
-      return false;
-    }
-
-    IndexedAbstractionPredicate other = (IndexedAbstractionPredicate) pOther;
-    return index == other.index && Objects.equals(predicate, other.predicate);
+    return pOther instanceof IndexedAbstractionPredicate other
+        && index == other.index
+        && Objects.equals(predicate, other.predicate);
   }
 
   @Override
   public int compareTo(IndexedAbstractionPredicate pOther) {
-    int result = Integer.compare(index, pOther.index);
-    if (result == 0 && !predicate.equals(pOther.predicate)) {
-      // The index is in principle the only significant value that should be checked for the
-      // ordering.
-      // However, if the index is equal, the contained predicate needs to be additionally checked
-      // since otherwise objects of this class with the same index get wrongly replaced by objects
-      // with different predicates. It makes no sense to order predicates in case of inequality, but
-      // we still need to ensure that they fulfill the contract of proper comparable-implementations.
-      return predicate
-          .getAbstractVariable()
-          .toString()
-          .compareTo(pOther.predicate.getAbstractVariable().toString());
-    }
-
-    return result;
+    verify(
+        index != pOther.index || predicate.equals(pOther.predicate),
+        "IndexedAbstractionPredicates that have the same indices should be equal%n"
+            + "This: %s%nOther: %s",
+        this,
+        pOther);
+    return Integer.compare(index, pOther.index);
   }
 
   @Override

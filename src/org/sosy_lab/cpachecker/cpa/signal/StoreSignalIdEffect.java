@@ -50,5 +50,4 @@ public abstract class StoreSignalIdEffect implements SignalEffect {
     varName = pName;
     signalId = pId;
   }
-
 }

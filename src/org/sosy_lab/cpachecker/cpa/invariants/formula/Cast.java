@@ -17,7 +17,7 @@ class Cast<ConstantType> extends AbstractFormula<ConstantType> {
 
   private Cast(TypeInfo pInfo, NumeralFormula<ConstantType> pCasted) {
     super(pInfo);
-    this.casted = pCasted;
+    casted = pCasted;
   }
 
   public NumeralFormula<ConstantType> getCasted() {
@@ -39,11 +39,9 @@ class Cast<ConstantType> extends AbstractFormula<ConstantType> {
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof Cast) {
-      Cast<?> other = (Cast<?>) pOther;
-      return getTypeInfo().equals(other.getTypeInfo()) && getCasted().equals(other.getCasted());
-    }
-    return false;
+    return pOther instanceof Cast<?> other
+        && getTypeInfo().equals(other.getTypeInfo())
+        && getCasted().equals(other.getCasted());
   }
 
   @Override
@@ -53,7 +51,8 @@ class Cast<ConstantType> extends AbstractFormula<ConstantType> {
 
   @Override
   public <ReturnType, ParamType> ReturnType accept(
-      ParameterizedNumeralFormulaVisitor<ConstantType, ParamType, ReturnType> pVisitor, ParamType pParameter) {
+      ParameterizedNumeralFormulaVisitor<ConstantType, ParamType, ReturnType> pVisitor,
+      ParamType pParameter) {
     return pVisitor.visit(this, pParameter);
   }
 
@@ -61,5 +60,4 @@ class Cast<ConstantType> extends AbstractFormula<ConstantType> {
       TypeInfo pTypeInfo, NumeralFormula<ConstantType> pCasted) {
     return new Cast<>(pTypeInfo, pCasted);
   }
-
 }

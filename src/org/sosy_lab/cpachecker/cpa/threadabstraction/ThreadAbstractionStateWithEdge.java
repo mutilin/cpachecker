@@ -16,8 +16,7 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
   private final ThreadAbstractionEdge edge;
 
   protected ThreadAbstractionStateWithEdge(
-      ThreadAbstractionState pState,
-      ThreadAbstractionEdge pEdge) {
+      ThreadAbstractionState pState, ThreadAbstractionEdge pEdge) {
     super(pState.getThreadSet(), pState.getCurrentThread(), pState.isSelfParallel());
     edge = pEdge;
   }
@@ -25,7 +24,7 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
   @Override
   public boolean isCompatibleWith(ThreadAbstractionState pOther) {
     if (this.edge.getThread() != null) { // TODO tmp assert
-      assert (!this.edge.getThread().equals(this.getCurrentThread()));
+      assert !this.edge.getThread().equals(this.getCurrentThread());
     }
     return super.isCompatibleWith(pOther);
   }
@@ -37,9 +36,7 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
 
   public ThreadAbstractionState getThreadAbstractionState() {
     return new ThreadAbstractionState(
-        this.getThreadSet(),
-        this.getCurrentThread(),
-        this.isSelfParallel());
+        this.getThreadSet(), this.getCurrentThread(), this.isSelfParallel());
   }
 
   @Override
@@ -62,11 +59,9 @@ public class ThreadAbstractionStateWithEdge extends ThreadAbstractionState
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof ThreadAbstractionStateWithEdge)) {
-      return false;
-    }
-    ThreadAbstractionStateWithEdge pOther = (ThreadAbstractionStateWithEdge) obj;
-    return super.equals(pOther) && edge.equals(pOther.getAbstractEdge());
+    return super.equals(obj)
+        && obj instanceof ThreadAbstractionStateWithEdge other
+        && edge.equals(other.edge);
   }
 
   @Override

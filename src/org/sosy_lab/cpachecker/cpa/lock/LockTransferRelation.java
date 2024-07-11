@@ -87,22 +87,25 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
 
     @Override
     public void printStatistics(PrintStream pOut, Result pResult, UnmodifiableReachedSet pReached) {
-      StatisticsWriter w = StatisticsWriter.writingStatisticsTo(pOut)
+      StatisticsWriter w =
+          StatisticsWriter.writingStatisticsTo(pOut)
               .put(transferTimer)
               .beginLevel()
               .put(operationsTimer)
               .put(filteringTimer)
               .put(applyTimer)
               .endLevel()
-          .put(lockEffects)
-          .put(locksInState)
-          .put(locksInStateWithLocks);
+              .put(lockEffects)
+              .put(locksInState)
+              .put(locksInStateWithLocks);
 
-      Precision p = pReached.getPrecision(pReached.getFirstState());
-      LockPrecision lockPrecision = Precisions.extractPrecisionByType(p, LockPrecision.class);
-      if (lockPrecision != null) {
-        w.put("Number of considered lock operations", lockPrecision.getKeySize())
-         .put("Considered lock identifiers", lockPrecision.getValues());
+      if (pReached.getFirstState() != null) {
+        Precision p = pReached.getPrecision(pReached.getFirstState());
+        LockPrecision lockPrecision = Precisions.extractPrecisionByType(p, LockPrecision.class);
+        if (lockPrecision != null) {
+          w.put("Number of considered lock operations", lockPrecision.getKeySize())
+              .put("Considered lock identifiers", lockPrecision.getValues());
+        }
       }
     }
 
@@ -119,15 +122,15 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
   private final LockStatistics stats;
 
   @Option(
-    name = "stopAfterLockLimit",
-    description = "stop path exploration if a lock limit is reached",
-    secure = true)
+      name = "stopAfterLockLimit",
+      description = "stop path exploration if a lock limit is reached",
+      secure = true)
   private boolean stopAfterLockLimit = false;
 
   @Option(
-    name = "atomicSectionLockName",
-    description = "name of a lock, which is considered as atomic section",
-    secure = true)
+      name = "atomicSectionLockName",
+      description = "name of a lock, which is considered as atomic section",
+      secure = true)
   private String atomicSectionLockName = "atomic_block";
 
   private String atomicFunctionPrefix = "__VERIFIER_atomic_";
@@ -141,7 +144,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
 
     lockDescription = parser.parseLockInfo();
     annotatedFunctions = parser.parseAnnotatedFunctions();
-    assert (annotatedFunctions != null);
+    assert annotatedFunctions != null;
 
     stats = new LockStatistics();
   }
@@ -172,7 +175,8 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
 
     if (lockStatisticsElement.isAtomicSection(atomicSectionLockName)) {
       for (AbstractLockEffect effect : toProcess) {
-        assert !(effect instanceof AcquireLockEffect) : "Acquiring a lock inside of atomic block is not allowed";
+        assert !(effect instanceof AcquireLockEffect)
+            : "Acquiring a lock inside of atomic block is not allowed";
       }
     }
 
@@ -194,8 +198,8 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
     }
   }
 
-  public AbstractLockState
-      applyEffects(AbstractLockState oldState, List<AbstractLockEffect> toProcess) {
+  public AbstractLockState applyEffects(
+      AbstractLockState oldState, List<AbstractLockEffect> toProcess) {
     final AbstractLockStateBuilder builder = oldState.builder();
     toProcess.forEach(e -> e.effect(builder));
     return builder.build();
@@ -244,10 +248,8 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
   private List<AbstractLockEffect> handleAssumption(CAssumeEdge cfaEdge) {
     CExpression assumption = cfaEdge.getExpression();
 
-    if (assumption instanceof CBinaryExpression) {
-      CBinaryExpression binExpression = (CBinaryExpression) assumption;
-      IdentifierCreator creator =
-          new IdentifierCreator(cfaEdge.getSuccessor().getFunctionName());
+    if (assumption instanceof CBinaryExpression binExpression) {
+      IdentifierCreator creator = new IdentifierCreator(cfaEdge.getSuccessor().getFunctionName());
       AbstractIdentifier varId = creator.createIdentifier(binExpression.getOperand1(), 0);
       if (varId instanceof SingleIdentifier) {
         String varName = ((SingleIdentifier) varId).getName();
@@ -279,8 +281,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
   }
 
   private ImmutableList<? extends AbstractLockEffect> convertAnnotationToLockEffect(
-      Set<LockIdentifier> pAnnotatedIds,
-      AbstractLockEffect pEffect) {
+      Set<LockIdentifier> pAnnotatedIds, AbstractLockEffect pEffect) {
     return transformedImmutableListCopy(pAnnotatedIds, pEffect::applyToTarget);
   }
 
@@ -288,8 +289,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
     // CFANode tmpNode = cfaEdge.getSummaryEdge().getPredecessor();
     String fName =
         cfaEdge
-            .getSummaryEdge()
-            .getExpression()
+            .getFunctionCall()
             .getFunctionCallExpression()
             .getFunctionNameExpression()
             .toASTString();
@@ -308,20 +308,17 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
         if (!currentAnnotation.getRestoreLocks().isEmpty()) {
           result.addAll(
               convertAnnotationToLockEffect(
-                  currentAnnotation.getRestoreLocks(),
-                  GenericLockEffectWithId.RESTORE));
+                  currentAnnotation.getRestoreLocks(), GenericLockEffectWithId.RESTORE));
         }
         if (!currentAnnotation.getFreeLocks().isEmpty()) {
           result.addAll(
               convertAnnotationToLockEffect(
-                  currentAnnotation.getFreeLocks(),
-                  GenericLockEffectWithId.RELEASE));
+                  currentAnnotation.getFreeLocks(), GenericLockEffectWithId.RELEASE));
         }
         if (!currentAnnotation.getResetLocks().isEmpty()) {
           result.addAll(
               convertAnnotationToLockEffect(
-                  currentAnnotation.getResetLocks(),
-                  GenericLockEffectWithId.RESET));
+                  currentAnnotation.getResetLocks(), GenericLockEffectWithId.RESET));
         }
         if (!currentAnnotation.getCaptureLocks().isEmpty()) {
           for (LockIdentifier targetId : currentAnnotation.getCaptureLocks()) {
@@ -381,8 +378,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
        */
       CRightHandSide op2 = ((CAssignment) statement).getRightHandSide();
 
-      if (op2 instanceof CFunctionCallExpression) {
-        CFunctionCallExpression function = (CFunctionCallExpression) op2;
+      if (op2 instanceof CFunctionCallExpression function) {
         return handleFunctionCallExpression(function);
       } else {
         /*
@@ -406,11 +402,10 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
         }
       }
 
-    } else if (statement instanceof CFunctionCallStatement) {
+    } else if (statement instanceof CFunctionCallStatement funcStatement) {
       /*
        * queLock(que);
        */
-      CFunctionCallStatement funcStatement = (CFunctionCallStatement) statement;
       return handleFunctionCallExpression(funcStatement.getFunctionCallExpression());
     }
     // No lock-relating operations
@@ -424,8 +419,7 @@ public class LockTransferRelation extends SingleEdgeTransferRelation
       result.add(saveState);
     }
     result.addAll(
-        handleFunctionCallExpression(
-            callEdge.getSummaryEdge().getExpression().getFunctionCallExpression()));
+        handleFunctionCallExpression(callEdge.getFunctionCall().getFunctionCallExpression()));
     return result;
   }
 

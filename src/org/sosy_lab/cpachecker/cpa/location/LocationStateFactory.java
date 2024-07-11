@@ -12,7 +12,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableSortedSet;
-
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import org.sosy_lab.common.configuration.Configuration;
 import org.sosy_lab.common.configuration.InvalidConfigurationException;
 import org.sosy_lab.common.configuration.Option;
@@ -26,11 +29,6 @@ import org.sosy_lab.cpachecker.core.defaults.WrapperCFAEdge;
 import org.sosy_lab.cpachecker.cpa.location.LocationState.BackwardsLocationState;
 import org.sosy_lab.cpachecker.cpa.location.LocationStateWithEdge.BackwardsLocationStateWithEdge;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-
 @Options(prefix = "cpa.location")
 public class LocationStateFactory {
 
@@ -39,12 +37,11 @@ public class LocationStateFactory {
   private final AnalysisDirection locationType;
 
   @Option(
-    secure = true,
-    description =
-        "With this option enabled, function calls that occur"
-            + " in the CFA are followed. By disabling this option one can traverse a function"
-            + " without following function calls (in this case FunctionSummaryEdges are used)"
-  )
+      secure = true,
+      description =
+          "With this option enabled, function calls that occur"
+              + " in the CFA are followed. By disabling this option one can traverse a function"
+              + " without following function calls (in this case FunctionSummaryEdges are used)")
   private boolean followFunctionCalls = true;
 
   @Option(secure = true, description = "Use special states with edges")
@@ -57,7 +54,7 @@ public class LocationStateFactory {
 
     if (!enableStatesWithEdges) {
       ImmutableSortedSet<CFANode> allNodes;
-      Collection<CFANode> tmpNodes = pCfa.getAllNodes();
+      Collection<CFANode> tmpNodes = pCfa.nodes();
       if (tmpNodes instanceof ImmutableSortedSet) {
         allNodes = (ImmutableSortedSet<CFANode>) tmpNodes;
       } else {
@@ -107,13 +104,11 @@ public class LocationStateFactory {
     List<LocationState> result;
     if (locationType == AnalysisDirection.BACKWARD) {
       result = new ArrayList<>(node.getNumEnteringEdges());
-      for (int i = 0; i< node.getNumEnteringEdges(); i++) {
+      for (int i = 0; i < node.getNumEnteringEdges(); i++) {
         CFAEdge edge = node.getEnteringEdge(i);
         result.add(
             new BackwardsLocationStateWithEdge(
-                node,
-                followFunctionCalls,
-                new WrapperCFAEdge(edge)));
+                node, followFunctionCalls, new WrapperCFAEdge(edge)));
       }
       if (result.isEmpty()) {
         result.add(
@@ -121,18 +116,13 @@ public class LocationStateFactory {
       }
     } else {
       result = new ArrayList<>(node.getNumLeavingEdges());
-      for (int i = 0; i< node.getNumLeavingEdges(); i++) {
+      for (int i = 0; i < node.getNumLeavingEdges(); i++) {
         CFAEdge edge = node.getLeavingEdge(i);
-        result.add(
-            new LocationStateWithEdge(
-                node,
-                followFunctionCalls,
-                new WrapperCFAEdge(edge)));
+        result.add(new LocationStateWithEdge(node, followFunctionCalls, new WrapperCFAEdge(edge)));
       }
       if (result.isEmpty()) {
         result.add(new LocationStateWithEdge(node, followFunctionCalls, NoEdge.getInstance()));
       }
-
     }
     return result;
   }

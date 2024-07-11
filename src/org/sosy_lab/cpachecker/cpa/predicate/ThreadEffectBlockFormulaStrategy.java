@@ -11,7 +11,6 @@ package org.sosy_lab.cpachecker.cpa.predicate;
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.exceptions.CPATransferException;
@@ -28,23 +27,21 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
 
   public static enum EqualitiesLocation {
     MIDDLE,
-    END;
+    END
   }
 
   protected final FormulaManagerView fmgr;
   protected final PathFormulaManager pathFmgr;
   protected final EqualitiesLocation variableEqualitiesLocation;
 
-  protected final static String THREAD_PREFIX = "otherpath#";
+  protected static final String THREAD_PREFIX = "otherpath#";
 
   public ThreadEffectBlockFormulaStrategy(FormulaManagerView pFmgr, PathFormulaManager pPfgmr) {
     this(pFmgr, pPfgmr, EqualitiesLocation.MIDDLE);
   }
 
   protected ThreadEffectBlockFormulaStrategy(
-      FormulaManagerView pFmgr,
-      PathFormulaManager pPfgmr,
-      EqualitiesLocation pEqualities) {
+      FormulaManagerView pFmgr, PathFormulaManager pPfgmr, EqualitiesLocation pEqualities) {
     fmgr = pFmgr;
     pathFmgr = pPfgmr;
     variableEqualitiesLocation = pEqualities;
@@ -70,22 +67,21 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
         modifyFormulas(super.getFormulasForPath(argRoot, paths.getFirst()).getFormulas(), 0);
     List<BooleanFormula> formulas2 =
         modifyFormulas(super.getFormulasForPath(argRoot, paths.getSecond()).getFormulas(), 1);
-    SSAMap firstSsa = getSSAMap(paths.getFirst(), 0), secondSsa = getSSAMap(paths.getSecond(), 1);
+    SSAMap firstSsa = getSSAMap(paths.getFirst(), 0);
+    SSAMap secondSsa = getSSAMap(paths.getSecond(), 1);
     BooleanFormula variableEqualities =
         makeVariableEqualities(formulas1, formulas2, firstSsa, secondSsa);
     // TODO Branching formulas
     // currently branchingFormulas are not used as checkPath does not support interleavings and it
     // is disabled
-    return new BlockFormulas(
-        combineFormulas(formulas1, formulas2, variableEqualities),
-        pathFmgr.buildBranchingFormula(new HashSet<>(abstractionStates)));
-
+    return new BlockFormulas(combineFormulas(formulas1, formulas2, variableEqualities));
   }
 
-  private Pair<List<ARGState>, List<ARGState>>
-      divideIntoTwoPaths(List<ARGState> abstractionStates) {
+  private Pair<List<ARGState>, List<ARGState>> divideIntoTwoPaths(
+      List<ARGState> abstractionStates) {
 
-    List<ARGState> path = new ArrayList<>(), firstPath = null;
+    List<ARGState> path = new ArrayList<>();
+    List<ARGState> firstPath = null;
 
     // InitialState is filtered from the first part, but not from the second part
     for (ARGState next : abstractionStates) {
@@ -110,13 +106,12 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
 
   private List<BooleanFormula> renameFormulas(List<BooleanFormula> formulas) {
     return transformedImmutableListCopy(
-        formulas,
-        f -> fmgr.renameFreeVariablesAndUFs(f, this::renameVariables));
+        formulas, f -> fmgr.renameFreeVariablesAndUFs(f, this::renameVariables));
   }
 
   protected SSAMap getSSAMap(List<ARGState> path, int i) {
-    return AbstractStates
-        .extractStateByType(path.get(path.size() - 1), PredicateAbstractState.class)
+    return AbstractStates.extractStateByType(
+            path.get(path.size() - 1), PredicateAbstractState.class)
         .getPathFormula()
         .getSsa();
   }
@@ -131,9 +126,8 @@ public class ThreadEffectBlockFormulaStrategy extends BlockFormulaStrategy {
 
     for (String varName : lastSsa1.allVariables()) {
       if (lastSsa2.containsVariable(varName) && additionalCheck(varName)) {
-        FormulaType<Formula> formulaType1, formulaType2;
-        formulaType1 = getVariableType(varName, formulas1);
-        formulaType2 = getVariableType(renameVariables(varName), formulas2);
+        FormulaType<Formula> formulaType1 = getVariableType(varName, formulas1);
+        FormulaType<Formula> formulaType2 = getVariableType(renameVariables(varName), formulas2);
 
         if (formulaType1 != null && formulaType2 != null && formulaType1 == formulaType2) {
           Formula var1 = fmgr.makeVariable(formulaType1, varName, lastSsa1.getIndex(varName));

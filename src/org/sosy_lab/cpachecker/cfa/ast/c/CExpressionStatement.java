@@ -8,18 +8,16 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AExpressionStatement;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
+public final class CExpressionStatement extends AExpressionStatement implements CStatement {
 
-public class CExpressionStatement extends AExpressionStatement implements CStatement {
+  @Serial private static final long serialVersionUID = 536239630070098410L;
 
-  private static final long serialVersionUID = 536239630070098410L;
-
-  public CExpressionStatement(final FileLocation pFileLocation,
-                                 final CExpression pExpression) {
-    super(pFileLocation,  pExpression);
-
+  public CExpressionStatement(final FileLocation pFileLocation, final CExpression pExpression) {
+    super(pFileLocation, pExpression);
   }
 
   @Override
@@ -50,10 +48,6 @@ public class CExpressionStatement extends AExpressionStatement implements CState
       return true;
     }
 
-    if (!(obj instanceof CExpressionStatement)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CExpressionStatement && super.equals(obj);
   }
 }

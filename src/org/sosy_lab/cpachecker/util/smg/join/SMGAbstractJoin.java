@@ -6,11 +6,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-/**
- * This package contains utility classes for program slicing.
- *
- * @see org.sosy_lab.cpachecker.util.dependencegraph
- */
 package org.sosy_lab.cpachecker.util.smg.join;
 
 import org.sosy_lab.cpachecker.cpa.smg.join.SMGJoinStatus;
@@ -19,11 +14,8 @@ import org.sosy_lab.cpachecker.util.smg.graph.SMGDoublyLinkedListSegment;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGObject;
 import org.sosy_lab.cpachecker.util.smg.graph.SMGValue;
 
-/**
- * Class implementing join algorithm from FIT-TR-2013-4 (Appendix C)
- */
+/** Class implementing join algorithm from FIT-TR-2013-4 (Appendix C) */
 public class SMGAbstractJoin {
-
 
   protected SMGJoinStatus status;
   protected SMG inputSMG1;
@@ -123,5 +115,4 @@ public class SMGAbstractJoin {
   public SMGValue getValue() {
     return value;
   }
-
 }

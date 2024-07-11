@@ -18,5 +18,4 @@ public interface CFAVisitor {
   public SignalEffect visitFunctionCallEdge(CFunctionCallEdge fcallEdge);
 
   public SignalEffect visitStatementEdge(CStatementEdge stmntEdge);
-
 }

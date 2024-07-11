@@ -1,5 +1,5 @@
 Bugs found by Klever:
-  config: "-lockator-linux-pre-shared-ref"
+  config: --lockator-linux-pre-shared-ref
   setprop:
     - "cpa.callstack.unsupportedFunctions=__VERIFIER_nonexisting_dummy_function"
     - "cpa.predicate.allowedUnsupportedFunctions=memset,memcpy,__builtin_add_overflow,__builtin_mul_overflow,__builtin_va_arg"
@@ -9,7 +9,7 @@ Bugs found by Klever:
     - "shutdown.timeout=100"
     - "counterexample.export.graphml=witness.%d.graphml"
   options:
-    - "-64"
+    - "--64"
   benchmarks:
     - Linux-Validation-Bugs-found-by-Klever/10-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i
     # Timeout
@@ -24,6 +24,11 @@ Bugs found by Klever:
     - Linux-Validation-Bugs-found-by-Klever/32-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/33-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/34-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
+  verdicts: ci-config/ldv-klever-verdicts.yml
+  prefix: /opt/ldv-klever-benchmarks/
+Bugs found by Klever 2:
+  extends: Bugs found by Klever
+  benchmarks:
     - Linux-Validation-Bugs-found-by-Klever/37-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i
@@ -36,11 +41,9 @@ Bugs found by Klever:
     - Linux-Validation-Bugs-found-by-Klever/73-drivers---dma---pch_dma.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/74-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/75-drivers---usb---host---u132-hcd.ko-concurrency-safety.cil.i
-  verdicts: ci-config/ldv-klever-verdicts.yml
-  prefix: /opt/ldv-klever-benchmarks/
 Bugs found by Klever TM:
   extends: Bugs found by Klever
-  config: "-lockator-threadmodular-linux"
+  config: --lockator-threadmodular-linux
   benchmarks:
     - Linux-Validation-Bugs-found-by-Klever/10-drivers---net---appletalk---cops.ko-concurrency-safety.cil.i
     # Timeout
@@ -55,6 +58,9 @@ Bugs found by Klever TM:
     - Linux-Validation-Bugs-found-by-Klever/32-drivers---mmc---host---via-sdmmc.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/33-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/34-drivers---dma---dma-jz4780.ko-concurrency-safety.cil.i
+Bugs found by Klever TM 2:
+  extends: Bugs found by Klever TM
+  benchmarks:
     - Linux-Validation-Bugs-found-by-Klever/37-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/38-drivers---crypto---picoxcell_crypto.ko-concurrency-safety.cil.i
     - Linux-Validation-Bugs-found-by-Klever/68-drivers---rapidio---devices---rio_mport_cdev.ko-concurrency-safety.cil.i

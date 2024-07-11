@@ -110,13 +110,10 @@ public class SymbolicCandiateInvariant implements CandidateInvariant {
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof SymbolicCandiateInvariant) {
-      SymbolicCandiateInvariant other = (SymbolicCandiateInvariant) pOther;
-      return stateFilter.equals(other.stateFilter)
-          && invariant.equals(other.invariant)
-          && applicableLocations.equals(other.applicableLocations);
-    }
-    return false;
+    return pOther instanceof SymbolicCandiateInvariant other
+        && stateFilter.equals(other.stateFilter)
+        && invariant.equals(other.invariant)
+        && applicableLocations.equals(other.applicableLocations);
   }
 
   @Override
@@ -159,7 +156,8 @@ public class SymbolicCandiateInvariant implements CandidateInvariant {
     } catch (ExecutionException e) {
       Throwable cause = e.getCause();
       if (cause != null) {
-        Throwables.propagateIfPossible(cause, InterruptedException.class);
+        Throwables.throwIfInstanceOf(cause, InterruptedException.class);
+        Throwables.throwIfUnchecked(cause);
         throw new UncheckedExecutionException(cause);
       }
       throw new UncheckedExecutionException(e);
@@ -207,7 +205,10 @@ public class SymbolicCandiateInvariant implements CandidateInvariant {
   }
 
   public static SymbolicCandiateInvariant makeSymbolicInvariant(
-      Set<CFANode> pApplicableLocations, Predicate<? super AbstractState> pStateFilter, BooleanFormula pInvariant, FormulaManagerView pOriginalFormulaManager) {
+      Set<CFANode> pApplicableLocations,
+      Predicate<? super AbstractState> pStateFilter,
+      BooleanFormula pInvariant,
+      FormulaManagerView pOriginalFormulaManager) {
     return new SymbolicCandiateInvariant(
         pApplicableLocations,
         pStateFilter,
@@ -353,7 +354,8 @@ public class SymbolicCandiateInvariant implements CandidateInvariant {
     builder.put(firstApplicableStates, first);
     while (candidateIterator.hasNext()) {
       SymbolicCandiateInvariant current = candidateIterator.next();
-      if (current.stateFilter.equals(first.stateFilter) && current.applicableLocations.equals(first.applicableLocations)) {
+      if (current.stateFilter.equals(first.stateFilter)
+          && current.applicableLocations.equals(first.applicableLocations)) {
         builder.put(firstApplicableStates, current);
       } else {
         builder.put(Sets.newHashSet(current.filterApplicable(pStates)), current);

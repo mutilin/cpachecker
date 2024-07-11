@@ -191,7 +191,6 @@ abstract class AbstractExpressionSubstitutor {
     } else {
       throw new AssertionError();
     }
-
   }
 
   private AStatement substitute(AStatement pStat) {
@@ -219,7 +218,6 @@ abstract class AbstractExpressionSubstitutor {
       } else if (rhs == null) {
         return toStatement(lhs);
       }
-
 
       if (pStat instanceof CExpressionAssignmentStatement) {
         return new CExpressionAssignmentStatement(loc, (CLeftHandSide) lhs, (CExpression) rhs);
@@ -293,7 +291,6 @@ abstract class AbstractExpressionSubstitutor {
     } else {
       throw new AssertionError();
     }
-
   }
 
   private ADeclaration substitute(ADeclaration pDecl) {

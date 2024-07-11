@@ -44,7 +44,7 @@ public class LocationIdentifierConverter {
       StructureFieldIdentifier stfid = (StructureFieldIdentifier) id;
       AbstractIdentifier owner = stfid.getOwner();
       if (owner != null) {
-        String ownerType = ((SingleIdentifier)owner).getType().toString();
+        String ownerType = ((SingleIdentifier) owner).getType().toString();
         if (ownerType.contains("(")) {
           ownerType = ownerType.substring(ownerType.indexOf("(") + 1, ownerType.indexOf(")"));
         }
@@ -56,7 +56,7 @@ public class LocationIdentifierConverter {
       StructureIdentifier stid = (StructureIdentifier) id;
       AbstractIdentifier owner = stid.getOwner();
       if (owner != null) {
-        String ownerType = ((SingleIdentifier)owner).getType().toString();
+        String ownerType = ((SingleIdentifier) owner).getType().toString();
         if (ownerType.contains("(")) {
           ownerType = ownerType.substring(ownerType.indexOf("(") + 1, ownerType.indexOf(")"));
         }

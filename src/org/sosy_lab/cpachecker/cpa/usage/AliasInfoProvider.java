@@ -30,6 +30,5 @@ public interface AliasInfoProvider {
   Collection<AbstractIdentifier> getAllPossibleAliases(AbstractIdentifier id);
 
   @SuppressWarnings("unused")
-  default void filterAliases(AbstractIdentifier pIdentifier, Collection<AbstractIdentifier> pSet) {
-  }
+  default void filterAliases(AbstractIdentifier pIdentifier, Collection<AbstractIdentifier> pSet) {}
 }

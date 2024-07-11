@@ -40,12 +40,10 @@ public class RCUStatistics implements Statistics {
         .put(derefNum)
         .put(assignNum)
         .put(synchNum);
-
   }
 
   @Override
   public @Nullable String getName() {
     return "RCUCPA";
   }
-
 }

@@ -40,16 +40,11 @@ public class ThreadAbstractEdge implements AbstractEdge {
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof ThreadAbstractEdge)) {
-      return false;
-    }
-    ThreadAbstractEdge other = (ThreadAbstractEdge) obj;
-    return Objects.equals(action, other.action);
+    return obj instanceof ThreadAbstractEdge other && action.equals(other.action);
   }
 
   @Override
   public String toString() {
     return action.toString();
   }
-
 }

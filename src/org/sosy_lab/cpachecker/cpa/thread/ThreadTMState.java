@@ -20,6 +20,7 @@
 package org.sosy_lab.cpachecker.cpa.thread;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Objects;
@@ -47,13 +48,10 @@ public class ThreadTMState extends ThreadState {
       return threadSet.get(currentThread) == ThreadStatus.SELF_PARALLEL_THREAD;
     }
     // Does not matter which set to iterate, anyway we need an intersection
-    if ((this.threadSet.containsKey(other.currentThread) || other.currentThread.equals(mainThread))
+    return ((this.threadSet.containsKey(other.currentThread)
+            || other.currentThread.equals(mainThread))
         && (other.threadSet.containsKey(this.currentThread)
-            || this.currentThread.equals(mainThread))) {
-      return true;
-    } else {
-      return false;
-    }
+            || this.currentThread.equals(mainThread)));
   }
 
   @Override
@@ -61,11 +59,9 @@ public class ThreadTMState extends ThreadState {
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    ThreadTMState other = (ThreadTMState) obj;
-    return Objects.equals(currentThread, other.currentThread);
+    return super.equals(obj)
+        && obj instanceof ThreadTMState other
+        && currentThread.equals(other.currentThread);
   }
 
   @Override
@@ -75,24 +71,18 @@ public class ThreadTMState extends ThreadState {
 
   @Override
   public int compareTo(CompatibleState pOther) {
+    // Special compare with super
     int result = super.compareTo(pOther);
-    ThreadTMState other = (ThreadTMState) pOther;
-
     if (result != 0) {
       return result;
     }
-    result = this.currentThread.compareTo(other.currentThread);
-    return result;
+    ThreadTMState other = (ThreadTMState) pOther;
+    return ComparisonChain.start().compare(currentThread, other.currentThread).result();
   }
 
   public ThreadTMStateWithEdge copyWithEdge(ThreadAbstractEdge pEdge) {
     return new ThreadTMStateWithEdge(
-        currentId,
-        currentThread,
-        currentPriority,
-        threadSet,
-        removedSet,
-        pEdge);
+        currentId, currentThread, currentPriority, threadSet, removedSet, pEdge);
   }
 
   public static ThreadState emptyState(SelfSupport pSelf) {
@@ -101,19 +91,15 @@ public class ThreadTMState extends ThreadState {
   }
 
   @Override
-  public ThreadState
-      copyWith(String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+  public ThreadState copyWith(
+      String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
     return new ThreadTMState(pId, pCurrent, pPrio, tSet, this.removedSet);
   }
 
   @Override
   public ThreadState copyWith(Map<String, ThreadStatus> tSet) {
     return new ThreadTMState(
-        this.currentId,
-        this.currentThread,
-        this.currentPriority,
-        tSet,
-        this.removedSet);
+        this.currentId, this.currentThread, this.currentPriority, tSet, this.removedSet);
   }
 
   @Override

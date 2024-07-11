@@ -55,9 +55,9 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithAssumptions;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.ARGUtils;
 import org.sosy_lab.cpachecker.cpa.callstack.CallstackState;
-import org.sosy_lab.cpachecker.cpa.smg.util.PersistentSet;
 import org.sosy_lab.cpachecker.exceptions.UnrecognizedCodeException;
 import org.sosy_lab.cpachecker.util.AbstractStates;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentSet;
 
 /**
  * This class converts an ARG into an automaton (or several automata), that can be used as
@@ -139,6 +139,7 @@ public class ARGToAutomatonConverter {
           "when using FIRST_BFS, how many nodes should be skipped? "
               + "ZERO will only export the root itself, MAX_INT will export only LEAFS.")
   private int skipFirstNum = 10;
+
   private final CBinaryExpressionBuilder cBinaryExpressionBuilder;
 
   public ARGToAutomatonConverter(
@@ -155,31 +156,25 @@ public class ARGToAutomatonConverter {
    * @param targetsOnly Export all possible paths or only paths leading to target states.
    */
   public Automaton getAutomaton(ARGState root, boolean targetsOnly) {
-    switch (dataStrategy) {
-      case LOCATION:
-        return getLocationAutomatonForStates(root, Predicates.alwaysFalse(), targetsOnly);
-      case CALLSTACK:
-        return getCallstackAutomatonForStates(root, getLeaves(root, targetsOnly), targetsOnly);
-      default:
-        throw new AssertionError("unexpected strategy");
-    }
+    return switch (dataStrategy) {
+      case LOCATION -> getLocationAutomatonForStates(root, Predicates.alwaysFalse(), targetsOnly);
+      case CALLSTACK ->
+          getCallstackAutomatonForStates(root, getLeaves(root, targetsOnly), targetsOnly);
+      default -> throw new AssertionError("unexpected strategy");
+    };
   }
 
   /** get several automata according to the splitter strategy. */
   public Iterable<Automaton> getAutomata(ARGState root) {
-    switch (splitStrategy) {
-      case NONE:
-        return Collections.singleton(
-            getLocationAutomatonForStates(root, Predicates.alwaysFalse(), false));
-      case GLOBAL_CONDITIONS:
-        return getGlobalConditionSplitAutomata(root, selectionStrategy);
-      case LEAVES:
-        return getLeaves(root, false).transform(l -> getAutomatonForLeaf(root, l));
-      case TARGETS:
-        return getLeaves(root, true).transform(l -> getAutomatonForLeaf(root, l));
-      default:
-        throw new AssertionError("unexpected strategy");
-    }
+    return switch (splitStrategy) {
+      case NONE ->
+          Collections.singleton(
+              getLocationAutomatonForStates(root, Predicates.alwaysFalse(), false));
+      case GLOBAL_CONDITIONS -> getGlobalConditionSplitAutomata(root, selectionStrategy);
+      case LEAVES -> getLeaves(root, false).transform(l -> getAutomatonForLeaf(root, l));
+      case TARGETS -> getLeaves(root, true).transform(l -> getAutomatonForLeaf(root, l));
+      default -> throw new AssertionError("unexpected strategy");
+    };
   }
 
   /** generate an automaton that traverses the subgraph, but leaves out ignored states. */
@@ -245,8 +240,8 @@ public class ARGToAutomatonConverter {
       } else {
         transitions.add(
             new AutomatonTransition.Builder(
-                buildOtherwise(locationQueries),
-                AutomatonInternalState.BOTTOM).build());
+                    buildOtherwise(locationQueries), AutomatonInternalState.BOTTOM)
+                .build());
 
         boolean hasSeveralChildren = transitions.size() > 1;
         states.add(
@@ -319,34 +314,26 @@ public class ARGToAutomatonConverter {
   private Iterable<Automaton> collectAutomata(
       ARGState root, Map<ARGState, BranchingInfo> pDependencies, BranchExportStrategy export) {
 
-    switch (export) {
-      case NONE:
-        return ImmutableList.of();
-
-      case ALL: // export all nodes, mainly for debugging.
-        return from(pDependencies.entrySet())
-            .transformAndConcat(entry -> entry.getValue().getIgnoreStates())
-            .transform(
-                ignores -> getLocationAutomatonForStates(root, s -> ignores.contains(s), false));
-
-      case LEAVES: // ALL_PATHS, export all leaf-nodes, sub-graphs cover the whole graph.
-        // no redundant paths expected, if leafs are reached via different paths.
-        return from(pDependencies.entrySet())
-            // end-states do not have outgoing edges, and thus no next states.
-            .filter(entry -> entry.getValue().getNextStates().isEmpty())
-            .transformAndConcat(entry -> entry.getValue().getIgnoreStates())
-            .transform(
-                ignores -> getLocationAutomatonForStates(root, s -> ignores.contains(s), false));
-
-      case WEIGHTED: // export all nodes, where children are heavier than a given limit
-        return getWeightedAutomata(root, pDependencies);
-
-      case FIRST_BFS:
-        return getFirstBFSAutomata(root, pDependencies);
-
-      default:
-        throw new AssertionError("unexpected export strategy");
-    }
+    return switch (export) {
+      case NONE -> ImmutableList.of();
+      case ALL -> // export all nodes, mainly for debugging.
+          from(pDependencies.entrySet())
+              .transformAndConcat(entry -> entry.getValue().getIgnoreStates())
+              .transform(
+                  ignores -> getLocationAutomatonForStates(root, s -> ignores.contains(s), false));
+      case LEAVES -> // ALL_PATHS, export all leaf-nodes, sub-graphs cover the whole graph.
+          // no redundant paths expected, if leafs are reached via different paths.
+          from(pDependencies.entrySet())
+              // end-states do not have outgoing edges, and thus no next states.
+              .filter(entry -> entry.getValue().getNextStates().isEmpty())
+              .transformAndConcat(entry -> entry.getValue().getIgnoreStates())
+              .transform(
+                  ignores -> getLocationAutomatonForStates(root, s -> ignores.contains(s), false));
+      case WEIGHTED -> // export all nodes, where children are heavier than a given limit
+          getWeightedAutomata(root, pDependencies);
+      case FIRST_BFS -> getFirstBFSAutomata(root, pDependencies);
+      default -> throw new AssertionError("unexpected export strategy");
+    };
   }
 
   private Iterable<Automaton> getFirstBFSAutomata(
@@ -416,10 +403,10 @@ public class ARGToAutomatonConverter {
         alwaysExport.add(s);
       }
       for (ARGState child : children) {
-         if (!finished.contains(child)) {
-           waitlist.add(child);
-         }
-       }
+        if (!finished.contains(child)) {
+          waitlist.add(child);
+        }
+      }
     }
     return alwaysExport;
   }
@@ -510,7 +497,7 @@ public class ARGToAutomatonConverter {
     Collection<Integer> siblings =
         from(pDependencies.get(s).getParents())
             .transformAndConcat(p -> pDependencies.get(p).getNextStates())
-            .transform(n -> sizeOfBranch(n))
+            .transform(this::sizeOfBranch)
             .toSet();
     if (Collections.max(siblings) - Collections.min(siblings) > siblingRatio * rootSize) {
       // export states where siblings are very different in size
@@ -898,7 +885,7 @@ public class ARGToAutomatonConverter {
 
     for (CallstackState callstack : pStacksWithAssumptions) {
       final Set<ARGState> parents = new HashSet<>();
-      final Map<ARGState,CFANode> parentsToLeafNode = new HashMap<>();
+      final Map<ARGState, CFANode> parentsToLeafNode = new HashMap<>();
       for (ARGState leaf : pCallstackToLeaves.get(callstack)) {
         ARGState parent = leaf.getParents().iterator().next();
         if (parents.add(parent)) {
@@ -946,10 +933,12 @@ public class ARGToAutomatonConverter {
 
   private static AutomatonTransition makeLocationTransition(
       int nodeNumber, String followStateName, Collection<AExpression> assumptions, boolean negate) {
-    AutomatonBoolExpr expr = new AutomatonBoolExpr.CPAQuery("location", "nodenumber==" + nodeNumber);
+    AutomatonBoolExpr expr =
+        new AutomatonBoolExpr.CPAQuery("location", "nodenumber==" + nodeNumber);
     return new AutomatonTransition.Builder(
-        negate ? new AutomatonBoolExpr.Negation(expr) : expr,
-        followStateName).withAssumptions(ImmutableList.copyOf(assumptions)).build();
+            negate ? new AutomatonBoolExpr.Negation(expr) : expr, followStateName)
+        .withAssumptions(ImmutableList.copyOf(assumptions))
+        .build();
   }
 
   private CExpression negateExpression(CExpression expr) {
@@ -1080,9 +1069,7 @@ public class ARGToAutomatonConverter {
      */
     private Set<PersistentSet<ARGState>> ignoreStates = new LinkedHashSet<>();
 
-    BranchingInfo(
-        ARGState pCurrent,
-        ImmutableSetMultimap<ARGState, ARGState> pChildren) {
+    BranchingInfo(ARGState pCurrent, ImmutableSetMultimap<ARGState, ARGState> pChildren) {
       current = pCurrent;
       children = pChildren;
     }

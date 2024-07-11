@@ -44,11 +44,12 @@ public class ThreadTransferRelation implements TransferRelation {
   }
 
   @Override
-  public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(AbstractState pState,
-      Precision pPrecision, CFAEdge pCfaEdge) throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
+      AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
+      throws CPATransferException, InterruptedException {
 
     threadStatistics.transfer.start();
-    ThreadState tState = (ThreadState)pState;
+    ThreadState tState = (ThreadState) pState;
     ThreadState newState = tState;
 
     if (pCfaEdge.getEdgeType() == CFAEdgeType.FunctionCallEdge) {
@@ -79,13 +80,11 @@ public class ThreadTransferRelation implements TransferRelation {
     }
   }
 
-  private ThreadState handleFunctionCall(
-      ThreadState state,
-      CFunctionCallEdge pCfaEdge)
+  private ThreadState handleFunctionCall(ThreadState state, CFunctionCallEdge pCfaEdge)
       throws CPATransferException {
 
     ThreadState newState = state;
-    CFunctionCall fCall = pCfaEdge.getSummaryEdge().getExpression();
+    CFunctionCall fCall = pCfaEdge.getFunctionCall();
     if (isThreadCreateFunction(fCall)) {
       newState = handleChildThread(state, (CThreadCreateStatement) fCall);
       if (threadStatistics.createdThreads.add(
@@ -116,9 +115,9 @@ public class ThreadTransferRelation implements TransferRelation {
         tCall.isSelfParallel() ? ThreadStatus.SELF_PARALLEL_THREAD : ThreadStatus.CREATED_THREAD);
   }
 
-  private ThreadState
-      createThread(ThreadState state, CThreadCreateStatement tCall, ThreadStatus pParentThread)
-          throws CPATransferException {
+  private ThreadState createThread(
+      ThreadState state, CThreadCreateStatement tCall, ThreadStatus pParentThread)
+      throws CPATransferException {
     final String pVarName = tCall.getVariableName();
     // Just to info
     final String pFunctionName =
@@ -182,7 +181,7 @@ public class ThreadTransferRelation implements TransferRelation {
   }
 
   private boolean isThreadJoinFunction(CFunctionCall statement) {
-    return (statement instanceof CThreadJoinStatement);
+    return statement instanceof CThreadJoinStatement;
   }
 
   public Statistics getStatistics() {
@@ -190,9 +189,9 @@ public class ThreadTransferRelation implements TransferRelation {
   }
 
   @Override
-  public Collection<? extends AbstractState>
-      getAbstractSuccessors(AbstractState pState, Precision pPrecision)
-          throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessors(
+      AbstractState pState, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
 
     ThreadTMStateWithEdge stateWithEdge = (ThreadTMStateWithEdge) pState;
     ThreadAbstractEdge edge = stateWithEdge.getAbstractEdge();

@@ -19,15 +19,17 @@
  */
 package org.sosy_lab.cpachecker.cpa.thread;
 
+import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
 import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithEdge;
 import org.sosy_lab.cpachecker.cpa.usage.CompatibleState;
 
 public class ThreadTMStateWithEdge extends ThreadTMState implements AbstractStateWithEdge {
 
-  private final ThreadAbstractEdge edge;
+  private final @Nullable ThreadAbstractEdge edge;
 
   ThreadTMStateWithEdge(
       String pId,
@@ -65,23 +67,21 @@ public class ThreadTMStateWithEdge extends ThreadTMState implements AbstractStat
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    ThreadTMStateWithEdge other = (ThreadTMStateWithEdge) obj;
-    return Objects.equals(edge, other.edge);
+    return super.equals(obj)
+        && obj instanceof ThreadTMStateWithEdge other
+        && Objects.equals(edge, other.edge);
   }
 
   @Override
   public int compareTo(CompatibleState pOther) {
+    // Special compare with super
     int result = super.compareTo(pOther);
-    ThreadTMStateWithEdge other = (ThreadTMStateWithEdge) pOther;
-
     if (result != 0) {
       return result;
     }
-    result = this.edge.getAction().getSecond().compareTo(other.edge.getAction().getSecond());
-    return result;
+    ThreadTMStateWithEdge other = (ThreadTMStateWithEdge) pOther;
+    return ComparisonChain.start()
+        .compare(edge.getAction().getSecond(), other.edge.getAction().getSecond())
+        .result();
   }
 }
-

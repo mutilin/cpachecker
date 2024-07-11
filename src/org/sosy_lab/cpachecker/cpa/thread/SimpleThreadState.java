@@ -64,8 +64,8 @@ public class SimpleThreadState extends ThreadState {
   }
 
   @Override
-  public ThreadState
-      copyWith(String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
+  public ThreadState copyWith(
+      String pId, String pCurrent, int pPrio, Map<String, ThreadStatus> tSet) {
     return new SimpleThreadState(pId, pCurrent, pPrio, tSet, this.removedSet);
   }
 }

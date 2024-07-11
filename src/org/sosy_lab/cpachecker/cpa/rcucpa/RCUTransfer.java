@@ -71,66 +71,70 @@ import org.sosy_lab.cpachecker.util.identifiers.SingleIdentifier;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 @Options(prefix = "cpa.rcucpa")
-public class RCUTransfer extends SingleEdgeTransferRelation{
+public class RCUTransfer extends SingleEdgeTransferRelation {
 
   @Option(
-    name = "readLock",
-    secure = true,
-    description = "Name of a function responsible for " + "acquiring the RCU read lock")
+      name = "readLock",
+      secure = true,
+      description = "Name of a function responsible for " + "acquiring the RCU read lock")
   private String readLockName = "ldv_rcu_read_lock";
 
   @Option(
-    name = "readUnlock",
-    secure = true,
-    description = "Name of a function responsible for " + "releasing the RCU read lock")
+      name = "readUnlock",
+      secure = true,
+      description = "Name of a function responsible for " + "releasing the RCU read lock")
   private String readUnlockName = "ldv_rcu_read_unlock";
 
   @Option(
-    name = "sync",
-    secure = true,
-    description = "Name of a function responsible for " + "the handling of a grace period")
+      name = "sync",
+      secure = true,
+      description = "Name of a function responsible for " + "the handling of a grace period")
   private String sync = "ldv_synchronize_rcu";
 
   @Option(
-    name = "assign",
-    secure = true,
-    description = "Name of a function responsible for " + "assignment to RCU pointers")
+      name = "assign",
+      secure = true,
+      description = "Name of a function responsible for " + "assignment to RCU pointers")
   private String assign = "ldv_rcu_assign_pointer";
 
   @Option(
-    name = "deref",
-    secure = true,
-    description = "Name of a function responsible for " + "dereferences of RCU pointers")
+      name = "deref",
+      secure = true,
+      description = "Name of a function responsible for " + "dereferences of RCU pointers")
   private String deref = "ldv_rcu_dereference";
 
   @Option(
-    name = "fictReadLock",
-    secure = true,
-    description = "Name of a function marking a call " + "to a fictional read lock of RCU pointer")
+      name = "fictReadLock",
+      secure = true,
+      description =
+          "Name of a function marking a call " + "to a fictional read lock of RCU pointer")
   private String fictReadLock = "ldv_rlock_rcu";
 
   @Option(
-    name = "fictReadUnlock",
-    secure = true,
-    description = "Name of a function marking a call "
-        + "to a fictional read unlock of RCU pointer")
+      name = "fictReadUnlock",
+      secure = true,
+      description =
+          "Name of a function marking a call " + "to a fictional read unlock of RCU pointer")
   private String fictReadUnlock = "ldv_runlock_rcu";
 
   @Option(
-    name = "fictWriteLock",
-    secure = true,
-    description = "Name of a function marking a call " + "to a fictional write lock of RCU pointer")
+      name = "fictWriteLock",
+      secure = true,
+      description =
+          "Name of a function marking a call " + "to a fictional write lock of RCU pointer")
   private String fictWriteLock = "ldv_wlock_rcu";
 
   @Option(
-    name = "fictWriteUnlock",
-    secure = true,
-    description = "Name of a function marking a "
-        + "call to a fictional write unlock of RCU pointer")
+      name = "fictWriteUnlock",
+      secure = true,
+      description =
+          "Name of a function marking a " + "call to a fictional write unlock of RCU pointer")
   private String fictWriteUnlock = "ldv_wunlock_rcu";
 
-  @Option(name = "rcuPointersFile", secure = true, description = "Name of a file containing RCU "
-      + "pointers")
+  @Option(
+      name = "rcuPointersFile",
+      secure = true,
+      description = "Name of a file containing RCU " + "pointers")
   @FileOption(Type.OUTPUT_FILE)
   private Path input = Path.of("RCUPointers");
 
@@ -138,8 +142,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   private final Set<MemoryLocation> rcuPointers;
   private final RCUStatistics stats;
 
-  RCUTransfer(Configuration pConfig, LogManager pLogger)
-      throws InvalidConfigurationException {
+  RCUTransfer(Configuration pConfig, LogManager pLogger) throws InvalidConfigurationException {
     logger = pLogger;
     pConfig.inject(this);
     if (input != null) {
@@ -169,8 +172,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         }
       }
       logger.log(Level.INFO, "Finished reading from file " + input);
-    } catch (IOException pE) {
-      logger.log(Level.WARNING, pE.getMessage());
+    } catch (IOException e) {
+      logger.log(Level.WARNING, e.getMessage());
     }
     logger.log(Level.INFO, "result contents: " + result);
     return result;
@@ -184,36 +187,47 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
 
     switch (cfaEdge.getEdgeType()) {
       case DeclarationEdge:
-        result = handleDeclaration(((CDeclarationEdge) cfaEdge).getDeclaration(), result,
-                            cfaEdge.getPredecessor().getFunctionName());
+        result =
+            handleDeclaration(
+                ((CDeclarationEdge) cfaEdge).getDeclaration(),
+                result,
+                cfaEdge.getPredecessor().getFunctionName());
         break;
       case StatementEdge:
         CStatement statement = ((CStatementEdge) cfaEdge).getStatement();
         if (statement instanceof CExpressionAssignmentStatement) {
-          result = handleAssignmentStatement((CExpressionAssignmentStatement) statement, result,
-                            cfaEdge.getPredecessor().getFunctionName());
+          result =
+              handleAssignmentStatement(
+                  (CExpressionAssignmentStatement) statement,
+                  result,
+                  cfaEdge.getPredecessor().getFunctionName());
         } else if (statement instanceof CFunctionCallAssignmentStatement) {
-          result = handleFunctionCallAssignmentStatement((CFunctionCallAssignmentStatement)
-              statement, result, cfaEdge.getPredecessor().getFunctionName());
-        } else if (statement instanceof CFunctionCallStatement){
-          result = handleFunctionCallStatement(((CFunctionCallStatement) statement).getFunctionCallExpression(),
-              result, cfaEdge.getPredecessor().getFunctionName());
+          result =
+              handleFunctionCallAssignmentStatement(
+                  (CFunctionCallAssignmentStatement) statement,
+                  result,
+                  cfaEdge.getPredecessor().getFunctionName());
+        } else if (statement instanceof CFunctionCallStatement) {
+          result =
+              handleFunctionCallStatement(
+                  ((CFunctionCallStatement) statement).getFunctionCallExpression(),
+                  result,
+                  cfaEdge.getPredecessor().getFunctionName());
         }
         break;
       case FunctionCallEdge:
         CFunctionCallExpression callExpression =
-            ((CFunctionCallEdge) cfaEdge).getSummaryEdge().getExpression().getFunctionCallExpression();
+            ((CFunctionCallEdge) cfaEdge)
+                .getSummaryEdge()
+                .getExpression()
+                .getFunctionCallExpression();
         List<CExpression> args = ((CFunctionCallEdge) cfaEdge).getArguments();
         List<CParameterDeclaration> params =
             ((CFunctionCallEdge) cfaEdge).getSuccessor().getFunctionParameters();
         String callerName = cfaEdge.getPredecessor().getFunctionName();
         result =
             assignFunctionArguments(
-                result,
-                args,
-                params,
-                callerName,
-                cfaEdge.getSuccessor().getFunctionName());
+                result, args, params, callerName, cfaEdge.getSuccessor().getFunctionName());
         result = handleFunctionCallStatement(callExpression, result, callerName);
         break;
       case FunctionReturnEdge:
@@ -256,10 +270,8 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
     return result;
   }
 
-  private RCUState handleAssignment(CExpression left, CExpression right,
-                                    String functionName,
-                                    RCUState state,
-      boolean rcuAssign) {
+  private RCUState handleAssignment(
+      CExpression left, CExpression right, String functionName, RCUState state, boolean rcuAssign) {
 
     IdentifierCreator localIc = new IdentifierCreator(functionName);
 
@@ -274,10 +286,7 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
   }
 
   private RCUState handleAssignment(
-      AbstractIdentifier left,
-      AbstractIdentifier right,
-      RCUState state,
-      boolean rcuAssign) {
+      AbstractIdentifier left, AbstractIdentifier right, RCUState state, boolean rcuAssign) {
 
     RCUState result = state;
 
@@ -309,25 +318,21 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
       if (!leftPtr.equals(left)) {
         result = result.addToRelations(left, rightPtr);
       }
-
     }
     return result;
   }
 
   private RCUState addTmpMappingIfNecessary(
-      AbstractIdentifier tmpVar,
-      AbstractIdentifier nonTmpVar,
-      RCUState pResult) {
-    if (tmpVar instanceof SingleIdentifier &&
-        ((SingleIdentifier) tmpVar).getName().contains("CPAchecker_TMP")) {
+      AbstractIdentifier tmpVar, AbstractIdentifier nonTmpVar, RCUState pResult) {
+    if (tmpVar instanceof SingleIdentifier
+        && ((SingleIdentifier) tmpVar).getName().contains("CPAchecker_TMP")) {
       pResult = pResult.addTmpMapping(tmpVar, nonTmpVar);
     }
     return pResult;
   }
 
-  private RCUState handleFunctionCallStatement(CFunctionCallExpression pCallExpression,
-                                               RCUState state,
-                                               String pFunctionName) {
+  private RCUState handleFunctionCallStatement(
+      CFunctionCallExpression pCallExpression, RCUState state, String pFunctionName) {
     CFunctionDeclaration fd = pCallExpression.getDeclaration();
     RCUState result = state;
 
@@ -353,38 +358,38 @@ public class RCUTransfer extends SingleEdgeTransferRelation{
         CExpression ptr = pCallExpression.getParameterExpressions().get(1);
 
         result = handleAssignment(rcuPtr, ptr, pFunctionName, state, true);
-
       }
     }
     return result;
   }
 
-  private RCUState handleFunctionCallAssignmentStatement(CFunctionCallAssignmentStatement assignment,
-                                                         RCUState pResult,
-                                                         String functionName) {
+  private RCUState handleFunctionCallAssignmentStatement(
+      CFunctionCallAssignmentStatement assignment, RCUState pResult, String functionName) {
     // This case is covered by the normal assignment expression
-    CFunctionDeclaration functionDeclaration = assignment.getFunctionCallExpression().getDeclaration();
+    CFunctionDeclaration functionDeclaration =
+        assignment.getFunctionCallExpression().getDeclaration();
     if (functionDeclaration != null && functionDeclaration.getName().equals(deref)) {
       stats.derefNum.inc();
-      return handleAssignment(assignment.getLeftHandSide(), assignment.getFunctionCallExpression()
-          .getParameterExpressions()
-          .get(0), functionName, pResult, false);
+      return handleAssignment(
+          assignment.getLeftHandSide(),
+          assignment.getFunctionCallExpression().getParameterExpressions().get(0),
+          functionName,
+          pResult,
+          false);
     }
     return pResult;
   }
 
-  private RCUState handleAssignmentStatement(CExpressionAssignmentStatement assignment,
-                                         RCUState pResult,
-                                         String functionName) {
+  private RCUState handleAssignmentStatement(
+      CExpressionAssignmentStatement assignment, RCUState pResult, String functionName) {
     CLeftHandSide leftHandSide = assignment.getLeftHandSide();
     CExpression rightHandSide = assignment.getRightHandSide();
 
     return handleAssignment(leftHandSide, rightHandSide, functionName, pResult, false);
   }
 
-  private RCUState handleDeclaration(CDeclaration pDeclaration,
-                                 RCUState pResult,
-                                 String pFunctionName) {
+  private RCUState handleDeclaration(
+      CDeclaration pDeclaration, RCUState pResult, String pFunctionName) {
 
     if (pDeclaration instanceof CVariableDeclaration) {
       IdentifierCreator localIc = new IdentifierCreator(pFunctionName);

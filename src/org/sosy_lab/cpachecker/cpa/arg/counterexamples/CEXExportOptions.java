@@ -93,6 +93,19 @@ public final class CEXExportOptions {
 
   @Option(
       secure = true,
+      name = "yaml",
+      description =
+          "The template from which the different "
+              + "versions of the violation witnesses will be exported. "
+              + "Each version replaces the string '%s' "
+              + "with its version number. "
+              + "The string %d is replace with the number of the counterexample.")
+  @FileOption(FileOption.Type.OUTPUT_FILE)
+  private PathTemplate yamlWitnessOutputFileTemplate =
+      PathTemplate.ofFormatString("Counterexample.%d.witness-%s.yml");
+
+  @Option(
+      secure = true,
       name = "witnessGraph",
       description = "export counterexample witness as Dot/Graphviz visualization")
   @FileOption(FileOption.Type.OUTPUT_FILE)
@@ -108,7 +121,7 @@ public final class CEXExportOptions {
       PathTemplate.ofFormatString("extendedWitness.%d.graphml");
 
   @Option(secure = true, name = "exportHarness", description = "export test harness")
-  private boolean exportHarness = false;
+  private boolean exportHarness = true;
 
   @Option(secure = true, name = "harness", description = "export test harness to file as code")
   @FileOption(FileOption.Type.OUTPUT_FILE)
@@ -117,9 +130,9 @@ public final class CEXExportOptions {
   @Option(
       secure = true,
       name = "exportTestCase",
-      description = "export test case that represents the counterexample. Further options can be"
-          + " set with options 'testcase.*'"
-  )
+      description =
+          "export test case that represents the counterexample. Further options can be"
+              + " set with options 'testcase.*'")
   private boolean exportTest = false;
 
   @Option(
@@ -153,83 +166,81 @@ public final class CEXExportOptions {
         && getTestHarnessFile() == null
         && getWitnessFile() == null
         && getExtendedWitnessFile() == null
+        && getYamlWitnessPathTemplate() == null
         && !exportTest;
   }
 
-  @Nullable
-  PathTemplate getAutomatonFile() {
+  @Nullable PathTemplate getAutomatonFile() {
     if (!exportErrorPath) {
       return null;
     }
     return errorPathAutomatonFile;
   }
 
-  @Nullable
-  PathTemplate getCoreFile() {
+  @Nullable PathTemplate getCoreFile() {
     if (!exportErrorPath) {
       return null;
     }
     return errorPathCoreFile;
   }
 
-  @Nullable
-  PathTemplate getCoveragePrefix() {
+  @Nullable PathTemplate getCoveragePrefix() {
     if (!exportErrorPath) {
       return null;
     }
     return exportCounterexampleCoverage ? coveragePrefixTemplate : null;
   }
 
-  @Nullable
-  PathTemplate getErrorPathFile() {
+  @Nullable PathTemplate getErrorPathFile() {
     if (!exportErrorPath) {
       return null;
     }
     return errorPathFile;
   }
 
-  @Nullable
-  PathTemplate getDotFile() {
+  @Nullable PathTemplate getDotFile() {
     if (!exportErrorPath) {
       return null;
     }
     return errorPathDotFile;
   }
 
-  @Nullable
-  PathTemplate getSourceFile() {
+  @Nullable PathTemplate getSourceFile() {
     if (!exportErrorPath) {
       return null;
     }
     return exportSource ? errorPathSourceFile : null;
   }
 
-  @Nullable
-  PathTemplate getTestHarnessFile() {
+  @Nullable PathTemplate getTestHarnessFile() {
     if (!exportErrorPath) {
       return null;
     }
     return exportHarness ? testHarnessFile : null;
   }
 
-  @Nullable
-  PathTemplate getWitnessFile() {
+  @Nullable PathTemplate getWitnessFile() {
     if (!exportErrorPath) {
       return null;
     }
     return exportWitness ? errorPathWitnessFile : null;
   }
 
-  @Nullable
-  PathTemplate getWitnessDotFile() {
+  @Nullable PathTemplate getYamlWitnessPathTemplate() {
+    if (!exportErrorPath) {
+      return null;
+    }
+    return yamlWitnessOutputFileTemplate;
+  }
+
+  @Nullable PathTemplate getWitnessDotFile() {
     if (!exportErrorPath) {
       return null;
     }
     return exportWitness ? errorPathWitnessDotFile : null;
   }
 
-  @Nullable
-  PathTemplate getExtendedWitnessFile() {
+  @Nullable PathTemplate getExtendedWitnessFile() {
     if (!exportErrorPath) {
       return null;
     }

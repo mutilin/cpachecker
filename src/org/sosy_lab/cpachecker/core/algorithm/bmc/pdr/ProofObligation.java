@@ -10,8 +10,10 @@ package org.sosy_lab.cpachecker.core.algorithm.bmc.pdr;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Comparators;
 import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Iterators;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -146,7 +148,6 @@ abstract class ProofObligation implements Iterable<ProofObligation>, Comparable<
     public Optional<ProofObligation> find(Predicate<? super ProofObligation> pFilter) {
       return StreamSupport.stream(spliterator(), false).filter(pFilter).findFirst();
     }
-
   }
 
   private static class LeafProofObligation extends ProofObligation {
@@ -160,12 +161,7 @@ abstract class ProofObligation implements Iterable<ProofObligation>, Comparable<
         int pNSpuriousTransitions,
         int pLength,
         CandidateInvariant pViolatedInvariant) {
-      super(
-          pBlockedAbstractCti,
-          pBlockedConcreteCti,
-          pFrameIndex,
-          pNSpuriousTransitions,
-          pLength);
+      super(pBlockedAbstractCti, pBlockedConcreteCti, pFrameIndex, pNSpuriousTransitions, pLength);
       violatedInvariant = Objects.requireNonNull(pViolatedInvariant);
     }
 
@@ -230,14 +226,12 @@ abstract class ProofObligation implements Iterable<ProofObligation>, Comparable<
 
   @Override
   public int compareTo(ProofObligation pOther) {
-    ComparisonChain compChain =
-        ComparisonChain.start()
-            .compare(getFrameIndex(), pOther.frameIndex)
-            .compareFalseFirst(getCause().isPresent(), pOther.getCause().isPresent());
-    if (getCause().isPresent()) {
-      compChain = compChain.compare(getCause().orElseThrow(), pOther.getCause().orElseThrow());
-    }
-    return compChain
+    return ComparisonChain.start()
+        .compare(getFrameIndex(), pOther.frameIndex)
+        .compare(
+            getCause(),
+            pOther.getCause(),
+            Comparators.emptiesFirst(Comparator.<ProofObligation>naturalOrder()))
         .compare(getNSpuriousTransitions(), pOther.getNSpuriousTransitions())
         .compare(getLiftingAbstractionFailureCount(), pOther.getLiftingAbstractionFailureCount())
         .result();
@@ -270,16 +264,13 @@ abstract class ProofObligation implements Iterable<ProofObligation>, Comparable<
     if (this == pOther) {
       return true;
     }
-    if (pOther instanceof ProofObligation) {
-      ProofObligation other = (ProofObligation) pOther;
-      return frameIndex == other.frameIndex
-          && nSpuriousTransitions == other.nSpuriousTransitions
-          && blockedConcreteCti.equals(other.blockedConcreteCti)
-          && blockedAbstractCti.equals(other.blockedAbstractCti)
-          && length == other.length
-          && getViolatedInvariant().equals(other.getViolatedInvariant());
-    }
-    return false;
+    return pOther instanceof ProofObligation other
+        && frameIndex == other.frameIndex
+        && nSpuriousTransitions == other.nSpuriousTransitions
+        && blockedConcreteCti.equals(other.blockedConcreteCti)
+        && blockedAbstractCti.equals(other.blockedAbstractCti)
+        && length == other.length
+        && getViolatedInvariant().equals(other.getViolatedInvariant());
   }
 
   @Override
@@ -311,11 +302,7 @@ abstract class ProofObligation implements Iterable<ProofObligation>, Comparable<
       int pNSpuriousTransitions,
       int pLength) {
     return new NonLeafProofObligation(
-        pBlockedAbstractCti,
-        pBlockedConcreteCti,
-        pNSpuriousTransitions,
-        pLength,
-        this);
+        pBlockedAbstractCti, pBlockedConcreteCti, pNSpuriousTransitions, pLength, this);
   }
 
   public static ProofObligation createObligation(

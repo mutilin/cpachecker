@@ -46,9 +46,7 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.statistics.StatCounter;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-/**
- * Refines a path to target states and all paths to an effect independently
- */
+/** Refines a path to target states and all paths to an effect independently */
 public class ThreadEffectRefiner extends ThreadModularCPARefiner {
   private final StatCounter numberOfPaths = new StatCounter("Number of paths with effects");
   private final StatCounter numberOfSpuriousPathes =
@@ -69,22 +67,20 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
   }
 
   @Override
-  public CounterexampleInfo
-      performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace)
-          throws CPAException, InterruptedException {
+  public CounterexampleInfo performRefinementForPath(
+      final ARGReachedSet pReached, final ARGPath allStatesTrace)
+      throws CPAException, InterruptedException {
     totalTime.start();
 
     final ImmutableList<CFANode> errorPath =
-        allStatesTrace.asStatesList()
-            .stream()
+        allStatesTrace.asStatesList().stream()
             .map(AbstractStates::extractLocation)
             .filter(x -> x != null)
             .collect(ImmutableList.toImmutableList());
     if (lastErrorPath != null && lastErrorPath.equals(errorPath)) { // repeatedCEX
       if (repeatedCEX(allStatesTrace)) {
-      throw new RefinementFailedException(
-          RefinementFailedException.Reason.RepeatedCounterexample,
-          null);
+        throw new RefinementFailedException(
+            RefinementFailedException.Reason.RepeatedCounterexample, null);
       }
     }
     lastErrorPath = errorPath;
@@ -119,8 +115,7 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
 
   private boolean repeatedCEX(ARGPath path) {
     ImmutableList<ARGState> appliedStates =
-        path.asStatesList()
-            .stream()
+        path.asStatesList().stream()
             .filter(x -> x.getAppliedFrom() != null)
             .collect(ImmutableList.toImmutableList());
 
@@ -129,9 +124,7 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
     for (ARGState state : appliedStates) {
       for (ARGState effect : state.getAppliedFrom().getSecond().getProjectedFrom()) {
         errorPathsToEffects.add(
-            ARGUtils.getOnePathTo(effect)
-                .asStatesList()
-                .stream()
+            ARGUtils.getOnePathTo(effect).asStatesList().stream()
                 .map(AbstractStates::extractLocation)
                 .filter(x -> x != null)
                 .collect(ImmutableList.toImmutableList()));
@@ -160,8 +153,7 @@ public class ThreadEffectRefiner extends ThreadModularCPARefiner {
     public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
       super.printStatistics(out, result, reached);
       StatisticsWriter w0 = writingStatisticsTo(out);
-      w0.put(numberOfPaths)
-          .put(numberOfSpuriousPathes);
+      w0.put(numberOfPaths).put(numberOfSpuriousPathes);
     }
 
     @Override

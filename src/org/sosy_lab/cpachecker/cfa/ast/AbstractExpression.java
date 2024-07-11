@@ -8,18 +8,17 @@
 
 package org.sosy_lab.cpachecker.cfa.ast;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.types.Type;
 
 /**
-*
-* Abstract class for side-effect free expressions.
-* This class is only SuperClass of all abstract Classes and their Subclasses.
-* The Interface {@link AExpression} contains all language specific
-* AST Nodes as well.
-*/
+ * Abstract class for side-effect free expressions. This class is only SuperClass of all abstract
+ * Classes and their Subclasses. The Interface {@link AExpression} contains all language specific
+ * AST Nodes as well.
+ */
 public abstract class AbstractExpression extends AbstractRightHandSide implements AExpression {
 
-  private static final long serialVersionUID = 7019956361956900L;
+  @Serial private static final long serialVersionUID = 7019956361956900L;
 
   protected AbstractExpression(FileLocation pFileLocation, Type pType) {
     super(pFileLocation, pType);
@@ -38,10 +37,6 @@ public abstract class AbstractExpression extends AbstractRightHandSide implement
       return true;
     }
 
-    if (!(obj instanceof AbstractExpression)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof AbstractExpression && super.equals(obj);
   }
 }

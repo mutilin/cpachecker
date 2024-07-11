@@ -25,28 +25,21 @@ public class ValueAndObjectSet {
     value = pValue;
   }
 
-
   public SMGValue getValue() {
     return value;
   }
 
   @Override
   public boolean equals(Object other) {
-    if (other == null) {
-      return false;
-    }
-    if (!(other instanceof ValueAndObjectSet)) {
-      return false;
-    }
-    ValueAndObjectSet otherSMGaV = (ValueAndObjectSet) other;
-    return getObjectSet().equals(otherSMGaV.getObjectSet()) && value.equals(otherSMGaV.getValue());
+    return other instanceof ValueAndObjectSet otherSMGaV
+        && getObjectSet().equals(otherSMGaV.getObjectSet())
+        && value.equals(otherSMGaV.getValue());
   }
 
   @Override
   public int hashCode() {
     return super.hashCode();
   }
-
 
   public Set<SMGObject> getObjectSet() {
     return objectSet;

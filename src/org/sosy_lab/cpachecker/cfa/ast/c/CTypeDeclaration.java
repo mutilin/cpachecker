@@ -8,20 +8,20 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 /**
- * This class represents declarations that define new types,
- * e.g.
+ * This class represents declarations that define new types, e.g.
  *
- * struct s { int i; }
- * typedef int my_int;
+ * <p>struct s { int i; } typedef int my_int;
  */
-public abstract class CTypeDeclaration extends AbstractDeclaration implements CDeclaration {
+public abstract sealed class CTypeDeclaration extends AbstractDeclaration implements CDeclaration
+    permits CComplexTypeDeclaration, CTypeDefDeclaration {
 
-  private static final long serialVersionUID = -607383651501118425L;
+  @Serial private static final long serialVersionUID = -607383651501118425L;
   private final String qualifiedName;
 
   protected CTypeDeclaration(
@@ -41,7 +41,7 @@ public abstract class CTypeDeclaration extends AbstractDeclaration implements CD
 
   @Override
   public CType getType() {
-    return (CType)super.getType();
+    return (CType) super.getType();
   }
 
   @Override
@@ -53,15 +53,10 @@ public abstract class CTypeDeclaration extends AbstractDeclaration implements CD
 
   @Override
   public boolean equals(Object obj) {
-    if (obj == this) {
+    if (this == obj) {
       return true;
     }
 
-    if (!(obj instanceof CTypeDeclaration)) {
-      return false;
-    }
-
-    return super.equals(obj);
+    return obj instanceof CTypeDeclaration && super.equals(obj);
   }
-
 }

@@ -76,12 +76,7 @@ public interface Property {
 
     @Override
     public boolean equals(Object pObj) {
-      if (!(pObj instanceof OtherLtlProperty)) {
-        return false;
-      }
-
-      OtherLtlProperty other = (OtherLtlProperty) pObj;
-      return representation.equals(other.representation);
+      return pObj instanceof OtherLtlProperty other && representation.equals(other.representation);
     }
 
     @Override
@@ -108,9 +103,11 @@ public interface Property {
 
     OVERFLOW("G ! overflow"),
 
-    DEADLOCK("G ! deadlock"),
+    DATA_RACE("G ! data-race"),
 
-    DATARACE("G ! data-race"),
+    DATA_RACE_LDV("G ! data-race-ldv"),
+
+    DEADLOCK("G ! deadlock"),
 
     TERMINATION("F end"),
 
@@ -223,12 +220,7 @@ public interface Property {
 
     @Override
     public boolean equals(Object pObj) {
-      if (!(pObj instanceof CoverFunctionCallProperty)) {
-        return false;
-      }
-
-      CoverFunctionCallProperty other = (CoverFunctionCallProperty) pObj;
-      return funName.equals(other.funName);
+      return pObj instanceof CoverFunctionCallProperty other && funName.equals(other.funName);
     }
 
     @Override

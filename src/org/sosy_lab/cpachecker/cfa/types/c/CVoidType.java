@@ -12,22 +12,23 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
+import java.io.Serial;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * This class represents the type "void".
- * It does not allow any modifiers and has only a single instance.
+ * This class represents the type "void". It does not allow any modifiers and has only a single
+ * instance.
  */
 public final class CVoidType implements CType {
 
-  private static final long serialVersionUID = 1385808708190595556L;
+  @Serial private static final long serialVersionUID = 1385808708190595556L;
 
-  public final static CVoidType VOID = new CVoidType(false, false);
+  public static final CVoidType VOID = new CVoidType(false, false);
 
-  private final static CVoidType CONST_VOID = new CVoidType(true, false);
-  private final static CVoidType VOLATILE_VOID = new CVoidType(false, true);
-  private final static CVoidType CONST_VOLATILE_VOID = new CVoidType(true, true);
+  private static final CVoidType CONST_VOID = new CVoidType(true, false);
+  private static final CVoidType VOLATILE_VOID = new CVoidType(false, true);
+  private static final CVoidType CONST_VOLATILE_VOID = new CVoidType(true, true);
 
   public static CVoidType create(boolean pIsConst, boolean pIsVolatile) {
     if (pIsConst) {
@@ -58,6 +59,13 @@ public final class CVoidType implements CType {
   @Override
   public boolean isIncomplete() {
     return true; // C standard § 6.2.5 (19)
+  }
+
+  @Override
+  public boolean hasKnownConstantSize() {
+    // C standards says "false" because it is incomplete, but GCC allows sizeof(void) as an
+    // extension, so we return "true" to signal that its size can be computed.
+    return true;
   }
 
   @Override
@@ -98,6 +106,7 @@ public final class CVoidType implements CType {
     return create(isConst || pForceConst, isVolatile || pForceVolatile);
   }
 
+  @Serial
   private Object readResolve() {
     return create(isConst, isVolatile);
   }

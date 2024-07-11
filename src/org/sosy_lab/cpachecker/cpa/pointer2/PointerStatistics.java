@@ -23,8 +23,8 @@
  */
 package org.sosy_lab.cpachecker.cpa.pointer2;
 
-//import com.jsoniter.DecodingMode;
-//import com.jsoniter.JsonIterator;
+// import com.jsoniter.DecodingMode;
+// import com.jsoniter.JsonIterator;
 import com.google.common.collect.Iterables;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -109,8 +109,8 @@ public class PointerStatistics implements Statistics {
         if (!noOutput) {
           try (Writer writer = Files.newBufferedWriter(path, Charset.defaultCharset())) {
             JSON.writeJSONString(pointsTo, writer);
-          } catch (IOException pE) {
-            stats += "  IOError: " + pE.getMessage() + '\n';
+          } catch (IOException e) {
+            stats += "  IOError: " + e.getMessage() + '\n';
           }
         } else {
           stats += "  Points-To map output is disabled" + '\n';
@@ -132,8 +132,8 @@ public class PointerStatistics implements Statistics {
     out.append('\n');
   }
 
-  public static Map<MemoryLocation, Set<MemoryLocation>> replaceTopsAndBots(Map<MemoryLocation,
-                                                              LocationSet> pPointsTo) {
+  public static Map<MemoryLocation, Set<MemoryLocation>> replaceTopsAndBots(
+      Map<MemoryLocation, LocationSet> pPointsTo) {
     Map<MemoryLocation, Set<MemoryLocation>> result = new TreeMap<>();
     for (Entry<MemoryLocation, LocationSet> entry : pPointsTo.entrySet()) {
       LocationSet locationSet = entry.getValue();
@@ -145,7 +145,7 @@ public class PointerStatistics implements Statistics {
         set = Collections.singleton(replLocSetTop);
       } else {
         set = new TreeSet<>();
-        Iterables.addAll(set, (ExplicitLocationSet)locationSet);
+        Iterables.addAll(set, (ExplicitLocationSet) locationSet);
       }
       result.put(entry.getKey(), set);
     }
@@ -165,5 +165,4 @@ public class PointerStatistics implements Statistics {
   public String getName() {
     return "Points-To";
   }
-
 }

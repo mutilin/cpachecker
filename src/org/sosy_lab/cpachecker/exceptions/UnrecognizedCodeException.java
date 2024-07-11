@@ -12,6 +12,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.CharMatcher;
 import com.google.common.base.Preconditions;
+import java.io.Serial;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.cfa.ast.AAstNode;
@@ -21,20 +22,18 @@ import org.sosy_lab.cpachecker.cfa.ast.java.JAstNode;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 
-/**
- * Exception thrown when a CPA cannot handle some code attached to a CFAEdge.
- */
+/** Exception thrown when a CPA cannot handle some code attached to a CFAEdge. */
 public class UnrecognizedCodeException extends CPATransferException {
 
-  private static final long serialVersionUID = 6425746398197035741L;
+  @Serial private static final long serialVersionUID = 6425746398197035741L;
   private static final CharMatcher SEMICOLON = CharMatcher.is(';');
 
   /** parent state can be filled in later to get additional info about the problematic part. */
   @SuppressWarnings("checkstyle:MutableException")
   private @Nullable ARGState parentState = null;
 
-  protected UnrecognizedCodeException(String msg1, @Nullable String msg2,
-      @Nullable CFAEdge edge, @Nullable AAstNode astNode) {
+  protected UnrecognizedCodeException(
+      String msg1, @Nullable String msg2, @Nullable CFAEdge edge, @Nullable AAstNode astNode) {
     super(createMessage(msg1, msg2, edge, astNode));
   }
 
@@ -63,14 +62,11 @@ public class UnrecognizedCodeException extends CPATransferException {
     if (lang == null) {
       return "Unrecognized code";
     }
-    switch (lang) {
-    case C:
-      return "Unrecognized C code";
-    case JAVA:
-      return "Unrecognized Java code";
-    default:
-      throw new AssertionError();
-    }
+    return switch (lang) {
+      case C -> "Unrecognized C code";
+      case JAVA -> "Unrecognized Java code";
+      default -> throw new AssertionError();
+    };
   }
 
   private static Language getLanguage(AAstNode astNode) {
@@ -82,8 +78,8 @@ public class UnrecognizedCodeException extends CPATransferException {
     throw new AssertionError();
   }
 
-  static String createMessage(String msg1, @Nullable String msg2,
-      @Nullable CFAEdge edge, @Nullable AAstNode astNode) {
+  static String createMessage(
+      String msg1, @Nullable String msg2, @Nullable CFAEdge edge, @Nullable AAstNode astNode) {
     checkNotNull(msg1);
     if (astNode == null && edge != null && edge.getRawAST().isPresent()) {
       astNode = edge.getRawAST().orElseThrow();
@@ -127,7 +123,7 @@ public class UnrecognizedCodeException extends CPATransferException {
         String codeWithoutWhitespace = CharMatcher.whitespace().removeFrom(code);
         String rawCodeWithoutWhitespace = CharMatcher.whitespace().removeFrom(rawCode);
 
-        codeWithoutWhitespace    = SEMICOLON.trimFrom(codeWithoutWhitespace);
+        codeWithoutWhitespace = SEMICOLON.trimFrom(codeWithoutWhitespace);
         rawCodeWithoutWhitespace = SEMICOLON.trimFrom(rawCodeWithoutWhitespace);
 
         if (!codeWithoutWhitespace.equals(rawCodeWithoutWhitespace)

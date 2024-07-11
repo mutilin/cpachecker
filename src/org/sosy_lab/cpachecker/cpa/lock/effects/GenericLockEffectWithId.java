@@ -14,13 +14,13 @@ import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 
 public class GenericLockEffectWithId extends LockEffectWithId {
 
-  public final static GenericLockEffectWithId RELEASE =
+  public static final GenericLockEffectWithId RELEASE =
       new GenericLockEffectWithId("Release", (b, l) -> b.free(l), null);
 
-  public final static GenericLockEffectWithId RESET =
+  public static final GenericLockEffectWithId RESET =
       new GenericLockEffectWithId("Reset", (b, l) -> b.reset(l), null);
 
-  public final static GenericLockEffectWithId RESTORE =
+  public static final GenericLockEffectWithId RESTORE =
       new GenericLockEffectWithId("Restore", (b, l) -> b.restore(l), null);
 
   private final String name;
@@ -28,7 +28,8 @@ public class GenericLockEffectWithId extends LockEffectWithId {
 
   private GenericLockEffectWithId(
       String pName,
-      BiConsumer<AbstractLockStateBuilder, LockIdentifier> pAction, LockIdentifier pId) {
+      BiConsumer<AbstractLockStateBuilder, LockIdentifier> pAction,
+      LockIdentifier pId) {
     super(pId);
     action = pAction;
     name = pName;

@@ -53,10 +53,7 @@ public class ThreadModularRefinementStrategy extends PredicateAbstractionRefinem
       throws RefinementFailedException {
     Pair<PredicatePrecision, ARGState> result =
         super.computeNewPrecision(
-            pUnreachableState,
-            pAffectedStates,
-            pReached,
-            pRepeatedCounterexample);
+            pUnreachableState, pAffectedStates, pReached, pRepeatedCounterexample);
 
     PredicatePrecision precision = result.getFirst();
     PredicatePrecision tmPrecision =

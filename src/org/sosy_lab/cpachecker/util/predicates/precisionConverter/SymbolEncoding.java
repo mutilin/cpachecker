@@ -15,6 +15,7 @@ import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Sets;
 import java.io.IOException;
+import java.io.Serial;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.Collection;
@@ -49,40 +50,80 @@ public class SymbolEncoding {
   private Set<CSimpleDeclaration> decls = new HashSet<>();
   private MachineModel machineModel = null;
 
-  /** This set contains function symbols that have a (maybe) unknown, but valid type.
-   *  We do not care about the type, because it is automatically determined. */
-  private final static Set<String> functionSymbols = Sets.newHashSet(
-      "and", "or", "not", "ite",
-      "=", "<", ">", "<=", ">=",
-      "+", "-", "*", "/",
-      "Integer__*_", "Integer__/_", "Integer__%_",
-      "Rational__*_", "Rational__/_", "Rational__%_",
-      "_~_", "_&_", "_!!_", "_^_", "_<<_", "_>>_",
-      "bvnot", "bvslt", "bvult", "bvsle", "bvule", "bvsgt", "bvugt", "bvsge", "bvuge",
-      "bvadd", "bvsub", "bvmul", "bvsdiv", "bvudiv", "bvsrem", "bvurem",
-      "bvand", "bvor", "bvxor", "bvshl", "bvlshr", "bvashr",
-      "to_real", "to_int",
-      "_", "divisible"
-      );
+  /**
+   * This set contains function symbols that have a (maybe) unknown, but valid type. We do not care
+   * about the type, because it is automatically determined.
+   */
+  private static final Set<String> functionSymbols =
+      Sets.newHashSet(
+          "and",
+          "or",
+          "not",
+          "ite",
+          "=",
+          "<",
+          ">",
+          "<=",
+          ">=",
+          "+",
+          "-",
+          "*",
+          "/",
+          "Integer__*_",
+          "Integer__/_",
+          "Integer__%_",
+          "Rational__*_",
+          "Rational__/_",
+          "Rational__%_",
+          "_~_",
+          "_&_",
+          "_!!_",
+          "_^_",
+          "_<<_",
+          "_>>_",
+          "bvnot",
+          "bvslt",
+          "bvult",
+          "bvsle",
+          "bvule",
+          "bvsgt",
+          "bvugt",
+          "bvsge",
+          "bvuge",
+          "bvadd",
+          "bvsub",
+          "bvmul",
+          "bvsdiv",
+          "bvudiv",
+          "bvsrem",
+          "bvurem",
+          "bvand",
+          "bvor",
+          "bvxor",
+          "bvshl",
+          "bvlshr",
+          "bvashr",
+          "to_real",
+          "to_int",
+          "_",
+          "divisible");
 
   /** create an empty symbol encoding */
-  public SymbolEncoding() { }
+  public SymbolEncoding() {}
 
-  /** create symbol encoding with information about symbol
-   * from variables of the CFA */
+  /** create symbol encoding with information about symbol from variables of the CFA */
   public SymbolEncoding(CFA pCfa) {
-    decls = getAllDeclarations(pCfa.getAllNodes());
+    decls = getAllDeclarations(pCfa.nodes());
     machineModel = pCfa.getMachineModel();
 
-    encodedSymbols.put("true", new Type<FormulaType<?>>(FormulaType.BooleanType));
-    encodedSymbols.put("false", new Type<FormulaType<?>>(FormulaType.BooleanType));
+    encodedSymbols.put("true", new Type<>(FormulaType.BooleanType));
+    encodedSymbols.put("false", new Type<>(FormulaType.BooleanType));
   }
-
 
   private final Map<String, Type<FormulaType<?>>> encodedSymbols = new HashMap<>();
 
   public void put(String symbol, int length) {
-    put(symbol, new Type<FormulaType<?>>(getBitvectorTypeWithSize(length)));
+    put(symbol, new Type<>(getBitvectorTypeWithSize(length)));
   }
 
   public void put(String symbol, FormulaType<?> pReturnType, ImmutableList<FormulaType<?>> pArgs) {
@@ -93,9 +134,10 @@ public class SymbolEncoding {
     // TODO currently we store all variables (even SSA-indexed ones),
     // but the basic form (without indices) maybe would be enough.
     if (encodedSymbols.containsKey(symbol)) {
-      assert encodedSymbols.get(symbol).equals(t) :
-        String.format("Symbol '%s' of type '%s' is already declared with the type '%s'.",
-            symbol, t, encodedSymbols.get(symbol));
+      assert encodedSymbols.get(symbol).equals(t)
+          : String.format(
+              "Symbol '%s' of type '%s' is already declared with the type '%s'.",
+              symbol, t, encodedSymbols.get(symbol));
     } else {
       encodedSymbols.put(symbol, t);
     }
@@ -131,7 +173,7 @@ public class SymbolEncoding {
 
   private Type<FormulaType<?>> getType(CType cType) {
     final FormulaType<?> fType;
-    if (cType instanceof CSimpleType && ((CSimpleType)cType).getType().isFloatingPointType()) {
+    if (cType instanceof CSimpleType && ((CSimpleType) cType).getType().isFloatingPointType()) {
       fType = FormulaType.RationalType;
     } else {
       int length = machineModel.getSizeofInBits(cType).intValueExact();
@@ -139,7 +181,7 @@ public class SymbolEncoding {
     }
     Type<FormulaType<?>> type = new Type<>(fType);
     if (cType instanceof CSimpleType) {
-      type.setSigness(!((CSimpleType)cType).isUnsigned());
+      type.setSigness(!((CSimpleType) cType).hasUnsignedSpecifier());
     }
     return type;
   }
@@ -147,10 +189,11 @@ public class SymbolEncoding {
   /** iterator over all edges and collect all declarations */
   private Set<CSimpleDeclaration> getAllDeclarations(Collection<CFANode> nodes) {
     final Set<CSimpleDeclaration> sd = new HashSet<>();
-    for (CFANode node : nodes){
+    for (CFANode node : nodes) {
 
       if (node instanceof CFunctionEntryNode) {
-        Optional<? extends CVariableDeclaration> retVar = ((CFunctionEntryNode) node).getReturnVariable();
+        Optional<? extends CVariableDeclaration> retVar =
+            ((CFunctionEntryNode) node).getReturnVariable();
         if (retVar.isPresent()) {
           sd.add(retVar.get());
         }
@@ -161,11 +204,13 @@ public class SymbolEncoding {
         sd.add(edge.getDeclaration());
       }
       for (CFunctionCallEdge edge : edges.filter(CFunctionCallEdge.class)) {
-        final List<? extends CParameterDeclaration> params = edge.getSuccessor().getFunctionParameters();
+        final List<? extends CParameterDeclaration> params =
+            edge.getSuccessor().getFunctionParameters();
         sd.addAll(params);
       }
       for (CFunctionReturnEdge edge : edges.filter(CFunctionReturnEdge.class)) {
-        Optional<? extends CVariableDeclaration> retVar = edge.getFunctionEntry().getReturnVariable();
+        Optional<? extends CVariableDeclaration> retVar =
+            edge.getFunctionEntry().getReturnVariable();
         if (retVar.isPresent()) {
           sd.add(retVar.get());
         }
@@ -174,8 +219,7 @@ public class SymbolEncoding {
     return sd;
   }
 
-  /** write out the current symbol encoding in a format,
-   * that can be read again. */
+  /** write out the current symbol encoding in a format, that can be read again. */
   public void dump(Path symbolEncodingFile) throws IOException {
     if (symbolEncodingFile != null) {
       IO.writeFile(
@@ -207,21 +251,25 @@ public class SymbolEncoding {
     private final ImmutableList<T> parameterTypes;
 
     public Type(T pReturnType, ImmutableList<T> pParameterTypes) {
-      this.returnType = pReturnType;
-      this.parameterTypes = pParameterTypes;
+      returnType = pReturnType;
+      parameterTypes = pParameterTypes;
     }
 
     public Type(T pReturnType) {
-      this.returnType = pReturnType;
-      this.parameterTypes = ImmutableList.of();
+      returnType = pReturnType;
+      parameterTypes = ImmutableList.of();
     }
 
-    public T getReturnType() { return returnType; }
+    public T getReturnType() {
+      return returnType;
+    }
 
-    public List<T> getParameterTypes() { return parameterTypes; }
+    public List<T> getParameterTypes() {
+      return parameterTypes;
+    }
 
     public void setSigness(boolean pSigned) {
-      this.signed = pSigned;
+      signed = pSigned;
     }
 
     public boolean isSigned() {
@@ -233,15 +281,11 @@ public class SymbolEncoding {
       return returnType + " " + parameterTypes;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public boolean equals(Object other) {
-      if (other instanceof Type) {
-        Type<T> t = (Type<T>)other;
-        return returnType.equals(t.returnType)
-            && parameterTypes.equals(t.parameterTypes);
-      }
-      return false;
+      return other instanceof Type<?> t
+          && returnType.equals(t.returnType)
+          && parameterTypes.equals(t.parameterTypes);
     }
 
     @Override
@@ -252,12 +296,10 @@ public class SymbolEncoding {
 
   public static class UnknownFormulaSymbolException extends CPAException {
 
-    private static final long serialVersionUID = 150615L;
+    @Serial private static final long serialVersionUID = 150615L;
 
     public UnknownFormulaSymbolException(String symbol) {
       super("unknown symbol in formula: " + symbol);
     }
-
   }
-
 }

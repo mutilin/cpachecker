@@ -28,7 +28,8 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractStateWithEdge;
 import org.sosy_lab.cpachecker.cpa.value.type.Value.UnknownValue;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
-public class ValueAnalysisStateWithEdge extends ValueAnalysisState implements AbstractStateWithEdge {
+public class ValueAnalysisStateWithEdge extends ValueAnalysisState
+    implements AbstractStateWithEdge {
 
   private static final long serialVersionUID = -2542917754288332149L;
   private final AbstractEdge edge;
@@ -99,11 +100,9 @@ public class ValueAnalysisStateWithEdge extends ValueAnalysisState implements Ab
     if (this == obj) {
       return true;
     }
-    if (!super.equals(obj)) {
-      return false;
-    }
-    ValueAnalysisStateWithEdge other = (ValueAnalysisStateWithEdge) obj;
-    return Objects.equals(edge, other.edge);
+    return super.equals(obj)
+        && obj instanceof ValueAnalysisStateWithEdge other
+        && edge.equals(other.edge);
   }
 
   public boolean hasEqualStates(Object obj) {
@@ -121,5 +120,4 @@ public class ValueAnalysisStateWithEdge extends ValueAnalysisState implements Ab
   public boolean isProjection() {
     return false;
   }
-
 }

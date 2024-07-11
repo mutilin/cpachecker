@@ -52,5 +52,4 @@ public class PredicateProjectedState implements AbstractStateWithEdge {
   public boolean isProjection() {
     return true;
   }
-
 }

@@ -76,7 +76,7 @@ public abstract class SplitInfoState implements AbstractQueryableState {
           splitPart >= 0 && splitPart < numSplitParts,
           "The split part must be in [0,numSplitParts).");
 
-      if(inSplit.length < numSplitParts) {
+      if (inSplit.length < numSplitParts) {
         return this;
       }
 
@@ -139,17 +139,11 @@ public abstract class SplitInfoState implements AbstractQueryableState {
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
+      if (obj == null || getClass() != obj.getClass()) {
         return false;
       }
       SequenceSplitInfoState other = (SequenceSplitInfoState) obj;
-      if (!Arrays.equals(inSplit, other.inSplit)) {
-        return false;
-      }
-      return true;
+      return Arrays.equals(inSplit, other.inSplit);
     }
   }
 
@@ -168,7 +162,7 @@ public abstract class SplitInfoState implements AbstractQueryableState {
           pSplitPart >= 0 && pSplitPart < pNumSplitParts,
           "The split part must be in [0,numSplitParts).");
 
-      if(inSplit.size() < pNumSplitParts) {
+      if (inSplit.size() < pNumSplitParts) {
         return this;
       }
 
@@ -233,10 +227,7 @@ public abstract class SplitInfoState implements AbstractQueryableState {
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
+      if (obj == null || getClass() != obj.getClass()) {
         return false;
       }
       SetSplitInfoState other = (SetSplitInfoState) obj;

@@ -39,8 +39,7 @@ public class SignalTransferRelation implements TransferRelation, WitnessNoteProv
   private final CFAVisitor visitor;
 
   public SignalTransferRelation(
-      Configuration pConfig,
-      @SuppressWarnings("unused") LogManager pLogger)
+      Configuration pConfig, @SuppressWarnings("unused") LogManager pLogger)
       throws InvalidConfigurationException {
     pConfig.inject(this);
     switch (vType) {
@@ -54,16 +53,16 @@ public class SignalTransferRelation implements TransferRelation, WitnessNoteProv
   }
 
   @Override
-  public Collection<? extends AbstractState>
-      getAbstractSuccessors(AbstractState pState, Precision pPrecision)
-          throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessors(
+      AbstractState pState, Precision pPrecision)
+      throws CPATransferException, InterruptedException {
     return null;
   }
 
   @Override
-  public Collection<? extends AbstractState>
-      getAbstractSuccessorsForEdge(AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
-          throws CPATransferException, InterruptedException {
+  public Collection<? extends AbstractState> getAbstractSuccessorsForEdge(
+      AbstractState pState, Precision pPrecision, CFAEdge pCfaEdge)
+      throws CPATransferException, InterruptedException {
 
     stats.transfer.start();
     SignalState tState = (SignalState) pState;
@@ -108,5 +107,4 @@ public class SignalTransferRelation implements TransferRelation, WitnessNoteProv
     }
     return "";
   }
-
 }

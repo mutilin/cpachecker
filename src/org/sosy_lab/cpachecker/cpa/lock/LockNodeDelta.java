@@ -81,13 +81,6 @@ public class LockNodeDelta implements Delta<CompatibleNode> {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof LockNodeDelta)) {
-      return false;
-    }
-    LockNodeDelta other = (LockNodeDelta) obj;
-    return Objects.equals(delta, other.delta);
+    return obj instanceof LockNodeDelta other && delta.equals(other.delta);
   }
 }

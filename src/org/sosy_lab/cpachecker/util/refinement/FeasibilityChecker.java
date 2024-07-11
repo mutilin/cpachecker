@@ -15,29 +15,25 @@ import org.sosy_lab.cpachecker.cpa.arg.path.ARGPath;
 import org.sosy_lab.cpachecker.cpa.automaton.ControlAutomatonCPA;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
 
-/**
- * Interface for checking the feasibility of error paths.
- */
+/** Interface for checking the feasibility of error paths. */
 public interface FeasibilityChecker<S extends AbstractState> {
 
   /**
-   * Returns whether the given path is feasible, starting at the initial state.
-   * This method's precision depends on the implementation.
+   * Returns whether the given path is feasible, starting at the initial state. This method's
+   * precision depends on the implementation.
    *
    * @param path the path to investigate
-   * @return <code>true</code> if the given path is feasible,
-   *    <code>false</code> otherwise
+   * @return <code>true</code> if the given path is feasible, <code>false</code> otherwise
    */
   boolean isFeasible(final ARGPath path) throws CPAException, InterruptedException;
 
   /**
-   * Returns whether the given path is feasible, starting at the given state.
-   * This method's precision depends on the implementation.
+   * Returns whether the given path is feasible, starting at the given state. This method's
+   * precision depends on the implementation.
    *
    * @param path the path to investigate
    * @param startingPoint the state to start at
-   * @return <code>true</code> if the given path is feasible,
-   *    <code>false</code> otherwise
+   * @return <code>true</code> if the given path is feasible, <code>false</code> otherwise
    */
   boolean isFeasible(final ARGPath path, S startingPoint) throws CPAException, InterruptedException;
 
@@ -83,5 +79,16 @@ public interface FeasibilityChecker<S extends AbstractState> {
       final ARGPath path, S startingPoint, Set<ControlAutomatonCPA> automatons)
       throws CPAException, InterruptedException {
     throw new UnsupportedOperationException();
+  }
+
+  /**
+   * The feasibility checker and refiner refine by path. If the location that is flagged as error
+   * location is reachable, the error is feasible. This of course does not hold for MemorySafety,
+   * where the ErrorInfo also has to be set!
+   *
+   * @return true if we are currently refining/checking MemorySafety.
+   */
+  default boolean isRefineMemorySafety() {
+    return false;
   }
 }

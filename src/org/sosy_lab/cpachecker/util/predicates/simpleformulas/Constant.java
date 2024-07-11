@@ -25,18 +25,13 @@ public final class Constant implements Term {
     if (this == pOther) {
       return true;
     }
-
-    if (pOther == null) {
+    if (pOther == null || getClass() != pOther.getClass()) {
       return false;
     }
 
-    if (!pOther.getClass().equals(getClass())) {
-      return false;
-    }
+    Constant lConstant = (Constant) pOther;
 
-    Constant lConstant = (Constant)pOther;
-
-    return (mValue == lConstant.mValue);
+    return mValue == lConstant.mValue;
   }
 
   @Override
@@ -53,5 +48,4 @@ public final class Constant implements Term {
   public <T> T accept(TermVisitor<T> pVisitor) {
     return pVisitor.visit(this);
   }
-
 }

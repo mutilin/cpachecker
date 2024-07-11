@@ -8,9 +8,10 @@
 
 package org.sosy_lab.cpachecker.cpa.predicate;
 
-import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.sosy_lab.cpachecker.util.AbstractStates.extractLocation;
 
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -53,12 +54,13 @@ public final class BAMBlockFormulaStrategy extends BlockFormulaStrategy {
     final Map<ARGState, ARGState> callStacks =
         new HashMap<>(); // contains states and their next higher callstate
     final Map<ARGState, PathFormula> finishedFormulas = new HashMap<>();
-    final List<BooleanFormula> abstractionFormulas = new ArrayList<>();
+    final ImmutableList.Builder<BooleanFormula> abstractionFormulas = ImmutableList.builder();
     final Deque<ARGState> waitlist = new ArrayDeque<>();
     final List<ARGState> pathElements = new ArrayList<>(pPath);
 
     // map from states to formulas for truth assumption path formula
-    final Map<Pair<ARGState, CFAEdge>, PathFormula> branchingFormulas = new HashMap<>();
+    final ImmutableMap.Builder<Pair<ARGState, CFAEdge>, PathFormula> branchingFormulas =
+        ImmutableMap.builder();
 
     // initialize
     assert pRoot.getParents().isEmpty() : "rootState must be the first state of the program";
@@ -104,9 +106,8 @@ public final class BAMBlockFormulaStrategy extends BlockFormulaStrategy {
           final ARGState callState = callStacks.get(parentElement);
 
           assert Objects.equals(
-              extractLocation(callState).getLeavingSummaryEdge().getSuccessor(),
-              extractLocation(
-                  currentState))
+                  extractLocation(callState).getLeavingSummaryEdge().getSuccessor(),
+                  extractLocation(currentState))
               : "callstack does not match entry of current function-exit.";
           assert callState != null || currentState.getChildren().isEmpty()
               : "returning from empty callstack is only possible at program-exit";
@@ -182,9 +183,7 @@ public final class BAMBlockFormulaStrategy extends BlockFormulaStrategy {
       waitlist.addAll(currentState.getChildren());
     }
     assert pathElements.isEmpty();
-    BooleanFormula branchingFormula =
-        pfmgr.buildBranchingFormula(finishedFormulas.keySet(), branchingFormulas);
-    return new BlockFormulas(abstractionFormulas, branchingFormula);
+    return new BlockFormulas(abstractionFormulas.build(), branchingFormulas.buildOrThrow());
   }
 
   private PathFormula mergeFormulas(List<PathFormula> formulas) throws InterruptedException {
@@ -199,8 +198,7 @@ public final class BAMBlockFormulaStrategy extends BlockFormulaStrategy {
   /** Add assumptions from OverflowCPA. */
   private PathFormula strengthen(final ARGState currentState, PathFormula currentFormula)
       throws CPATransferException, InterruptedException {
-    OverflowState other =
-        AbstractStates.extractStateByType(currentState, OverflowState.class);
+    OverflowState other = AbstractStates.extractStateByType(currentState, OverflowState.class);
     if (other != null) {
       for (CExpression assumption : Iterables.filter(other.getAssumptions(), CExpression.class)) {
         currentFormula = pfmgr.makeAnd(currentFormula, assumption);

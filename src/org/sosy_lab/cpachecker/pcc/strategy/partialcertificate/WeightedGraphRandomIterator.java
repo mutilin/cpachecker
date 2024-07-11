@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Random;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-
 public class WeightedGraphRandomIterator implements Iterator<WeightedNode> {
 
   private static final Random rnd = new Random(0);
@@ -27,31 +26,28 @@ public class WeightedGraphRandomIterator implements Iterator<WeightedNode> {
 
   public WeightedGraphRandomIterator(WeightedGraph wGraph) {
     this.wGraph = wGraph;
-    size=wGraph.getNumNodes();
-    permutation=shuffledIndices(size);
+    size = wGraph.getNumNodes();
+    permutation = shuffledIndices(size);
     current = 0;
   }
 
   @Override
   public boolean hasNext() {
-    if(current<size){
-      return true;
-    }
-    return false;
+    return current < size;
   }
 
   @Nullable
   @Override
   public WeightedNode next() {
-    int nodeIndex=permutation.get(current++);
+    int nodeIndex = permutation.get(current++);
     return wGraph.getNode(nodeIndex);
   }
 
   @Override
   public void remove() {
     throw new UnsupportedOperationException();
-
   }
+
   /**
    * Compute permutation of 0..n-1 to randomly iterate over an array
    *

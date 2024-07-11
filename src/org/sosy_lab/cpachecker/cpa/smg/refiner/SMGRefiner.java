@@ -13,8 +13,8 @@ import static org.sosy_lab.cpachecker.util.Precisions.extractPrecisionByType;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -78,21 +78,32 @@ public class SMGRefiner implements Refiner {
 
   @Option(secure = true, description = "export interpolation trees to this file template")
   @FileOption(FileOption.Type.OUTPUT_FILE)
-  private PathTemplate interpolationTreeExportFile = PathTemplate.ofFormatString("interpolationTree.%d-%d.dot");
+  private PathTemplate interpolationTreeExportFile =
+      PathTemplate.ofFormatString("interpolationTree.%d-%d.dot");
 
-  @Option(secure = true, description = "export interpolant smgs for every path interpolation to this path template")
+  @Option(
+      secure = true,
+      description = "export interpolant smgs for every path interpolation to this path template")
   @FileOption(FileOption.Type.OUTPUT_FILE)
-  private PathTemplate exportInterpolantSMGs = PathTemplate.ofFormatString("smg/interpolation-%d/%s");
+  private PathTemplate exportInterpolantSMGs =
+      PathTemplate.ofFormatString("smg/interpolation-%d/%s");
 
-  @Option(secure = true, description = "export interpolant smgs for every path interpolation to this path template")
+  @Option(
+      secure = true,
+      description = "export interpolant smgs for every path interpolation to this path template")
   @FileOption(FileOption.Type.OUTPUT_FILE)
-  private PathTemplate exportRefinementSMGs = PathTemplate.ofFormatString("smg/refinement-%d/smg-%s");
+  private PathTemplate exportRefinementSMGs =
+      PathTemplate.ofFormatString("smg/refinement-%d/smg-%s");
 
-  @Option(secure = true, description = "when to export the interpolation tree"
-      + "\nNEVER:   never export the interpolation tree"
-      + "\nFINAL:   export the interpolation tree once after each refinement"
-      + "\nALWAYS:  export the interpolation tree once after each interpolation, i.e. multiple times per refinement",
-      values = { "NEVER", "FINAL", "ALWAYS" })
+  @Option(
+      secure = true,
+      description =
+          "when to export the interpolation tree\n"
+              + "NEVER:   never export the interpolation tree\n"
+              + "FINAL:   export the interpolation tree once after each refinement\n"
+              + "ALWAYS:  export the interpolation tree once after each interpolation, i.e."
+              + " multiple times per refinement",
+      values = {"NEVER", "FINAL", "ALWAYS"})
   private String exportInterpolationTree = "NEVER";
 
   private SMGRefiner(SMGCPA pSmgCpa, ARGCPA pArgCpa, Set<ControlAutomatonCPA> automatonCpas)
@@ -217,9 +228,8 @@ public class SMGRefiner implements Refiner {
   }
 
   private CounterexampleInfo isAnyPathFeasible(
-      final ARGReachedSet pReached,
-      final Collection<ARGPath> pErrorPaths
-  ) throws CPAException, InterruptedException {
+      final ARGReachedSet pReached, final Collection<ARGPath> pErrorPaths)
+      throws CPAException, InterruptedException {
 
     // get all feasible error paths
     List<ARGPath> feasibleErrorPaths = getFeasibleErrorPaths(pErrorPaths);
@@ -259,11 +269,12 @@ public class SMGRefiner implements Refiner {
    */
   private CFAPathWithAssumptions createModel() {
 
-    //TODO Fix creating a model.
+    // TODO Fix creating a model.
     return CFAPathWithAssumptions.empty();
   }
 
-  private SMGInterpolationTree obtainInterpolants(List<ARGPath> pTargetPaths, ARGReachedSet pReachedSet)
+  private SMGInterpolationTree obtainInterpolants(
+      List<ARGPath> pTargetPaths, ARGReachedSet pReachedSet)
       throws CPAException, InterruptedException {
 
     SMGInterpolationTree interpolationTree = createInterpolationTree(pTargetPaths);
@@ -276,13 +287,15 @@ public class SMGRefiner implements Refiner {
     return interpolationTree;
   }
 
-  private void performPathInterpolation(SMGInterpolationTree interpolationTree, ARGReachedSet pReachedSet)
+  private void performPathInterpolation(
+      SMGInterpolationTree interpolationTree, ARGReachedSet pReachedSet)
       throws CPAException, InterruptedException {
     ARGPath errorPath = interpolationTree.getNextPathForInterpolation();
 
     if (errorPath == InterpolationTree.EMPTY_PATH) {
-      logger.log(Level.FINEST, "skipping interpolation,"
-          + " because false interpolant on path to target state");
+      logger.log(
+          Level.FINEST,
+          "skipping interpolation, because false interpolant on path to target state");
       return;
     }
 
@@ -293,15 +306,20 @@ public class SMGRefiner implements Refiner {
       initialItp = interpolantManager.createInitialInterpolant();
     }
 
-    logger.log(Level.FINEST, "performing interpolation, starting at ",
+    logger.log(
+        Level.FINEST,
+        "performing interpolation, starting at ",
         errorPath.getFirstState().getStateId(),
-        ", using interpolant ", initialItp);
+        ", using interpolant ",
+        initialItp);
 
-    interpolationTree.addInterpolants(interpolator.performInterpolation(errorPath, initialItp, pReachedSet));
+    interpolationTree.addInterpolants(
+        interpolator.performInterpolation(errorPath, initialItp, pReachedSet));
     exportTree(interpolationTree, "ALWAYS");
   }
 
-  private boolean isInitialInterpolantTooWeak(ARGState root, SMGInterpolant initialItp, ARGPath errorPath)
+  private boolean isInitialInterpolantTooWeak(
+      ARGState root, SMGInterpolant initialItp, ARGPath errorPath)
       throws CPAException, InterruptedException {
 
     // if the first state of the error path is the root, the interpolant cannot be to weak
@@ -323,7 +341,8 @@ public class SMGRefiner implements Refiner {
     return new SMGInterpolationTree(interpolantManager, logger, pTargetPaths, true);
   }
 
-  private void refineUsingInterpolants(ARGReachedSet pReached, SMGInterpolationTree pInterpolationTree) throws InterruptedException {
+  private void refineUsingInterpolants(
+      ARGReachedSet pReached, SMGInterpolationTree pInterpolationTree) throws InterruptedException {
 
     Map<ARGState, List<Precision>> refinementInformation = new HashMap<>();
     Collection<ARGState> refinementRoots = pInterpolationTree.obtainRefinementRoots();
@@ -332,8 +351,9 @@ public class SMGRefiner implements Refiner {
       shutdownNotifier.shutdownIfNecessary();
       List<Precision> precisions = new ArrayList<>(2);
       // merge the value precisions of the subtree, and refine it
-      precisions.add(mergeSMGPrecisionsForSubgraph(root, pReached)
-          .withIncrement(pInterpolationTree.extractPrecisionIncrement(root)));
+      precisions.add(
+          mergeSMGPrecisionsForSubgraph(root, pReached)
+              .withIncrement(pInterpolationTree.extractPrecisionIncrement(root)));
 
       refinementInformation.put(root, precisions);
     }
@@ -341,19 +361,18 @@ public class SMGRefiner implements Refiner {
     for (Entry<ARGState, List<Precision>> info : refinementInformation.entrySet()) {
       shutdownNotifier.shutdownIfNecessary();
       List<Predicate<? super Precision>> precisionTypes =
-          Lists.newArrayList(Predicates.instanceOf(SMGPrecision.class));
+          ImmutableList.of(Predicates.instanceOf(SMGPrecision.class));
       pReached.removeSubtree(info.getKey(), info.getValue(), precisionTypes);
     }
   }
 
   private SMGPrecision mergeSMGPrecisionsForSubgraph(
-      final ARGState pRefinementRoot,
-      final ARGReachedSet pReached
-  ) {
+      final ARGState pRefinementRoot, final ARGReachedSet pReached) {
     // get all unique precisions from the subtree
     Set<SMGPrecision> uniquePrecisions = Sets.newIdentityHashSet();
     for (ARGState descendant : ARGUtils.getNonCoveredStatesInSubgraph(pRefinementRoot)) {
-      uniquePrecisions.add(extractPrecisionByType(
+      uniquePrecisions.add(
+          extractPrecisionByType(
               pReached.asReachedSet().getPrecision(descendant), SMGPrecision.class));
     }
 

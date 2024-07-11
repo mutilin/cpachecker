@@ -16,6 +16,7 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.List;
 import java.util.Objects;
@@ -29,10 +30,14 @@ import org.sosy_lab.cpachecker.core.interfaces.Targetable;
 import org.sosy_lab.cpachecker.cpa.automaton.AutomatonState;
 import org.sosy_lab.cpachecker.exceptions.InvalidQueryException;
 
-public class DCAState implements AbstractQueryableState, Targetable, Graphable, Serializable,
-    AbstractStateWithAssumptions {
+public class DCAState
+    implements AbstractQueryableState,
+        Targetable,
+        Graphable,
+        Serializable,
+        AbstractStateWithAssumptions {
 
-  private static final long serialVersionUID = -3454798281550882095L;
+  @Serial private static final long serialVersionUID = -3454798281550882095L;
 
   private final AutomatonState buechiState;
   private final ImmutableList<AutomatonState> compositeStates;
@@ -77,8 +82,7 @@ public class DCAState implements AbstractQueryableState, Targetable, Graphable, 
 
   @Override
   public ImmutableList<AExpression> getAssumptions() {
-    return productStates
-        .stream()
+    return productStates.stream()
         .flatMap(x -> x.getAssumptions().stream())
         .distinct()
         .collect(ImmutableList.toImmutableList());
@@ -94,11 +98,8 @@ public class DCAState implements AbstractQueryableState, Targetable, Graphable, 
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof DCAState)) {
-      return false;
-    }
-    DCAState other = (DCAState) obj;
-    return Objects.equals(buechiState, other.buechiState)
+    return obj instanceof DCAState other
+        && Objects.equals(buechiState, other.buechiState)
         && Objects.equals(compositeStates, other.compositeStates);
   }
 

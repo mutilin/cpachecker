@@ -59,7 +59,8 @@ public class ExpressionTreeLocationInvariant extends SingleLocationFormulaInvari
   public BooleanFormula getFormula(
       FormulaManagerView pFMGR, PathFormulaManager pPFMGR, PathFormula pContext)
       throws CPATransferException, InterruptedException {
-    PathFormula clearContext = pContext == null ? null : pPFMGR.makeEmptyPathFormulaWithContextFrom(pContext);
+    PathFormula clearContext =
+        pContext == null ? null : pPFMGR.makeEmptyPathFormulaWithContextFrom(pContext);
     ManagerKey key = new ManagerKey(pFMGR, pPFMGR, clearContext);
     ToFormulaVisitor toFormulaVisitor =
         visitorCache.computeIfAbsent(
@@ -68,8 +69,9 @@ public class ExpressionTreeLocationInvariant extends SingleLocationFormulaInvari
     try {
       return expressionTree.accept(toFormulaVisitor);
     } catch (ToFormulaException e) {
-      Throwables.propagateIfPossible(
-          e.getCause(), CPATransferException.class, InterruptedException.class);
+      Throwables.throwIfInstanceOf(e.getCause(), CPATransferException.class);
+      Throwables.throwIfInstanceOf(e.getCause(), InterruptedException.class);
+      Throwables.throwIfUnchecked(e.getCause());
       throw new UnexpectedCheckedException("expression tree to formula", e);
     }
   }
@@ -105,14 +107,11 @@ public class ExpressionTreeLocationInvariant extends SingleLocationFormulaInvari
     if (this == pObj) {
       return true;
     }
-    if (pObj instanceof ExpressionTreeLocationInvariant) {
-      ExpressionTreeLocationInvariant other = (ExpressionTreeLocationInvariant) pObj;
-      return groupId.equals(other.groupId)
-          && location.equals(other.location)
-          && expressionTree.equals(other.expressionTree)
-          && visitorCache == other.visitorCache;
-    }
-    return false;
+    return pObj instanceof ExpressionTreeLocationInvariant other
+        && groupId.equals(other.groupId)
+        && location.equals(other.location)
+        && expressionTree.equals(other.expressionTree)
+        && visitorCache == other.visitorCache;
   }
 
   @Override
@@ -147,15 +146,10 @@ public class ExpressionTreeLocationInvariant extends SingleLocationFormulaInvari
       if (this == pObj) {
         return true;
       }
-      if (pObj instanceof ManagerKey) {
-        ManagerKey other = (ManagerKey) pObj;
-        return formulaManagerView == other.formulaManagerView
-            && pathFormulaManager == other.pathFormulaManager
-            && Objects.equals(clearContext, other.clearContext);
-      }
-      return false;
+      return pObj instanceof ManagerKey other
+          && formulaManagerView == other.formulaManagerView
+          && pathFormulaManager == other.pathFormulaManager
+          && Objects.equals(clearContext, other.clearContext);
     }
-
   }
-
 }

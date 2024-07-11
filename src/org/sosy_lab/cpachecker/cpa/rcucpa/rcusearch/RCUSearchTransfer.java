@@ -62,12 +62,16 @@ import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 @Options(prefix = "cpa.rcucpa")
 public class RCUSearchTransfer extends SingleEdgeTransferRelation {
 
-  @Option(secure = true, name = "assign", description = "Name of a function responsible for "
-      + "assignment to RCU pointers")
+  @Option(
+      secure = true,
+      name = "assign",
+      description = "Name of a function responsible for " + "assignment to RCU pointers")
   private String assign = "ldv_rcu_assign_pointer";
 
-  @Option(name = "deref", secure = true, description = "Name of a function responsible for "
-      + "dereferences of RCU pointers")
+  @Option(
+      name = "deref",
+      secure = true,
+      description = "Name of a function responsible for " + "dereferences of RCU pointers")
   private String deref = "ldv_rcu_dereference";
 
   private LogManager logger;
@@ -90,34 +94,31 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     Set<MemoryLocation> oldPointers = oldRcuSearchState.getRcuPointers();
     Set<MemoryLocation> newPointers = new TreeSet<>();
 
-    switch(cfaEdge.getEdgeType()) {
+    switch (cfaEdge.getEdgeType()) {
       case StatementEdge:
         newPointers =
             handleStatementEdge(
                 (CStatementEdge) cfaEdge,
-                            cfaEdge.getPredecessor().getFunctionName(),
+                cfaEdge.getPredecessor().getFunctionName(),
                 oldRcuSearchState);
         break;
       case FunctionCallEdge:
         // rcu_assign_pointer(gp, p)
         CFunctionCallExpression fc =
-            ((CFunctionCallEdge) cfaEdge).getSummaryEdge()
+            ((CFunctionCallEdge) cfaEdge)
+                .getSummaryEdge()
                 .getExpression()
                 .getFunctionCallExpression();
         newPointers =
             handleFunctionCallExpression(
-                cfaEdge.getPredecessor().getFunctionName(),
-                oldRcuSearchState,
-                fc);
+                cfaEdge.getPredecessor().getFunctionName(), oldRcuSearchState, fc);
         break;
       case FunctionReturnEdge:
         CFunctionCall expr = ((CFunctionReturnEdge) cfaEdge).getSummaryEdge().getExpression();
         newPointers =
             handleFunctionReturnEdge(
-                expr,
-                cfaEdge.getSuccessor().getFunctionName(),
-                oldRcuSearchState);
-        //$FALL-THROUGH$
+                expr, cfaEdge.getSuccessor().getFunctionName(), oldRcuSearchState);
+        // $FALL-THROUGH$
       default:
         break;
     }
@@ -128,8 +129,7 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     stats.rcuSearchTimer.stop();
 
     stats.pointerTimer.start();
-    PointerState oldPointerState =
-        (PointerState) oldRcuSearchState.getWrappedState();
+    PointerState oldPointerState = (PointerState) oldRcuSearchState.getWrappedState();
     Collection<? extends AbstractState> states =
         pointerTransfer.getAbstractSuccessorsForEdge(oldPointerState, precision, cfaEdge);
     if (states.isEmpty()) {
@@ -154,17 +154,14 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     return Collections.singleton(successor);
   }
 
-  private Set<MemoryLocation>
-      handleFunctionReturnEdge(CFunctionCall expr, String pFunctionName,
-      RCUSearchState state) {
+  private Set<MemoryLocation> handleFunctionReturnEdge(
+      CFunctionCall expr, String pFunctionName, RCUSearchState state) {
     logger.log(Level.ALL, "CALL EXPR: " + expr);
 
     if (expr instanceof CFunctionCallAssignmentStatement) {
       // p = ldv_rcu_dereference(gp);
       return handleFunctionCallAssignmentStatement(
-          pFunctionName,
-          state,
-          (CFunctionCallAssignmentStatement) expr);
+          pFunctionName, state, (CFunctionCallAssignmentStatement) expr);
     } else {
       logger.log(Level.ALL, "ORDINARY CALL: " + expr);
       return new TreeSet<>();
@@ -172,14 +169,12 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
   }
 
   private Set<MemoryLocation> handleFunctionCallExpression(
-      String pFunctionName,
-      RCUSearchState state,
-      CFunctionCallExpression pFc) {
+      String pFunctionName, RCUSearchState state, CFunctionCallExpression pFc) {
     CFunctionDeclaration fd = pFc.getDeclaration();
     Set<MemoryLocation> pRcuPointers = new TreeSet<>();
     if (fd != null) {
       logger.log(Level.ALL, "Handling function: " + fd.getName());
-      if(fd.getName().contains(assign)) {
+      if (fd.getName().contains(assign)) {
         logger.log(Level.ALL, "Handling rcu_assign_pointer");
         List<CExpression> params = pFc.getParameterExpressions();
         PointerState pointerState = (PointerState) state.getWrappedState();
@@ -192,10 +187,11 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     return pRcuPointers;
   }
 
-  private void addMemoryLocation(String pFunctionName,
-                                 PointerState pointerState,
-                                 Set<MemoryLocation> pRcuPointers,
-                                 CExpression expression) {
+  private void addMemoryLocation(
+      String pFunctionName,
+      PointerState pointerState,
+      Set<MemoryLocation> pRcuPointers,
+      CExpression expression) {
     IdentifierCreator identifierCreator = new IdentifierCreator(pFunctionName);
     AbstractIdentifier id = expression.accept(identifierCreator);
     MemoryLocation location = LocationIdentifierConverter.toLocation(id);
@@ -212,32 +208,24 @@ public class RCUSearchTransfer extends SingleEdgeTransferRelation {
     }
   }
 
-  private Set<MemoryLocation> handleStatementEdge(CStatementEdge pEdge,
-                                          String pFunctionName,
-      RCUSearchState state) {
+  private Set<MemoryLocation> handleStatementEdge(
+      CStatementEdge pEdge, String pFunctionName, RCUSearchState state) {
     // p = rcu_dereference(gp)
     CStatement statement = pEdge.getStatement();
-    logger.log(
-        Level.ALL,
-        "HANDLE_STATEMENT: " + statement
-                .getClass() + ' ' + statement);
+    logger.log(Level.ALL, "HANDLE_STATEMENT: " + statement.getClass() + ' ' + statement);
     if (statement instanceof CFunctionCallAssignmentStatement) {
       return handleFunctionCallAssignmentStatement(
-          pFunctionName,
-          state,
-          (CFunctionCallAssignmentStatement) statement);
+          pFunctionName, state, (CFunctionCallAssignmentStatement) statement);
     } else if (statement instanceof CFunctionCallStatement) {
       logger.log(Level.ALL, "HANDLE_STATEMENT: Not an assignment; ", statement.getClass());
-      return handleFunctionCallExpression(pFunctionName, state, ((CFunctionCallStatement)
-          statement).getFunctionCallExpression());
+      return handleFunctionCallExpression(
+          pFunctionName, state, ((CFunctionCallStatement) statement).getFunctionCallExpression());
     }
     return new TreeSet<>();
   }
 
   private Set<MemoryLocation> handleFunctionCallAssignmentStatement(
-      String pFunctionName,
-      RCUSearchState state,
-      CFunctionCallAssignmentStatement pStatement) {
+      String pFunctionName, RCUSearchState state, CFunctionCallAssignmentStatement pStatement) {
     CLeftHandSide leftHandSide = pStatement.getLeftHandSide();
     Set<MemoryLocation> pRcuPointers = new TreeSet<>();
 

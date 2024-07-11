@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableSet;
 import java.util.Collection;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-public class RegionIdentifier extends SingleIdentifier implements GeneralIdentifier {
+public final class RegionIdentifier extends SingleIdentifier implements GeneralIdentifier {
 
   public RegionIdentifier(String pNm, CType pTp) {
     super(pNm, pTp, 1);
@@ -56,6 +56,7 @@ public class RegionIdentifier extends SingleIdentifier implements GeneralIdentif
 
   @Override
   public int compareTo(AbstractIdentifier pO) {
+    // Compare by types first
     if (pO instanceof GlobalVariableIdentifier
         || pO instanceof LocalVariableIdentifier
         || pO instanceof StructureIdentifier) {

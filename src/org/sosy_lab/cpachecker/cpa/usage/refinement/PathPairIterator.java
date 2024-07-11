@@ -31,8 +31,8 @@ import org.sosy_lab.cpachecker.util.statistics.StatInt;
 import org.sosy_lab.cpachecker.util.statistics.StatKind;
 import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 
-public class PathPairIterator extends
-    GenericPairIterator<Pair<UsageInfo, UsageInfo>, ExtendedARGPath> {
+public class PathPairIterator
+    extends GenericPairIterator<Pair<UsageInfo, UsageInfo>, ExtendedARGPath> {
 
   private final Set<List<Integer>> refinedStates = new HashSet<>();
   private PathRestorator subgraphComputer;
@@ -71,24 +71,19 @@ public class PathPairIterator extends
 
     iterators.clear();
     iterators.add(
-        subgraphComputer
-            .iterator(
-                (ARGState) pInput.getFirst().getKeyState(),
-                pInput.getFirst().getExpandedStack()));
+        subgraphComputer.iterator(
+            (ARGState) pInput.getFirst().getKeyState(), pInput.getFirst().getExpandedStack()));
     iterators.add(
-        subgraphComputer
-            .iterator(
-                (ARGState) pInput.getSecond().getKeyState(),
-                pInput.getSecond().getExpandedStack()));
+        subgraphComputer.iterator(
+            (ARGState) pInput.getSecond().getKeyState(), pInput.getSecond().getExpandedStack()));
   }
 
   @SuppressWarnings("unchecked")
   @Override
-  protected void finishIteration(Pair<ExtendedARGPath, ExtendedARGPath> pathPair, RefinementResult wrapperResult) {
-    ExtendedARGPath firstExtendedPath, secondExtendedPath;
-
-    firstExtendedPath = pathPair.getFirst();
-    secondExtendedPath = pathPair.getSecond();
+  protected void finishIteration(
+      Pair<ExtendedARGPath, ExtendedARGPath> pathPair, RefinementResult wrapperResult) {
+    ExtendedARGPath firstExtendedPath = pathPair.getFirst();
+    ExtendedARGPath secondExtendedPath = pathPair.getSecond();
 
     List<ARGState> firstAffectedStates = null;
     List<ARGState> secondAffectedStates = null;
@@ -196,7 +191,7 @@ public class PathPairIterator extends
   protected void handleFinishSignal(Class<? extends RefinementInterface> callerClass) {
     super.handleFinishSignal(callerClass);
     if (callerClass.equals(IdentifierIterator.class)) {
-      //Refinement iteration finishes
+      // Refinement iteration finishes
       refinedStates.clear();
       usages.clear();
       iterators.clear();
@@ -218,12 +213,13 @@ public class PathPairIterator extends
       // Means, that the path was not refined, when stored in calculatedPaths
       calculatedPaths.remove(usages.get(pId));
     }
+
     AbstractState keyState = usages.get(pId).getKeyState();
     if (skippedStates.contains(idExtractor.apply((ARGState) keyState))) {
       skippedStatesCounter.inc();
       return null;
     }
-    //try to compute more paths
+    // try to compute more paths
     ARGPathIterator pathIterator = iterators.get(pId);
     currentPath = pathIterator.nextPath(refinedStates);
 
@@ -235,7 +231,7 @@ public class PathPairIterator extends
     }
 
     ExtendedARGPath result = new ExtendedARGPath(currentPath, usages.get(pId));
-    //Not add result now, only after refinement
+    // Not add result now, only after refinement
     return result;
   }
 
@@ -271,8 +267,8 @@ public class PathPairIterator extends
   protected void resetSecondIterationFor() {
     iterators.set(
         1,
-        subgraphComputer
-            .iterator((ARGState) usages.get(1).getKeyState(), usages.get(1).getExpandedStack()));
+        subgraphComputer.iterator(
+            (ARGState) usages.get(1).getKeyState(), usages.get(1).getExpandedStack()));
   }
 
   @Override

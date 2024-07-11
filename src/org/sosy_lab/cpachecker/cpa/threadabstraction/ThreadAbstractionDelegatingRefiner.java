@@ -39,5 +39,4 @@ public abstract class ThreadAbstractionDelegatingRefiner implements Refiner {
             PredicateRefiner.create0(cpa)),
         cpa);
   }
-
 }

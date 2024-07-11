@@ -8,6 +8,8 @@
 
 package org.sosy_lab.cpachecker.cpa.threadabstraction;
 
+import java.util.Objects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.cfa.DummyCFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFAEdge;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
@@ -15,11 +17,11 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractEdge;
 
 public class ThreadAbstractionEdge implements AbstractEdge {
   private final CFAEdge edge;
-  private final String thread;
+  private final @Nullable String thread;
 
-  private final static CFAEdge INITIAL_EDGE =
+  private static final CFAEdge INITIAL_EDGE =
       new DummyCFAEdge(CFANode.newDummyCFANode("dummy"), CFANode.newDummyCFANode("dummy"));
-  public final static CFAEdge EMPTY_EDGE =
+  public static final CFAEdge EMPTY_EDGE =
       new DummyCFAEdge(CFANode.newDummyCFANode("dummy"), CFANode.newDummyCFANode("dummy"));
 
   ThreadAbstractionEdge(CFAEdge pEdge, String pThread) {
@@ -37,23 +39,14 @@ public class ThreadAbstractionEdge implements AbstractEdge {
 
   @Override
   public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + ((edge == null) ? 0 : edge.hashCode());
-    result = prime * result + ((thread == null) ? 0 : thread.hashCode());
-    return result;
+    return Objects.hash(edge, thread);
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (!(obj instanceof ThreadAbstractionEdge)) {
-      return false;
-    }
-    ThreadAbstractionEdge otherEdge = (ThreadAbstractionEdge) obj;
-    if (thread == null || otherEdge.getThread() == null) {
-      return edge.equals(otherEdge.getCFAEdge()) && thread == null && otherEdge.getThread() == null;
-    }
-    return edge.equals(otherEdge.getCFAEdge()) && thread.equals(otherEdge.getThread());
+    return obj instanceof ThreadAbstractionEdge other
+        && edge.equals(other.edge)
+        && Objects.equals(thread, other.thread);
   }
 
   // Only edges that contain thread are applied edges. If thread == null the edge is regular (its

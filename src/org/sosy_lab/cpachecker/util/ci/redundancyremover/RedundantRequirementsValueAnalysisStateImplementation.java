@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.util.ci.redundancyremover;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.cpa.value.ValueAnalysisState;
 import org.sosy_lab.cpachecker.cpa.value.type.ArrayValue;
@@ -20,26 +21,31 @@ import org.sosy_lab.cpachecker.util.AbstractStates;
 import org.sosy_lab.cpachecker.util.ci.redundancyremover.RedundantRequirementsRemover.RedundantRequirementsRemoverImplementation;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
+public class RedundantRequirementsValueAnalysisStateImplementation
+    extends RedundantRequirementsRemoverImplementation<ValueAnalysisState, Value> {
 
-public class RedundantRequirementsValueAnalysisStateImplementation extends
-    RedundantRequirementsRemoverImplementation<ValueAnalysisState, Value> {
-
-  private static final long serialVersionUID = 2875464105471673418L;
+  @Serial private static final long serialVersionUID = 2875464105471673418L;
 
   @Override
   public int compare(Value pO1, Value pO2) {
     // one of arguments null -> NullPointerException
-    // ClassCastException if p01 or p02 instanceof ArrayValue, BooleanValue, EnumConstantValue, NullValue
+    // ClassCastException if p01 or p02 instanceof ArrayValue, BooleanValue, EnumConstantValue,
+    // NullValue
     // 0 if both are unknown Value
     // -1 if p02 unknown Value
     // 1 if p01 unknown value
     // otherwise p01.doubleValues()-pO2.doubleValues()
     if (pO1 == null || pO2 == null) {
-      throw new NullPointerException("At least one of the arguments " + pO1 + " or " + pO2 + " is null.");
-    } else if (pO1 instanceof ArrayValue || pO2 instanceof ArrayValue ||
-        pO1 instanceof BooleanValue || pO2 instanceof BooleanValue ||
-        pO1 instanceof EnumConstantValue || pO2 instanceof EnumConstantValue ||
-        pO1 instanceof NullValue || pO2 instanceof NullValue) {
+      throw new NullPointerException(
+          "At least one of the arguments " + pO1 + " or " + pO2 + " is null.");
+    } else if (pO1 instanceof ArrayValue
+        || pO2 instanceof ArrayValue
+        || pO1 instanceof BooleanValue
+        || pO2 instanceof BooleanValue
+        || pO1 instanceof EnumConstantValue
+        || pO2 instanceof EnumConstantValue
+        || pO1 instanceof NullValue
+        || pO2 instanceof NullValue) {
       throw new ClassCastException("Expected NumericValue.");
     } else if (pO1.isUnknown() && pO2.isUnknown()) {
       return 0;
@@ -49,18 +55,16 @@ public class RedundantRequirementsValueAnalysisStateImplementation extends
       return 1;
     }
 
-    return (int) (pO1.asNumericValue().getNumber().doubleValue() - pO2.asNumericValue().getNumber().doubleValue()); // TODO
+    return (int)
+        (pO1.asNumericValue().getNumber().doubleValue()
+            - pO2.asNumericValue().getNumber().doubleValue()); // TODO
   }
 
   @Override
   protected boolean covers(Value pCovering, Value pCovered) {
     // return true if pCovering UnknownValue, pCovering equals pCovered
     // otherwise false
-    if (pCovering.isUnknown() || pCovering.equals(pCovered)) {
-      return true;
-    }
-
-    return false;
+    return pCovering.isUnknown() || pCovering.equals(pCovered);
   }
 
   @Override
@@ -100,5 +104,4 @@ public class RedundantRequirementsValueAnalysisStateImplementation extends
     // AbstractStates.extractStateByType....
     return AbstractStates.extractStateByType(pWrapperState, ValueAnalysisState.class);
   }
-
 }

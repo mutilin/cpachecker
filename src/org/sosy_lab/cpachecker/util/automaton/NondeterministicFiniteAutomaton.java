@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 public final class NondeterministicFiniteAutomaton<T> {
@@ -24,7 +25,6 @@ public final class NondeterministicFiniteAutomaton<T> {
     private State(int pId) {
       ID = pId;
     }
-
   }
 
   private static class StatePool {
@@ -41,7 +41,6 @@ public final class NondeterministicFiniteAutomaton<T> {
       public Iterator<State> iterator() {
         return new StateSetIterator(mAutomaton.mStatesCounter);
       }
-
     }
 
     private static class StateSetIterator implements Iterator<State> {
@@ -56,7 +55,7 @@ public final class NondeterministicFiniteAutomaton<T> {
 
       @Override
       public boolean hasNext() {
-        return (mCounter < mSize);
+        return mCounter < mSize;
       }
 
       @Override
@@ -71,7 +70,6 @@ public final class NondeterministicFiniteAutomaton<T> {
       public void remove() {
         throw new UnsupportedOperationException();
       }
-
     }
 
     private static final StatePool STATE_POOL = new StatePool();
@@ -136,27 +134,10 @@ public final class NondeterministicFiniteAutomaton<T> {
       if (this == pOther) {
         return true;
       }
-
-      if (pOther == null) {
-        return false;
-      }
-
-      if (!(pOther instanceof NondeterministicFiniteAutomaton.Edge)) {
-        return false;
-      }
-
-      @SuppressWarnings("unchecked")
-      Edge lEdge = (Edge) pOther;
-
-      if (lEdge.mSource.equals(mSource) && lEdge.mTarget.equals(mTarget)) {
-        if (mLabel == null) {
-          return (lEdge.mLabel == null);
-        } else {
-          return mLabel.equals(lEdge.mLabel);
-        }
-      }
-
-      return false;
+      return pOther instanceof NondeterministicFiniteAutomaton<?>.Edge lEdge
+          && lEdge.mSource.equals(mSource)
+          && lEdge.mTarget.equals(mTarget)
+          && Objects.equals(mLabel, lEdge.mLabel);
     }
   }
 
@@ -250,7 +231,8 @@ public final class NondeterministicFiniteAutomaton<T> {
   }
 
   public NondeterministicFiniteAutomaton<T> getLambdaFreeAutomaton() {
-    NondeterministicFiniteAutomaton<T> lLambdaFreeAutomaton = new NondeterministicFiniteAutomaton<>();
+    NondeterministicFiniteAutomaton<T> lLambdaFreeAutomaton =
+        new NondeterministicFiniteAutomaton<>();
 
     // mStatesCounter - 1 because the initial state of lLambdaFreeAutomaton
     // exists already
@@ -280,10 +262,12 @@ public final class NondeterministicFiniteAutomaton<T> {
 
             for (State lTargetClosureElement : getLambdaClosure(lTarget)) {
               // again, we use the same states in lLambdaFreeAutomaton
-              if (lOutgoingEdge.getSource().equals(lState) && lOutgoingEdge.getTarget().equals(lTargetClosureElement)) {
+              if (lOutgoingEdge.getSource().equals(lState)
+                  && lOutgoingEdge.getTarget().equals(lTargetClosureElement)) {
                 lLambdaFreeAutomaton.addEdge(lState, lTargetClosureElement, lOutgoingEdge);
               } else {
-                lLambdaFreeAutomaton.createEdge(lState, lTargetClosureElement, lOutgoingEdge.getLabel());
+                lLambdaFreeAutomaton.createEdge(
+                    lState, lTargetClosureElement, lOutgoingEdge.getLabel());
               }
             }
           }
@@ -318,7 +302,6 @@ public final class NondeterministicFiniteAutomaton<T> {
           lWorkset.add(lTarget);
         }
       }
-
     }
 
     return lClosure;
@@ -363,6 +346,4 @@ public final class NondeterministicFiniteAutomaton<T> {
 
     return lBuffer.toString();
   }
-
 }
-

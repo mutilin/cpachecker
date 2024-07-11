@@ -16,7 +16,7 @@ import org.sosy_lab.cpachecker.core.interfaces.pcc.BalancedGraphPartitioner;
 
 public class GraphPartitionerFactory {
 
-  private GraphPartitionerFactory() { }
+  private GraphPartitionerFactory() {}
 
   public enum PartitioningHeuristics {
     RANDOM,
@@ -33,25 +33,19 @@ public class GraphPartitionerFactory {
       final LogManager pLogger,
       final PartitioningHeuristics pHeuristic,
       final ShutdownNotifier pShutdownNotifier,
-      final Configuration pConfig) throws InvalidConfigurationException {
-    switch (pHeuristic) {
-    case DFS:
-      return new ExplorationOrderBalancedGraphPartitioner(true, pShutdownNotifier);
-    case BFS:
-      return new ExplorationOrderBalancedGraphPartitioner(false, pShutdownNotifier);
-    case OPTIMAL:
-      return new ExponentialOptimalBalancedGraphPartitioner(pShutdownNotifier);
-    case BEST_FIRST:
-      return new BestFirstWeightedBalancedGraphPartitioner(pConfig, pLogger);
-    case FM:
-      return new FiducciaMattheysesBalancedGraphPartitioner(pConfig, pLogger, pShutdownNotifier);
-    case FM_K_WAY:
-      return new FiducciaMattheysesKWayBalancedGraphPartitioner(pConfig, pLogger);
-    case MULTILEVEL:
-      return new MultilevelBalancedGraphPartitioner(pConfig, pLogger);
-    default: // RANDOM
-      return new RandomBalancedGraphPartitioner();
-    }
+      final Configuration pConfig)
+      throws InvalidConfigurationException {
+    return switch (pHeuristic) {
+      case DFS -> new ExplorationOrderBalancedGraphPartitioner(true, pShutdownNotifier);
+      case BFS -> new ExplorationOrderBalancedGraphPartitioner(false, pShutdownNotifier);
+      case OPTIMAL -> new ExponentialOptimalBalancedGraphPartitioner(pShutdownNotifier);
+      case BEST_FIRST -> new BestFirstWeightedBalancedGraphPartitioner(pConfig, pLogger);
+      case FM ->
+          new FiducciaMattheysesBalancedGraphPartitioner(pConfig, pLogger, pShutdownNotifier);
+      case FM_K_WAY -> new FiducciaMattheysesKWayBalancedGraphPartitioner(pConfig, pLogger);
+      case MULTILEVEL -> new MultilevelBalancedGraphPartitioner(pConfig, pLogger);
+      default -> // RANDOM
+          new RandomBalancedGraphPartitioner();
+    };
   }
-
 }

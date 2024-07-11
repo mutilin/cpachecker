@@ -39,8 +39,7 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 import org.sosy_lab.cpachecker.cpa.local.LocalState.LocalStateComplete;
 
 @Options(prefix = "cpa.local")
-public class LocalCPA
-    implements ConfigurableProgramAnalysisWithBAM, StatisticsProvider {
+public class LocalCPA implements ConfigurableProgramAnalysisWithBAM, StatisticsProvider {
   @Option(name = "localvariables", description = "variables, which are always local", secure = true)
   private ImmutableSet<String> localVariables = ImmutableSet.of();
 
@@ -51,11 +50,11 @@ public class LocalCPA
   private boolean refinement = true;
 
   @Option(
-    secure = true,
-    name = "merge",
-    values = {"SEP", "JOIN"},
-    toUppercase = true,
-    description = "which merge operator to use for local cpa")
+      secure = true,
+      name = "merge",
+      values = {"SEP", "JOIN"},
+      toUppercase = true,
+      description = "which merge operator to use for local cpa")
   private String mergeType = "SEP";
 
   private final LocalTransferRelation transfer;

@@ -59,12 +59,20 @@ public class SMGCPA
     return AutomaticCPAFactory.forType(SMGCPA.class);
   }
 
-  @Option(secure=true, name="stop", toUppercase=true, values={"SEP", "NEVER", "END_BLOCK"},
-      description="which stop operator to use for the SMGCPA")
+  @Option(
+      secure = true,
+      name = "stop",
+      toUppercase = true,
+      values = {"SEP", "NEVER", "END_BLOCK"},
+      description = "which stop operator to use for the SMGCPA")
   private String stopType = "SEP";
 
-  @Option(secure=true, name="merge", toUppercase=true, values={"SEP", "JOIN"},
-      description="which merge operator to use for the SMGCPA")
+  @Option(
+      secure = true,
+      name = "merge",
+      toUppercase = true,
+      values = {"SEP", "JOIN"},
+      description = "which merge operator to use for the SMGCPA")
   private String mergeType = "SEP";
 
   private final SMGPredicateManager smgPredicateManager;
@@ -86,9 +94,9 @@ public class SMGCPA
 
   private SMGPrecision precision;
 
-
-  private SMGCPA(Configuration pConfig, LogManager pLogger, ShutdownNotifier pShutdownNotifier,
-      CFA pCfa) throws InvalidConfigurationException {
+  private SMGCPA(
+      Configuration pConfig, LogManager pLogger, ShutdownNotifier pShutdownNotifier, CFA pCfa)
+      throws InvalidConfigurationException {
     pConfig.inject(this);
 
     config = pConfig;
@@ -98,7 +106,8 @@ public class SMGCPA
     shutdownNotifier = pShutdownNotifier;
 
     options = new SMGOptions(config);
-    exportOptions = new SMGExportDotOption(options.getExportSMGFilePattern(), options.getExportSMGLevel());
+    exportOptions =
+        new SMGExportDotOption(options.getExportSMGFilePattern(), options.getExportSMGLevel());
 
     assumptionToEdgeAllocator = AssumptionToEdgeAllocator.create(config, logger, machineModel);
 
@@ -140,28 +149,21 @@ public class SMGCPA
 
   @Override
   public MergeOperator getMergeOperator() {
-    switch (mergeType) {
-      case "SEP":
-        return MergeSepOperator.getInstance();
-      case "JOIN":
-        return new MergeJoinOperator(getAbstractDomain());
-      default:
-        throw new AssertionError("unknown mergetype for SMGCPA");
-    }
+    return switch (mergeType) {
+      case "SEP" -> MergeSepOperator.getInstance();
+      case "JOIN" -> new MergeJoinOperator(getAbstractDomain());
+      default -> throw new AssertionError("unknown mergetype for SMGCPA");
+    };
   }
 
   @Override
   public StopOperator getStopOperator() {
-    switch (stopType) {
-      case "END_BLOCK":
-        return new SMGStopOperator(getAbstractDomain());
-      case "NEVER":
-        return StopNeverOperator.getInstance();
-      case "SEP":
-        return new StopSepOperator(getAbstractDomain());
-      default:
-        throw new AssertionError("unknown stoptype for SMGCPA");
-    }
+    return switch (stopType) {
+      case "END_BLOCK" -> new SMGStopOperator(getAbstractDomain());
+      case "NEVER" -> StopNeverOperator.getInstance();
+      case "SEP" -> new StopSepOperator(getAbstractDomain());
+      default -> throw new AssertionError("unknown stoptype for SMGCPA");
+    };
   }
 
   @Override
@@ -179,8 +181,7 @@ public class SMGCPA
       throw new AssertionError(exc);
     }
 
-    if (pNode instanceof CFunctionEntryNode) {
-      CFunctionEntryNode functionNode = (CFunctionEntryNode) pNode;
+    if (pNode instanceof CFunctionEntryNode functionNode) {
       try {
         initState.addStackFrame(functionNode.getFunctionDefinition());
         initState.performConsistencyCheck(SMGRuntimeCheck.FULL);
@@ -199,7 +200,8 @@ public class SMGCPA
 
   @Override
   public ConcreteStatePath createConcreteStatePath(ARGPath pPath) {
-    return new SMGConcreteErrorPathAllocator(assumptionToEdgeAllocator).allocateAssignmentsToPath(pPath);
+    return new SMGConcreteErrorPathAllocator(assumptionToEdgeAllocator)
+        .allocateAssignmentsToPath(pPath);
   }
 
   public LogManager getLogger() {

@@ -24,7 +24,7 @@ import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.ast.c.CStatement;
 import org.sosy_lab.cpachecker.cfa.model.CFANode;
 
-public class EnvironmentActionEdge extends CStatementEdge {
+public final class EnvironmentActionEdge extends CStatementEdge {
 
   private static final long serialVersionUID = 3308836558483891214L;
 
@@ -39,21 +39,13 @@ public class EnvironmentActionEdge extends CStatementEdge {
 
   @Override
   public boolean equals(Object pOther) {
-    boolean res = super.equals(pOther);
-    if (res) {
-      if (pOther instanceof EnvironmentActionEdge) {
-        EnvironmentActionEdge other = (EnvironmentActionEdge) pOther;
-        return Objects.equals(statement, other.statement);
-      } else {
-        return false;
-      }
-    }
-    return false;
+    return super.equals(pOther)
+        && (pOther instanceof EnvironmentActionEdge other)
+        && Objects.equals(statement, other.statement);
   }
 
   @Override
   public int hashCode() {
     return super.hashCode() + 31 * Objects.hash(statement);
   }
-
 }

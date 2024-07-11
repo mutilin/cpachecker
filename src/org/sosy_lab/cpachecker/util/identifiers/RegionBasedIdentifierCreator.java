@@ -26,6 +26,7 @@ import com.google.common.collect.Multimap;
 import java.util.Optional;
 import java.util.Set;
 import org.sosy_lab.cpachecker.cfa.ast.c.CDeclaration;
+import org.sosy_lab.cpachecker.cfa.ast.c.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.ast.c.CExpression;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFieldReference;
 import org.sosy_lab.cpachecker.cfa.ast.c.CFunctionDeclaration;
@@ -34,7 +35,6 @@ import org.sosy_lab.cpachecker.cfa.ast.c.CSimpleDeclaration;
 import org.sosy_lab.cpachecker.cfa.ast.c.CVariableDeclaration;
 import org.sosy_lab.cpachecker.cfa.types.c.CCompositeType;
 import org.sosy_lab.cpachecker.cfa.types.c.CElaboratedType;
-import org.sosy_lab.cpachecker.cfa.types.c.CEnumType.CEnumerator;
 import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 import org.sosy_lab.cpachecker.cfa.types.c.CTypedefType;
@@ -45,8 +45,7 @@ public class RegionBasedIdentifierCreator extends IdentifierCreator {
   protected final Multimap<CCompositeType, String> addressedFields;
 
   public RegionBasedIdentifierCreator(
-      String pFunc,
-      Optional<VariableClassification> pVariableClassification) {
+      String pFunc, Optional<VariableClassification> pVariableClassification) {
     super(pFunc);
     if (pVariableClassification.isPresent()) {
       addressedVariables = pVariableClassification.orElseThrow().getAddressedVariables();
@@ -57,15 +56,12 @@ public class RegionBasedIdentifierCreator extends IdentifierCreator {
     }
   }
 
-  public RegionBasedIdentifierCreator(
-      Optional<VariableClassification> pVariableClassification) {
+  public RegionBasedIdentifierCreator(Optional<VariableClassification> pVariableClassification) {
     this(null, pVariableClassification);
   }
 
   private RegionBasedIdentifierCreator(
-      String pFunc,
-      Set<String> pVars,
-      Multimap<CCompositeType, String> pFields) {
+      String pFunc, Set<String> pVars, Multimap<CCompositeType, String> pFields) {
     super(pFunc);
     addressedVariables = pVars;
     addressedFields = pFields;

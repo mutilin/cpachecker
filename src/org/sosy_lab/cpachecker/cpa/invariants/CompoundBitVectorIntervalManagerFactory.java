@@ -13,26 +13,24 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import org.sosy_lab.cpachecker.cfa.types.MachineModel;
 import org.sosy_lab.cpachecker.cfa.types.Type;
 
-@SuppressWarnings("ImmutableEnumChecker") // enum used as stateful factory
-public enum CompoundBitVectorIntervalManagerFactory implements CompoundIntervalManagerFactory {
+public final class CompoundBitVectorIntervalManagerFactory
+    implements CompoundIntervalManagerFactory {
 
-  ALLOW_SIGNED_WRAP_AROUND {
+  private final boolean allowSignedWrapAround;
+  private final Collection<OverflowEventHandler> overflowEventHandlers =
+      new CopyOnWriteArrayList<>();
 
-    @Override
-    public boolean isSignedWrapAroundAllowed() {
-      return true;
-    }
-  },
+  private CompoundBitVectorIntervalManagerFactory(boolean pAllowSignedWrapAround) {
+    allowSignedWrapAround = pAllowSignedWrapAround;
+  }
 
-  FORBID_SIGNED_WRAP_AROUND {
+  static CompoundBitVectorIntervalManagerFactory allowSignedWrapAround() {
+    return new CompoundBitVectorIntervalManagerFactory(true);
+  }
 
-    @Override
-    public boolean isSignedWrapAroundAllowed() {
-      return false;
-    }
-  };
-
-  private final Collection<OverflowEventHandler> overflowEventHandlers = new CopyOnWriteArrayList<>();
+  static CompoundBitVectorIntervalManagerFactory forbidSignedWrapAround() {
+    return new CompoundBitVectorIntervalManagerFactory(false);
+  }
 
   private void handleAllOverflowHandlers() {
     for (OverflowEventHandler component : overflowEventHandlers) {
@@ -41,8 +39,9 @@ public enum CompoundBitVectorIntervalManagerFactory implements CompoundIntervalM
   }
 
   @Override
-  public CompoundIntervalManager createCompoundIntervalManager(MachineModel pMachineModel, Type pType) {
-    return createCompoundIntervalManager(BitVectorInfo.from(pMachineModel, pType));
+  public CompoundIntervalManager createCompoundIntervalManager(
+      MachineModel pMachineModel, Type pType) {
+    return createCompoundIntervalManager(TypeInfo.from(pMachineModel, pType));
   }
 
   @Override
@@ -50,7 +49,8 @@ public enum CompoundBitVectorIntervalManagerFactory implements CompoundIntervalM
     return createCompoundIntervalManager(pInfo, true);
   }
 
-  public CompoundIntervalManager createCompoundIntervalManager(TypeInfo pInfo, boolean pWithOverflowHandlers) {
+  public CompoundIntervalManager createCompoundIntervalManager(
+      TypeInfo pInfo, boolean pWithOverflowHandlers) {
     if (pInfo instanceof BitVectorInfo) {
       return new CompoundBitVectorIntervalManager(
           (BitVectorInfo) pInfo,
@@ -63,7 +63,9 @@ public enum CompoundBitVectorIntervalManagerFactory implements CompoundIntervalM
     throw new AssertionError("Unsupported type: " + pInfo);
   }
 
-  public abstract boolean isSignedWrapAroundAllowed();
+  public boolean isSignedWrapAroundAllowed() {
+    return allowSignedWrapAround;
+  }
 
   public void addOverflowEventHandler(OverflowEventHandler pOverflowEventHandler) {
     overflowEventHandlers.add(pOverflowEventHandler);
@@ -72,5 +74,4 @@ public enum CompoundBitVectorIntervalManagerFactory implements CompoundIntervalM
   public void removeOverflowEventHandler(OverflowEventHandler pOverflowEventHandler) {
     overflowEventHandlers.remove(pOverflowEventHandler);
   }
-
 }

@@ -41,8 +41,8 @@ public class UsageReducer implements Reducer {
     UsageState funRootState = (UsageState) pRootElement;
     UsageState funReducedState = (UsageState) pReducedElement;
     AbstractState exp =
-          wrappedReducer.getVariableExpandedState(
-              funRootState.getWrappedState(), pReducedContext, funReducedState.getWrappedState());
+        wrappedReducer.getVariableExpandedState(
+            funRootState.getWrappedState(), pReducedContext, funReducedState.getWrappedState());
 
     // return funRootState
     // .expanded(exp, funReducedState, pReducedContext.getCallNode().getFunction().getName());

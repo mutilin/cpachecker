@@ -30,62 +30,59 @@ class PushValueToEnvironmentVisitor
 
   private final PushAssumptionToEnvironmentVisitor pushAssumptionToEnvironmentVisitor;
 
-  /**
-   * The environment to push the gained information into.
-   */
+  /** The environment to push the gained information into. */
   private final NonRecursiveEnvironment.Builder environment;
 
   /**
-   * The evaluation visitor used to evaluate compound state invariants formulae
-   * to compound states.
+   * The evaluation visitor used to evaluate compound state invariants formulae to compound states.
    */
   private final FormulaEvaluationVisitor<CompoundInterval> evaluationVisitor;
 
   private final CompoundIntervalManagerFactory compoundIntervalManagerFactory;
 
   /**
-   * Creates a new visitor for pushing information obtained from assuming given
-   * states for the visited formulae into the given environment.
+   * Creates a new visitor for pushing information obtained from assuming given states for the
+   * visited formulae into the given environment.
    *
-   * @param pCompoundIntervalManagerFactory a factory for compound interval
-   * managers.
-   * @param pEvaluationVisitor the evaluation visitor used to evaluate compound
-   * state invariants formulae to compound states.
-   * @param pEnvironment the environment to push the gained information into.
-   * Obviously, this environment must be mutable.
+   * @param pCompoundIntervalManagerFactory a factory for compound interval managers.
+   * @param pEvaluationVisitor the evaluation visitor used to evaluate compound state invariants
+   *     formulae to compound states.
+   * @param pEnvironment the environment to push the gained information into. Obviously, this
+   *     environment must be mutable.
    */
   public PushValueToEnvironmentVisitor(
       CompoundIntervalManagerFactory pCompoundIntervalManagerFactory,
       FormulaEvaluationVisitor<CompoundInterval> pEvaluationVisitor,
       NonRecursiveEnvironment.Builder pEnvironment) {
-    this.pushAssumptionToEnvironmentVisitor = new PushAssumptionToEnvironmentVisitor(this, pCompoundIntervalManagerFactory, pEvaluationVisitor, pEnvironment);
-    this.evaluationVisitor = pEvaluationVisitor;
-    this.environment = pEnvironment;
-    this.compoundIntervalManagerFactory = pCompoundIntervalManagerFactory;
+    pushAssumptionToEnvironmentVisitor =
+        new PushAssumptionToEnvironmentVisitor(
+            this, pCompoundIntervalManagerFactory, pEvaluationVisitor, pEnvironment);
+    evaluationVisitor = pEvaluationVisitor;
+    environment = pEnvironment;
+    compoundIntervalManagerFactory = pCompoundIntervalManagerFactory;
   }
 
   /**
-   * Creates a new visitor for pushing information obtained from assuming given
-   * states for the visited formulae into the given environment.
+   * Creates a new visitor for pushing information obtained from assuming given states for the
+   * visited formulae into the given environment.
    *
-   * @param pPushAssumptionToEnvironmentVisitor the visitor for pushing
-   * assumptions into boolean formulae.
-   * @param pCompoundIntervalManagerFactory a factory for compound interval
-   * managers.
-   * @param pEvaluationVisitor the evaluation visitor used to evaluate compound
-   * state invariants formulae to compound states.
-   * @param pEnvironment the environment to push the gained information into.
-   * Obviously, this environment must be mutable.
+   * @param pPushAssumptionToEnvironmentVisitor the visitor for pushing assumptions into boolean
+   *     formulae.
+   * @param pCompoundIntervalManagerFactory a factory for compound interval managers.
+   * @param pEvaluationVisitor the evaluation visitor used to evaluate compound state invariants
+   *     formulae to compound states.
+   * @param pEnvironment the environment to push the gained information into. Obviously, this
+   *     environment must be mutable.
    */
   public PushValueToEnvironmentVisitor(
       PushAssumptionToEnvironmentVisitor pPushAssumptionToEnvironmentVisitor,
       CompoundIntervalManagerFactory pCompoundIntervalManagerFactory,
       FormulaEvaluationVisitor<CompoundInterval> pEvaluationVisitor,
       NonRecursiveEnvironment.Builder pEnvironment) {
-    this.pushAssumptionToEnvironmentVisitor = pPushAssumptionToEnvironmentVisitor;
-    this.evaluationVisitor = pEvaluationVisitor;
-    this.environment = pEnvironment;
-    this.compoundIntervalManagerFactory = pCompoundIntervalManagerFactory;
+    pushAssumptionToEnvironmentVisitor = pPushAssumptionToEnvironmentVisitor;
+    evaluationVisitor = pEvaluationVisitor;
+    environment = pEnvironment;
+    compoundIntervalManagerFactory = pCompoundIntervalManagerFactory;
   }
 
   private CompoundInterval evaluate(NumeralFormula<CompoundInterval> pFormula) {
@@ -94,8 +91,9 @@ class PushValueToEnvironmentVisitor
 
   private CompoundIntervalManager getCompoundIntervalManager(Typed pBitVectorType) {
     TypeInfo typeInfo = pBitVectorType.getTypeInfo();
-    if (compoundIntervalManagerFactory instanceof CompoundBitVectorIntervalManagerFactory) {
-      CompoundBitVectorIntervalManagerFactory compoundBitVectorIntervalManagerFactory = (CompoundBitVectorIntervalManagerFactory) compoundIntervalManagerFactory;
+    if (compoundIntervalManagerFactory
+        instanceof
+        CompoundBitVectorIntervalManagerFactory compoundBitVectorIntervalManagerFactory) {
       return compoundBitVectorIntervalManagerFactory.createCompoundIntervalManager(typeInfo, false);
     }
     return compoundIntervalManagerFactory.createCompoundIntervalManager(typeInfo);
@@ -118,17 +116,25 @@ class PushValueToEnvironmentVisitor
     final CompoundInterval pushRightValue;
 
     TypeInfo typeInfo = pAdd.getTypeInfo();
-    if (typeInfo instanceof BitVectorInfo && pAdd.getTypeInfo().isSigned()) {
-      BitVectorInfo bitVectorInfo = (BitVectorInfo) typeInfo;
+    if (typeInfo instanceof BitVectorInfo bitVectorInfo && pAdd.getTypeInfo().isSigned()) {
       BitVectorInfo extendedType = bitVectorInfo.extend(1);
 
-      CompoundInterval extendedRange = cim.cast(extendedType, CompoundBitVectorInterval.of(bitVectorInfo.getRange()));
+      CompoundInterval extendedRange =
+          cim.cast(extendedType, CompoundBitVectorInterval.of(bitVectorInfo.getRange()));
       CompoundInterval extendedLeftValue = cim.cast(extendedType, leftValue);
       CompoundInterval extendedRightValue = cim.cast(extendedType, rightValue);
       CompoundInterval extendedParameter = cim.cast(extendedType, parameter);
 
-      pushLeftValue = cim.cast(bitVectorInfo, cim.intersect(cim.add(extendedParameter, cim.negate(extendedRightValue)), extendedRange));
-      pushRightValue = cim.cast(bitVectorInfo, cim.intersect(cim.add(extendedParameter, cim.negate(extendedLeftValue)), extendedRange));
+      pushLeftValue =
+          cim.cast(
+              bitVectorInfo,
+              cim.intersect(
+                  cim.add(extendedParameter, cim.negate(extendedRightValue)), extendedRange));
+      pushRightValue =
+          cim.cast(
+              bitVectorInfo,
+              cim.intersect(
+                  cim.add(extendedParameter, cim.negate(extendedLeftValue)), extendedRange));
     } else {
       pushLeftValue = cim.add(parameter, cim.negate(rightValue));
       pushRightValue = cim.add(parameter, cim.negate(leftValue));
@@ -153,15 +159,7 @@ class PushValueToEnvironmentVisitor
     if (pParameter == null || pParameter.isBottom()) {
       return false;
     }
-    CompoundIntervalManager compoundIntervalManager = getCompoundIntervalManager(pNot);
-    CompoundInterval parameter = compoundIntervalManager.intersect(evaluate(pNot), pParameter);
-    if (parameter.isBottom()) {
-      return false;
-    }
-    if (!pNot.getFlipped().accept(this, parameter.invert())) {
-      return false;
-    }
-    return true;
+    return getCompoundIntervalManager(pNot).doIntersect(evaluate(pNot), pParameter);
   }
 
   @Override
@@ -205,14 +203,16 @@ class PushValueToEnvironmentVisitor
     CompoundInterval computedLeftValue = cim.multiply(parameter, rightValue);
     for (CompoundInterval interval : computedLeftValue.splitIntoIntervals()) {
       CompoundInterval borderA = interval;
-      CompoundInterval borderB = cim.add(borderA, cim.add(rightValue, cim.negate(rightValue.signum())));
+      CompoundInterval borderB =
+          cim.add(borderA, cim.add(rightValue, cim.negate(rightValue.signum())));
       computedLeftValue = cim.union(computedLeftValue, cim.span(borderA, borderB));
     }
 
     CompoundInterval pushLeftValue = cim.intersect(leftValue, computedLeftValue);
-    CompoundInterval pushRightValue = parameter.isSingleton() && parameter.contains(BigInteger.ZERO)
-        ? cim.allPossibleValues()
-        : cim.divide(leftValue, parameter);
+    CompoundInterval pushRightValue =
+        parameter.isSingleton() && parameter.contains(BigInteger.ZERO)
+            ? cim.allPossibleValues()
+            : cim.divide(leftValue, parameter);
     if (!pDivide.getNumerator().accept(this, pushLeftValue)
         || !pDivide.getDenominator().accept(this, pushRightValue)) {
       return false;
@@ -260,12 +260,10 @@ class PushValueToEnvironmentVisitor
       }
       return true;
     }
-    CompoundInterval pushLeftValue = compoundIntervalManager.divide(parameter, rightValue);
-    CompoundInterval pushRightValue = compoundIntervalManager.divide(parameter, leftValue);
-    if (!pMultiply.getFactor1().accept(this, pushLeftValue)
-        || !pMultiply.getFactor2().accept(this, pushRightValue)) {
-      return false;
-    }
+    // Here we could potentially check more precisely whether pMultiply may intersect pParameter
+    // by resolving the multiplication. But we cannot use divide() as it was used in the past
+    // because for bitvectors division is not the inverse of multiplication
+    // (because of truncation and overflows).
     return true;
   }
 
@@ -308,10 +306,13 @@ class PushValueToEnvironmentVisitor
 
     NumeralFormula<CompoundInterval> parameter =
         InvariantsFormulaManager.INSTANCE.asConstant(pUnion.getTypeInfo(), pParameter);
-    BooleanFormula<CompoundInterval> disjunctiveForm = LogicalNot.of(LogicalAnd.of(
-        LogicalNot.of(Equal.of(pUnion.getOperand1(), parameter)),
-        LogicalNot.of(Equal.of(pUnion.getOperand2(), parameter))));
-    return disjunctiveForm.accept(this.pushAssumptionToEnvironmentVisitor, BooleanConstant.<CompoundInterval>getTrue());
+    BooleanFormula<CompoundInterval> disjunctiveForm =
+        LogicalNot.of(
+            LogicalAnd.of(
+                LogicalNot.of(Equal.of(pUnion.getOperand1(), parameter)),
+                LogicalNot.of(Equal.of(pUnion.getOperand2(), parameter))));
+    return disjunctiveForm.accept(
+        pushAssumptionToEnvironmentVisitor, BooleanConstant.<CompoundInterval>getTrue());
   }
 
   @Override
@@ -368,12 +369,14 @@ class PushValueToEnvironmentVisitor
       return false;
     }
     if (positiveCaseIntersection.isBottom()) {
-       if (!conditionFormula.accept(pushAssumptionToEnvironmentVisitor, BooleanConstant.<CompoundInterval>getFalse())) {
-         return false;
-       }
+      if (!conditionFormula.accept(
+          pushAssumptionToEnvironmentVisitor, BooleanConstant.<CompoundInterval>getFalse())) {
+        return false;
+      }
     }
     if (negativeCaseIntersection.isBottom()) {
-      if (!conditionFormula.accept(pushAssumptionToEnvironmentVisitor, BooleanConstant.<CompoundInterval>getTrue())) {
+      if (!conditionFormula.accept(
+          pushAssumptionToEnvironmentVisitor, BooleanConstant.<CompoundInterval>getTrue())) {
         return false;
       }
     }
@@ -396,9 +399,8 @@ class PushValueToEnvironmentVisitor
     CompoundIntervalManager targetManager = getCompoundIntervalManager(pCast);
     TypeInfo targetInfo = pCast.getTypeInfo();
     TypeInfo sourceInfo = pCast.getCasted().getTypeInfo();
-    if (targetInfo instanceof BitVectorInfo && sourceInfo instanceof BitVectorInfo) {
-      BitVectorInfo targetBVInfo = (BitVectorInfo) targetInfo;
-      BitVectorInfo sourceBVInfo = (BitVectorInfo) sourceInfo;
+    if (targetInfo instanceof BitVectorInfo targetBVInfo
+        && sourceInfo instanceof BitVectorInfo sourceBVInfo) {
       if (targetBVInfo.getRange().contains(sourceBVInfo.getRange())) {
         if (!pCast.getCasted().accept(this, targetManager.cast(sourceInfo, pParameter))) {
           return false;
@@ -442,10 +444,10 @@ class PushValueToEnvironmentVisitor
    * Resolves the variable with the given name.
    *
    * @param pVariable the name of the variable.
-   *
    * @return the expression formula assigned to the variable.
    */
-  private NumeralFormula<CompoundInterval> getFromEnvironment(Variable<CompoundInterval> pVariable) {
+  private NumeralFormula<CompoundInterval> getFromEnvironment(
+      Variable<CompoundInterval> pVariable) {
     NumeralFormula<CompoundInterval> result = environment.get(pVariable.getMemoryLocation());
     if (result == null) {
       return InvariantsFormulaManager.INSTANCE.asConstant(
@@ -453,5 +455,4 @@ class PushValueToEnvironmentVisitor
     }
     return result;
   }
-
 }

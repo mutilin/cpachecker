@@ -9,6 +9,7 @@
 package org.sosy_lab.cpachecker.cpa.smg.refiner;
 
 import com.google.common.collect.ImmutableSet;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -17,14 +18,16 @@ import org.sosy_lab.cpachecker.cfa.model.CFANode;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.cpa.smg.SMGAbstractionBlock;
 import org.sosy_lab.cpachecker.cpa.smg.refiner.SMGInterpolant.SMGPrecisionIncrement;
-import org.sosy_lab.cpachecker.cpa.smg.util.PersistentMultimap;
 import org.sosy_lab.cpachecker.util.predicates.BlockOperator;
+import org.sosy_lab.cpachecker.util.smg.datastructures.PersistentMultimap;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 public abstract class SMGPrecision implements Precision {
 
   private final SMGPrecisionAbstractionOptions options;
   private final int maxLength;
+
+  @SuppressFBWarnings("SS_SHOULD_BE_STATIC") // TODO
   private final int threshold = 0; // TODO always zero??
 
   protected SMGPrecision(SMGPrecisionAbstractionOptions pOptions) {
@@ -81,11 +84,8 @@ public abstract class SMGPrecision implements Precision {
 
   @Override
   public boolean equals(Object o) {
-    if (!(o instanceof SMGPrecision)) {
-      return false;
-    }
-    SMGPrecision other = (SMGPrecision) o;
-    return threshold == other.threshold
+    return o instanceof SMGPrecision other
+        && threshold == other.threshold
         && maxLength == other.maxLength
         && options.equals(other.options);
   }
@@ -134,9 +134,11 @@ public abstract class SMGPrecision implements Precision {
       for (Entry<CFANode, SMGPrecisionIncrement> entry : pPrecisionIncrement.entrySet()) {
         SMGPrecisionIncrement inc = entry.getValue();
         CFANode cfaNode = entry.getKey();
-        resultAbstractionBlocks = resultAbstractionBlocks.putAllAndCopy(cfaNode, inc.getAbstractionBlock());
+        resultAbstractionBlocks =
+            resultAbstractionBlocks.putAllAndCopy(cfaNode, inc.getAbstractionBlock());
         resultMemoryPaths = resultMemoryPaths.putAllAndCopy(cfaNode, inc.getPathsToTrack());
-        resultStackVariables = resultStackVariables.putAllAndCopy(cfaNode, inc.getStackVariablesToTrack());
+        resultStackVariables =
+            resultStackVariables.putAllAndCopy(cfaNode, inc.getStackVariablesToTrack());
       }
 
       return new SMGRefineablePrecision(
@@ -175,18 +177,20 @@ public abstract class SMGPrecision implements Precision {
 
     @Override
     public String toString() {
-      return "SMGRefineablePrecision [trackedMemoryPaths=" + trackedMemoryPaths
-          + ", trackedStackVariables=" + trackedStackVariables + ", abstractionBlocks="
-          + abstractionBlocks + "]";
+      return "SMGRefineablePrecision [trackedMemoryPaths="
+          + trackedMemoryPaths
+          + ", trackedStackVariables="
+          + trackedStackVariables
+          + ", abstractionBlocks="
+          + abstractionBlocks
+          + "]";
     }
 
     @Override
     public boolean equals(Object o) {
-      if (!(o instanceof SMGRefineablePrecision) && !super.equals(o)) {
-        return false;
-      }
-      SMGRefineablePrecision other = (SMGRefineablePrecision) o;
-      return trackedMemoryPaths.equals(other.trackedMemoryPaths)
+      return o instanceof SMGRefineablePrecision other
+          && super.equals(o)
+          && trackedMemoryPaths.equals(other.trackedMemoryPaths)
           && trackedStackVariables.equals(other.trackedStackVariables)
           && abstractionBlocks.equals(other.abstractionBlocks);
     }
@@ -261,8 +265,8 @@ public abstract class SMGPrecision implements Precision {
     private final boolean fieldAbstraction;
     private final boolean stackAbstraction;
 
-    public SMGPrecisionAbstractionOptions(boolean pHeapAbstraction, boolean pFieldAbstraction,
-        boolean pStackAbstraction) {
+    public SMGPrecisionAbstractionOptions(
+        boolean pHeapAbstraction, boolean pFieldAbstraction, boolean pStackAbstraction) {
       heapAbstraction = pHeapAbstraction;
       fieldAbstraction = pFieldAbstraction;
       stackAbstraction = pStackAbstraction;
@@ -287,17 +291,21 @@ public abstract class SMGPrecision implements Precision {
 
     @Override
     public boolean equals(Object obj) {
-      if (!(obj instanceof SMGPrecisionAbstractionOptions)) { return false; }
-      SMGPrecisionAbstractionOptions other = (SMGPrecisionAbstractionOptions) obj;
-      return fieldAbstraction == other.fieldAbstraction
+      return obj instanceof SMGPrecisionAbstractionOptions other
+          && fieldAbstraction == other.fieldAbstraction
           && heapAbstraction == other.heapAbstraction
           && stackAbstraction == other.stackAbstraction;
     }
 
     @Override
     public String toString() {
-      return "SMGPrecisionAbstractionOptions [heapAbstraction=" + heapAbstraction
-          + ", fieldAbstraction=" + fieldAbstraction + ", stackAbstraction=" + stackAbstraction + "]";
+      return "SMGPrecisionAbstractionOptions [heapAbstraction="
+          + heapAbstraction
+          + ", fieldAbstraction="
+          + fieldAbstraction
+          + ", stackAbstraction="
+          + stackAbstraction
+          + "]";
     }
   }
 }

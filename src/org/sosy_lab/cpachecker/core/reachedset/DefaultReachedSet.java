@@ -53,12 +53,12 @@ class DefaultReachedSet implements ReachedSet {
 
   @Override
   public void add(AbstractState state, Precision precision) {
-    add(state, precision, /*updateWaitlist=*/ true);
+    add(state, precision, /* updateWaitlist= */ true);
   }
 
   @Override
   public void addNoWaitlist(AbstractState state, Precision precision) {
-    add(state, precision, /*updateWaitlist=*/ false);
+    add(state, precision, /* updateWaitlist= */ false);
   }
 
   private void add(AbstractState state, Precision precision, boolean updateWaitlist) {
@@ -100,7 +100,9 @@ class DefaultReachedSet implements ReachedSet {
         // (a method shouldn't change state if it throws an IAE).
         reached.put(state, previousPrecision);
 
-        throw new IllegalArgumentException("State added to reached set which is already contained, but with a different precision");
+        throw new IllegalArgumentException(
+            "State added to reached set which is already contained, but with a different"
+                + " precision");
       }
     }
   }
@@ -132,7 +134,8 @@ class DefaultReachedSet implements ReachedSet {
       // State was not contained in the reached set.
       // Restore previous state and throw exception.
       reached.remove(s);
-      throw new IllegalArgumentException("State needs to be in the reached set in order to change the precision.");
+      throw new IllegalArgumentException(
+          "State needs to be in the reached set in order to change the precision.");
     }
   }
 
@@ -240,10 +243,7 @@ class DefaultReachedSet implements ReachedSet {
 
       @Override
       public boolean contains(Object obj) {
-        if (!(obj instanceof AbstractState)) {
-          return false;
-        }
-        return waitlist.contains((AbstractState)obj);
+        return obj instanceof AbstractState && waitlist.contains((AbstractState) obj);
       }
 
       @Override

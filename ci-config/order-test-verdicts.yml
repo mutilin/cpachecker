@@ -1,12 +1,12 @@
--predicateAnalysis-threadmodular:
+--predicateAnalysis-threadmodular:
   test/programs/cpalockator/order/order-1-false.c: 'FALSE'
   test/programs/cpalockator/order/order-1-true.c: 'FALSE'
   test/programs/cpalockator/order/order-2-false.c: 'FALSE'
   test/programs/cpalockator/order/order-2-true.c: 'FALSE'
   test/programs/cpalockator/order/order-3-false.c: 'FALSE'
   test/programs/cpalockator/order/order-3-true.c: 'FALSE'
--predicateAnalysis-tm-ta:
-  extends: -predicateAnalysis-threadmodular
+--predicateAnalysis-tm-ta:
+  extends: --predicateAnalysis-threadmodular
   test/programs/cpalockator/order/order-1-true.c: 'TRUE'
   test/programs/cpalockator/order/order-2-true.c: 'TRUE'
   test/programs/cpalockator/order/order-3-true.c: 'TRUE'

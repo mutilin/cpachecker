@@ -36,8 +36,9 @@ import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 
 @Options(prefix = "cpa.lock")
 public class LockCPA extends AbstractCPA
-    implements ConfigurableProgramAnalysisWithBAM, StatisticsProvider,
-    ConfigurableProgramAnalysisTM {
+    implements ConfigurableProgramAnalysisWithBAM,
+        StatisticsProvider,
+        ConfigurableProgramAnalysisTM {
 
   public enum LockAnalysisMode {
     RACE,
@@ -66,11 +67,11 @@ public class LockCPA extends AbstractCPA
   private boolean refinement = false;
 
   @Option(
-    secure = true,
-    name = "merge",
-    toUppercase = true,
-    values = {"SEP", "JOIN"},
-    description = "which merge operator to use for LockCPA")
+      secure = true,
+      name = "merge",
+      toUppercase = true,
+      values = {"SEP", "JOIN"},
+      description = "which merge operator to use for LockCPA")
   private String mergeType = "SEP";
 
   private final LockReducer reducer;
@@ -91,17 +92,12 @@ public class LockCPA extends AbstractCPA
 
   @Override
   public AbstractState getInitialState(CFANode node, StateSpacePartition pPartition) {
-    switch (analysisMode) {
-      case RACE:
-        return new LockState();
-
-      case DEADLOCK:
-        return new DeadLockState();
-
-      default:
-        // The analysis should fail at CPA creation
-        throw new UnsupportedOperationException("Unsupported analysis mode");
-    }
+    return switch (analysisMode) {
+      case RACE -> new LockState();
+      case DEADLOCK -> new DeadLockState();
+      default -> // The analysis should fail at CPA creation
+          throw new UnsupportedOperationException("Unsupported analysis mode");
+    };
   }
 
   @Override
@@ -116,32 +112,22 @@ public class LockCPA extends AbstractCPA
 
   @Override
   public MergeOperator getMergeOperator() {
-    switch (mergeType) {
-      case "SEP":
-        return MergeSepOperator.getInstance();
-
-      case "JOIN":
-        return new MergeJoinOperator(getAbstractDomain());
-
-      default:
-        // The analysis should fail at CPA creation
-        throw new UnsupportedOperationException("Unsupported merge type");
-    }
+    return switch (mergeType) {
+      case "SEP" -> MergeSepOperator.getInstance();
+      case "JOIN" -> new MergeJoinOperator(getAbstractDomain());
+      default -> // The analysis should fail at CPA creation
+          throw new UnsupportedOperationException("Unsupported merge type");
+    };
   }
 
   @Override
   public StopOperator getStopOperator() {
-    switch (stopMode) {
-      case DEFAULT:
-        return buildStopOperator("SEP");
-
-      case EMPTYLOCKSET:
-        return new LockStopOperator();
-
-      default:
-        // The analysis should fail at CPA creation
-        throw new UnsupportedOperationException("Unsupported stop mode");
-    }
+    return switch (stopMode) {
+      case DEFAULT -> buildStopOperator("SEP");
+      case EMPTYLOCKSET -> new LockStopOperator();
+      default -> // The analysis should fail at CPA creation
+          throw new UnsupportedOperationException("Unsupported stop mode");
+    };
   }
 
   @Override

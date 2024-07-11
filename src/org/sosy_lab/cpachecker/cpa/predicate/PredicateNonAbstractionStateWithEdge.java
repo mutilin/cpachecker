@@ -28,14 +28,16 @@ import org.sosy_lab.cpachecker.cpa.predicate.PredicateAbstractState.NonAbstracti
 import org.sosy_lab.cpachecker.util.predicates.AbstractionFormula;
 import org.sosy_lab.cpachecker.util.predicates.pathformula.PathFormula;
 
-public class PredicateNonAbstractionStateWithEdge extends NonAbstractionState
+public final class PredicateNonAbstractionStateWithEdge extends NonAbstractionState
     implements AbstractStateWithEdge {
 
   private static final long serialVersionUID = -3840974182711165535L;
 
   private final AbstractEdge edge;
 
-  PredicateNonAbstractionStateWithEdge(PathFormula pF, AbstractionFormula pA,
+  PredicateNonAbstractionStateWithEdge(
+      PathFormula pF,
+      AbstractionFormula pA,
       PersistentMap<CFANode, Integer> pAbstractionLocations,
       AbstractEdge pEdge) {
     super(pF, pA, pAbstractionLocations);
@@ -64,5 +66,4 @@ public class PredicateNonAbstractionStateWithEdge extends NonAbstractionState
   public boolean isProjection() {
     return false;
   }
-
 }

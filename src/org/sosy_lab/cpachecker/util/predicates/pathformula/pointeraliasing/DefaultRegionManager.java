@@ -19,7 +19,7 @@ class DefaultRegionManager extends AbstractMemoryRegionManager implements Memory
     private final CType type;
 
     DefaultMemoryRegion(CType pType) {
-      this.type = pType;
+      type = pType;
     }
 
     @Override
@@ -50,10 +50,7 @@ class DefaultRegionManager extends AbstractMemoryRegionManager implements Memory
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
+      if (obj == null || getClass() != obj.getClass()) {
         return false;
       }
       DefaultMemoryRegion other = (DefaultMemoryRegion) obj;

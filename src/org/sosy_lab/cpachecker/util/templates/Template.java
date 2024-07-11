@@ -24,9 +24,7 @@ import org.sosy_lab.common.rationals.Rational;
 import org.sosy_lab.cpachecker.cfa.ast.c.CIdExpression;
 import org.sosy_lab.cpachecker.cfa.types.c.CSimpleType;
 
-/**
- * Linear expression over program variables.
- */
+/** Linear expression over program variables. */
 public final class Template {
   // todo: switch to MemoryLocation, additionally track type.
   private final LinearExpression<CIdExpression> linearExpression;
@@ -36,9 +34,7 @@ public final class Template {
         linearExpression.getMap().keySet(), s -> s.getDeclaration().getQualifiedName());
   }
 
-  /**
-   * Template type.
-   */
+  /** Template type. */
   public enum Kind {
     // Intervals.
     UPPER_BOUND, // +x
@@ -46,8 +42,8 @@ public final class Template {
 
     // Octagons.
     SUM, // +x+y
-    DIFFERENCE, //x-y
-    NEG_SUM_LOWER_BOUND, //-x-y
+    DIFFERENCE, // x-y
+    NEG_SUM_LOWER_BOUND, // -x-y
 
     // Everything else.
     COMPLEX
@@ -66,10 +62,10 @@ public final class Template {
   }
 
   public boolean isUnsigned() {
-    for (Entry<CIdExpression, Rational> e: linearExpression) {
+    for (Entry<CIdExpression, Rational> e : linearExpression) {
       CIdExpression expr = e.getKey();
-      CSimpleType type = (CSimpleType)expr.getExpressionType();
-      if (!type.isUnsigned()) {
+      CSimpleType type = (CSimpleType) expr.getExpressionType();
+      if (!type.hasUnsignedSpecifier()) {
         return false;
       }
     }
@@ -80,8 +76,8 @@ public final class Template {
     for (Entry<CIdExpression, Rational> e : linearExpression) {
       Rational coeff = e.getValue();
       CIdExpression id = e.getKey();
-      if (!(coeff.isIntegral() &&
-          ((CSimpleType)id.getExpressionType()).getType().isIntegerType())) {
+      if (!(coeff.isIntegral()
+          && ((CSimpleType) id.getExpressionType()).getType().isIntegerType())) {
         return false;
       }
     }
@@ -94,8 +90,7 @@ public final class Template {
 
   private static Kind getKind(LinearExpression<CIdExpression> expr) {
     int s = expr.size();
-    if (s == 1
-        && Objects.equals(Iterables.getOnlyElement(expr).getValue(), Rational.ONE)) {
+    if (s == 1 && Objects.equals(Iterables.getOnlyElement(expr).getValue(), Rational.ONE)) {
 
       return Kind.UPPER_BOUND;
     } else if (s == 1
@@ -108,8 +103,7 @@ public final class Template {
       Rational b = it.next().getValue();
       if (Objects.equals(a, Rational.ONE) && Objects.equals(b, Rational.ONE)) {
         return Kind.SUM;
-      } else if (Objects.equals(a, Rational.NEG_ONE)
-          && Objects.equals(b, Rational.NEG_ONE)) {
+      } else if (Objects.equals(a, Rational.NEG_ONE) && Objects.equals(b, Rational.NEG_ONE)) {
         return Kind.NEG_SUM_LOWER_BOUND;
       } else if ((Objects.equals(a, Rational.ONE) && Objects.equals(b, Rational.NEG_ONE))
           || (Objects.equals(a, Rational.NEG_ONE) && Objects.equals(b, Rational.ONE))) {
@@ -124,10 +118,7 @@ public final class Template {
     if (this == o) {
       return true;
     }
-    if (o == null) {
-      return false;
-    }
-    if (o.getClass() != this.getClass()) {
+    if (o == null || getClass() != o.getClass()) {
       return false;
     }
     Template other = (Template) o;
@@ -138,7 +129,6 @@ public final class Template {
   public int hashCode() {
     return linearExpression.hashCode();
   }
-
 
   public int size() {
     return linearExpression.size();

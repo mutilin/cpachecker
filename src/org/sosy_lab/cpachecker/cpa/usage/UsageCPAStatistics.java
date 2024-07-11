@@ -38,16 +38,15 @@ public class UsageCPAStatistics implements Statistics {
   }
 
   @Option(
-    name = "outputType",
-    description = "all variables should be printed to the one file or to the different",
-    secure = true
-  )
+      name = "outputType",
+      description = "all variables should be printed to the one file or to the different",
+      secure = true)
   private OutputFileType outputFileType = OutputFileType.KLEVER;
 
   @Option(
-    name = "printUnsafesIfUnknown",
-    description = "print found unsafes in case of unknown verdict",
-    secure = true)
+      name = "printUnsafesIfUnknown",
+      description = "print found unsafes in case of unknown verdict",
+      secure = true)
   private boolean printUnsafesInCaseOfUnknown = true;
 
   /* Previous container is used when internal time limit occurs
@@ -77,13 +76,11 @@ public class UsageCPAStatistics implements Statistics {
   final StatTimer mergeTimer = new StatTimer("Time for merge operator");
   private final StatTimer printStatisticsTimer = new StatTimer("Time for printing statistics");
   private final StatTimer printUnsafesTimer = new StatTimer("Time for unsafes printing");
+
   // public final StatCounter numberOfStatesCounter = new StatCounter("Number of states");
 
   public UsageCPAStatistics(
-      Configuration pConfig,
-      LogManager pLogger,
-      CFA pCfa,
-      List<WitnessNoteProvider> pProviders)
+      Configuration pConfig, LogManager pLogger, CFA pCfa, List<WitnessNoteProvider> pProviders)
       throws InvalidConfigurationException {
     pConfig.inject(this);
     logger = pLogger;
@@ -98,13 +95,14 @@ public class UsageCPAStatistics implements Statistics {
       final PrintStream out, final Result result, final UnmodifiableReachedSet reached) {
 
     StatisticsWriter writer = StatisticsWriter.writingStatisticsTo(out);
-    writer.put(transferRelationTimer)
+    writer
+        .put(transferRelationTimer)
         .beginLevel()
         .put(transferForEdgeTimer)
         .beginLevel()
         .put(checkForSkipTimer)
-          .put(bindingTimer)
-          .put(innerAnalysisTimer)
+        .put(bindingTimer)
+        .put(innerAnalysisTimer)
         .endLevel()
         .endLevel()
         .put(precTimer)
@@ -124,16 +122,12 @@ public class UsageCPAStatistics implements Statistics {
     if (printUnsafesInCaseOfUnknown || result != Result.UNKNOWN) {
       printUnsafesTimer.start();
       try {
-        switch (outputFileType) {
-          case KLEVER3:
-            errPrinter = new Klever3ErrorTracePrinter(config, computer, cfa, logger, providers);
-            break;
-          case KLEVER:
-            errPrinter = new KleverErrorTracePrinter(config, computer, cfa, logger, providers);
-            break;
-          default:
-            throw new UnsupportedOperationException("Unknown type " + outputFileType);
-        }
+        errPrinter =
+            switch (outputFileType) {
+              case KLEVER3 ->
+                  new Klever3ErrorTracePrinter(config, computer, cfa, logger, providers);
+              case KLEVER -> new KleverErrorTracePrinter(config, computer, cfa, logger, providers);
+            };
         errPrinter.printErrorTraces(uReached);
         errPrinter.printStatistics(writer);
       } catch (InvalidConfigurationException e) {

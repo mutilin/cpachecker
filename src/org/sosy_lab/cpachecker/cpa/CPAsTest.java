@@ -40,6 +40,7 @@ import org.sosy_lab.common.configuration.converters.FileTypeConverter;
 import org.sosy_lab.common.log.LogManager;
 import org.sosy_lab.cpachecker.cfa.CFA;
 import org.sosy_lab.cpachecker.cfa.CFACreator;
+import org.sosy_lab.cpachecker.cfa.Language;
 import org.sosy_lab.cpachecker.cfa.model.FunctionEntryNode;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.CPAFactory;
@@ -71,8 +72,8 @@ import org.sosy_lab.cpachecker.cpa.termination.TerminationCPA;
 import org.sosy_lab.cpachecker.cpa.threadmodular.ThreadModularCPA;
 import org.sosy_lab.cpachecker.cpa.traceabstraction.TraceAbstractionCPA;
 import org.sosy_lab.cpachecker.cpa.usage.UsageCPA;
+import org.sosy_lab.cpachecker.cpa.witnessjoiner.WitnessJoinerCPA;
 import org.sosy_lab.cpachecker.exceptions.CPAException;
-import org.sosy_lab.cpachecker.exceptions.ParserException;
 import org.sosy_lab.cpachecker.util.test.TestDataTools;
 
 @RunWith(Parameterized.class)
@@ -108,6 +109,7 @@ public class CPAsTest {
     cpas.remove(FlowDependenceCPA.class);
     cpas.remove(SlicingCPA.class);
     cpas.remove(SLABCPA.class);
+    cpas.remove(WitnessJoinerCPA.class);
 
     cpas.remove(ARGReplayCPA.class); // needs ARG to be replayed
     cpas.remove(ABECPA.class); // Shouldn't be used by itself.
@@ -130,8 +132,7 @@ public class CPAsTest {
   private ConfigurableProgramAnalysis cpa;
 
   @BeforeClass
-  public static void setup()
-      throws ParserException, InvalidConfigurationException, IOException, InterruptedException {
+  public static void setup() throws Exception {
     FileTypeConverter fileTypeConverter =
         FileTypeConverter.create(
             Configuration.builder()
@@ -140,7 +141,7 @@ public class CPAsTest {
                 .build());
     Configuration.getDefaultConverters().put(FileOption.class, fileTypeConverter);
 
-    String cProgram = TestDataTools.getEmptyProgram(tempFolder, false);
+    String cProgram = TestDataTools.getEmptyProgram(tempFolder, Language.C);
 
     config =
         Configuration.builder()
@@ -165,8 +166,7 @@ public class CPAsTest {
   }
 
   @Before
-  public void instantiate()
-      throws ReflectiveOperationException, InvalidConfigurationException, CPAException {
+  public void instantiate() throws Exception {
     Method factoryMethod = cpaClass.getMethod("factory");
     final CPAFactory factory = (CPAFactory) factoryMethod.invoke(null);
 
@@ -202,7 +202,7 @@ public class CPAsTest {
       CPAFactory factory,
       AggregatedReachedSets aggregatedReachedSets,
       ReachedSetFactory reachedSetFactory)
-      throws InvalidConfigurationException, CPAException {
+      throws InvalidConfigurationException, CPAException, InterruptedException {
     return factory
         .setLogger(logManager)
         .setConfiguration(config)
@@ -212,7 +212,7 @@ public class CPAsTest {
         .set(Specification.alwaysSatisfied(), Specification.class)
         .set(aggregatedReachedSets, AggregatedReachedSets.class)
         .createInstance();
-    }
+  }
 
   @Test
   public void getInitialState() throws InterruptedException {

@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.c;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
@@ -15,13 +16,15 @@ import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 public final class CTypeIdExpression extends AbstractExpression implements CExpression {
 
-  private static final long serialVersionUID = -665995216646475799L;
+  @Serial private static final long serialVersionUID = -665995216646475799L;
   private final TypeIdOperator operator;
   private final CType type;
 
-  public CTypeIdExpression(final FileLocation pFileLocation,
-                              final CType pExpressionType, final TypeIdOperator pOperator,
-                              final CType pType) {
+  public CTypeIdExpression(
+      final FileLocation pFileLocation,
+      final CType pExpressionType,
+      final TypeIdOperator pOperator,
+      final CType pType) {
     super(pFileLocation, pExpressionType);
     operator = pOperator;
     type = pType;
@@ -67,16 +70,14 @@ public final class CTypeIdExpression extends AbstractExpression implements CExpr
       cRepresentation = pCRepresentation;
     }
 
-    /**
-     * Returns the string representation of this operator
-     */
+    /** Returns the string representation of this operator */
     public String getOperator() {
       return cRepresentation;
     }
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     return toASTString();
   }
 
@@ -96,15 +97,9 @@ public final class CTypeIdExpression extends AbstractExpression implements CExpr
       return true;
     }
 
-    if (!(obj instanceof CTypeIdExpression)
-        || !super.equals(obj)) {
-      return false;
-    }
-
-    CTypeIdExpression other = (CTypeIdExpression) obj;
-
-    return Objects.equals(other.operator, operator)
-            && Objects.equals(other.type, type);
+    return obj instanceof CTypeIdExpression other
+        && super.equals(obj)
+        && Objects.equals(other.operator, operator)
+        && Objects.equals(other.type, type);
   }
-
 }

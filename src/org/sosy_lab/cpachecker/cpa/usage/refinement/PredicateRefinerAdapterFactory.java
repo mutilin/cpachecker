@@ -113,12 +113,13 @@ public class PredicateRefinerAdapterFactory {
             transformer);
 
     ARGBasedRefiner delegate =
-        new PredicateCPARefinerFactory(cpa).setBlockFormulaStrategy(blockFormulaStrategy)
+        new PredicateCPARefinerFactory(cpa)
+            .setBlockFormulaStrategy(blockFormulaStrategy)
             .create(pStrategy);
 
     if (useTM) {
       delegate =
-        new ThreadModularCPARefiner(logger, pStrategy, predicateCpa.getConfiguration(), delegate);
+          new ThreadModularCPARefiner(logger, pStrategy, predicateCpa.getConfiguration(), delegate);
     }
 
     return new PredicateRefinerAdapter(wrapper, logger, pStrategy, delegate);
@@ -151,19 +152,15 @@ public class PredicateRefinerAdapterFactory {
 
     MemoryModelRefinementStrategy pStrategy =
         new MemoryModelRefinementStrategy(
-            newConfig,
-            logger,
-            predicateCpa.getPredicateManager(),
-            predicateCpa.getSolver());
+            newConfig, logger, predicateCpa.getPredicateManager(), predicateCpa.getSolver());
 
     BlockFormulaStrategy blockFormulaStrategy =
         new MemoryModelBlockFormulaStrategy(
-            predicateCpa.getSolver().getFormulaManager(),
-            pfmgr,
-            pStrategy);
+            predicateCpa.getSolver().getFormulaManager(), pfmgr, pStrategy);
 
     ARGBasedRefiner refiner =
-        new PredicateCPARefinerFactory(cpa).setBlockFormulaStrategy(blockFormulaStrategy)
+        new PredicateCPARefinerFactory(cpa)
+            .setBlockFormulaStrategy(blockFormulaStrategy)
             .create(pStrategy);
 
     return new MemoryModelRefiner(wrapper, refiner, pStrategy);

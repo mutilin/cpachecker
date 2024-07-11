@@ -119,8 +119,7 @@ public class SMTHeapReadAndWriteTest extends SMTHeapBasedTest0 {
     BooleanFormula atom =
         mgrv.assignment(
             bvmgr.makeVariable(3, TEST_VAR_NAME_PRE + 3), bvmgr.makeBitvector(3, 0b101L));
-    this.assertThatFormula(bmgr.and(wroteArrayFormula, readResultFormula))
-        .isEquisatisfiableTo(atom);
+    assertThatFormula(bmgr.and(wroteArrayFormula, readResultFormula)).isEquisatisfiableTo(atom);
   }
 
   @Test
@@ -134,7 +133,7 @@ public class SMTHeapReadAndWriteTest extends SMTHeapBasedTest0 {
     BooleanFormula atom =
         mgrv.assignment(
             bvmgr.makeVariable(8, TEST_VAR_NAME_PRE + 8), bvmgr.makeBitvector(8, 0b10100110L));
-    this.assertThatFormula(bmgr.and(wroteArrayFormula, wroteArrayFormula2, readResultFormula))
+    assertThatFormula(bmgr.and(wroteArrayFormula, wroteArrayFormula2, readResultFormula))
         .isEquisatisfiableTo(atom);
   }
 
@@ -152,7 +151,7 @@ public class SMTHeapReadAndWriteTest extends SMTHeapBasedTest0 {
         mgrv.assignment(bvmgr.makeVariable(length, TEST_VAR_NAME_PRE + length), value);
     BooleanFormula wroteArrayFormula = storeBitVector(value);
     final BooleanFormula readResultFormula = readBitVector(length);
-    this.assertThatFormula(bmgr.and(wroteArrayFormula, readResultFormula))
+    assertThatFormula(bmgr.and(wroteArrayFormula, readResultFormula))
         .isEquisatisfiableTo(atom); // =and(result, not(atom)).isUnsatisfiable()
   }
 
@@ -174,15 +173,11 @@ public class SMTHeapReadAndWriteTest extends SMTHeapBasedTest0 {
   }
 
   private String getHeapSymbolName(int length) {
-    switch (heapToUse) {
-      case SINGLE_BYTE_ARRAY:
-        return TEST_TARGET_PRE + model.getSizeofPtrInBits();
-      case ARRAYS:
-      case UF:
-        return TEST_TARGET_PRE + model.getSizeofPtrInBits() + "_" + length;
-      default:
-        throw new AssertionError();
-    }
+    return switch (heapToUse) {
+      case SINGLE_BYTE_ARRAY -> TEST_TARGET_PRE + model.getSizeofPtrInBits();
+      case ARRAYS, UF -> TEST_TARGET_PRE + model.getSizeofPtrInBits() + "_" + length;
+      default -> throw new AssertionError();
+    };
   }
 
   @Override

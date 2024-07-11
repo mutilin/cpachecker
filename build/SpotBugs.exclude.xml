@@ -9,6 +9,8 @@ SPDX-License-Identifier: Apache-2.0
 -->
 
 <FindBugsFilter>
+    <!-- Exceptions from constructors are not really a problem because we do not use finalizers -->
+    <Match><Bug pattern="CT_CONSTRUCTOR_THROW"/></Match>
     <!-- Strange false alarms -->
     <Match><Bug pattern="EQ_UNUSUAL"/></Match>
     <!-- evil hack for tm analysis: state with edge extends serializable class -->

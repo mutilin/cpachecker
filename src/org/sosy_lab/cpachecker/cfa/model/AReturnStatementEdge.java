@@ -17,7 +17,6 @@ import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 
 public class AReturnStatementEdge extends AbstractCFAEdge {
 
-  private static final long serialVersionUID = -6181479727890105919L;
   protected final AReturnStatement returnStatement;
 
   protected AReturnStatementEdge(
@@ -62,7 +61,6 @@ public class AReturnStatementEdge extends AbstractCFAEdge {
   @Override
   public FunctionExitNode getSuccessor() {
     // the constructor enforces that the successor is always a FunctionExitNode
-    return (FunctionExitNode)super.getSuccessor();
+    return (FunctionExitNode) super.getSuccessor();
   }
-
 }

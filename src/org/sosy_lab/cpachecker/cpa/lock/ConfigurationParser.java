@@ -38,16 +38,15 @@ public class ConfigurationParser {
   private Set<String> lockinfo = ImmutableSet.of();
 
   @Option(
-    name = "annotate",
-    description = " annotated functions, which are known to works right",
-    secure = true
-  )
+      name = "annotate",
+      description = " annotated functions, which are known to works right",
+      secure = true)
   private Set<String> annotated;
 
   @Option(
-    name = "stopAfterLockLimit",
-    description = "stop path exploration if a lock limit is reached",
-    secure = true)
+      name = "stopAfterLockLimit",
+      description = "stop path exploration if a lock limit is reached",
+      secure = true)
   private boolean stopAfterLockLimit = true;
 
   ConfigurationParser(Configuration pConfig) throws InvalidConfigurationException {
@@ -91,11 +90,8 @@ public class ConfigurationParser {
   }
 
   @SuppressWarnings("deprecation")
-  private Map<String, Pair<AbstractLockEffect, LockIdParametrized>>
-      createMap(
-      String lockName,
-      String target,
-      AbstractLockEffect effect) {
+  private Map<String, Pair<AbstractLockEffect, LockIdParametrized>> createMap(
+      String lockName, String target, AbstractLockEffect effect) {
 
     String tmpString = config.getProperty(lockName + "." + target);
     if (tmpString != null) {
@@ -140,7 +136,7 @@ public class ConfigurationParser {
             fName, new AnnotationInfo(freeLocks, restoreLocks, resetLocks, captureLocks));
       }
     }
-    return annotatedfunctions.build();
+    return annotatedfunctions.buildOrThrow();
   }
 
   @SuppressWarnings("deprecation")

@@ -8,6 +8,7 @@
 
 package org.sosy_lab.cpachecker.core.defaults;
 
+import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.sosy_lab.cpachecker.core.interfaces.AbstractDomain;
@@ -17,9 +18,8 @@ import org.sosy_lab.cpachecker.core.interfaces.StopOperator;
 import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 /**
- * This is an abstract class for building CPAs. It uses the flat lattice domain
- * if no other domain is given, and the standard implementations for merge-(sep|join)
- * and stop-sep.
+ * This is an abstract class for building CPAs. It uses the flat lattice domain if no other domain
+ * is given, and the standard implementations for merge-(sep|join) and stop-sep.
  */
 public abstract class AbstractCPA implements ConfigurableProgramAnalysis {
 
@@ -34,21 +34,28 @@ public abstract class AbstractCPA implements ConfigurableProgramAnalysis {
     this(mergeType, stopType, new FlatLatticeDomain(), transfer);
   }
 
-  /** When using this constructor, you have to override the methods for getting Merge- and StopOperator.
-   * This can be useful for cases where the operators are configurable or are initialized lazily. */
+  /**
+   * When using this constructor, you have to override the methods for getting Merge- and
+   * StopOperator. This can be useful for cases where the operators are configurable or are
+   * initialized lazily.
+   */
   protected AbstractCPA(AbstractDomain domain, TransferRelation transfer) {
-    this.abstractDomain = domain;
-    this.mergeType = null;
-    this.stopType = null;
-    this.transferRelation = transfer;
+    abstractDomain = domain;
+    mergeType = null;
+    stopType = null;
+    transferRelation = transfer;
   }
 
   /** Use this constructor, if Merge- and StopOperator are fixed. */
-  protected AbstractCPA(String mergeType, String stopType, AbstractDomain domain, @Nullable TransferRelation transfer) {
-    this.abstractDomain = domain;
+  protected AbstractCPA(
+      String mergeType,
+      String stopType,
+      AbstractDomain domain,
+      @Nullable TransferRelation transfer) {
+    abstractDomain = domain;
     this.mergeType = mergeType;
     this.stopType = stopType;
-    this.transferRelation = transfer;
+    transferRelation = transfer;
   }
 
   @Override
@@ -62,16 +69,11 @@ public abstract class AbstractCPA implements ConfigurableProgramAnalysis {
   }
 
   protected MergeOperator buildMergeOperator(String pMergeType) {
-    switch (pMergeType.toUpperCase()) {
-      case "SEP":
-        return MergeSepOperator.getInstance();
-
-      case "JOIN":
-        return new MergeJoinOperator(getAbstractDomain());
-
-      default:
-        throw new AssertionError("unknown merge operator");
-    }
+    return switch (Ascii.toUpperCase(pMergeType)) {
+      case "SEP" -> MergeSepOperator.getInstance();
+      case "JOIN" -> new MergeJoinOperator(getAbstractDomain());
+      default -> throw new AssertionError("unknown merge operator");
+    };
   }
 
   @Override
@@ -80,25 +82,19 @@ public abstract class AbstractCPA implements ConfigurableProgramAnalysis {
   }
 
   protected StopOperator buildStopOperator(String pStopType) throws AssertionError {
-    switch (pStopType.toUpperCase()) {
-      case "SEP": // state is LESS_OR_EQUAL to any reached state
-        return new StopSepOperator(getAbstractDomain());
-
-      case "JOIN": // state is LESS_OR_EQUAL to the union of all reached state
-        return new StopJoinOperator(getAbstractDomain());
-
-      case "NEVER": // always FALSE
-        return new StopNeverOperator();
-
-      case "ALWAYS": // always TRUE
-        return new StopAlwaysOperator();
-
-      case "EQUALS": // state is EQUAL to any reached state
-        return new StopEqualsOperator();
-
-      default:
-        throw new AssertionError("unknown stop operator");
-    }
+    return switch (Ascii.toUpperCase(pStopType)) {
+      case "SEP" -> // state is LESS_OR_EQUAL to any reached state
+          new StopSepOperator(getAbstractDomain());
+      case "JOIN" -> // state is LESS_OR_EQUAL to the union of all reached state
+          new StopJoinOperator(getAbstractDomain());
+      case "NEVER" -> // always FALSE
+          new StopNeverOperator();
+      case "ALWAYS" -> // always TRUE
+          new StopAlwaysOperator();
+      case "EQUALS" -> // state is EQUAL to any reached state
+          new StopEqualsOperator();
+      default -> throw new AssertionError("unknown stop operator");
+    };
   }
 
   @Override

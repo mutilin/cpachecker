@@ -13,6 +13,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.sosy_lab.common.collect.Collections3.transformedImmutableListCopy;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Ascii;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
 import com.google.common.collect.ImmutableList;
@@ -178,7 +179,7 @@ class ASTConverter {
           .put("java.lang.Short", JBasicType.SHORT)
           .put("java.lang.Double", JBasicType.DOUBLE)
           .put("java.lang.Void", JBasicType.VOID)
-          .build();
+          .buildOrThrow();
 
   /**
    * Create a new AST Converter, which can be used to convert JDT AST Statements to CFA AST
@@ -334,7 +335,7 @@ class ASTConverter {
     if (methodBinding == null) {
       logger.log(Level.WARNING, "Could not resolve Binding for Method Declaration ");
       logger.log(Level.WARNING, md.getName());
-      return JMethodDeclaration.createUnresolvedMethodDeclaration();
+      return scope.getTypeHierarchy().getUnresolvableMethodDeclaration();
     }
 
     String methodName = NameConverter.convertName(methodBinding);
@@ -358,7 +359,7 @@ class ASTConverter {
       declaringClass = (JClassOrInterfaceType) declaringClassType;
     } else {
       // Create a dummy if type is Unspecified
-      declaringClass = JClassType.createUnresolvableType();
+      declaringClass = scope.getTypeHierarchy().getUnresolvableClassType();
     }
 
     return declaringClass;
@@ -387,7 +388,9 @@ class ASTConverter {
         l.getStartPosition(),
         l.getLength(),
         co.getLineNumber(l.getStartPosition()),
-        co.getLineNumber(l.getLength() + l.getStartPosition()));
+        co.getLineNumber(l.getLength() + l.getStartPosition()),
+        co.getColumnNumber(l.getStartPosition()),
+        co.getColumnNumber(l.getLength() + l.getStartPosition()));
   }
 
   /**
@@ -488,13 +491,13 @@ class ASTConverter {
     @SuppressWarnings("unchecked")
     ModifierBean mB = ModifierBean.getModifiers(vds.modifiers());
 
-    assert (!mB.isAbstract()) : "Local Variable has abstract modifier?";
-    assert (!mB.isNative()) : "Local Variable has native modifier?";
+    assert !mB.isAbstract() : "Local Variable has abstract modifier?";
+    assert !mB.isNative() : "Local Variable has native modifier?";
     assert (mB.getVisibility() == VisibilityModifier.NONE)
         : "Local Variable has Visibility modifier?";
-    assert (!mB.isStatic()) : "Local Variable has static modifier?";
-    assert (!mB.isStrictFp()) : "Local Variable has strictFp modifier?";
-    assert (!mB.isSynchronized()) : "Local Variable has synchronized modifier?";
+    assert !mB.isStatic() : "Local Variable has static modifier?";
+    assert !mB.isStrictFp() : "Local Variable has strictFp modifier?";
+    assert !mB.isSynchronized() : "Local Variable has synchronized modifier?";
 
     for (VariableDeclarationFragment vdf : variableDeclarationFragments) {
 
@@ -531,12 +534,12 @@ class ASTConverter {
     @SuppressWarnings("unchecked")
     ModifierBean mB = ModifierBean.getModifiers(d.modifiers());
 
-    assert (!mB.isAbstract) : "Local Variable has abstract modifier?";
-    assert (!mB.isNative) : "Local Variable has native modifier?";
-    assert (mB.visibility == VisibilityModifier.NONE) : "Local Variable has Visibility modifier?";
-    assert (!mB.isStatic) : "Local Variable has static modifier?";
-    assert (!mB.isStrictFp) : "Local Variable has strictFp modifier?";
-    assert (!mB.isSynchronized) : "Local Variable has synchronized modifier?";
+    assert !mB.isAbstract : "Local Variable has abstract modifier?";
+    assert !mB.isNative : "Local Variable has native modifier?";
+    assert mB.visibility == VisibilityModifier.NONE : "Local Variable has Visibility modifier?";
+    assert !mB.isStatic : "Local Variable has static modifier?";
+    assert !mB.isStrictFp : "Local Variable has strictFp modifier?";
+    assert !mB.isSynchronized : "Local Variable has synchronized modifier?";
 
     JInitializerExpression initializerExpression = null;
 
@@ -739,7 +742,7 @@ class ASTConverter {
                 (JClassType) getDeclaringClassType(binding));
 
       } else {
-        declaration = JConstructorDeclaration.createUnresolvedConstructorDeclaration();
+        declaration = scope.getTypeHierarchy().getUnresolvableConstructorDeclaration();
       }
     }
 
@@ -753,7 +756,10 @@ class ASTConverter {
 
       functionName =
           new JIdExpression(
-              getFileLocation(sCI), JClassType.createUnresolvableType(), name, declaration);
+              getFileLocation(sCI),
+              scope.getTypeHierarchy().getUnresolvableClassType(),
+              name,
+              declaration);
     }
 
     JIdExpression idExpression = (JIdExpression) functionName;
@@ -923,8 +929,7 @@ class ASTConverter {
 
     JMethodDeclaration declaration = null;
 
-    if (methodName instanceof JIdExpression) {
-      JIdExpression idExpression = (JIdExpression) methodName;
+    if (methodName instanceof JIdExpression idExpression) {
       String name = idExpression.getName();
       declaration = scope.lookupMethod(name);
 
@@ -959,7 +964,7 @@ class ASTConverter {
                 declaringClassType);
 
       } else {
-        declaration = JMethodDeclaration.createUnresolvedMethodDeclaration();
+        declaration = scope.getTypeHierarchy().getUnresolvableMethodDeclaration();
       }
     }
 
@@ -1027,13 +1032,13 @@ class ASTConverter {
     @SuppressWarnings("unchecked")
     ModifierBean mB = ModifierBean.getModifiers(vde.modifiers());
 
-    assert (!mB.isAbstract()) : "Local Variable has abstract modifier?";
-    assert (!mB.isNative()) : "Local Variable has native modifier?";
+    assert !mB.isAbstract() : "Local Variable has abstract modifier?";
+    assert !mB.isNative() : "Local Variable has native modifier?";
     assert (mB.getVisibility() == VisibilityModifier.NONE)
         : "Local Variable has Visibility modifier?";
-    assert (!mB.isStatic()) : "Local Variable has static modifier?";
-    assert (!mB.isStrictFp()) : "Local Variable has strictFp modifier?";
-    assert (!mB.isSynchronized()) : "Local Variable has synchronized modifier?";
+    assert !mB.isStatic() : "Local Variable has static modifier?";
+    assert !mB.isStrictFp() : "Local Variable has strictFp modifier?";
+    assert !mB.isSynchronized() : "Local Variable has synchronized modifier?";
 
     for (VariableDeclarationFragment vdf : variableDeclarationFragments) {
 
@@ -1450,13 +1455,13 @@ class ASTConverter {
     // If nothing found
     return new JConstructorDeclaration(
         getFileLocation(pCIC),
-        JConstructorType.createUnresolvableConstructorType(),
+        scope.getTypeHierarchy().getUnresolvableConstructorType(),
         fullName,
         simpleName,
         createJParameterDeclarationsForArguments(pCIC.arguments()),
         VisibilityModifier.NONE,
         false,
-        JClassType.createUnresolvableType());
+        scope.getTypeHierarchy().getUnresolvableClassType());
   }
 
   private JClassType createOrFindJClassTypeFromConstructor(final Constructor<?> pConstructor) {
@@ -1476,7 +1481,7 @@ class ASTConverter {
     return jClassTypeFromClass;
   }
 
-  public static JClassType createJClassTypeFromClass(
+  public JClassType createJClassTypeFromClass(
       final Class<?> pClazz,
       VisibilityModifier pVisibilityModifier,
       final TypeHierarchy pTypeHierarchy) {
@@ -1489,7 +1494,7 @@ class ASTConverter {
     final Class<?> superclass = pClazz.getSuperclass();
 
     JClassType jTypeOfSuperClass;
-    final JClassType typeOfObject = JClassType.getTypeOfObject();
+    final JClassType typeOfObject = scope.getTypeHierarchy().getClassTypeOfObject();
     if ("java.lang.Object".equals(superclass.getName())) {
       jTypeOfSuperClass = typeOfObject;
     } else {
@@ -1536,7 +1541,7 @@ class ASTConverter {
     String visibilityModifierString = pConstructor.toGenericString().substring(0, i);
 
     try {
-      visibilityModifier = VisibilityModifier.valueOf(visibilityModifierString.toUpperCase());
+      visibilityModifier = VisibilityModifier.valueOf(Ascii.toUpperCase(visibilityModifierString));
     } catch (IllegalArgumentException ignored) {
       visibilityModifier = VisibilityModifier.NONE;
     }
@@ -1573,7 +1578,7 @@ class ASTConverter {
     if (!matchingImportDeclaration.isPresent()) {
       try {
         cls = Class.forName("java.lang." + pClassName);
-      } catch (ClassNotFoundException pE) {
+      } catch (ClassNotFoundException e) {
         return Optional.empty();
       }
     } else {
@@ -1581,7 +1586,7 @@ class ASTConverter {
         cls =
             Class.forName(
                 matchingImportDeclaration.orElseThrow().getName().getFullyQualifiedName());
-      } catch (ClassNotFoundException pE) {
+      } catch (ClassNotFoundException e) {
         return Optional.empty();
       }
     }
@@ -1683,7 +1688,7 @@ class ASTConverter {
               Optional.of(
                   Class.forName(
                       matchingImportDeclaration.orElseThrow().getName().getFullyQualifiedName()));
-        } catch (ClassNotFoundException pE) {
+        } catch (ClassNotFoundException e) {
           cls = Optional.empty();
         }
       }
@@ -1691,7 +1696,7 @@ class ASTConverter {
         try {
           cls = Optional.of(Class.forName(jTypeName));
 
-        } catch (ClassNotFoundException pE) {
+        } catch (ClassNotFoundException e) {
           cls = Optional.empty();
         }
       }
@@ -1700,7 +1705,7 @@ class ASTConverter {
           final String className = "java.lang." + jTypeName;
           cls = Optional.of(Class.forName(className));
 
-        } catch (ClassNotFoundException pE) {
+        } catch (ClassNotFoundException e) {
 
           cls = Optional.empty();
         }
@@ -1728,38 +1733,19 @@ class ASTConverter {
 
   @VisibleForTesting
   static Class<?> getClassOfPrimitiveType(JSimpleType pJSimpleType) {
-    Class<?> cls;
-    switch (pJSimpleType.getType()) {
-      case BOOLEAN:
-        cls = boolean.class;
-        break;
-      case CHAR:
-        cls = char.class;
-        break;
-      case DOUBLE:
-        cls = double.class;
-        break;
-      case FLOAT:
-        cls = float.class;
-        break;
-      case INT:
-        cls = int.class;
-        break;
-      case VOID:
-        cls = void.class;
-        break;
-      case LONG:
-        cls = long.class;
-        break;
-      case SHORT:
-        cls = short.class;
-        break;
-      case BYTE:
-        cls = byte.class;
-        break;
-      default:
-        throw new AssertionError("Unknown primitive type " + pJSimpleType);
-    }
+    Class<?> cls =
+        switch (pJSimpleType.getType()) {
+          case BOOLEAN -> boolean.class;
+          case CHAR -> char.class;
+          case DOUBLE -> double.class;
+          case FLOAT -> float.class;
+          case INT -> int.class;
+          case VOID -> void.class;
+          case LONG -> long.class;
+          case SHORT -> short.class;
+          case BYTE -> byte.class;
+          default -> throw new AssertionError("Unknown primitive type " + pJSimpleType);
+        };
     return cls;
   }
 
@@ -2067,9 +2053,7 @@ class ASTConverter {
         String name = NameConverter.convertName((IMethodBinding) e.resolveBinding());
         return new JIdExpression(getFileLocation(e), convert(e.resolveTypeBinding()), name, null);
 
-      } else if (binding instanceof IVariableBinding) {
-
-        IVariableBinding vb = (IVariableBinding) binding;
+      } else if (binding instanceof IVariableBinding vb) {
 
         if (vb.isEnumConstant()) {
           // TODO Prototype for enum constant expression, investigate
@@ -2234,12 +2218,11 @@ class ASTConverter {
     JMethodDeclaration declaration = null;
     JExpression referencedVariableName = null;
 
-    if (mb != null && !mb.isStatic) {
+    if (mb != null && !mb.isStatic && mi.getExpression() != null) {
       referencedVariableName = convertExpressionWithoutSideEffects(mi.getExpression());
     }
 
-    if (methodName instanceof JIdExpression) {
-      JIdExpression idExpression = (JIdExpression) methodName;
+    if (methodName instanceof JIdExpression idExpression) {
       String name = idExpression.getName();
       declaration = scope.lookupMethod(name);
 
@@ -2274,7 +2257,7 @@ class ASTConverter {
                 declaringClassType);
 
       } else {
-        declaration = JMethodDeclaration.createUnresolvedMethodDeclaration();
+        declaration = scope.getTypeHierarchy().getUnresolvableMethodDeclaration();
       }
     }
 
@@ -2453,21 +2436,11 @@ class ASTConverter {
       return null;
 
     } else if (basicType != null) {
-      switch (basicType) {
-        case BOOLEAN:
-          return convertBooleanOperator(op); // might throw CFAGenerationRuntimeException
-
-        case BYTE:
-        case SHORT:
-        case INT:
-        case LONG:
-        case DOUBLE:
-        case FLOAT:
-          return convertNumberOperator(op); // might throw CFAGenerationRuntimeException
-
-        default:
-          throw new CFAGenerationRuntimeException(invalidTypeMsg);
-      }
+      return switch (basicType) {
+        case BOOLEAN -> convertBooleanOperator(op);
+        case BYTE, SHORT, INT, LONG, DOUBLE, FLOAT -> convertNumberOperator(op);
+        default -> throw new CFAGenerationRuntimeException(invalidTypeMsg);
+      };
 
     } else {
       throw new CFAGenerationRuntimeException(invalidTypeMsg);

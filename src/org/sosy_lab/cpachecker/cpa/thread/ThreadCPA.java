@@ -36,13 +36,14 @@ import org.sosy_lab.cpachecker.core.interfaces.TransferRelation;
 
 @Options(prefix = "cpa.thread")
 public class ThreadCPA extends AbstractCPA
-    implements ConfigurableProgramAnalysisWithBAM, StatisticsProvider,
-    ConfigurableProgramAnalysisTM {
+    implements ConfigurableProgramAnalysisWithBAM,
+        StatisticsProvider,
+        ConfigurableProgramAnalysisTM {
 
   public enum ThreadMode {
     SIMPLE,
     ENVIRONMENT,
-    BASE;
+    BASE
   }
 
   public enum SelfSupport {
@@ -59,6 +60,7 @@ public class ThreadCPA extends AbstractCPA
 
   @Option(secure = true, description = "Use aggressive reduction mode")
   private boolean useAggressiveReduction = false;
+
   private final ThreadCPAStatistics threadStatistics;
 
   public static CPAFactory factory() {
@@ -66,11 +68,7 @@ public class ThreadCPA extends AbstractCPA
   }
 
   public ThreadCPA(Configuration pConfig) throws InvalidConfigurationException {
-    super(
-        "sep",
-        "sep",
-        DelegateAbstractDomain.<ThreadState>getInstance(),
-        null);
+    super("sep", "sep", DelegateAbstractDomain.<ThreadState>getInstance(), null);
     pConfig.inject(this);
     threadStatistics = new ThreadCPAStatistics();
   }

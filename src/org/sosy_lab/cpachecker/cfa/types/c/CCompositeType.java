@@ -14,6 +14,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
+import java.io.Serial;
 import java.io.Serializable;
 import java.util.Iterator;
 import java.util.List;
@@ -22,7 +23,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class CCompositeType implements CComplexType {
 
-  private static final long serialVersionUID = -839957929135012583L;
+  @Serial private static final long serialVersionUID = -839957929135012583L;
   private final CComplexType.ComplexTypeKind kind;
   private @Nullable List<CCompositeTypeMemberDeclaration> members = null;
   private final String name;
@@ -39,8 +40,8 @@ public final class CCompositeType implements CComplexType {
 
     checkNotNull(pKind);
     checkArgument(pKind == ComplexTypeKind.STRUCT || pKind == ComplexTypeKind.UNION);
-    isConst= pConst;
-    isVolatile=pVolatile;
+    isConst = pConst;
+    isVolatile = pVolatile;
     kind = pKind;
     name = pName.intern();
     origName = pOrigName.intern();
@@ -59,15 +60,17 @@ public final class CCompositeType implements CComplexType {
   }
 
   private void checkMembers(List<CCompositeTypeMemberDeclaration> pMembers) {
-    for (Iterator<CCompositeTypeMemberDeclaration> it = pMembers.iterator(); it.hasNext();) {
+    for (Iterator<CCompositeTypeMemberDeclaration> it = pMembers.iterator(); it.hasNext(); ) {
       CCompositeTypeMemberDeclaration member = it.next();
       if (member.getType().isIncomplete()) {
-        checkArgument(kind == ComplexTypeKind.STRUCT,
-            "incomplete member %s in %s", member, this);
-        checkArgument(!it.hasNext(),
-            "incomplete member %s in non-last position of %s", member, this);
-        checkArgument(member.getType().getCanonicalType() instanceof CArrayType,
-            "incomplete non-array member %s in last position of %s", member, this);
+        checkArgument(kind == ComplexTypeKind.STRUCT, "incomplete member %s in %s", member, this);
+        checkArgument(
+            !it.hasNext(), "incomplete member %s in non-last position of %s", member, this);
+        checkArgument(
+            member.isFlexibleArrayMember(),
+            "incomplete non-array member %s in last position of %s",
+            member,
+            this);
       }
     }
   }
@@ -106,6 +109,23 @@ public final class CCompositeType implements CComplexType {
   @Override
   public boolean isIncomplete() {
     return false;
+  }
+
+  @Override
+  public boolean hasKnownConstantSize() {
+    // forbidden by C standard, but a GCC extension:
+    // https://gcc.gnu.org/onlinedocs/gcc/Variable-Length.html
+    for (Iterator<CCompositeTypeMemberDeclaration> it = getMembers().iterator(); it.hasNext(); ) {
+      CCompositeTypeMemberDeclaration member = it.next();
+      if (!member.getType().hasKnownConstantSize()) {
+        // special case: if this is a "flexible array member" as last member, then size is known
+        if (it.hasNext() || !member.isFlexibleArrayMember()) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   @Override
@@ -159,23 +179,19 @@ public final class CCompositeType implements CComplexType {
   }
 
   /**
-   * This is the declaration of a member of a composite type.
-   * It contains a type and an optional name.
+   * This is the declaration of a member of a composite type. It contains a type and an optional
+   * name.
    */
-  public static final class CCompositeTypeMemberDeclaration implements Serializable{
+  public static final class CCompositeTypeMemberDeclaration implements Serializable {
 
+    @Serial private static final long serialVersionUID = 8647666228796784933L;
+    private final CType type;
+    private final String name;
 
-
-    private static final long serialVersionUID = 8647666228796784933L;
-    private final CType    type;
-    private final String   name;
-
-    public CCompositeTypeMemberDeclaration(CType pType,
-                                           String pName) {
+    public CCompositeTypeMemberDeclaration(CType pType, String pName) {
 
       type = checkNotNull(pType);
       name = pName;
-
     }
 
     @Override
@@ -192,16 +208,12 @@ public final class CCompositeType implements CComplexType {
       if (this == obj) {
         return true;
       }
-      if (obj == null) {
-        return false;
-      }
-      if (getClass() != obj.getClass()) {
+      if (obj == null || getClass() != obj.getClass()) {
         return false;
       }
       CCompositeTypeMemberDeclaration other = (CCompositeTypeMemberDeclaration) obj;
-      return
-          Objects.equals(name, other.name) &&
-          type.getCanonicalType().equals(other.type.getCanonicalType());
+      return Objects.equals(name, other.name)
+          && type.getCanonicalType().equals(other.type.getCanonicalType());
     }
 
     public CType getType() {
@@ -210,6 +222,15 @@ public final class CCompositeType implements CComplexType {
 
     public String getName() {
       return name;
+    }
+
+    /**
+     * Whether this is a flexible array member as defined by § 6.7.2.1 (18). Such members are only
+     * allowed as last members of a struct.
+     */
+    public boolean isFlexibleArrayMember() {
+      return type.getCanonicalType() instanceof CArrayType arrayType
+          && arrayType.getLength() == null;
     }
 
     public String toASTString() {
@@ -232,7 +253,6 @@ public final class CCompositeType implements CComplexType {
     return isVolatile;
   }
 
-
   @Override
   public <R, X extends Exception> R accept(CTypeVisitor<R, X> pVisitor) throws X {
     return pVisitor.visit(this);
@@ -244,9 +264,9 @@ public final class CCompositeType implements CComplexType {
   }
 
   /**
-   * Be careful, this method compares the CType as it is to the given object,
-   * typedefs won't be resolved. If you want to compare the type without having
-   * typedefs in it use #getCanonicalType().equals()
+   * Be careful, this method compares the CType as it is to the given object, typedefs won't be
+   * resolved. If you want to compare the type without having typedefs in it use
+   * #getCanonicalType().equals()
    */
   @Override
   public boolean equals(@Nullable Object obj) {
@@ -254,14 +274,11 @@ public final class CCompositeType implements CComplexType {
       return true;
     }
 
-    if (!(obj instanceof CCompositeType)) {
-      return false;
-    }
-
-    CCompositeType other = (CCompositeType) obj;
-
-    return isConst == other.isConst && isVolatile == other.isVolatile
-           && kind == other.kind && Objects.equals(name, other.name);
+    return obj instanceof CCompositeType other
+        && isConst == other.isConst
+        && isVolatile == other.isVolatile
+        && kind == other.kind
+        && Objects.equals(name, other.name);
   }
 
   @Override
@@ -270,16 +287,11 @@ public final class CCompositeType implements CComplexType {
       return true;
     }
 
-    if (!(obj instanceof CCompositeType)) {
-      return false;
-    }
-
-    CCompositeType other = (CCompositeType) obj;
-
-    return isConst == other.isConst
-           && isVolatile == other.isVolatile
-           && kind == other.kind
-           && (Objects.equals(name, other.name) || (origName.isEmpty() && other.origName.isEmpty()));
+    return obj instanceof CCompositeType other
+        && isConst == other.isConst
+        && isVolatile == other.isVolatile
+        && kind == other.kind
+        && (Objects.equals(name, other.name) || (origName.isEmpty() && other.origName.isEmpty()));
   }
 
   @Override
@@ -292,8 +304,9 @@ public final class CCompositeType implements CComplexType {
     if ((isConst == pForceConst) && (isVolatile == pForceVolatile)) {
       return this;
     }
-    CCompositeType result = new CCompositeType(
-        isConst || pForceConst, isVolatile || pForceVolatile, kind, name, origName);
+    CCompositeType result =
+        new CCompositeType(
+            isConst || pForceConst, isVolatile || pForceVolatile, kind, name, origName);
     if (members != null) {
       result.setMembers(members);
     }

@@ -67,7 +67,6 @@ public enum StandardLiftings implements Lifting {
           pAssertionIds,
           DoNothingUnsatCallback.INSTANCE);
     }
-
   };
 
   public static <T extends SymbolicCandiateInvariant> SymbolicCandiateInvariant unsatBasedLifting(
@@ -124,11 +123,7 @@ public enum StandardLiftings implements Lifting {
       liftedBlockedCti = pBlockedCti;
     }
     // Pop all asserted literals
-    IntStream.range(0, pushes)
-        .forEach(
-            i -> {
-              pProver.pop();
-            });
+    IntStream.range(0, pushes).forEach(i -> pProver.pop());
     return liftedBlockedCti;
   }
 

@@ -45,16 +45,17 @@ public class RCUCPA extends AbstractCPA
     return AutomaticCPAFactory.forType(RCUCPA.class);
   }
 
-  protected RCUCPA(Configuration config, LogManager logger)
-      throws InvalidConfigurationException {
-    super("SEP", "SEP",
+  protected RCUCPA(Configuration config, LogManager logger) throws InvalidConfigurationException {
+    super(
+        "SEP",
+        "SEP",
         DelegateAbstractDomain.<RCUState>getInstance(),
         new RCUTransfer(config, logger));
   }
 
   @Override
-  public AbstractState getInitialState(
-      CFANode node, StateSpacePartition partition) throws InterruptedException {
+  public AbstractState getInitialState(CFANode node, StateSpacePartition partition)
+      throws InterruptedException {
     return new RCUState();
   }
 

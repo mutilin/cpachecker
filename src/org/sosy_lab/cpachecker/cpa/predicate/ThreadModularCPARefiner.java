@@ -58,10 +58,11 @@ import org.sosy_lab.cpachecker.util.statistics.StatisticsWriter;
 public class ThreadModularCPARefiner implements ARGBasedRefiner, StatisticsProvider {
 
   @Option(
-    secure = true,
-    description = "Instead of updating precision and arg we say that the refinement was not successful"
-        + " after N times of refining. A real error state is not necessary to be found. Use 0 for"
-        + " unlimited refinements (default).")
+      secure = true,
+      description =
+          "Instead of updating precision and arg we say that the refinement was not successful"
+              + " after N times of refining. A real error state is not necessary to be found. Use 0"
+              + " for unlimited refinements (default).")
   @IntegerOption(min = 0)
   private int stopAfterNRefinements = 0;
 
@@ -96,9 +97,9 @@ public class ThreadModularCPARefiner implements ARGBasedRefiner, StatisticsProvi
   }
 
   @Override
-  public CounterexampleInfo
-      performRefinementForPath(final ARGReachedSet pReached, final ARGPath allStatesTrace)
-          throws CPAException, InterruptedException {
+  public CounterexampleInfo performRefinementForPath(
+      final ARGReachedSet pReached, final ARGPath allStatesTrace)
+      throws CPAException, InterruptedException {
     totalTime.start();
     try {
 
@@ -117,8 +118,7 @@ public class ThreadModularCPARefiner implements ARGBasedRefiner, StatisticsProvi
         int initialSize = strategy.getSizeOfPrecision();
 
         delegatingTime.start();
-        counterexample =
-            delegate.performRefinementForPath(pReached, refinedPath);
+        counterexample = delegate.performRefinementForPath(pReached, refinedPath);
         delegatingTime.stop();
 
         if (envRefinement && strategy.getSizeOfPrecision() > initialSize) {
@@ -168,11 +168,12 @@ public class ThreadModularCPARefiner implements ARGBasedRefiner, StatisticsProvi
     }
   }
 
-  private ARGPath
-      modifyThePathWithEffects(ARGPath pRefinedPath, Collection<CFANode> pAffectedNodes) {
+  private ARGPath modifyThePathWithEffects(
+      ARGPath pRefinedPath, Collection<CFANode> pAffectedNodes) {
     List<ARGState> newStates = new ArrayList<>(pRefinedPath.asStatesList());
     List<CFANode> affectedNodes =
-        from(newStates).filter(s -> s.getAppliedFrom() != null)
+        from(newStates)
+            .filter(s -> s.getAppliedFrom() != null)
             .transform(s -> AbstractStates.extractLocation(s))
             .toList();
     Set<CFANode> nodesToAffect =
@@ -249,10 +250,7 @@ public class ThreadModularCPARefiner implements ARGBasedRefiner, StatisticsProvi
     @Override
     public void printStatistics(PrintStream out, Result result, UnmodifiableReachedSet reached) {
       StatisticsWriter w0 = writingStatisticsTo(out);
-      w0.put(totalTime)
-          .put(delegatingTime)
-          .put(modifingPathTime)
-          .put(numberOfUsefulRefinements);
+      w0.put(totalTime).put(delegatingTime).put(modifingPathTime).put(numberOfUsefulRefinements);
     }
 
     @Override

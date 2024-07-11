@@ -30,9 +30,7 @@ import org.sosy_lab.cpachecker.util.test.CPATestRunner;
 import org.sosy_lab.cpachecker.util.test.TestDataTools;
 import org.sosy_lab.cpachecker.util.test.TestResults;
 
-/**
- * Integration testing for Slicing Abstractions.
- */
+/** Integration testing for Slicing Abstractions. */
 @RunWith(Parameterized.class)
 public class SlicingAbstractionsTest {
 
@@ -40,19 +38,19 @@ public class SlicingAbstractionsTest {
   private static final String CONFIG_DIR_PATH = "config/";
 
   private static boolean isConfig(File pPathname) {
-          return ((pPathname.getName().contains("Kojak")
-                  || pPathname.getName().contains("SlicingAbstractions"))
-              && !pPathname.getName().contains("overflow"));
+    return ((pPathname.getName().contains("Kojak")
+            || pPathname.getName().contains("SlicingAbstractions"))
+        && !pPathname.getName().contains("overflow"));
   }
 
   private static boolean isSlabConfig(File pPathname) {
-      return pPathname.getName().contains("Slab");
+    return pPathname.getName().contains("Slab");
   }
 
   private static boolean isOverflowConfig(File pPathname) {
-          return ((pPathname.getName().contains("Kojak")
-                  || pPathname.getName().contains("SlicingAbstractions"))
-              && pPathname.getName().contains("overflow"));
+    return ((pPathname.getName().contains("Kojak")
+            || pPathname.getName().contains("SlicingAbstractions"))
+        && pPathname.getName().contains("overflow"));
   }
 
   private static final ImmutableMap<String, String> EMPTY_OPTIONS = ImmutableMap.of();
@@ -76,29 +74,29 @@ public class SlicingAbstractionsTest {
     File taskfolder = new File(TEST_DIR_PATH);
     List<Object> files =
         FluentIterable.from(taskfolder.listFiles())
-            .<Object>transform(x -> x.getName())
+            .<Object>transform(File::getName)
             .filter(x -> ((String) x).contains("unreach"))
             .toList();
     List<Object> overflowFiles =
         FluentIterable.from(taskfolder.listFiles())
-            .<Object>transform(x -> x.getName())
+            .<Object>transform(File::getName)
             .filter(x -> ((String) x).contains("overflow"))
             .toList();
 
     File configfolder = new File(CONFIG_DIR_PATH);
     List<Object> configs =
         FluentIterable.from(configfolder.listFiles(SlicingAbstractionsTest::isConfig))
-            .<Object>transform(x -> x.getName())
+            .<Object>transform(File::getName)
             .toList();
 
     List<Object> slabConfigs =
         FluentIterable.from(configfolder.listFiles(SlicingAbstractionsTest::isSlabConfig))
-            .<Object>transform(x -> x.getName())
+            .<Object>transform(File::getName)
             .toList();
 
     List<Object> overflowConfigs =
         FluentIterable.from(configfolder.listFiles(SlicingAbstractionsTest::isOverflowConfig))
-            .<Object>transform(x -> x.getName())
+            .<Object>transform(File::getName)
             .toList();
 
     List<Object> solverModes = ImmutableList.of(EMPTY_OPTIONS, LINEAR_OPTIONS);
@@ -110,8 +108,8 @@ public class SlicingAbstractionsTest {
     FluentIterable<Object[]> firstIterable =
         FluentIterable.from(
                 Lists.cartesianProduct(files, configs, solverModes, optimizeModes, minimalModes))
-            .transform(x -> repack(x))
-            .filter(x -> filter(x));
+            .transform(SlicingAbstractionsTest::repack)
+            .filter(SlicingAbstractionsTest::filter);
 
     FluentIterable<Object[]> secondIterable =
         FluentIterable.from(Lists.cartesianProduct(files, slabConfigs))
@@ -165,10 +163,10 @@ public class SlicingAbstractionsTest {
 
     // result[3] will contain a suitable name for the test to display
     String modeString =
-        ((String) x.get(1)).replace("predicateAnalysis-", "").replace(".properties", "");
-    modeString += (solverMode == EMPTY_OPTIONS) ? "-bitvector" : "-linear";
-    modeString += (optimizeMode == EMPTY_OPTIONS) ? "-optimized" : "-unoptimized";
-    modeString += (minimalMode == EMPTY_OPTIONS) ? "-maximal" : "-minimal";
+        ((String) x.get(1)).replace("predicateAnalysis-", "").replace(".properties", "")
+            + (solverMode == EMPTY_OPTIONS ? "-bitvector" : "-linear")
+            + (optimizeMode == EMPTY_OPTIONS ? "-optimized" : "-unoptimized")
+            + (minimalMode == EMPTY_OPTIONS ? "-maximal" : "-minimal");
     result[3] = modeString;
 
     return result;
@@ -183,7 +181,9 @@ public class SlicingAbstractionsTest {
     return true;
   }
 
-  public SlicingAbstractionsTest(String filename, String configname,
+  public SlicingAbstractionsTest(
+      String filename,
+      String configname,
       Map<String, String> extraOptions,
       @SuppressWarnings("unused") String name) {
     this.filename = filename;
@@ -205,7 +205,7 @@ public class SlicingAbstractionsTest {
 
     TestResults results = CPATestRunner.run(config, fullPath);
     if (!configname.contains("overflow")) {
-    if (pFilename.contains("_true_assert") || pFilename.contains("_true-unreach")) {
+      if (pFilename.contains("_true_assert") || pFilename.contains("_true-unreach")) {
         results.assertIsSafe();
       } else if (pFilename.contains("_false_assert") || pFilename.contains("_false-unreach")) {
         results.assertIsUnsafe();

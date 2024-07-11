@@ -16,12 +16,12 @@ import org.sosy_lab.cpachecker.cfa.types.c.CPointerType;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
 @SuppressWarnings("EqualsGetClass") // should be refactored
-public class StructureIdentifier extends SingleIdentifier {
+public sealed class StructureIdentifier extends SingleIdentifier permits StructureFieldIdentifier {
   protected final AbstractIdentifier owner;
 
   public StructureIdentifier(String pNm, CType pTp, int dereference, AbstractIdentifier own) {
     super(pNm, pTp, dereference);
-    this.owner = own;
+    owner = own;
   }
 
   @Override
@@ -106,6 +106,7 @@ public class StructureIdentifier extends SingleIdentifier {
 
   @Override
   public int compareTo(AbstractIdentifier pO) {
+    // Compare by types first
     if (pO instanceof GlobalVariableIdentifier
         || pO instanceof LocalVariableIdentifier
         || (!(this instanceof StructureFieldIdentifier)

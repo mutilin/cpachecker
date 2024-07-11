@@ -174,20 +174,26 @@ abstract class GenericDeltaDebuggingStrategy<RemoveObject, RestoreObject>
    * Mutations need to be applicable in arbitrary combinations.
    */
   protected abstract List<RemoveObject> getAllObjects(FunctionCFAsWithMetadata pCfa);
+
   /** How to apply chosen mutation */
   protected abstract RestoreObject removeObject(
       FunctionCFAsWithMetadata pCfa, RemoveObject pChosen);
+
   /** How to rollback a mutation */
   protected abstract void restoreObject(FunctionCFAsWithMetadata pCfa, RestoreObject pRemoved);
 
   /** All objects to investigate in next {@link #mutate} calls */
   private List<RemoveObject> unresolvedObjects = null;
+
   /** All objects that remain in CFA, but appear to be safe */
   private List<RemoveObject> safeObjects = new ArrayList<>();
+
   /** All objects that appear to be the cause, i.e. result of DD algorithm */
   private List<RemoveObject> causeObjects = new ArrayList<>();
+
   /** Objects that are removed in current round */
   private ImmutableList<RemoveObject> currentMutation = null;
+
   /** Store info to rollback current mutation if needed */
   private ImmutableList<RestoreObject> rollbackInfos = null;
 
@@ -342,7 +348,6 @@ abstract class GenericDeltaDebuggingStrategy<RemoveObject, RestoreObject>
                 unresolvedObjects.stream().filter(o -> !currentDelta.contains(o)).iterator());
         logger.log(Level.INFO, "removing a complement of", currentMutation.size(), objectsTitle);
         break;
-
 
       case REMOVE_DELTA:
         currentDelta = deltaIter.next();

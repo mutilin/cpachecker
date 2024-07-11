@@ -8,14 +8,14 @@
 
 package org.sosy_lab.cpachecker.cfa.ast;
 
-
+import java.io.Serial;
 import java.math.BigInteger;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.Type;
 
 public abstract class AIntegerLiteralExpression extends ALiteralExpression {
 
-  private static final long serialVersionUID = -4414816900579078042L;
+  @Serial private static final long serialVersionUID = -4414816900579078042L;
   private final BigInteger value;
 
   protected AIntegerLiteralExpression(FileLocation pFileLocation, Type pType, BigInteger pValue) {
@@ -33,11 +33,10 @@ public abstract class AIntegerLiteralExpression extends ALiteralExpression {
     return value.longValue();
   }
 
-
-   @Override
-  public  String toASTString() {
-     return value.toString();
-   }
+  @Override
+  public String toASTString() {
+    return value.toString();
+  }
 
   @Override
   public int hashCode() {
@@ -54,14 +53,8 @@ public abstract class AIntegerLiteralExpression extends ALiteralExpression {
       return true;
     }
 
-    if (!(obj instanceof AIntegerLiteralExpression)
-        || !super.equals(obj)) {
-      return false;
-    }
-
-    AIntegerLiteralExpression other = (AIntegerLiteralExpression) obj;
-
-    return Objects.equals(other.value, value);
+    return obj instanceof AIntegerLiteralExpression other
+        && super.equals(obj)
+        && Objects.equals(other.value, value);
   }
-
 }

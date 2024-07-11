@@ -165,10 +165,10 @@ class CFAMutatorStatistics extends MultiStatistics {
     // cfa was constucted fully between these calls
     processCfaTimer.stop();
 
-    fullNodesCount.setNextValue(pCfa.getAllNodes().size());
+    fullNodesCount.setNextValue(pCfa.nodes().size());
     int cc = 0;
     int edges = 0;
-    for (CFANode n : pCfa.getAllNodes()) {
+    for (CFANode n : pCfa.nodes()) {
       edges += n.getNumLeavingEdges();
       // nodes can be unreachable via local edges, dont count these
       if (n instanceof FunctionExitNode) {
@@ -190,7 +190,7 @@ class CFAMutatorStatistics extends MultiStatistics {
       }
     }
     fullEdgesCount.setNextValue(edges);
-    fullFunctionsCount.setNextValue(pCfa.getAllFunctionHeads().size());
+    fullFunctionsCount.setNextValue(pCfa.getAllFunctions().size());
     fullCyclomatic.setNextValue(cc);
   }
 

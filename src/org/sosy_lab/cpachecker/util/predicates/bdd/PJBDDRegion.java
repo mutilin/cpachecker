@@ -16,25 +16,22 @@ public class PJBDDRegion implements Region {
   private final DD bddRep;
 
   public PJBDDRegion(DD bdd) {
-    this.bddRep = bdd;
+    bddRep = bdd;
   }
 
   @Override
   public boolean isTrue() {
-    return this.bddRep.isTrue();
+    return bddRep.isTrue();
   }
 
   @Override
   public boolean isFalse() {
-    return this.bddRep.isFalse();
+    return bddRep.isFalse();
   }
 
   @Override
   public boolean equals(Object o) {
-    if (o instanceof PJBDDRegion) {
-      return bddRep.equals(((PJBDDRegion) o).bddRep);
-    }
-    return false;
+    return o instanceof PJBDDRegion && bddRep.equals(((PJBDDRegion) o).bddRep);
   }
 
   @Override

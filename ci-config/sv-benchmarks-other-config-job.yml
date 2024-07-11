@@ -1,11 +1,11 @@
 # fast check of different options on ldv-races
 sv-benchmarks refinement:
-  config: "-predicateAnalysis-threadmodular-refinement"
+  config: --predicateAnalysis-threadmodular-refinement
   setprop: 
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"
     - "cpa.thread.handleSameThreads=SUPPORT"
-  spec: "sv-comp-reachability"
+  spec: sv-comp-reachability
   benchmarks: 
     - ldv-races/*.i
   verdicts: ci-config/sv-benchmarks-verdicts.yml
@@ -13,10 +13,10 @@ sv-benchmarks refinement:
   prefix: /opt/sv-benchmarks/
 sv-benchmarks reordered:
   extends: sv-benchmarks refinement
-  config: "-predicateAnalysis-threadmodular-reordered"
+  config: --predicateAnalysis-threadmodular-reordered
 sv-benchmarks tm-ta:
   extends: sv-benchmarks refinement
-  config: "-predicateAnalysis-tm-ta"
+  config: --predicateAnalysis-tm-ta
 sv-benchmarks predicate value tm:
   extends: sv-benchmarks refinement
-  config: "-predicateValueAnalysis-threadmodular"
+  config: --predicateValueAnalysis-threadmodular

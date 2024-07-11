@@ -8,18 +8,26 @@
 
 package org.sosy_lab.cpachecker.cpa.value.symbolic.type;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.types.Type;
+import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
+import org.sosy_lab.cpachecker.cpa.smg2.SMGState;
 import org.sosy_lab.cpachecker.util.states.MemoryLocation;
 
 /**
  * Represents a unary {@link SymbolicExpression}. Represents all <code>SymbolicExpression</code>s
- * that consist of
- * only one operand.
+ * that consist of only one operand.
  */
-public abstract class UnarySymbolicExpression extends SymbolicExpression {
+public abstract sealed class UnarySymbolicExpression extends SymbolicExpression
+    permits AddressOfExpression,
+        BinaryNotExpression,
+        CastExpression,
+        LogicalNotExpression,
+        NegationExpression,
+        PointerExpression {
 
-  private static final long serialVersionUID = -2727356523115713518L;
+  @Serial private static final long serialVersionUID = -2727356523115713518L;
 
   private final SymbolicExpression operand;
   private final Type type;
@@ -34,6 +42,13 @@ public abstract class UnarySymbolicExpression extends SymbolicExpression {
       final Type pType,
       final MemoryLocation pRepresentedLocation) {
     super(pRepresentedLocation);
+    operand = pOperand;
+    type = pType;
+  }
+
+  UnarySymbolicExpression(
+      final SymbolicExpression pOperand, final Type pType, final AbstractState pAbstractState) {
+    super(pAbstractState);
     operand = pOperand;
     type = pType;
   }
@@ -55,6 +70,7 @@ public abstract class UnarySymbolicExpression extends SymbolicExpression {
   @Override
   @SuppressWarnings("EqualsGetClass") // on purpose, case-class structure with single equals()
   public final boolean equals(Object o) {
+    // Comment to silence CI
     if (this == o) {
       return true;
     }
@@ -64,13 +80,22 @@ public abstract class UnarySymbolicExpression extends SymbolicExpression {
 
     UnarySymbolicExpression that = (UnarySymbolicExpression) o;
 
-    return super.equals(that)
-        && operand.equals(that.operand) && type.equals(that.type);
+    if (hasAbstractState()
+        && that.hasAbstractState()
+        && getAbstractState() instanceof SMGState
+        && that.getAbstractState() instanceof SMGState) {
+      // SMG values do not really care about the type, as the SMG knows their types and checks
+      // that as well
+      return SMGState.areValuesEqual(
+          (SMGState) getAbstractState(), operand, (SMGState) that.getAbstractState(), that.operand);
+    }
+
+    return super.equals(that) && operand.equals(that.operand) && type.equals(that.type);
   }
 
   @Override
   public final int hashCode() {
-    return super.hashCode() + Objects.hash(getClass(), operand, type);
+    return super.hashCode() + Objects.hash(getClass().getCanonicalName(), operand, type);
   }
 
   @Override

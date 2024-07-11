@@ -137,6 +137,7 @@ public class ThreadAbstractionRefiner implements ARGBasedRefiner, StatisticsProv
 
   /**
    * finds states to update precision for. If the precision is different, updates the precision
+   *
    * @return true if precision has changed
    */
   private boolean updatePrecisionWithProjection(ARGState projection, ARGReachedSet pReached)
@@ -219,24 +220,20 @@ public class ThreadAbstractionRefiner implements ARGBasedRefiner, StatisticsProv
 
   /**
    * If precision is different, updates precision and removes subtree
+   *
    * @return true if precision was changed
    */
   private boolean addEdgesToPrecisionForState(
-      ARGReachedSet pReached,
-      ARGState pState,
-      ImmutableSet<CFAEdge> edges)
+      ARGReachedSet pReached, ARGState pState, ImmutableSet<CFAEdge> edges)
       throws InterruptedException {
 
     ThreadAbstractionPrecision precision =
         Precisions.extractPrecisionByType(
-            pReached.asReachedSet().getPrecision(pState),
-            ThreadAbstractionPrecision.class);
+            pReached.asReachedSet().getPrecision(pState), ThreadAbstractionPrecision.class);
     ThreadAbstractionPrecision newPrecision = precision.copyWith(edges);
     edgesAdded.setNextValue(newPrecision.size() - precision.size());
     pReached.removeSubtree(
-        pState,
-        newPrecision,
-        Predicates.instanceOf(ThreadAbstractionPrecision.class));
+        pState, newPrecision, Predicates.instanceOf(ThreadAbstractionPrecision.class));
     return true;
   }
 

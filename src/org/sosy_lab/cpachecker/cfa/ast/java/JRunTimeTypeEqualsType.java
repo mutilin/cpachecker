@@ -8,9 +8,11 @@
 
 package org.sosy_lab.cpachecker.cfa.ast.java;
 
+import java.io.Serial;
 import java.util.Objects;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
+import org.sosy_lab.cpachecker.cfa.types.java.JArrayType;
 import org.sosy_lab.cpachecker.cfa.types.java.JClassOrInterfaceType;
 import org.sosy_lab.cpachecker.cfa.types.java.JReferenceType;
 import org.sosy_lab.cpachecker.cfa.types.java.JSimpleType;
@@ -22,7 +24,7 @@ import org.sosy_lab.cpachecker.cfa.types.java.JType;
  */
 public final class JRunTimeTypeEqualsType extends AbstractExpression implements JExpression {
 
-  private static final long serialVersionUID = -2513620435920744071L;
+  @Serial private static final long serialVersionUID = -2513620435920744071L;
   private final JRunTimeTypeExpression runTimeTypeExpression;
   private final JReferenceType typeDef;
 
@@ -50,7 +52,7 @@ public final class JRunTimeTypeEqualsType extends AbstractExpression implements 
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     return toASTString();
   }
 
@@ -60,7 +62,7 @@ public final class JRunTimeTypeEqualsType extends AbstractExpression implements 
     if (getTypeDef() instanceof JClassOrInterfaceType) {
       name = ((JClassOrInterfaceType) getTypeDef()).getName();
     } else {
-      name = ((JSimpleType) getTypeDef()).getType().toASTString();
+      name = ((JArrayType) getTypeDef()).getElementType().toASTString("");
     }
     StringBuilder astString = new StringBuilder("(");
     astString.append(getRunTimeTypeExpression().toASTString());
@@ -94,13 +96,9 @@ public final class JRunTimeTypeEqualsType extends AbstractExpression implements 
       return true;
     }
 
-    if (!(obj instanceof JRunTimeTypeEqualsType) || !super.equals(obj)) {
-      return false;
-    }
-
-    JRunTimeTypeEqualsType other = (JRunTimeTypeEqualsType) obj;
-
-    return Objects.equals(other.runTimeTypeExpression, runTimeTypeExpression)
+    return obj instanceof JRunTimeTypeEqualsType other
+        && super.equals(obj)
+        && Objects.equals(other.runTimeTypeExpression, runTimeTypeExpression)
         && Objects.equals(other.typeDef, typeDef);
   }
 }

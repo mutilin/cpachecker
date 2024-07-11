@@ -66,46 +66,43 @@ import org.sosy_lab.cpachecker.util.CFATraversal.TraversalProcess;
 public class ThreadCreateTransformer {
 
   @Option(
-    secure = true,
-    name = "cfa.threads.threadCreate",
-    description = "A name of thread_create function"
-  )
+      secure = true,
+      name = "cfa.threads.threadCreate",
+      description = "A name of thread_create function")
   private Set<String> threadCreate = ImmutableSet.of("pthread_create");
 
   @Option(
-    secure = true,
-    name = "cfa.threads.threadSelfCreate",
-    description = "A name of thread_create_N function"
-  )
+      secure = true,
+      name = "cfa.threads.threadSelfCreate",
+      description = "A name of thread_create_N function")
   private String threadCreateN = "pthread_create_N";
 
   @Option(
-    secure = true,
-    name = "cfa.threads.threadJoin",
-    description = "A name of thread_join function"
-  )
+      secure = true,
+      name = "cfa.threads.threadJoin",
+      description = "A name of thread_join function")
   private String threadJoin = "pthread_join";
 
   @Option(
-    secure = true,
-    name = "cfa.threads.threadSelfJoin",
-    description = "A name of thread_join_N function"
-  )
+      secure = true,
+      name = "cfa.threads.threadSelfJoin",
+      description = "A name of thread_join_N function")
   private String threadJoinN = "pthread_join_N";
 
   @Option(
-    secure = true,
-    name = "cfa.threads.addAssumptions",
-    description = "Add assumptions about successfull thread create")
+      secure = true,
+      name = "cfa.threads.addAssumptions",
+      description = "Add assumptions about successfull thread create")
   private boolean addAssumptions = true;
 
   private final Map<String, ThreadCreateDesc> description;
 
   @Option(
-    secure = true,
-    name = "cfa.threads.preset",
-    description = "Preset values for some threads")
+      secure = true,
+      name = "cfa.threads.preset",
+      description = "Preset values for some threads")
   private Set<String> presetThreads = ImmutableSet.of("");
+
   private final Map<String, Integer> presetThreadInfo;
 
   public boolean isThreadOperation(CFunctionCallExpression pCallExpr) {
@@ -149,8 +146,7 @@ public class ThreadCreateTransformer {
         CStatement statement = ((CStatementEdge) pEdge).getStatement();
         if (statement instanceof CAssignment) {
           CRightHandSide rhs = ((CAssignment) statement).getRightHandSide();
-          if (rhs instanceof CFunctionCallExpression) {
-            CFunctionCallExpression exp = ((CFunctionCallExpression) rhs);
+          if (rhs instanceof CFunctionCallExpression exp) {
             checkFunctionExpression(pEdge, exp);
           }
         } else if (statement instanceof CFunctionCallStatement) {
@@ -226,13 +222,14 @@ public class ThreadCreateTransformer {
   public void transform(CFA cfa) {
     ThreadFinder threadVisitor = new ThreadFinder();
 
-    for (FunctionEntryNode functionStartNode : cfa.getAllFunctionHeads()) {
+    for (FunctionEntryNode functionStartNode : cfa.entryNodes()) {
       CFATraversal.dfs().traverseOnce(functionStartNode, threadVisitor);
     }
 
     // We need to repeat this loop several times, because we traverse that part cfa, which is
     // reachable from main
-    for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.getThreadCreates().entrySet()) {
+    for (Entry<CFAEdge, CFunctionCallExpression> entry :
+        threadVisitor.getThreadCreates().entrySet()) {
       CFAEdge edge = entry.getKey();
       CFunctionCallExpression fCall = entry.getValue();
 
@@ -244,8 +241,7 @@ public class ThreadCreateTransformer {
       CIdExpression functionNameExpression = getFunctionName(calledFunction);
       if (functionNameExpression == null) {
         logger.log(
-            Level.WARNING,
-            "Unsupported function name: " + calledFunction + ", full line: " + edge);
+            Level.WARNING, "Unsupported function name: " + calledFunction + ", full line: " + edge);
         continue;
       }
       String newThreadName = functionNameExpression.getName();
@@ -299,11 +295,7 @@ public class ThreadCreateTransformer {
       }
       CFunctionCallStatement pFunctionCall =
           new CThreadCreateStatement(
-              pFileLocation,
-              pFunctionCallExpression,
-              isSelfParallel,
-              varName,
-              priority);
+              pFileLocation, pFunctionCallExpression, isSelfParallel, varName, priority);
 
       if (edge instanceof CStatementEdge) {
         CStatement stmnt = ((CStatementEdge) edge).getStatement();
@@ -333,20 +325,10 @@ public class ThreadCreateTransformer {
                 prepareAssumption((CFunctionCallAssignmentStatement) stmnt, cfa);
             CAssumeEdge trueEdge =
                 new CAssumeEdge(
-                    pRawStatement,
-                    pFileLocation,
-                    firstNode,
-                    secondNode,
-                    assumption,
-                    true);
+                    pRawStatement, pFileLocation, firstNode, secondNode, assumption, true);
             CAssumeEdge falseEdge =
                 new CAssumeEdge(
-                    pRawStatement,
-                    pFileLocation,
-                    firstNode,
-                    pSuccessor,
-                    assumption,
-                    false);
+                    pRawStatement, pFileLocation, firstNode, pSuccessor, assumption, false);
 
             CFACreationUtils.addEdgeUnconditionallyToCFA(randAssign);
             CFACreationUtils.addEdgeUnconditionallyToCFA(trueEdge);
@@ -356,11 +338,7 @@ public class ThreadCreateTransformer {
 
           CStatementEdge callEdge =
               new CStatementEdge(
-                  pRawStatement,
-                  pFunctionCall,
-                  pFileLocation,
-                  pPredecessor,
-                  pSuccessor);
+                  pRawStatement, pFunctionCall, pFileLocation, pPredecessor, pSuccessor);
 
           CFACreationUtils.addEdgeUnconditionallyToCFA(callEdge);
 
@@ -374,7 +352,8 @@ public class ThreadCreateTransformer {
       }
     }
 
-    for (Entry<CFAEdge, CFunctionCallExpression> entry : threadVisitor.getThreadJoins().entrySet()) {
+    for (Entry<CFAEdge, CFunctionCallExpression> entry :
+        threadVisitor.getThreadJoins().entrySet()) {
       CFAEdge edge = entry.getKey();
       CFunctionCallExpression fCall = entry.getValue();
       String varName = getThreadVariableName(fCall, 0);

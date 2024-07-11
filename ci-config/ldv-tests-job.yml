@@ -1,5 +1,5 @@
 ldv tests with tm:
-  config: "-lockator-threadmodular-linux"
+  config: --lockator-threadmodular-linux
   setprop:
     - "cpa.predicate.useUndefFunctions=false"
     - "cpa.predicate.joinEffectsIntoUndefs=false"
@@ -16,7 +16,7 @@ ldv tests with tm:
   parallel: True
   prefix: /opt/ldv-benchmarks/
 ldv tests basic:
-  config: "-lockator-linux"
+  config: --lockator-linux
   setprop:
     - "limits.time.cpu=900s"
     - "shutdown.timeout=1000"

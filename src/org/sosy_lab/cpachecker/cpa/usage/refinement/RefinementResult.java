@@ -18,12 +18,12 @@ import org.sosy_lab.cpachecker.core.interfaces.AdjustablePrecision;
 import org.sosy_lab.cpachecker.cpa.usage.UsageInfo;
 import org.sosy_lab.cpachecker.util.Pair;
 
-
 public class RefinementResult {
   public enum RefinementStatus {
     TRUE,
     FALSE
   }
+
   private final Map<Class<? extends RefinementInterface>, Object> auxiliaryInfo = new HashMap<>();
   private final Pair<UsageInfo, UsageInfo> trueRace;
   // Currently only predicate one, but in general case we may add other ones
@@ -33,18 +33,18 @@ public class RefinementResult {
   private RefinementResult(RefinementStatus rStatus, UsageInfo firstUsage, UsageInfo secondUsage) {
     status = rStatus;
     if (firstUsage != null && secondUsage != null) {
-      //True result
+      // True result
       Preconditions.checkArgument(status == RefinementStatus.TRUE);
       trueRace = Pair.of(firstUsage, secondUsage);
     } else {
-      //Other results
+      // Other results
       trueRace = null;
     }
     precisions = new ArrayList<>();
   }
 
   public void addInfo(Class<? extends RefinementInterface> caller, Object info) {
-    //Now used only for transferring precision
+    // Now used only for transferring precision
     assert !auxiliaryInfo.containsKey(caller);
     auxiliaryInfo.put(caller, info);
   }
@@ -76,7 +76,7 @@ public class RefinementResult {
   }
 
   public static RefinementResult createTrue() {
-    //Used for temporary result
+    // Used for temporary result
     return new RefinementResult(RefinementStatus.TRUE, null, null);
   }
 

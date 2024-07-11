@@ -47,9 +47,7 @@ public class ThreadModularCPA extends AbstractSingleWrapperCPA
   protected final ThreadModularStatistics stats;
 
   public ThreadModularCPA(
-      ConfigurableProgramAnalysis pCpa,
-      Configuration pConfig,
-      ShutdownNotifier pShutdownNotifier)
+      ConfigurableProgramAnalysis pCpa, Configuration pConfig, ShutdownNotifier pShutdownNotifier)
       throws InvalidConfigurationException {
     super(pCpa);
 
@@ -65,11 +63,7 @@ public class ThreadModularCPA extends AbstractSingleWrapperCPA
     applyOperator = ((ConfigurableProgramAnalysisTM) pCpa).getApplyOperator();
     transfer =
         new ThreadModularTransferRelation(
-            pCpa.getTransferRelation(),
-            stats,
-            pShutdownNotifier,
-            applyOperator,
-            pConfig);
+            pCpa.getTransferRelation(), stats, pShutdownNotifier, applyOperator, pConfig);
 
     PredicateCPA pcpa = CPAs.retrieveCPA(pCpa, PredicateCPA.class);
     if (pcpa != null) {

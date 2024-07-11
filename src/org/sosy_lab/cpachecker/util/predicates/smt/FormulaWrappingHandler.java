@@ -28,8 +28,8 @@ import org.sosy_lab.java_smt.api.FormulaType.NumeralType;
 import org.sosy_lab.java_smt.api.NumeralFormula.IntegerFormula;
 
 /**
- * Class that takes care of all the (un-)wrapping of formulas and types
- * depending on the configured theory replacement.
+ * Class that takes care of all the (un-)wrapping of formulas and types depending on the configured
+ * theory replacement.
  */
 final class FormulaWrappingHandler {
 
@@ -63,9 +63,8 @@ final class FormulaWrappingHandler {
   <T extends Formula> FormulaType<T> getFormulaType(T pFormula) {
     checkNotNull(pFormula);
 
-    if (pFormula instanceof WrappingFormula<?, ?>) {
-      WrappingFormula<?, ?> castFormula = (WrappingFormula<?, ?>)pFormula;
-      return (FormulaType<T>)castFormula.getType();
+    if (pFormula instanceof WrappingFormula<?, ?> castFormula) {
+      return (FormulaType<T>) castFormula.getType();
     } else {
       return getRawFormulaType(pFormula);
     }
@@ -79,98 +78,87 @@ final class FormulaWrappingHandler {
   @SuppressWarnings("unchecked")
   <T1 extends Formula, T2 extends Formula> T1 wrap(FormulaType<T1> targetType, T2 toWrap) {
     if (toWrap instanceof WrappingFormula<?, ?>) {
-      throw new IllegalArgumentException(String.format(
-          "Cannot double-wrap a formula %s, which has already been wrapped as %s, as %s.",
-          toWrap, ((WrappingFormula<?, ?>)toWrap).getType(), targetType));
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot double-wrap a formula %s, which has already been wrapped as %s, as %s.",
+              toWrap, ((WrappingFormula<?, ?>) toWrap).getType(), targetType));
     }
 
     if (targetType.isIntegerType() && (encodeIntegerAs != Theory.INTEGER)) {
       return (T1) new WrappingIntegerFormula<>((NumeralType<IntegerFormula>) targetType, toWrap);
 
     } else if (targetType.isBitvectorType() && (encodeBitvectorAs != Theory.BITVECTOR)) {
-      return (T1) new WrappingBitvectorFormula<>((BitvectorType)targetType, toWrap);
+      return (T1) new WrappingBitvectorFormula<>((BitvectorType) targetType, toWrap);
 
     } else if (targetType.isFloatingPointType() && (encodeFloatAs != Theory.FLOAT)) {
-      return (T1) new WrappingFloatingPointFormula<>((FloatingPointType)targetType, toWrap);
+      return (T1) new WrappingFloatingPointFormula<>((FloatingPointType) targetType, toWrap);
 
     } else if (targetType.isArrayType()) {
       final ArrayFormulaType<?, ?> targetArrayType = (ArrayFormulaType<?, ?>) targetType;
-//      final FormulaType<? extends Formula> targetIndexType = targetArrayType.getIndexType();
-//      final FormulaType<? extends Formula> targetElementType = targetArrayType.getElementType();
+      //      final FormulaType<? extends Formula> targetIndexType = targetArrayType.getIndexType();
+      //      final FormulaType<? extends Formula> targetElementType =
+      // targetArrayType.getElementType();
       return (T1) new WrappingArrayFormula<>(targetArrayType, toWrap);
 
     } else if (targetType.equals(manager.getFormulaType(toWrap))) {
       return (T1) toWrap;
 
     } else {
-      throw new IllegalArgumentException(String.format(
-          "Cannot wrap formula %s as %s", toWrap, targetType));
+      throw new IllegalArgumentException(
+          String.format("Cannot wrap formula %s as %s", toWrap, targetType));
     }
   }
 
   <T extends Formula> Formula unwrap(T f) {
     if (f instanceof WrappingFormula<?, ?>) {
-      return ((WrappingFormula<?, ?>)f).getWrapped();
+      return ((WrappingFormula<?, ?>) f).getWrapped();
     } else {
       return f;
     }
   }
 
   List<Formula> unwrap(List<? extends Formula> f) {
-    return Lists.transform(f, pInput -> unwrap(pInput));
+    return Lists.transform(f, this::unwrap);
   }
 
   FormulaType<?> unwrapType(FormulaType<?> type) {
     if (type.isArrayType()) {
       ArrayFormulaType<?, ?> arrayType = (ArrayFormulaType<?, ?>) type;
       return FormulaType.getArrayType(
-          unwrapType(arrayType.getIndexType()),
-          unwrapType(arrayType.getElementType()));
+          unwrapType(arrayType.getIndexType()), unwrapType(arrayType.getElementType()));
     }
 
     if (type.isIntegerType()) {
-      switch (encodeIntegerAs) {
-        case BITVECTOR:
-          return FormulaType.getBitvectorTypeWithSize(intOptions.getBitsize());
-        case INTEGER:
-          return FormulaType.IntegerType;
-        case RATIONAL:
-          return FormulaType.RationalType;
-        default:
-          throw new AssertionError("unexpected encoding for integers: " + type);
-      }
+      return switch (encodeIntegerAs) {
+        case BITVECTOR -> FormulaType.getBitvectorTypeWithSize(intOptions.getBitsize());
+        case INTEGER -> FormulaType.IntegerType;
+        case RATIONAL -> FormulaType.RationalType;
+        default -> throw new AssertionError("unexpected encoding for integers: " + type);
+      };
     }
 
     if (type.isBitvectorType()) {
-      switch (encodeBitvectorAs) {
-      case BITVECTOR:
-        return type;
-      case INTEGER:
-        return FormulaType.IntegerType;
-      case RATIONAL:
-        return FormulaType.RationalType;
-      default:
-          throw new AssertionError("unexpected encoding for bitvectors: " + type);
-      }
+      return switch (encodeBitvectorAs) {
+        case BITVECTOR -> type;
+        case INTEGER -> FormulaType.IntegerType;
+        case RATIONAL -> FormulaType.RationalType;
+        default -> throw new AssertionError("unexpected encoding for bitvectors: " + type);
+      };
     }
 
     if (type.isFloatingPointType()) {
-      switch (encodeFloatAs) {
-      case FLOAT:
-        return type;
-      case INTEGER:
-        return FormulaType.IntegerType;
-      case RATIONAL:
-        return FormulaType.RationalType;
-      default:
-          throw new AssertionError("unexpected encoding for floats: " + type);
-      }
+      return switch (encodeFloatAs) {
+        case FLOAT -> type;
+        case INTEGER -> FormulaType.IntegerType;
+        case RATIONAL -> FormulaType.RationalType;
+        default -> throw new AssertionError("unexpected encoding for floats: " + type);
+      };
     }
 
     return type;
   }
 
   List<FormulaType<?>> unwrapType(List<? extends FormulaType<?>> pTypes) {
-    return Lists.transform(pTypes, pInput -> unwrapType(pInput));
+    return Lists.transform(pTypes, this::unwrapType);
   }
 }

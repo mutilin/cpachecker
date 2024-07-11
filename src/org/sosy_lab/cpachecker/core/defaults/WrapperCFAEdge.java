@@ -46,15 +46,7 @@ public class WrapperCFAEdge implements AbstractEdge {
     if (this == obj) {
       return true;
     }
-    if (obj == null) {
-      return false;
-    }
-    if (!(obj instanceof WrapperCFAEdge)) {
-      return false;
-    }
-    WrapperCFAEdge other = (WrapperCFAEdge) obj;
-
-    return edge == other.edge;
+    return obj instanceof WrapperCFAEdge other && edge == other.edge;
   }
 
   @Override

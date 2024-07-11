@@ -44,15 +44,18 @@ public class SharedRefiner extends GenericSinglePathRefiner {
 
   private LocalTransferRelation transferRelation;
 
-  //Debug counter
+  // Debug counter
   private StatCounter counter = new StatCounter("Number of cases with empty successors");
-  //private final StatInt totalFalseConditions = new StatInt(StatKind.COUNT, "Number of false conditions that were detected by SharedRefiner");
+  // private final StatInt totalFalseConditions = new StatInt(StatKind.COUNT, "Number of false
+  // conditions that were detected by SharedRefiner");
   private StatCounter numOfFalseResults = new StatCounter("Number of false results");
   private StatInt numOfInterpolants =
       new StatInt(StatKind.SUM, "Number of discovered interpolants");
   private StatTimer interpolationTime = new StatTimer("Time for interpolation");
 
-  public SharedRefiner(ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper, LocalTransferRelation RelationForSharedRefiner) {
+  public SharedRefiner(
+      ConfigurableRefinementBlock<Pair<ExtendedARGPath, ExtendedARGPath>> pWrapper,
+      LocalTransferRelation RelationForSharedRefiner) {
     super(pWrapper, false);
     transferRelation = RelationForSharedRefiner;
   }
@@ -60,10 +63,11 @@ public class SharedRefiner extends GenericSinglePathRefiner {
   @Override
   protected RefinementResult call(ExtendedARGPath pPath) throws CPAException, InterruptedException {
     RefinementResult result = RefinementResult.createTrue();
-    List<CFAEdge> edges  = pPath.getFullPath();
+    List<CFAEdge> edges = pPath.getFullPath();
     SingletonPrecision emptyPrecision = SingletonPrecision.getInstance();
 
-    LocalState lastState = AbstractStates.extractStateByType(pPath.getLastState(), LocalState.class);
+    LocalState lastState =
+        AbstractStates.extractStateByType(pPath.getLastState(), LocalState.class);
     LocalState initialState = lastState.createInitialLocalState();
 
     Collection<LocalState> successors = Collections.singleton(initialState);
@@ -89,7 +93,7 @@ public class SharedRefiner extends GenericSinglePathRefiner {
     assert (successors.size() == 1);
     LocalState lastUsageState = Iterables.getOnlyElement(successors);
 
-    assert (sharedUsage.getCFANode().equals(edges.get(edges.size() - 1).getSuccessor()));
+    assert sharedUsage.getCFANode().equals(edges.get(edges.size() - 1).getSuccessor());
 
     if (lastUsageState.getType(usageId) == LocalState.DataType.LOCAL) {
       result = RefinementResult.createFalse();
@@ -99,25 +103,22 @@ public class SharedRefiner extends GenericSinglePathRefiner {
       interpolationTime.stop();
 
       numOfInterpolants.setNextValue(interpolants.size());
-      Set<AbstractIdentifier> newIds =
-          transformedImmutableSetCopy(interpolants, Pair::getFirst);
+      Set<AbstractIdentifier> newIds = transformedImmutableSetCopy(interpolants, Pair::getFirst);
       List<ARGState> affectedStates =
-          transformedImmutableListCopy(
-              interpolants,
-              s -> pPath.asStatesList().get(s.getSecond()));
+          transformedImmutableListCopy(interpolants, s -> pPath.asStatesList().get(s.getSecond()));
       LocalPrecision newPrec = new LocalPrecision(newIds);
       result.addPrecision(newPrec);
       result.addInfo(SharedRefiner.class, affectedStates);
       numOfFalseResults.inc();
     }
 
-    //totalFalseConditions.setNextValue(numOfFalseResults.getValue());
+    // totalFalseConditions.setNextValue(numOfFalseResults.getValue());
     return result;
   }
 
-  private List<Pair<AbstractIdentifier, Integer>>
-      getInterpolants(List<Pair<LocalState, CFAEdge>> fullPath, AbstractIdentifier usageId)
-          throws CPATransferException, InterruptedException {
+  private List<Pair<AbstractIdentifier, Integer>> getInterpolants(
+      List<Pair<LocalState, CFAEdge>> fullPath, AbstractIdentifier usageId)
+      throws CPATransferException, InterruptedException {
 
     List<Pair<AbstractIdentifier, Integer>> result = new ArrayList<>();
     LocalState sucState = fullPath.get(fullPath.size() - 1).getFirst();
@@ -146,7 +147,7 @@ public class SharedRefiner extends GenericSinglePathRefiner {
         if (id == null) {
           assert (edge instanceof CFunctionReturnEdge);
           // need to move to entry
-          entryFunc = ((CFunctionReturnEdge)edge).getFunctionEntry();
+          entryFunc = ((CFunctionReturnEdge) edge).getFunctionEntry();
           continue;
         } else if (id == toPrec) {
           break;
@@ -159,9 +160,8 @@ public class SharedRefiner extends GenericSinglePathRefiner {
     return result;
   }
 
-  private AbstractIdentifier
-      getAssignedIds(CFAEdge edge, AbstractIdentifier id, LocalState prev)
-          throws CPATransferException, InterruptedException {
+  private AbstractIdentifier getAssignedIds(CFAEdge edge, AbstractIdentifier id, LocalState prev)
+      throws CPATransferException, InterruptedException {
 
     LocalState initialState = prev.resetWithPrevious();
 
@@ -177,7 +177,6 @@ public class SharedRefiner extends GenericSinglePathRefiner {
       return null;
     }
 
-
     for (AbstractIdentifier checkedId : prev.getStoredIds()) {
       if (checkStep(prev.forget(ImmutableSet.of(checkedId)), edge, id)) {
         return checkedId;
@@ -191,8 +190,8 @@ public class SharedRefiner extends GenericSinglePathRefiner {
       throws CPATransferException, InterruptedException {
 
     Collection<LocalState> successors =
-        transferRelation
-            .getAbstractSuccessorsForEdge(state, SingletonPrecision.getInstance(), edge);
+        transferRelation.getAbstractSuccessorsForEdge(
+            state, SingletonPrecision.getInstance(), edge);
     assert successors.size() == 1;
     LocalState nextState = Iterables.getOnlyElement(successors);
 
@@ -202,10 +201,10 @@ public class SharedRefiner extends GenericSinglePathRefiner {
   @Override
   protected void printAdditionalStatistics(StatisticsWriter pOut) {
     pOut.beginLevel()
-      .put(counter)
+        .put(counter)
         .put(numOfFalseResults)
         .put(numOfInterpolants)
         .put(interpolationTime);
-    //pOut.println(totalFalseConditions);
+    // pOut.println(totalFalseConditions);
   }
 }

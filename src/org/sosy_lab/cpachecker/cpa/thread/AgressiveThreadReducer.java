@@ -16,15 +16,13 @@ import org.sosy_lab.cpachecker.core.interfaces.AbstractState;
 import org.sosy_lab.cpachecker.core.interfaces.Precision;
 import org.sosy_lab.cpachecker.core.interfaces.Reducer;
 
-
 public class AgressiveThreadReducer implements Reducer {
 
-  public AgressiveThreadReducer() {
-  }
+  public AgressiveThreadReducer() {}
 
   @Override
-  public AbstractState getVariableReducedState(AbstractState pExpandedState, Block pContext,
-      CFANode pCallNode) throws InterruptedException {
+  public AbstractState getVariableReducedState(
+      AbstractState pExpandedState, Block pContext, CFANode pCallNode) throws InterruptedException {
     ThreadState tState = (ThreadState) pExpandedState;
     return reduce(tState);
   }
@@ -38,8 +36,9 @@ public class AgressiveThreadReducer implements Reducer {
   }
 
   @Override
-  public AbstractState getVariableExpandedState(AbstractState pRootState, Block pReducedContext,
-      AbstractState pReducedState) throws InterruptedException {
+  public AbstractState getVariableExpandedState(
+      AbstractState pRootState, Block pReducedContext, AbstractState pReducedState)
+      throws InterruptedException {
 
     ThreadState root = (ThreadState) pRootState;
     ThreadState reduced = (ThreadState) pReducedState;
@@ -58,8 +57,8 @@ public class AgressiveThreadReducer implements Reducer {
   }
 
   @Override
-  public Precision getVariableExpandedPrecision(Precision pRootPrecision, Block pRootContext,
-      Precision pReducedPrecision) {
+  public Precision getVariableExpandedPrecision(
+      Precision pRootPrecision, Block pRootContext, Precision pReducedPrecision) {
     return pReducedPrecision;
   }
 
@@ -74,8 +73,11 @@ public class AgressiveThreadReducer implements Reducer {
   }
 
   @Override
-  public AbstractState rebuildStateAfterFunctionCall(AbstractState pRootState,
-      AbstractState pEntryState, AbstractState pExpandedState, FunctionExitNode pExitLocation) {
+  public AbstractState rebuildStateAfterFunctionCall(
+      AbstractState pRootState,
+      AbstractState pEntryState,
+      AbstractState pExpandedState,
+      FunctionExitNode pExitLocation) {
     return pExpandedState;
   }
 }

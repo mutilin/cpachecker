@@ -20,8 +20,8 @@ public class PathPosition {
   protected final ARGPath path;
 
   PathPosition(ARGPath pPath, int pPosition) {
-    this.path = pPath;
-    this.pos = pPosition;
+    path = pPath;
+    pos = pPosition;
   }
 
   @Override
@@ -35,12 +35,7 @@ public class PathPosition {
 
   @Override
   public boolean equals(Object pObj) {
-    if (!(pObj instanceof PathPosition)) {
-      return false;
-    }
-    PathPosition other = (PathPosition) pObj;
-
-    return ((this.pos == other.pos) && this.path.equals(other.path));
+    return pObj instanceof PathPosition other && ((pos == other.pos) && path.equals(other.path));
   }
 
   /**

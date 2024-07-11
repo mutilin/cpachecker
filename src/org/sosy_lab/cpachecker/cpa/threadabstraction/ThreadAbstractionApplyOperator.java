@@ -43,8 +43,8 @@ public class ThreadAbstractionApplyOperator implements ApplyOperator {
     return new ThreadAbstractionStateWithEdge(parent, prepareEdge(parent, child));
   }
 
-  private ThreadAbstractionEdge
-      prepareEdge(ThreadAbstractionState parent, ThreadAbstractionState child) {
+  private ThreadAbstractionEdge prepareEdge(
+      ThreadAbstractionState parent, ThreadAbstractionState child) {
 
     if (parent.equals(child)) {
       // The edge is not in precision
@@ -76,10 +76,9 @@ public class ThreadAbstractionApplyOperator implements ApplyOperator {
   }
 
   @Override
-  public AbstractState
-      createCompositeProjection(List<AbstractState> pStates, List<AbstractEdge> pEdges) {
+  public AbstractState createCompositeProjection(
+      List<AbstractState> pStates, List<AbstractEdge> pEdges) {
     throw new UnsupportedOperationException(
         "Composite projection is not supported for TA Analysis");
   }
-
 }

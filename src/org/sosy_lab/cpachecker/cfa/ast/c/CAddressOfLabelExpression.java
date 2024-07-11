@@ -10,17 +10,18 @@ package org.sosy_lab.cpachecker.cfa.ast.c;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import java.io.Serial;
 import org.sosy_lab.cpachecker.cfa.ast.AbstractExpression;
 import org.sosy_lab.cpachecker.cfa.ast.FileLocation;
 import org.sosy_lab.cpachecker.cfa.types.c.CType;
 
-public class CAddressOfLabelExpression extends AbstractExpression implements CExpression {
+public final class CAddressOfLabelExpression extends AbstractExpression implements CExpression {
 
-  private static final long serialVersionUID = -6304788147442934412L;
+  @Serial private static final long serialVersionUID = -6304788147442934412L;
   private final String label;
 
-  public CAddressOfLabelExpression(final FileLocation pFileLocation,
-                            final CType pType, final String pLabelName) {
+  public CAddressOfLabelExpression(
+      final FileLocation pFileLocation, final CType pType, final String pLabelName) {
     super(pFileLocation, pType);
     label = checkNotNull(pLabelName);
   }
@@ -35,7 +36,7 @@ public class CAddressOfLabelExpression extends AbstractExpression implements CEx
   }
 
   @Override
-  public String toASTString(boolean pQualified) {
+  public String toASTString(AAstNodeRepresentation pAAstNodeRepresentation) {
     return toASTString();
   }
 
@@ -70,11 +71,8 @@ public class CAddressOfLabelExpression extends AbstractExpression implements CEx
       return true;
     }
 
-    if (!(obj instanceof CAddressOfLabelExpression)) {
-      return false;
-    }
-
-    return label.equals(((CAddressOfLabelExpression)obj).label)
+    return obj instanceof CAddressOfLabelExpression
+        && label.equals(((CAddressOfLabelExpression) obj).label)
         && super.equals(obj);
   }
 }

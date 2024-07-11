@@ -14,6 +14,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import java.io.Serial;
 import java.util.Collection;
 import java.util.Map.Entry;
 import java.util.Objects;
@@ -38,7 +39,7 @@ public class UsageState extends AbstractSerializableSingleWrapperState
     implements LatticeAbstractState<UsageState>, AbstractStateWithEdge, AliasInfoProvider {
   /* Boilerplate code to avoid serializing this class */
 
-  private static final long serialVersionUID = -898577877284268426L;
+  @Serial private static final long serialVersionUID = -898577877284268426L;
   protected final transient StateStatistics stats;
 
   protected transient ImmutableMap<AbstractIdentifier, AbstractIdentifier> variableBindingRelation;
@@ -56,10 +57,7 @@ public class UsageState extends AbstractSerializableSingleWrapperState
   }
 
   public static UsageState createInitialState(final AbstractState pWrappedElement) {
-    return new UsageState(
-        pWrappedElement,
-        ImmutableMap.of(),
-        new StateStatistics());
+    return new UsageState(pWrappedElement, ImmutableMap.of(), new StateStatistics());
   }
 
   public UsageState removeInternalLinks(final String functionName) {
@@ -77,7 +75,7 @@ public class UsageState extends AbstractSerializableSingleWrapperState
     if (noRemove) {
       return this;
     }
-    return createState(this.getWrappedState(), builder.build(), stats);
+    return createState(this.getWrappedState(), builder.buildOrThrow(), stats);
   }
 
   public UsageState put(Collection<Pair<AbstractIdentifier, AbstractIdentifier>> newLinks) {
@@ -130,7 +128,7 @@ public class UsageState extends AbstractSerializableSingleWrapperState
       if (new_entry) {
         builder.put(newId1, newId2);
       }
-      result = builder.build();
+      result = builder.buildOrThrow();
     }
     return result;
   }
@@ -195,17 +193,17 @@ public class UsageState extends AbstractSerializableSingleWrapperState
       }
     }
     if (newMap) {
-      result.variableBindingRelation = builder.build();
+      result.variableBindingRelation = builder.buildOrThrow();
     }
 
-    stats.reducedBindungs
-        .setNextValue(variableBindingRelation.size() - result.variableBindingRelation.size());
+    stats.reducedBindungs.setNextValue(
+        variableBindingRelation.size() - result.variableBindingRelation.size());
     stats.reduceExpandTimer.stop();
     return result;
   }
 
-  public UsageState
-      expanded(final AbstractState pWrappedState, final UsageState state, final String func) {
+  public UsageState expanded(
+      final AbstractState pWrappedState, final UsageState state, final String func) {
     stats.reduceExpandTimer.start();
 
     UsageState result = copy(pWrappedState);
@@ -228,19 +226,19 @@ public class UsageState extends AbstractSerializableSingleWrapperState
       }
     }
     if (newMap) {
-      result.variableBindingRelation = builder.build();
+      result.variableBindingRelation = builder.buildOrThrow();
     }
 
     stats.reduceExpandTimer.stop();
     return result;
-   }
+  }
 
   @Override
   public int hashCode() {
     final int prime = 31;
     int result = 1;
     result = prime * result + Objects.hashCode(variableBindingRelation);
-    result = prime * result + super.hashCode();
+    result = prime * result + getWrappedState().hashCode();
     return result;
   }
 
@@ -249,12 +247,8 @@ public class UsageState extends AbstractSerializableSingleWrapperState
     if (this == obj) {
       return true;
     }
-    if (!(obj instanceof UsageState)) {
-      return false;
-    }
-    UsageState other = (UsageState) obj;
-    return
-        Objects.equals(variableBindingRelation, other.variableBindingRelation)
+    return obj instanceof UsageState other
+        && variableBindingRelation.equals(other.variableBindingRelation)
         && getWrappedState().equals(other.getWrappedState());
   }
 
@@ -295,7 +289,6 @@ public class UsageState extends AbstractSerializableSingleWrapperState
       return true;
     } finally {
       stats.lessTimer.stop();
-
     }
   }
 
@@ -329,7 +322,6 @@ public class UsageState extends AbstractSerializableSingleWrapperState
     return AbstractStates.extractStateByType(state, UsageState.class);
   }
 
-
   @Override
   public Set<AbstractIdentifier> getAllPossibleAliases(AbstractIdentifier id) {
     AbstractIdentifier newId = getLinksIfNecessary(id);
@@ -356,27 +348,26 @@ public class UsageState extends AbstractSerializableSingleWrapperState
         ImmutableMap.builder();
     newRelation.putAll(variableBindingRelation);
 
-    for (Entry<AbstractIdentifier, AbstractIdentifier> entry : pOther.variableBindingRelation
-        .entrySet()) {
+    for (Entry<AbstractIdentifier, AbstractIdentifier> entry :
+        pOther.variableBindingRelation.entrySet()) {
 
       if (variableBindingRelation.containsKey(entry.getKey())) {
         if (!variableBindingRelation.get(entry.getKey()).equals(entry.getValue())) {
           throw new UnsupportedOperationException(
-              "Joining states with the same variable binded to the different variables is not supported yet");
+              "Joining states with the same variable binded to the different variables is not"
+                  + " supported yet");
         }
       } else {
         newRelation.put(entry.getKey(), entry.getValue());
       }
     }
     stats.joinTimer.stop();
-    return createState(this.getWrappedState(), newRelation.build(), stats);
+    return createState(this.getWrappedState(), newRelation.buildKeepingLast(), stats);
   }
 
+  @Serial
   protected Object readResolve() {
-    return createState(
-        getWrappedState(),
-        ImmutableMap.of(),
-        new StateStatistics());
+    return createState(getWrappedState(), ImmutableMap.of(), new StateStatistics());
   }
 
   @Override

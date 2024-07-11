@@ -40,7 +40,7 @@ class LocalizedRefinablePrecision extends RefinablePrecision {
 
   @Override
   public LocalizedRefinablePrecision withIncrement(Multimap<CFANode, MemoryLocation> increment) {
-    if (this.rawPrecision.entries().containsAll(increment.entries())) {
+    if (rawPrecision.entries().containsAll(increment.entries())) {
       return this;
     } else {
       ImmutableSetMultimap<CFANode, MemoryLocation> refinedPrec =
@@ -103,12 +103,9 @@ class LocalizedRefinablePrecision extends RefinablePrecision {
 
   @Override
   public boolean tracksTheSameVariablesAs(VariableTrackingPrecision pOtherPrecision) {
-    if (pOtherPrecision.getClass().equals(getClass())
+    return pOtherPrecision.getClass().equals(getClass())
         && super.getBaseline().equals(((LocalizedRefinablePrecision) pOtherPrecision).getBaseline())
-        && rawPrecision.equals(((LocalizedRefinablePrecision) pOtherPrecision).rawPrecision)) {
-      return true;
-    }
-    return false;
+        && rawPrecision.equals(((LocalizedRefinablePrecision) pOtherPrecision).rawPrecision);
   }
 
   @Override

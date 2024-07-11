@@ -13,7 +13,7 @@ import org.sosy_lab.cpachecker.cpa.lock.AbstractLockStateBuilder;
 import org.sosy_lab.cpachecker.cpa.lock.LockIdentifier;
 
 public class AcquireLockEffect extends LockEffectWithId {
-  private final static AcquireLockEffect instance = new AcquireLockEffect();
+  private static final AcquireLockEffect instance = new AcquireLockEffect();
 
   private final int maxRecursiveCounter;
   private final boolean stopAfterLimit;

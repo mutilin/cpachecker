@@ -12,11 +12,11 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static java.util.logging.Level.WARNING;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
-import java.util.Collection;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -31,13 +31,15 @@ import org.sosy_lab.cpachecker.core.counterexample.ReportGenerator;
 import org.sosy_lab.cpachecker.cpa.arg.ARGState;
 import org.sosy_lab.cpachecker.cpa.arg.witnessexport.formatter.WitnessToDotFormatter;
 import org.sosy_lab.cpachecker.cpa.arg.witnessexport.formatter.WitnessToGraphMLFormatter;
-import org.sosy_lab.cpachecker.cpa.slab.SLARGToDotWriter;
 import org.sosy_lab.cpachecker.util.NumericIdProvider;
+import org.sosy_lab.cpachecker.util.StringUtil;
 import org.sosy_lab.cpachecker.util.automaton.AutomatonGraphmlCommon.KeyDef;
 import org.sosy_lab.cpachecker.util.expressions.ExpressionTree;
 import org.sosy_lab.cpachecker.util.expressions.ExpressionTrees;
 
-public class WitnessToOutputFormatsUtils {
+public final class WitnessToOutputFormatsUtils {
+
+  private WitnessToOutputFormatsUtils() {}
 
   /** utility method */
   public static void writeWitness(
@@ -62,6 +64,18 @@ public class WitnessToOutputFormatsUtils {
    */
   public static void writeToGraphMl(Witness witness, Appendable pTarget) throws IOException {
     new WitnessToGraphMLFormatter(witness).appendTo(pTarget);
+  }
+
+  /**
+   * Appends the witness as GraphML to the supplied {@link Appendable}
+   *
+   * @param witness contains the information necessary to generate the GraphML representation
+   * @param pTarget where to append the GraphML
+   * @param pExportAllInvariants enable to also export true invariants
+   */
+  public static void writeToGraphMl(
+      Witness witness, boolean pExportAllInvariants, Appendable pTarget) throws IOException {
+    new WitnessToGraphMLFormatter(witness, pExportAllInvariants).appendTo(pTarget);
   }
 
   /** Appends the witness as Dot/Graphviz to the supplied {@link Appendable}. */
@@ -96,12 +110,9 @@ public class WitnessToOutputFormatsUtils {
         // targetNode = createNewNode(doc, edge.getTarget(), witness);
         sourceNode = new HashMap<>();
 
-        List<Integer> nodeIds = witness
-            .getARGStatesFor(source)
-            .stream()
-            .map(ARGState::getStateId)
-            .collect(ImmutableList.toImmutableList());
-        String nodeString = SLARGToDotWriter.generateLocationString(nodeIds).toString();
+        List<Integer> nodeIds =
+            Lists.transform(witness.getARGStatesFor(source), ARGState::getStateId);
+        StringBuilder nodeString = StringUtil.convertIntegerRangesToStringCollapsed(nodeIds);
         StringBuilder labelBuilder = new StringBuilder(source);
         if (!nodeString.isEmpty()) {
           labelBuilder.append(String.format("%nARG node%s: ", nodeIds.size() == 1 ? "" : "s"));
@@ -138,13 +149,11 @@ public class WitnessToOutputFormatsUtils {
         for (java.util.Map.Entry<KeyDef, String> e : edge.getLabel().getMapping().entrySet()) {
           edgeMap.put(e.getKey().toString(), e.getValue());
         }
-        edgesMap.put(
-            edge.getSource() + "->" + edge.getTarget(),
-            edgeMap);
+        edgesMap.put(edge.getSource() + "->" + edge.getTarget(), edgeMap);
 
         if (nodes.add(edge.getTarget())) {
           if (!ExpressionTrees.getFalse().equals(tree)) {
-          waitlist.push(edge.getTarget());
+            waitlist.push(edge.getTarget());
           }
         }
       }
@@ -152,13 +161,13 @@ public class WitnessToOutputFormatsUtils {
   }
 
   private static String determineNodeType(Witness witness, String source) {
-    Collection<ARGState> states = witness.getARGStatesFor(source);
+    ImmutableList<ARGState> states = witness.getARGStatesFor(source);
     if (!witness.getViolatedProperties().get(source).isEmpty()
         || states.stream().anyMatch(ARGState::isTarget)) {
       return "target";
     } else if (!states.stream().allMatch(ARGState::wasExpanded)) {
       return "not-expanded";
-    } else if (states.stream().anyMatch(ARGState::shouldBeHighlighted)){
+    } else if (states.stream().anyMatch(ARGState::shouldBeHighlighted)) {
       return "highlighted";
     }
     return "";
