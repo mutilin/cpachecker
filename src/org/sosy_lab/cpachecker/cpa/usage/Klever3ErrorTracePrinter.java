@@ -34,12 +34,12 @@ public class Klever3ErrorTracePrinter extends KleverErrorTracePrinter {
 
   @Override
   protected String formatNote(String value) {
-    return "level=\"1\" value=\"" + escapeQuotes(value) + "\"";
+    return "level=\"1\" hide=\"false\" value=\"" + escapeQuotes(value) + "\"";
   }
 
   @Override
   protected void printWarningTo(GraphMlBuilder builder, Element element, String message) {
-    String warning = "level=\"0\" value=\"" + escapeQuotes(message) + "\"";
+    String warning = "level=\"0\" hide=\"false\" value=\"" + escapeQuotes(message) + "\"";
     builder.addDataElementChild(element, KeyDef.NOTE, warning);
   }
 
